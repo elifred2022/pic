@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-
 import { createClient } from "@/lib/supabase/server";
-import ListAdmin from "@/components/ui/listadmin";
+import ListAdmin from "@/components/listadmin";
+
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -17,6 +17,7 @@ export default async function ProtectedPage() {
       <div className="flex flex-col gap-2 items-start">
        
         <ListAdmin />
+        
       </div>
       
     </div>

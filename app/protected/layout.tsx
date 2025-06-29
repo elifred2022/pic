@@ -3,6 +3,9 @@ import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
 import { hasEnvVars } from "@/lib/utils";
 
+
+
+
 export default function ProtectedLayout({
   children,
 }: {
@@ -15,6 +18,8 @@ export default function ProtectedLayout({
           <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
             <div className="flex gap-5 items-center font-semibold">
               <h3>Sus pedidos</h3>
+             
+            
               
             </div>
             {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
