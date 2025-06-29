@@ -5,7 +5,16 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 function ListAdmin() {
-  const [pedidos, setPedidos] = useState<any[]>([]);
+
+  type Pedido = {
+  id: string;
+  created_at: string;
+  necesidad: string;
+  categoria: string;
+  solicita: string;
+  // Agregá más campos si los usás en el .map()
+};
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -19,7 +28,10 @@ function ListAdmin() {
     };
 
     fetchPedidos();
-  }, []);
+  }, [supabase]);
+
+ 
+
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">

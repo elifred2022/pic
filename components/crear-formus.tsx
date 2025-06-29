@@ -32,7 +32,7 @@ export function CrearFormUs({
     setIsLoading(true);
     setError(null);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
       .insert([
         {
