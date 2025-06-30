@@ -1,3 +1,4 @@
+import Link from "next/link";
 
 
 export function Hero() {
@@ -9,9 +10,14 @@ export function Hero() {
       <h1 className="sr-only">Bienvenido al modulo de pedido interno de compras</h1>
       <p className="text-3xl lg:text-4xl !leading-tight mx-auto max-w-xl text-center">
         Bienvenido al modulo de pedido interno de compras, 
-        registrese{" "}
-       
+        registrese, si ya esta regitrado legueese       
       </p>
+       <Link
+        href="/auth/login"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-grey-700 transition-colors duration-200"
+      >
+        login
+      </Link>
       <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent my-8" />
     </div>
   );

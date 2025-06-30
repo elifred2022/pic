@@ -1,11 +1,11 @@
 
-import { CrearFormUs } from "@/components/crear-formus";
+import { CrearFormAdmin } from "@/components/crear-formadmin";
 
 export default function Page() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
-        <CrearFormUs />
+        <CrearFormAdmin />
       </div>
     </div>
   );
