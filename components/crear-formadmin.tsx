@@ -28,8 +28,14 @@ export function CrearFormAdmin({
  const [articulo, setArticulo] = useState("");
  const [descripcion, setDescripcion] = useState("");
  const [estado, setEstado] = useState("");
+ const [prov_uno, setProv_uno] = useState("");
+ const [cost_prov_uno, setCost_prov_uno] = useState("");
+ const [prov_dos, setProv_dos] = useState("");
+ const [cost_prov_dos, setCost_prov_dos] = useState("");
+ const [prov_tres, setProv_tres] = useState("");
+ const [cost_prov_tres, setCost_prov_tres] = useState("");
  const [oc, setOc] = useState("");
- const [proveedor, setProveedor] = useState("");
+ const [proveedor_selec, setProveedor_selec] = useState("");
  const [usd, setUsd] = useState("");
  const [eur, setEur] = useState("");
  const [tc, setTc] = useState("");
@@ -79,8 +85,14 @@ function parseDate(value: string) {
           articulo,
           descripcion,
           estado,
+          prov_uno,
+          cost_prov_uno: parseNumber(cost_prov_uno),
+          prov_dos,
+          cost_prov_dos: parseNumber(cost_prov_dos),
+          prov_tres,
+          cost_prov_tres: parseNumber(cost_prov_tres),
           oc: parseNumber(oc),
-          proveedor,
+          proveedor_selec,
           usd: parseNumber(usd),
           eur: parseNumber(eur),
           tc: parseNumber(tc),
@@ -207,7 +219,7 @@ function parseDate(value: string) {
                 <Input
                   id="descripcion"
                   type="text"
-                  required
+                  
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                 />
@@ -223,6 +235,66 @@ function parseDate(value: string) {
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="prov_uno">Prov 1</Label>
+                <Input
+                  id="prov_uno"
+                  type="text"
+               
+                  value={prov_uno}
+                  onChange={(e) => setProv_uno(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cost_prov_uno">Costo Prov 1</Label>
+                <Input
+                  id="cost_prov_uno"
+                  type="number"
+               
+                  value={cost_prov_uno}
+                  onChange={(e) => setCost_prov_uno(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="prov_dos">Prov 2</Label>
+                <Input
+                  id="prov_dos"
+                  type="text"
+               
+                  value={prov_dos}
+                  onChange={(e) => setProv_dos(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cost_prov_dos">Cost Prov 2</Label>
+                <Input
+                  id="cost_prov_dos"
+                  type="number"
+               
+                  value={cost_prov_dos}
+                  onChange={(e) => setCost_prov_dos(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="prov_tres">Prov 3</Label>
+                <Input
+                  id="prov_tres"
+                  type="text"
+               
+                  value={prov_tres}
+                  onChange={(e) => setProv_tres(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cost_prov_tres">Cost Prov 3</Label>
+                <Input
+                  id="cost_prov_tres"
+                  type="number"
+               
+                  value={cost_prov_tres}
+                  onChange={(e) => setCost_prov_tres(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="oc">O.C.</Label>
                 <Input
                   id="oc"
@@ -233,13 +305,13 @@ function parseDate(value: string) {
                 />
               </div>
                <div className="grid gap-2">
-                <Label htmlFor="proveedor">Proveedor</Label>
+                <Label htmlFor="proveedor_selec">Proveedor selecc</Label>
                 <Input
-                  id="proveedor"
+                  id="proveedor_selec"
                   type="text"
              
-                  value={proveedor}
-                  onChange={(e) => setProveedor(e.target.value)}
+                  value={proveedor_selec}
+                  onChange={(e) => setProveedor_selec(e.target.value)}
                 />
               </div>
                <div className="grid gap-2">
