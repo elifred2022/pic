@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
+
 
 type Pedido = {
   id: string;
@@ -16,6 +16,12 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
+   prov_uno: string;
+  cost_prov_uno: number;
+  prov_dos: string;
+  cost_prov_dos: number;
+  prov_tres: string;
+  cost_prov_tres: number;
   estado: string;
   oc: number;
   proveedor_selec: string;
@@ -30,7 +36,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListUs() {
+export default function ListAprob() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -81,13 +87,8 @@ const filteredPedidos = pedidos.filter((pedido) =>
   className="mb-4 px-4 py-2 border rounded w-full max-w-md"
 />
 
-      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
-      <Link
-        href="/auth/crear-formus"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-      >
-        Nuevo pedido
-      </Link>
+      <h1 className="text-xl font-bold mb-4">Pedidos</h1>
+     
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
@@ -103,6 +104,9 @@ const filteredPedidos = pedidos.filter((pedido) =>
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion</th>
+            <th className="px-4 py-2 border">Prov. 1</th>
+            <th className="px-4 py-2 border">Prov. 2</th>
+            <th className="px-4 py-2 border">Prov. 3</th>
             <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
@@ -166,29 +170,49 @@ const filteredPedidos = pedidos.filter((pedido) =>
               <td className="px-4 py-2 border">{pedido.articulo}</td>
               <td className="px-4 py-2 border">{pedido.descripcion}</td>
               
+               <td className="px-4 py-2 border">
+                <div className="flex flex-col">
+                 <span>{pedido.prov_uno}</span>
+                  <span>${pedido.cost_prov_uno}</span>
+                </div>
+              </td>
+              
               <td className="px-4 py-2 border">
-                <span
-                    className={
-                    pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : "text-black"
-                    }
-                >
-                    {pedido.estado}
-                </span>
+                <div className="flex flex-col">
+                 <span>{pedido.prov_dos}</span>
+                  <span>${pedido.cost_prov_dos}</span>
+                </div>
+                
+              </td>
+             
+              <td className="px-4 py-2 border">
+                 <div className="flex flex-col">
+                 <span>{pedido.prov_tres}</span>
+                  <span>${pedido.cost_prov_tres}</span>
+                </div>
+                
+                </td>
+              <td className="px-4 py-2 border">
+            <span
+                className={
+                pedido.estado === "anulado"
+                    ? "text-red-500 font-semibold"
+                    : pedido.estado === "aprobado"
+                    ? "text-green-600 font-semibold"
+                    : pedido.estado === "cotizado"
+                    ? "text-yellow-600 font-semibold"
+                    : pedido.estado === "stand by"
+                    ? "text-orange-500 font-semibold"
+                    : pedido.estado === "Presentar presencial"
+                    ? "text-orange-500 font-semibold"
+                    : pedido.estado === "cumplido"
+                    ? "text-green-800 font-semibold"
+                    : "text-black"
+                }
+            >
+                {pedido.estado}
+            </span>
             </td>
-              
-              
               <td className="px-4 py-2 border">{pedido.oc}</td>
               <td className="px-4 py-2 border">{pedido.proveedor_selec}</td>
              
@@ -211,51 +235,47 @@ const filteredPedidos = pedidos.filter((pedido) =>
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
             
-             <label className="block mb-4">
-            <p className="text-black">Descripcion</p>
-              <input
+           <label className="block mb-4">
+  <p className="text-black">Estado</p>
+            <select
                 className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.descripcion ?? 0}
+                value={formData.estado ?? ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value })
+                setFormData({ ...formData, estado: e.target.value })
                 }
-              />
-            </label>
-            <label className="block mb-2">
-               <p className="text-black">Fecha entrega</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="date"
-                value={formData.fecha_ent ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_ent: e.target.value })
-                }
-              />
-            </label>
+            >
+                <option value="">Seleccionar estado</option>
             
+                <option value="aprobado" className="bg-green-400 text-white">
+                Aprobado
+                </option>
+                <option value="stand by" className="bg-orange-300 text-black">
+                Stand By
+                </option>
+                <option value="anulado" className="bg-red-500 text-white">
+                Anulado
+                </option>
+                <option value="Presentar presencial" className="bg-green-600 text-white">
+                Presentar presencial
+                </option>
+            </select>
+            </label>
+
+            
+           
              <label className="block mb-4">
-           <p className="text-black">Rto.</p>
+             <p className="text-black">Proveedor selec.</p>
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
-                value={formData.rto ?? 0}
+                value={formData.proveedor_selec ?? 0}
                 onChange={(e) =>
-                  setFormData({ ...formData, rto: Number(e.target.value)  })
+                  setFormData({ ...formData, proveedor_selec: e.target.value})
                 }
               />
             </label>
-             <label className="block mb-4">
-            <p className="text-black">Fac.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.fac ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, fac: Number(e.target.value)  })
-                }
-              />
-            </label>
+           
+           
           
                       
 

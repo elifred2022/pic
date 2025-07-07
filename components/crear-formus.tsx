@@ -1,0 +1,220 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client"; // debe devolver un cliente ya autenticado
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export function CrearFormUs({
+  className,
+  ...props
+}: React.ComponentPropsWithoutRef<"div">) {
+  const [necesidad, setNecesidad] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [solicita, setSolicita] = useState("");
+  const [sector, setSector] = useState("");
+  const [cc, setCc] = useState("");
+ const [cant, setCant] = useState("");
+ const [cant_exist, setCant_exist] = useState("");
+ const [articulo, setArticulo] = useState("");
+ const [descripcion, setDescripcion] = useState("");
+ const [estado, setEstado] = useState("");
+ 
+ const [oc, setOc] = useState("");
+ const [proveedor_selec, setProveedor_selec] = useState("");
+ 
+ const [fecha_conf, setFecha_conf] = useState("");
+ const [fecha_prom, setFecha_prom] = useState("");
+ const [fecha_ent, setFecha_ent] = useState("");
+ const [rto, setRto] = useState("");
+ const [fac, setFac] = useState("");
+ 
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const supabase = createClient(); // crea el cliente conectado
+
+function parseNumber(value: string) {
+  return value.trim() === "" ? null : Number(value);
+}
+
+function parseDate(value: string) {
+  return value.trim() === "" ? null : value;
+}
+
+
+  const handleCrear = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const { error } = await supabase
+      .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
+      .insert([
+        {
+         
+          necesidad: necesidad,
+          categoria,
+          solicita,
+          sector,
+          cc: parseNumber(cc),
+          cant: parseNumber(cant),
+          cant_exist: parseNumber(cant_exist),
+          articulo,
+          descripcion,
+          estado,
+         
+          oc: parseNumber(oc),
+          proveedor_selec,
+          
+          fecha_conf: parseDate(fecha_conf),
+          fecha_prom: parseDate(fecha_prom),
+          fecha_ent: parseDate(fecha_ent),
+          rto: parseNumber(rto),
+          fac: parseNumber(fac),
+         
+
+
+        },
+      ]);
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Error al insertar:", error);
+      setError("Hubo un error al crear el pedido.");
+    } else {
+      // redirecciona o resetea formulario
+      router.push("/protected"); // 🔁 O la ruta que prefieras después de crear
+    }
+  };
+
+  return (
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Cargue su pedido</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCrear}>
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="necesidad">Fecha de necesidad</Label>
+                <Input
+                  id="necesidad"
+                  type="date"
+                  required
+                  value={necesidad}
+                  onChange={(e) => setNecesidad(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="categoria">Categoría</Label>
+                <Input
+                  id="categoria"
+                  type="text"
+                  required
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="solicita">Solicita</Label>
+                <Input
+                  id="solicita"
+                  type="text"
+                  required
+                  value={solicita}
+                  onChange={(e) => setSolicita(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="sector">Sector</Label>
+                <Input
+                  id="sector"
+                  type="text"
+                  required
+                  value={sector}
+                  onChange={(e) => setSector(e.target.value)}
+                />
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="cc">Cod cta</Label>
+                <Input
+                  id="cc"
+                  type="number"
+                  required
+                  value={cc}
+                  onChange={(e) => setCc(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cant">Cant</Label>
+                <Input
+                  id="cant"
+                  type="number"
+                  required
+                  value={cant}
+                  onChange={(e) => setCant(e.target.value)}
+                />
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="cant_exist">Cant exist</Label>
+                <Input
+                  id="cant_exist"
+                  type="number"
+                  required
+                  value={cant_exist}
+                  onChange={(e) => setCant_exist(e.target.value)}
+                />
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="articulo">Articulo</Label>
+                <Input
+                  id="articulo"
+                  type="text"
+                  required
+                  value={articulo}
+                  onChange={(e) => setArticulo(e.target.value)}
+                />
+              </div>
+               <div className="grid gap-2">
+                <Label htmlFor="descripcion">Descripcion</Label>
+                <Input
+                  id="descripcion"
+                  type="text"
+                  
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </div>
+              
+               
+              
+
+       
+
+              {error && <p className="text-red-600 text-sm">{error}</p>}
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Cargando..." : "Crear"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
