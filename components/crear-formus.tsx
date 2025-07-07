@@ -39,9 +39,7 @@ function parseNumber(value: string) {
   return value.trim() === "" ? null : Number(value);
 }
 
-function parseDate(value: string) {
-  return value.trim() === "" ? null : value;
-}
+
 
 
   const handleCrear = async (e: React.FormEvent) => {

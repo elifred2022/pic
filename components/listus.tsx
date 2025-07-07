@@ -46,7 +46,7 @@ export default function ListUs() {
       else setPedidos(data);
     };
     fetchPedidos();
-  }, []);
+  }, [supabase]);
 
   // funcion para formatear las fechas
  function formatDate(dateString: string | null): string {
