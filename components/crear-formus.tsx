@@ -27,16 +27,7 @@ export function CrearFormUs({
  const [cant_exist, setCant_exist] = useState("");
  const [articulo, setArticulo] = useState("");
  const [descripcion, setDescripcion] = useState("");
- const [estado, setEstado] = useState("");
  
- const [oc, setOc] = useState("");
- const [proveedor_selec, setProveedor_selec] = useState("");
- 
- const [fecha_conf, setFecha_conf] = useState("");
- const [fecha_prom, setFecha_prom] = useState("");
- const [fecha_ent, setFecha_ent] = useState("");
- const [rto, setRto] = useState("");
- const [fac, setFac] = useState("");
  
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,16 +63,7 @@ function parseDate(value: string) {
           cant_exist: parseNumber(cant_exist),
           articulo,
           descripcion,
-          estado,
-         
-          oc: parseNumber(oc),
-          proveedor_selec,
           
-          fecha_conf: parseDate(fecha_conf),
-          fecha_prom: parseDate(fecha_prom),
-          fecha_ent: parseDate(fecha_ent),
-          rto: parseNumber(rto),
-          fac: parseNumber(fac),
          
 
 
