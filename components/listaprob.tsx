@@ -172,23 +172,23 @@ const filteredPedidos = pedidos.filter((pedido) =>
               
                <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_uno}</span>
-                  <span>${pedido.cost_prov_uno}</span>
+                 <span>{pedido.prov_uno || ""}</span>
+                  <span>${pedido.cost_prov_uno || ""}</span>
                 </div>
               </td>
               
               <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_dos}</span>
-                  <span>${pedido.cost_prov_dos}</span>
+                 <span>{pedido.prov_dos || ""}</span>
+                  <span>${pedido.cost_prov_dos || ""}</span>
                 </div>
                 
               </td>
              
               <td className="px-4 py-2 border">
                  <div className="flex flex-col">
-                 <span>{pedido.prov_tres}</span>
-                  <span>${pedido.cost_prov_tres}</span>
+                 <span>{pedido.prov_tres || ""}</span>
+                  <span>${pedido.cost_prov_tres || ""}</span>
                 </div>
                 
                 </td>
@@ -210,17 +210,17 @@ const filteredPedidos = pedidos.filter((pedido) =>
                     : "text-black"
                 }
             >
-                {pedido.estado}
+                {pedido.estado || ""}
             </span>
             </td>
-              <td className="px-4 py-2 border">{pedido.oc}</td>
-              <td className="px-4 py-2 border">{pedido.proveedor_selec}</td>
+              <td className="px-4 py-2 border">{pedido.oc || ""}</td>
+              <td className="px-4 py-2 border">{pedido.proveedor_selec || ""}</td>
              
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-              <td className="px-4 py-2 border">{pedido.rto}</td>
-              <td className="px-4 py-2 border">{pedido.fac}</td>
+              <td className="px-4 py-2 border">{pedido.rto || ""}</td>
+              <td className="px-4 py-2 border">{pedido.fac || ""}</td>
              
               
             
