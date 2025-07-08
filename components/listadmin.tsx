@@ -80,11 +80,19 @@ const filteredPedidos = pedidos.filter((pedido) =>
   )
 );
 
-function renderValue(value: any): string {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "string" && value.trim() === "") return "-";
+function renderValue(value: unknown): string {
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "") ||
+    value === ""
+  ) {
+    return "-";
+  }
+
   return String(value);
 }
+
 
 
 
