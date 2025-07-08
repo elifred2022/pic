@@ -74,7 +74,11 @@ const filteredPedidos = pedidos.filter((pedido) =>
   )
 );
 
-
+function renderValue(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" && value.trim() === "") return "-";
+  return String(value);
+}
 
 
   return (
@@ -192,29 +196,29 @@ const filteredPedidos = pedidos.filter((pedido) =>
                 </div>
                 
                 </td>
-              <td className="px-4 py-2 border">
-            <span
-                className={
-                pedido.estado === "anulado"
-                    ? "text-red-500 font-semibold"
-                    : pedido.estado === "aprobado"
-                    ? "text-green-600 font-semibold"
-                    : pedido.estado === "cotizado"
-                    ? "text-yellow-600 font-semibold"
-                    : pedido.estado === "stand by"
-                    ? "text-orange-500 font-semibold"
-                    : pedido.estado === "Presentar presencial"
-                    ? "text-orange-500 font-semibold"
-                    : pedido.estado === "cumplido"
-                    ? "text-green-800 font-semibold"
-                    : "text-black"
-                }
-            >
-                {pedido.estado || ""}
-            </span>
+               <td className="px-4 py-2 border">
+                <span
+                    className={
+                    pedido.estado === "anulado"
+                        ? "text-red-500 font-semibold"
+                        : pedido.estado === "aprobado"
+                        ? "text-green-600 font-semibold"
+                        : pedido.estado === "cotizado"
+                        ? "text-yellow-600 font-semibold"
+                        : pedido.estado === "stand by"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "Presentar presencial"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "cumplido"
+                        ? "text-green-800 font-semibold"
+                        : "text-black"
+                    }
+                >
+                   {renderValue(pedido.estado)}
+                </span>
             </td>
               <td className="px-4 py-2 border">{pedido.oc || ""}</td>
-              <td className="px-4 py-2 border">{pedido.proveedor_selec || ""}</td>
+              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
              
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>

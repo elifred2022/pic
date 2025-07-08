@@ -179,7 +179,7 @@ function parseDate(value: string) {
                 <Input
                   id="cc"
                   type="number"
-                  required
+                  
                   value={cc}
                   onChange={(e) => setCc(e.target.value)}
                 />

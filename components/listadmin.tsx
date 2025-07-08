@@ -80,6 +80,12 @@ const filteredPedidos = pedidos.filter((pedido) =>
   )
 );
 
+function renderValue(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" && value.trim() === "") return "-";
+  return String(value);
+}
+
 
 
 
@@ -115,10 +121,11 @@ const filteredPedidos = pedidos.filter((pedido) =>
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion</th>
-            <th className="px-4 py-2 border">Estado</th>
+            
             <th className="px-4 py-2 border">Prov. 1</th>
             <th className="px-4 py-2 border">Prov. 2</th>
             <th className="px-4 py-2 border">Prov. 3</th>
+            <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
             <th className="px-4 py-2 border">USD</th>
@@ -139,6 +146,7 @@ const filteredPedidos = pedidos.filter((pedido) =>
             
           </tr>
         </thead>
+          
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
@@ -244,6 +252,8 @@ const filteredPedidos = pedidos.filter((pedido) =>
                 </div>
                 
                 </td>
+
+               
               
              <td className="px-4 py-2 border">
                 <span
@@ -263,12 +273,12 @@ const filteredPedidos = pedidos.filter((pedido) =>
                         : "text-black"
                     }
                 >
-                    {pedido.estado}
+                   {renderValue(pedido.estado)}
                 </span>
             </td>
               
               <td className="px-4 py-2 border">{pedido.oc}</td>
-              <td className="px-4 py-2 border">{pedido.proveedor_selec}</td>
+              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
               <td className="px-4 py-2 border">{pedido.usd}</td>
               <td className="px-4 py-2 border">{pedido.eur}</td>
               <td className="px-4 py-2 border">{pedido.tc}</td>
@@ -289,6 +299,8 @@ const filteredPedidos = pedidos.filter((pedido) =>
           ))}
         </tbody>
       </table>
+    
+      
 
       {/* MODAL */}
       {editingPedido && (

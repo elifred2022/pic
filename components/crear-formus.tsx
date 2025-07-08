@@ -41,11 +41,14 @@ function parseNumber(value: string) {
 
 
 
-
   const handleCrear = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    const {
+  data: { user },
+} = await supabase.auth.getUser();
 
     const { error } = await supabase
       .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
@@ -61,10 +64,8 @@ function parseNumber(value: string) {
           cant_exist: parseNumber(cant_exist),
           articulo,
           descripcion,
-          
-         
-
-
+          uuid: user?.id,
+  
         },
       ]);
 
@@ -134,30 +135,42 @@ function parseNumber(value: string) {
                 <Label htmlFor="cc">Cod cta</Label>
                 <Input
                   id="cc"
-                  type="number"
-                  required
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={cc}
-                  onChange={(e) => setCc(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) setCc(value); // solo dígitos
+                  }}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="cant">Cant</Label>
+                <Label htmlFor="cant">Cant Sol</Label>
                 <Input
                   id="cant"
-                  type="number"
-                  required
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={cant}
-                  onChange={(e) => setCant(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) setCant(value); // solo dígitos
+                  }}
                 />
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="cant_exist">Cant exist</Label>
-                <Input
+                 <Input
                   id="cant_exist"
-                  type="number"
-                  required
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={cant_exist}
-                  onChange={(e) => setCant_exist(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) setCant_exist(value); // solo dígitos
+                  }}
                 />
               </div>
                <div className="grid gap-2">
