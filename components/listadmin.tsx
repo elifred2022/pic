@@ -483,32 +483,32 @@ function renderValue(value: unknown): string {
               />
             </label>
            <label className="block mb-4">
-  <p className="text-black">Estado</p>
-  <select
-    className="w-full border p-2 rounded mt-1"
-    value={formData.estado ?? ""}
-    onChange={(e) =>
-      setFormData({ ...formData, estado: e.target.value })
-    }
-  >
-    <option value="">Seleccionar estado</option>
-    <option value="cotizado" className="bg-yellow-300 text-black">
-      Cotizado
-    </option>
-    <option value="aprobado" className="bg-green-400 text-white">
-      Aprobado
-    </option>
-    <option value="stand by" className="bg-orange-300 text-black">
-      Stand By
-    </option>
-    <option value="anulado" className="bg-red-500 text-white">
-      Anulado
-    </option>
-    <option value="cumplido" className="bg-green-600 text-white">
-      Cumplido
-    </option>
-  </select>
-</label>
+              <p className="text-black">Estado</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.estado ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, estado: e.target.value })
+                }
+              >
+                <option value="">Seleccionar estado</option>
+                <option value="cotizado" className="bg-yellow-300 text-black">
+                  Cotizado
+                </option>
+                <option value="aprobado" className="bg-green-400 text-white">
+                  Aprobado
+                </option>
+                <option value="stand by" className="bg-orange-300 text-black">
+                  Stand By
+                </option>
+                <option value="anulado" className="bg-red-500 text-white">
+                  Anulado
+                </option>
+                <option value="cumplido" className="bg-green-600 text-white">
+                  Cumplido
+                </option>
+              </select>
+                  </label>
 
              <label className="block mb-4">
                <p className="text-black">OC</p>

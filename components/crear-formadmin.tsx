@@ -165,15 +165,31 @@ function parseDate(value: string) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="sector">Sector</Label>
-                <Input
-                  id="sector"
-                  type="text"
-                  required
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value)}
-                />
-                </div>
+                    <Label htmlFor="sector">Sector</Label>
+                    <select
+                      id="sector"
+                      required
+                      value={sector}
+                      onChange={(e) => setSector(e.target.value)}
+                      className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
+                    >
+                      <option value="">Seleccione un sector</option>
+                      <option value="Pañol Cardales">Pañol Cardales</option>
+                      <option value="Pañol Gascon">Pañol Gascon</option>
+                      <option value="Mantenimiento">Mantenimiento</option>
+                      <option value="RRHH">RRHH</option>
+                      <option value="Seguridad e Higiene">Seguridad e Higiene</option>
+                      <option value="Vidrio">Vidrio</option>
+                      <option value="Pvc">Pvc</option>
+                      <option value="Perf. Aluminio">Perf. Aluminio</option>
+                      <option value="Administracion">Administración</option>
+                      <option value="Colocaciones">Colocaciones</option>
+                      <option value="Reparaciones">Reparaciones</option>
+                       <option value="Reparaciones">Mediciones</option>
+                      <option value="Edilicio">Maestranza</option>
+                    </select>
+                  </div>
+
                 <div className="grid gap-2">
                 <Label htmlFor="cc">Cod cta</Label>
                 <Input
