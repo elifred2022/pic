@@ -17,6 +17,7 @@ type Pedido = {
   articulo: string;
   descripcion: string;
   estado: string;
+  aprueba: string;
   oc: number;
   proveedor_selec: string;
   usd: number;
@@ -134,6 +135,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Prov. 2</th>
             <th className="px-4 py-2 border">Prov. 3</th>
             <th className="px-4 py-2 border">Estado</th>
+            <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
             <th className="px-4 py-2 border">USD</th>
@@ -284,7 +286,7 @@ function renderValue(value: unknown): string {
                    {renderValue(pedido.estado)}
                 </span>
             </td>
-              
+              <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
               <td className="px-4 py-2 border">{pedido.oc}</td>
               <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
               <td className="px-4 py-2 border">{pedido.usd}</td>
@@ -506,6 +508,40 @@ function renderValue(value: unknown): string {
                 </option>
                 <option value="cumplido" className="bg-green-600 text-white">
                   Cumplido
+                </option>
+              </select>
+                  </label>
+
+            <label className="block mb-4">
+              <p className="text-black">Aprueba</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.aprueba ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, aprueba: e.target.value })
+                }
+              >
+                <option value="">Selec. responsable de area</option>
+                <option value="Juan S." >
+                  Juan S.
+                </option>
+                <option value="Julio A." >
+                  Julio A.
+                </option>
+                <option value="Luciana L." >
+                  Luciana L.
+                </option>
+                <option value="Eduardo S." >
+                  Eduardo S.
+                </option>
+                <option value="Pedro S.">
+                  Pedro S.
+                </option>
+                <option value="Sofia S." >
+                  Sofia S.
+                </option>
+                <option value=" Carolina S." >
+                  Carolina S.
                 </option>
               </select>
                   </label>

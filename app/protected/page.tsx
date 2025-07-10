@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import ListAdmin from "@/components/listadmin";
 import ListUs from "@/components/listus";
 import ListAprob from "@/components/listaprob";
+import ListConsultas from "@/components/listconsultas";
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -17,6 +18,7 @@ export default async function ProtectedPage() {
   const adminEmails = [
     
     "asistentecompras@perfilesyservicios.com.ar",
+    
   ];
 
   const aprobEmails = [
@@ -27,12 +29,20 @@ export default async function ProtectedPage() {
     "elifredmason@gmail.com",
   ];
 
+    const consultasEmails = [
+    
+    "victor@perfilesyservicios.com.ar",
+    
+  ];
+
   let ComponentToRender = <ListUs />;
 
   if (adminEmails.includes(email)) {
     ComponentToRender = <ListAdmin />;
   } else if (aprobEmails.includes(email)) {
     ComponentToRender = <ListAprob />;
+  } else if (consultasEmails.includes(email)) {
+    ComponentToRender = <ListConsultas/>
   }
 
   return (

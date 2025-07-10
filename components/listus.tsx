@@ -17,6 +17,7 @@ type Pedido = {
   articulo: string;
   descripcion: string;
   estado: string;
+  aprueba: string;
   oc: number;
   proveedor_selec: string;
  
@@ -138,6 +139,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion</th>
             <th className="px-4 py-2 border">Estado</th>
+            <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
             <th className="px-4 py-2 border">Fecha confirm</th>
@@ -218,7 +220,7 @@ function renderValue(value: unknown): string {
           {renderValue(pedido.estado)}
         </span>
       </td>
-
+      <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>

@@ -34,6 +34,7 @@ export function CrearFormAdmin({
  const [cost_prov_dos, setCost_prov_dos] = useState("");
  const [prov_tres, setProv_tres] = useState("");
  const [cost_prov_tres, setCost_prov_tres] = useState("");
+ const [aprueba, setAprueba] = useState("");
  const [oc, setOc] = useState("");
  const [proveedor_selec, setProveedor_selec] = useState("");
  const [usd, setUsd] = useState("");
@@ -85,6 +86,7 @@ function parseDate(value: string) {
           articulo,
           descripcion,
           estado,
+          aprueba,
           prov_uno,
           cost_prov_uno: parseNumber(cost_prov_uno),
           prov_dos,
@@ -144,14 +146,19 @@ function parseDate(value: string) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="categoria">Categoría</Label>
-                <Input
-                  id="categoria"
-                  type="text"
-                  required
-                  value={categoria}
-                  onChange={(e) => setCategoria(e.target.value)}
-                />
+                    <Label htmlFor="categoria">Categoria</Label>
+                    <select
+                      id="categoria"
+                      required
+                      value={categoria}
+                      onChange={(e) => setCategoria(e.target.value)}
+                      className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
+                    >
+                      <option value="">Seleccione categoria</option>
+                      <option value="Pañol Cardales">Programado</option>
+                      <option value="Pañol Gascon">Urgente</option>
+                     
+                    </select>
               </div>
 
               <div className="grid gap-2">
@@ -249,6 +256,26 @@ function parseDate(value: string) {
                   value={estado}
                   onChange={(e) => setEstado(e.target.value)}
                 />
+              </div>
+               <div className="grid gap-2">
+                    <Label htmlFor="aprueba">Aprueba</Label>
+                    <select
+                      id="aprueba"
+                      required
+                      value={aprueba}
+                      onChange={(e) => setAprueba(e.target.value)}
+                      className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
+                    >
+                      <option value="">Seleccione responsable de area</option>
+                      <option value="Juan S.">Juan S.</option>
+                      <option value="Julio A">Julio A.</option>
+                      <option value="Luciana L.">Luciana L.</option>
+                      <option value="Eduardo S.">Eduardo S.</option>
+                      <option value="Pedro S.">Pedro S.</option>
+                      <option value="Sofia S.">Sofia S.</option>
+                      <option value="Carolina S.">Carolina S.</option>
+                     
+                    </select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="prov_uno">Prov 1</Label>

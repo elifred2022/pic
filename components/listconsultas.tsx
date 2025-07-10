@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-
+import Link from "next/link";
 
 type Pedido = {
   id: string;
@@ -16,28 +16,34 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
-   prov_uno: string;
-  cost_prov_uno: number;
-  prov_dos: string;
-  cost_prov_dos: number;
-  prov_tres: string;
-  cost_prov_tres: number;
   estado: string;
   aprueba: string;
   oc: number;
   proveedor_selec: string;
- 
+  usd: number;
+  eur: number;
+  tc: number;
+  ars: number;
+  porcent: number;
+  ars_desc: number;
+  total_simp: number;
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
   rto: number;
   fac: number;
-  
-  
+  mod_pago: string;
+  proceso: string;
+  prov_uno: string;
+  cost_prov_uno: number;
+  prov_dos: string;
+  cost_prov_dos: number;
+  prov_tres: string;
+  cost_prov_tres: number;
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListAprob() {
+export default function ListConsultas() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -90,18 +96,25 @@ function renderValue(value: unknown): string {
 
 
 
+
+
   return (
     <div className="flex-1 w-full overflow-auto p-4">
       <input
-  type="text"
-  placeholder="Buscar..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-  className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-/>
+        type="text"
+        placeholder="Buscar..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+        />
 
-      <h1 className="text-xl font-bold mb-4">Pedidos</h1>
-     
+      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
+      <Link
+        href="/auth/crear-formus"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+      >
+        Nuevo pedido
+      </Link>
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
@@ -117,6 +130,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion</th>
+            
             <th className="px-4 py-2 border">Prov. 1</th>
             <th className="px-4 py-2 border">Prov. 2</th>
             <th className="px-4 py-2 border">Prov. 3</th>
@@ -124,16 +138,25 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
+            <th className="px-4 py-2 border">USD</th>
+            <th className="px-4 py-2 border">EUR</th>
+            <th className="px-4 py-2 border">T.C</th>
+            <th className="px-4 py-2 border">ARS</th>
+            <th className="px-4 py-2 border">% Desc</th>
+            <th className="px-4 py-2 border">ARS Con desc</th>
+            <th className="px-4 py-2 border">Total sin imp</th>
             <th className="px-4 py-2 border">Fecha confirm</th>
             <th className="px-4 py-2 border">Fecha prometida</th>
             <th className="px-4 py-2 border">Fecha entrega</th>
             <th className="px-4 py-2 border">Rto</th>
             <th className="px-4 py-2 border">Fact</th>
-           
+            <th className="px-4 py-2 border">MOD pago</th>
+            <th className="px-4 py-2 border">Proceso</th>
            
             
           </tr>
         </thead>
+          
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
@@ -157,20 +180,33 @@ function renderValue(value: unknown): string {
                         estado: pedido.estado,
                         oc: pedido.oc,
                         proveedor_selec: pedido.proveedor_selec,
-                       
+                        usd: pedido.usd,
+                        eur: pedido.eur,
+                        tc: pedido.tc,
+                        ars: pedido.ars,
+                        porcent: pedido.porcent,
+                        ars_desc: pedido.ars_desc,
+                        total_simp: pedido.total_simp,
                         fecha_conf: pedido.fecha_conf,
                         fecha_prom: pedido.fecha_prom,
                         fecha_ent: pedido.fecha_ent,
                         rto: pedido.rto,
                         fac: pedido.fac,
-                       
+                        mod_pago: pedido.mod_pago,
+                        proceso: pedido.proceso,
+                        prov_uno: pedido.prov_uno,
+                        cost_prov_uno: pedido.cost_prov_uno,
+                        prov_dos: pedido.prov_dos,
+                        cost_prov_dos: pedido.cost_prov_dos,
+                        prov_tres: pedido.prov_tres,
+                        cost_prov_tres: pedido.cost_prov_tres
                       });
                     }}
                   >
                     Edit
                   </button>
 
-                  
+                 
                 </div></td>
               <td className="px-4 py-2 border">{pedido.id}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.created_at) || "-"}</td>
@@ -183,30 +219,33 @@ function renderValue(value: unknown): string {
               <td className="px-4 py-2 border">{pedido.cant_exist}</td>
               <td className="px-4 py-2 border">{pedido.articulo}</td>
               <td className="px-4 py-2 border">{pedido.descripcion}</td>
-              
-               <td className="px-4 py-2 border">
+             
+              <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_uno || ""}</span>
-                  <span>${pedido.cost_prov_uno || ""}</span>
+                 <span>{pedido.prov_uno}</span>
+                  <span>${pedido.cost_prov_uno}</span>
                 </div>
               </td>
               
               <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_dos || ""}</span>
-                  <span>${pedido.cost_prov_dos || ""}</span>
+                 <span>{pedido.prov_dos}</span>
+                  <span>${pedido.cost_prov_dos}</span>
                 </div>
                 
               </td>
              
               <td className="px-4 py-2 border">
                  <div className="flex flex-col">
-                 <span>{pedido.prov_tres || ""}</span>
-                  <span>${pedido.cost_prov_tres || ""}</span>
+                 <span>{pedido.prov_tres}</span>
+                  <span>${pedido.cost_prov_tres}</span>
                 </div>
                 
                 </td>
-               <td className="px-4 py-2 border">
+
+               
+              
+             <td className="px-4 py-2 border">
                 <span
                     className={
                     pedido.estado === "anulado"
@@ -227,104 +266,97 @@ function renderValue(value: unknown): string {
                    {renderValue(pedido.estado)}
                 </span>
             </td>
-            <td className="px-4 py-2 border">{pedido.aprueba || ""}</td>
-              <td className="px-4 py-2 border">{pedido.oc || ""}</td>
-              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec || "")}</td>
-             
+              <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
+              <td className="px-4 py-2 border">{pedido.oc}</td>
+              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
+              <td className="px-4 py-2 border">{pedido.usd}</td>
+              <td className="px-4 py-2 border">{pedido.eur}</td>
+              <td className="px-4 py-2 border">{pedido.tc}</td>
+              <td className="px-4 py-2 border">{pedido.ars}</td>
+              <td className="px-4 py-2 border">{pedido.porcent}</td>
+              <td className="px-4 py-2 border">{pedido.ars_desc}</td>
+              <td className="px-4 py-2 border">{pedido.total_simp}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-              <td className="px-4 py-2 border">{pedido.rto || ""}</td>
-              <td className="px-4 py-2 border">{pedido.fac || ""}</td>
-             
+              <td className="px-4 py-2 border">{pedido.rto}</td>
+              <td className="px-4 py-2 border">{pedido.fac}</td>
+              <td className="px-4 py-2 border">{pedido.mod_pago}</td>
+              <td className="px-4 py-2 border">{pedido.proceso}</td>
               
             
             </tr>
           ))}
         </tbody>
       </table>
+    
+      
 
       {/* MODAL */}
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
-            
-           <label className="block mb-4">
-  <p className="text-black">Estado</p>
-            <select
-                className="w-full border p-2 rounded mt-1"
-                value={formData.estado ?? ""}
-                onChange={(e) =>
-                setFormData({ ...formData, estado: e.target.value })
-                }
-            >
-                <option value="">Seleccionar estado</option>
-            
-                <option value="aprobado" className="bg-green-400 text-white">
-                Aprobado
-                </option>
-                <option value="stand by" className="bg-orange-300 text-black">
-                Stand By
-                </option>
-                <option value="anulado" className="bg-red-500 text-white">
-                Anulado
-                </option>
-                <option value="Presentar presencial" className="bg-green-600 text-white">
-                Presentar presencial
-                </option>
-            </select>
-            </label>
-
-            
            
-             <label className="block mb-4">
-             <p className="text-black">Proveedor selec.</p>
+            <label className="block mb-4">
+             <p className="text-black">Cant. Exist</p>
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
-                value={formData.proveedor_selec ?? 0}
+                value={formData.cant_exist ?? 0}
                 onChange={(e) =>
-                  setFormData({ ...formData, proveedor_selec: e.target.value})
+                  setFormData({ ...formData, cant_exist: Number(e.target.value) })
+                }
+              />
+            </label>
+            
+             <label className="block mb-4">
+             <p className="text-black">Descripcion</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.descripcion ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, descripcion: e.target.value })
                 }
               />
             </label>
            
-            <label className="block mb-4">
-              <p className="text-black">Aprueba</p>
-              <select
+             <label className="block mb-2">
+               <p className="text-black">Fecha entrega</p>
+              <input
                 className="w-full border p-2 rounded mt-1"
-                value={formData.aprueba ?? ""}
+                type="date"
+                value={formData.fecha_ent ?? ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, aprueba: e.target.value })
+                  setFormData({ ...formData, fecha_ent: e.target.value })
                 }
-              >
-                <option value="">Selec. responsable de area</option>
-                <option value="Juan S." >
-                  Juan S.
-                </option>
-                <option value="Julio A." >
-                  Julio A.
-                </option>
-                <option value="Luciana L." >
-                  Luciana L.
-                </option>
-                <option value="Eduardo S." >
-                  Eduardo S.
-                </option>
-                <option value="Pedro S." >
-                  Pedro S.
-                </option>
-                <option value="Sofia S." >
-                  Sofia S.
-                </option>
-                <option value=" Carolina S." >
-                  Carolina S.
-                </option>
-              </select>
-                  </label>
-
-          
+              />
+            </label>
+             <label className="block mb-4">
+                 <p className="text-black">Rto</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.rto ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, rto: Number(e.target.value)  })
+                }
+              />
+            </label>
+             <label className="block mb-4">
+               <p className="text-black">Fac</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.fac ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, fac: Number(e.target.value)  })
+                }
+              />
+            </label>
+           
+             
                       
 
             <div className="flex justify-end space-x-2">
