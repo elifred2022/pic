@@ -27,6 +27,7 @@ export function CrearFormUs({
  const [cant_exist, setCant_exist] = useState("");
  const [articulo, setArticulo] = useState("");
  const [descripcion, setDescripcion] = useState("");
+ 
  const [aprueba, setAprueba] = useState("");
  
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +65,7 @@ function parseNumber(value: string) {
           cant_exist: parseNumber(cant_exist),
           articulo,
           descripcion,
+          
           aprueba,
           uuid: user?.id,
   
@@ -149,7 +151,7 @@ function parseNumber(value: string) {
                       <option value="Colocaciones">Colocaciones</option>
                       <option value="Reparaciones">Reparaciones</option>
                       <option value="Reparaciones">Mediciones</option>
-                      <option value="Edilicio">Maestranza</option>
+                      <option value="Maestranza">Maestranza</option>
                       <option value="Compras">Compras</option>
                     </select>
                   </div>

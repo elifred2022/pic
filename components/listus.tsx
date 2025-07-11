@@ -35,6 +35,7 @@ export default function ListUs() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
+  const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
@@ -84,11 +85,43 @@ export default function ListUs() {
   return date.toLocaleDateString("es-AR");
 }
 
-const filteredPedidos = pedidos.filter((pedido) =>
-  Object.values(pedido).some((val) =>
-    String(val).toLowerCase().includes(search.toLowerCase())
-  )
-);
+//Campos de tabla que son fecha para funcion filtrar
+const dateFields: (keyof Pedido)[] = [
+  "created_at",
+  "necesidad",
+  "fecha_conf",
+  "fecha_prom",
+  "fecha_ent",
+];
+
+//Filtro que también contempla las fechas
+const filteredPedidos = pedidos
+  .filter((pedido) => {
+    const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
+    if (!s) return true;                     // si el input está vacío, no filtra nada
+
+    return Object.entries(pedido).some(([key, value]) => {
+      if (value === null || value === undefined) return false;
+
+      // A) Comparar contra la versión texto “tal cual viene”
+      if (String(value).toLowerCase().includes(s)) return true;
+
+      // B) Si el campo es fecha, probar otras representaciones
+      if (dateFields.includes(key as keyof Pedido)) {
+        const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
+        const niceDate = formatDate(value as string);         // DD/MM/YYYY
+
+        return (
+          isoDate.toLowerCase().includes(s) ||
+          niceDate.toLowerCase().includes(s)
+        );
+      }
+      return false;
+    });
+  })
+  .filter((pedido) => !ocultarCumplidos || pedido.estado !== "cumplido");
+
+
 
 
 function renderValue(value: unknown): string {
@@ -109,12 +142,23 @@ function renderValue(value: unknown): string {
   return (
     <div className="flex-1 w-full overflow-auto p-4">
       <input
-  type="text"
-  placeholder="Buscar..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-  className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-/>
+          type="text"
+          placeholder="Buscar pedido..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+        />
+
+        <label className="flex items-center gap-2 mb-4">
+          <input
+            type="checkbox"
+            checked={ocultarCumplidos}
+            onChange={() => setOcultarCumplidos(!ocultarCumplidos)}
+            className="w-4 h-4"
+          />
+          Ocultar cumplidos
+        </label>
+
 
       <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
       <Link
@@ -137,7 +181,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Cant sol</th>
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
-            <th className="px-4 py-2 border">Descripcion</th>
+            <th className="px-4 py-2 border">Descripcion/Observacion</th>
             <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
@@ -217,12 +261,12 @@ function renderValue(value: unknown): string {
               : "text-black"
           }
         >
-          {renderValue(pedido.estado)}
+          {renderValue(pedido.estado)|| "-"}
         </span>
       </td>
       <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
+      <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>

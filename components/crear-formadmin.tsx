@@ -193,7 +193,7 @@ function parseDate(value: string) {
                       <option value="Colocaciones">Colocaciones</option>
                       <option value="Reparaciones">Reparaciones</option>
                        <option value="Reparaciones">Mediciones</option>
-                      <option value="Edilicio">Maestranza</option>
+                      <option value="Maestranza">Maestranza</option>
                     </select>
                   </div>
 
