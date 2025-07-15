@@ -16,6 +16,8 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
+   controlado: string;
+  superviso: string;
   estado: string;
   aprueba: string;
   oc: number;
@@ -182,6 +184,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion/Observacion</th>
+            <th className="px-4 py-2 border">Controlado/Revisado</th>
             <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
@@ -216,6 +219,8 @@ function renderValue(value: unknown): string {
                 cant_exist: pedido.cant_exist,
                 articulo: pedido.articulo,
                 descripcion: pedido.descripcion,
+                 controlado: pedido.controlado,
+                        superviso: pedido.superviso,
                 estado: pedido.estado,
                 oc: pedido.oc,
                 proveedor_selec: pedido.proveedor_selec,
@@ -242,6 +247,12 @@ function renderValue(value: unknown): string {
       <td className="px-4 py-2 border">{renderValue(pedido.cant_exist)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.articulo)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.descripcion)}</td>
+      <td className="px-4 py-2 border">
+                <div className="flex flex-col">
+                  <span> {pedido.controlado} </span>
+                  <span>{pedido.superviso}</span>
+                </div>
+              </td>
 
       <td className="px-4 py-2 border">
         <span

@@ -16,12 +16,17 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
-   prov_uno: string;
+  controlado: string;
+  superviso: string;
+  prov_uno: string;
   cost_prov_uno: number;
+  subt_prov1: number;
   prov_dos: string;
   cost_prov_dos: number;
+  subt_prov2: number;
   prov_tres: string;
   cost_prov_tres: number;
+  subt_prov3: number;
   estado: string;
   aprueba: string;
   oc: number;
@@ -158,6 +163,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion/Observacion</th>
+            <th className="px-4 py-2 border">Controlado/Revisado</th>
             <th className="px-4 py-2 border">Prov. 1</th>
             <th className="px-4 py-2 border">Prov. 2</th>
             <th className="px-4 py-2 border">Prov. 3</th>
@@ -195,6 +201,8 @@ function renderValue(value: unknown): string {
                         cant_exist: pedido.cant_exist,
                         articulo: pedido.articulo,
                         descripcion: pedido.descripcion,
+                         controlado: pedido.controlado,
+                        superviso: pedido.superviso,
                         estado: pedido.estado,
                         oc: pedido.oc,
                         proveedor_selec: pedido.proveedor_selec,
@@ -224,29 +232,37 @@ function renderValue(value: unknown): string {
               <td className="px-4 py-2 border">{pedido.cant_exist}</td>
               <td className="px-4 py-2 border">{pedido.articulo}</td>
               <td className="px-4 py-2 border">{pedido.descripcion}</td>
-              
-               <td className="px-4 py-2 border">
+              <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_uno || ""}</span>
-                  <span>${pedido.cost_prov_uno || ""}</span>
+                  <span> {pedido.controlado} </span>
+                  <span>{pedido.superviso}</span>
                 </div>
               </td>
               
               <td className="px-4 py-2 border">
                 <div className="flex flex-col">
-                 <span>{pedido.prov_dos || ""}</span>
-                  <span>${pedido.cost_prov_dos || ""}</span>
+                    <span>{pedido.prov_uno}</span>
+                    <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
                 </div>
-                
-              </td>
+            </td>
+              
+            <td className="px-4 py-2 border">
+                <div className="flex flex-col">
+                    <span>{pedido.prov_dos}</span>
+                    <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
+                </div>
+            </td>
              
-              <td className="px-4 py-2 border">
-                 <div className="flex flex-col">
-                 <span>{pedido.prov_tres || ""}</span>
-                  <span>${pedido.cost_prov_tres || ""}</span>
+            <td className="px-4 py-2 border">
+                <div className="flex flex-col">
+                    <span>{pedido.prov_tres}</span>
+                    <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
                 </div>
-                
-                </td>
+            </td>
+              
                <td className="px-4 py-2 border">
                 <span
                     className={

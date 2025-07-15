@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-
+import Link from "next/link";
 
 type Pedido = {
   id: string;
@@ -16,7 +16,7 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
-   controlado: string;
+  controlado: string;
   superviso: string;
   estado: string;
   aprueba: string;
@@ -36,7 +36,7 @@ type Pedido = {
   fac: number;
   mod_pago: string;
   proceso: string;
-  prov_uno: string;
+ prov_uno: string;
   cost_prov_uno: number;
   subt_prov1: number;
   prov_dos: string;
@@ -48,7 +48,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListConsultas() {
+export default function ListSupervisor() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -154,12 +154,17 @@ function renderValue(value: unknown): string {
           Ocultar cumplidos
         </label>
 
-      <h1 className="text-xl font-bold mb-4">Pedidos internos de compra, interface de consulta</h1>
-     
+      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
+      <Link
+        href="/auth/crear-formus"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+      >
+        Nuevo pedido
+      </Link>
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-            
+             <th className="px-4 py-2 border">Acciones</th>
             <th className="px-4 py-2 border">Nº PIC</th>
             <th className="px-4 py-2 border">Fecha sol</th>
             <th className="px-4 py-2 border">Fecha nec</th>
@@ -171,7 +176,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Cant exist</th>
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion/Observacion</th>
-             <th className="px-4 py-2 border">Controlado/Revisado</th>
+            <th className="px-4 py-2 border">Controlado/Revisado</th>
             <th className="px-4 py-2 border">Prov. 1</th>
             <th className="px-4 py-2 border">Prov. 2</th>
             <th className="px-4 py-2 border">Prov. 3</th>
@@ -201,8 +206,56 @@ function renderValue(value: unknown): string {
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
-             
-               
+              <td className="border px-4 py-2">
+                <div className="flex gap-2">
+                  <button
+                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    onClick={() => {
+                      setEditingPedido(pedido);
+                      setFormData({
+                        created_at: pedido.created_at,
+                        necesidad: pedido.necesidad,
+                        categoria: pedido.categoria,
+                        solicita: pedido.solicita,
+                        sector: pedido.sector,
+                        cc: pedido.cc,
+                        cant: pedido.cant,
+                        cant_exist: pedido.cant_exist,
+                        articulo: pedido.articulo,
+                        descripcion: pedido.descripcion,
+                        controlado: pedido.controlado,
+                        superviso: pedido.superviso,
+                        estado: pedido.estado,
+                        oc: pedido.oc,
+                        proveedor_selec: pedido.proveedor_selec,
+                        usd: pedido.usd,
+                        eur: pedido.eur,
+                        tc: pedido.tc,
+                        ars: pedido.ars,
+                        porcent: pedido.porcent,
+                        ars_desc: pedido.ars_desc,
+                        total_simp: pedido.total_simp,
+                        fecha_conf: pedido.fecha_conf,
+                        fecha_prom: pedido.fecha_prom,
+                        fecha_ent: pedido.fecha_ent,
+                        rto: pedido.rto,
+                        fac: pedido.fac,
+                        mod_pago: pedido.mod_pago,
+                        proceso: pedido.proceso,
+                        prov_uno: pedido.prov_uno,
+                        cost_prov_uno: pedido.cost_prov_uno,
+                        prov_dos: pedido.prov_dos,
+                        cost_prov_dos: pedido.cost_prov_dos,
+                        prov_tres: pedido.prov_tres,
+                        cost_prov_tres: pedido.cost_prov_tres
+                      });
+                    }}
+                  >
+                    Edit
+                  </button>
+
+                 
+                </div></td>
               <td className="px-4 py-2 border">{pedido.id}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.created_at) || "-"}</td>
               <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
@@ -214,14 +267,15 @@ function renderValue(value: unknown): string {
               <td className="px-4 py-2 border">{pedido.cant_exist}</td>
               <td className="px-4 py-2 border">{pedido.articulo}</td>
               <td className="px-4 py-2 border">{pedido.descripcion}</td>
-               <td className="px-4 py-2 border">
+
+              <td className="px-4 py-2 border">
                 <div className="flex flex-col">
                   <span> {pedido.controlado} </span>
                   <span>{pedido.superviso}</span>
                 </div>
               </td>
              
-             <td className="px-4 py-2 border">
+           <td className="px-4 py-2 border">
                 <div className="flex flex-col">
                     <span>{pedido.prov_uno}</span>
                     <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
@@ -313,7 +367,7 @@ function renderValue(value: unknown): string {
             </label>
             
              <label className="block mb-4">
-             <p className="text-black">Descripcion</p>
+             <p className="text-black">Descripcion/Observacion</p>
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
@@ -322,6 +376,46 @@ function renderValue(value: unknown): string {
                   setFormData({ ...formData, descripcion: e.target.value })
                 }
               />
+            </label>
+
+              <label className="block mb-4">
+              <p className="text-black">Controlado</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.controlado ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, controlado: e.target.value })
+                }
+              >
+                <option value="">Seleccionar</option>
+                <option value="Autorizado" className="bg-yellow-300 text-black">
+                  Autorizado
+                </option>
+                <option value="Denegado" className="bg-green-400 text-white">
+                  Denegado
+                </option>
+                
+              </select>
+            </label>
+
+            <label className="block mb-4">
+              <p className="text-black">Supervisor</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.superviso ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, superviso: e.target.value })
+                }
+              >
+                <option value="">Superviso;</option>
+                <option value="por; Victor B." className="bg-yellow-300 text-black">
+                  Victor B.
+                </option>
+                <option value="por; Jose" className="bg-green-400 text-white">
+                  Jose
+                </option>
+                
+              </select>
             </label>
            
              <label className="block mb-2">

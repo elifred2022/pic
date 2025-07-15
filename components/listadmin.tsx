@@ -16,6 +16,9 @@ type Pedido = {
   cant_exist: number;
   articulo: string;
   descripcion: string;
+  controlado: string;
+  superviso: string;
+
   estado: string;
   aprueba: string;
   oc: number;
@@ -36,10 +39,13 @@ type Pedido = {
   proceso: string;
   prov_uno: string;
   cost_prov_uno: number;
+  subt_prov1: number;
   prov_dos: string;
   cost_prov_dos: number;
+  subt_prov2: number;
   prov_tres: string;
   cost_prov_tres: number;
+  subt_prov3: number;
   // Agregá más campos si los usás en el .map()
 };
 
@@ -126,7 +132,10 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
-
+const headerClass =
+  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+const cellClass =
+  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
 
 
@@ -158,42 +167,42 @@ function renderValue(value: unknown): string {
         Nuevo pedido
       </Link>
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
+         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-             <th className="px-4 py-2 border">Acciones</th>
-            <th className="px-4 py-2 border">Nº PIC</th>
-            <th className="px-4 py-2 border">Fecha sol</th>
-            <th className="px-4 py-2 border">Fecha nec</th>
-            <th className="px-4 py-2 border">Categoria</th>
-            <th className="px-4 py-2 border">Solicita</th>
-            <th className="px-4 py-2 border">Sector</th>
-            <th className="px-4 py-2 border">Cod cta</th>
-            <th className="px-4 py-2 border">Cant sol</th>
-            <th className="px-4 py-2 border">Cant exist</th>
-            <th className="px-4 py-2 border">Articulo</th>
-            <th className="px-4 py-2 border">Descripcion/Observacion</th>
-            
-            <th className="px-4 py-2 border">Prov. 1</th>
-            <th className="px-4 py-2 border">Prov. 2</th>
-            <th className="px-4 py-2 border">Prov. 3</th>
-            <th className="px-4 py-2 border">Estado</th>
-            <th className="px-4 py-2 border">Aprueba</th>
-            <th className="px-4 py-2 border">OC</th>
-            <th className="px-4 py-2 border">Proveedor Selec.</th>
-            <th className="px-4 py-2 border">USD</th>
-            <th className="px-4 py-2 border">EUR</th>
-            <th className="px-4 py-2 border">T.C</th>
-            <th className="px-4 py-2 border">ARS</th>
-            <th className="px-4 py-2 border">% Desc</th>
-            <th className="px-4 py-2 border">ARS Con desc</th>
-            <th className="px-4 py-2 border">Total sin imp</th>
-            <th className="px-4 py-2 border">Fecha confirm</th>
-            <th className="px-4 py-2 border">Fecha prometida</th>
-            <th className="px-4 py-2 border">Fecha entrega</th>
-            <th className="px-4 py-2 border">Rto</th>
-            <th className="px-4 py-2 border">Fact</th>
-            <th className="px-4 py-2 border">MOD pago</th>
-            <th className="px-4 py-2 border">Proceso</th>
+             <th  className={headerClass}>Acciones</th>
+            <th  className={headerClass}>Nº PIC</th>
+            <th  className={headerClass}>Fecha sol</th>
+            <th  className={headerClass}>Fecha nec</th>
+            <th  className={headerClass}>Categoria</th>
+            <th  className={headerClass}>Solicita</th>
+            <th  className={headerClass}>Sector</th>
+            <th  className={headerClass}>Cod cta</th>
+            <th  className={headerClass}>Cant sol</th>
+            <th  className={headerClass}>Cant exist</th>
+            <th  className={headerClass}>Articulo</th>
+            <th  className={headerClass}>Descripcion/Observacion</th>
+            <th  className={headerClass}>Controlado/Revisado</th>
+            <th  className={headerClass}>Prov. 1</th>
+            <th  className={headerClass}>Prov. 2</th>
+            <th  className={headerClass}>Prov. 3</th>
+            <th  className={headerClass}>Estado</th>
+            <th  className={headerClass}>Aprueba</th>
+            <th  className={headerClass}>OC</th>
+            <th  className={headerClass}>Proveedor Selec.</th>
+            <th  className={headerClass}>USD</th>
+            <th  className={headerClass}>EUR</th>
+            <th  className={headerClass}>T.C</th>
+            <th  className={headerClass}>ARS</th>
+            <th  className={headerClass}>% Desc</th>
+            <th  className={headerClass}>ARS Con desc</th>
+            <th  className={headerClass}>Total sin imp</th>
+            <th  className={headerClass}>Fecha confirm</th>
+            <th  className={headerClass}>Fecha prometida</th>
+            <th  className={headerClass}>Fecha entrega</th>
+            <th  className={headerClass}>Rto</th>
+            <th  className={headerClass}>Fact</th>
+            <th  className={headerClass}>MOD pago</th>
+            <th  className={headerClass}>Proceso</th>
            
             
           </tr>
@@ -202,7 +211,7 @@ function renderValue(value: unknown): string {
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
-              <td className="border px-4 py-2">
+              <td className={cellClass}>
                 <div className="flex gap-2">
                   <button
                     className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
@@ -219,6 +228,8 @@ function renderValue(value: unknown): string {
                         cant_exist: pedido.cant_exist,
                         articulo: pedido.articulo,
                         descripcion: pedido.descripcion,
+                        controlado: pedido.controlado,
+                        superviso: pedido.superviso,
                         estado: pedido.estado,
                         oc: pedido.oc,
                         proveedor_selec: pedido.proveedor_selec,
@@ -238,10 +249,13 @@ function renderValue(value: unknown): string {
                         proceso: pedido.proceso,
                         prov_uno: pedido.prov_uno,
                         cost_prov_uno: pedido.cost_prov_uno,
+                        subt_prov1: pedido.subt_prov1,
                         prov_dos: pedido.prov_dos,
                         cost_prov_dos: pedido.cost_prov_dos,
+                        subt_prov2: pedido.subt_prov2,
                         prov_tres: pedido.prov_tres,
-                        cost_prov_tres: pedido.cost_prov_tres
+                        cost_prov_tres: pedido.cost_prov_tres,
+                        subt_prov3: pedido.subt_prov3,
                       });
                     }}
                   >
@@ -270,44 +284,52 @@ function renderValue(value: unknown): string {
                     Elim
                   </button>
                 </div></td>
-              <td className="px-4 py-2 border">{pedido.id}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.created_at) || "-"}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
-              <td className="px-4 py-2 border">{pedido.categoria}</td>
-              <td className="px-4 py-2 border">{pedido.solicita}</td>
-              <td className="px-4 py-2 border">{pedido.sector}</td>
-              <td className="px-4 py-2 border">{pedido.cc}</td>
-              <td className="px-4 py-2 border">{pedido.cant}</td>
-              <td className="px-4 py-2 border">{pedido.cant_exist}</td>
-              <td className="px-4 py-2 border">{pedido.articulo}</td>
-              <td className="px-4 py-2 border">{pedido.descripcion}</td>
-             
-              <td className="px-4 py-2 border">
+              <td className={cellClass}>{pedido.id}</td>
+              <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
+              <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
+              <td className={cellClass}>{pedido.categoria}</td>
+              <td className={cellClass}>{pedido.solicita}</td>
+              <td className={cellClass}>{pedido.sector}</td>
+              <td className={cellClass}>{pedido.cc}</td>
+              <td className={cellClass}>{pedido.cant}</td>
+              <td className={cellClass}>{pedido.cant_exist}</td>
+              <td className={cellClass}>{pedido.articulo}</td>
+              <td className={cellClass}>{pedido.descripcion}</td>
+
+               <td className={cellClass}>
                 <div className="flex flex-col">
-                 <span>{pedido.prov_uno}</span>
-                  <span>${pedido.cost_prov_uno}</span>
+                  <span> {pedido.controlado} </span>
+                  <span>{pedido.superviso}</span>
                 </div>
               </td>
+             
+               <td className={cellClass}>
+                <div className="flex flex-col">
+                    <span>{pedido.prov_uno}</span>
+                    <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
+                </div>
+            </td>
               
-              <td className="px-4 py-2 border">
+            <td className={cellClass}>
                 <div className="flex flex-col">
-                 <span>{pedido.prov_dos}</span>
-                  <span>${pedido.cost_prov_dos}</span>
+                    <span>{pedido.prov_dos}</span>
+                    <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
                 </div>
-                
-              </td>
+            </td>
              
-              <td className="px-4 py-2 border">
-                 <div className="flex flex-col">
-                 <span>{pedido.prov_tres}</span>
-                  <span>${pedido.cost_prov_tres}</span>
+            <td className={cellClass}>
+                <div className="flex flex-col">
+                    <span>{pedido.prov_tres}</span>
+                    <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                    <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
                 </div>
-                
-                </td>
+            </td>
 
                
               
-             <td className="px-4 py-2 border">
+             <td className={cellClass}>
                 <span
                     className={
                     pedido.estado === "anulado"
@@ -328,23 +350,23 @@ function renderValue(value: unknown): string {
                    {renderValue(pedido.estado)}
                 </span>
             </td>
-              <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
-              <td className="px-4 py-2 border">{pedido.oc}</td>
-              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
-              <td className="px-4 py-2 border">{pedido.usd}</td>
-              <td className="px-4 py-2 border">{pedido.eur}</td>
-              <td className="px-4 py-2 border">{pedido.tc}</td>
-              <td className="px-4 py-2 border">{pedido.ars}</td>
-              <td className="px-4 py-2 border">{pedido.porcent}</td>
-              <td className="px-4 py-2 border">{pedido.ars_desc}</td>
-              <td className="px-4 py-2 border">{pedido.total_simp}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-              <td className="px-4 py-2 border">{pedido.rto}</td>
-              <td className="px-4 py-2 border">{pedido.fac}</td>
-              <td className="px-4 py-2 border">{pedido.mod_pago}</td>
-              <td className="px-4 py-2 border">{pedido.proceso}</td>
+              <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
+              <td className={cellClass}>{pedido.oc}</td>
+              <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
+              <td className={cellClass}>{pedido.usd}</td>
+              <td className={cellClass}>{pedido.eur}</td>
+              <td className={cellClass}>{pedido.tc}</td>
+              <td className={cellClass}>{pedido.ars}</td>
+              <td className={cellClass}>{pedido.porcent}</td>
+              <td className={cellClass}>{pedido.ars_desc}</td>
+              <td className={cellClass}>{pedido.total_simp}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_conf)}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_prom)}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_ent)}</td>
+              <td className={cellClass}>{pedido.rto}</td>
+              <td className={cellClass}>{pedido.fac}</td>
+              <td className={cellClass}>{pedido.mod_pago}</td>
+              <td className={cellClass}>{pedido.proceso}</td>
               
             
             </tr>
@@ -460,6 +482,47 @@ function renderValue(value: unknown): string {
                 }
               />
             </label>
+
+              <label className="block mb-4">
+              <p className="text-black">Controlado</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.controlado ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, controlado: e.target.value })
+                }
+              >
+                <option value="">Seleccionar</option>
+                <option value="Autorizado" className="bg-yellow-300 text-black">
+                  Autorizado
+                </option>
+                <option value="Denegado" className="bg-green-400 text-white">
+                  Denegado
+                </option>
+                
+              </select>
+            </label>
+
+            <label className="block mb-4">
+              <p className="text-black">Supervisor</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.superviso ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, superviso: e.target.value })
+                }
+              >
+                <option value="">Superviso;</option>
+                <option value="por; Victor B." className="bg-yellow-300 text-black">
+                  Victor B.
+                </option>
+                <option value="por; Jose" className="bg-green-400 text-white">
+                  Jose
+                </option>
+                
+              </select>
+            </label>
+
             <label className="block mb-4">
             <p className="text-black">Prov uno</p>
               <input
@@ -482,6 +545,18 @@ function renderValue(value: unknown): string {
                 }
               />
             </label>
+            <label className="block mb-4">
+            <p className="text-black">Subt prov uno</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.subt_prov1 ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, subt_prov1: Number(e.target.value)  })
+                }
+              />
+            </label>
+
              <label className="block mb-4">
                <p className="text-black">Prov dos</p>
               <input
@@ -504,6 +579,18 @@ function renderValue(value: unknown): string {
                 }
               />
             </label>
+             <label className="block mb-4">
+            <p className="text-black">Subt prov dos</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.subt_prov2 ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, subt_prov2: Number(e.target.value)  })
+                }
+              />
+            </label>
+
             <label className="block mb-4">
              <p className="text-black">Prov tres</p>
               <input
@@ -526,6 +613,19 @@ function renderValue(value: unknown): string {
                 }
               />
             </label>
+             <label className="block mb-4">
+            <p className="text-black">Subt prov tres</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.subt_prov3 ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, subt_prov3: Number(e.target.value)  })
+                }
+              />
+            </label>
+
+
            <label className="block mb-4">
               <p className="text-black">Estado</p>
               <select
@@ -803,4 +903,3 @@ function renderValue(value: unknown): string {
     </div>
   );
 }
-
