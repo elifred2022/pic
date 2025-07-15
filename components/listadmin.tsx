@@ -57,6 +57,17 @@ export default function ListAdmin() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+  useEffect(() => {
+    const saved = localStorage.getItem("ocultarCumplidos");
+    if (saved !== null) setOcultarCumplidos(saved === "true");
+  }, []);
+
+  /* Cada vez que cambia, actualizá localStorage */
+  useEffect(() => {
+    localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+  }, [ocultarCumplidos]);
+
   // Cargar datos
   useEffect(() => {
     const fetchPedidos = async () => {
@@ -153,7 +164,7 @@ const cellClass =
           <input
             type="checkbox"
             checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos(!ocultarCumplidos)}
+            onChange={() => setOcultarCumplidos((v) => !v)}
             className="w-4 h-4"
           />
           Ocultar cumplidos
@@ -169,7 +180,7 @@ const cellClass =
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
          <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-             <th  className={headerClass}>Acciones</th>
+            <th  className={headerClass}>Acciones</th>
             <th  className={headerClass}>Nº PIC</th>
             <th  className={headerClass}>Fecha sol</th>
             <th  className={headerClass}>Fecha nec</th>
@@ -192,7 +203,7 @@ const cellClass =
             <th  className={headerClass}>USD</th>
             <th  className={headerClass}>EUR</th>
             <th  className={headerClass}>T.C</th>
-            <th  className={headerClass}>ARS</th>
+            <th  className={headerClass}>ARS unit</th>
             <th  className={headerClass}>% Desc</th>
             <th  className={headerClass}>ARS Con desc</th>
             <th  className={headerClass}>Total sin imp</th>
@@ -356,10 +367,10 @@ const cellClass =
               <td className={cellClass}>{pedido.usd}</td>
               <td className={cellClass}>{pedido.eur}</td>
               <td className={cellClass}>{pedido.tc}</td>
-              <td className={cellClass}>{pedido.ars}</td>
+              <td className={cellClass}>$ {Number(pedido.ars).toLocaleString("es-AR")}</td>
               <td className={cellClass}>{pedido.porcent}</td>
               <td className={cellClass}>{pedido.ars_desc}</td>
-              <td className={cellClass}>{pedido.total_simp}</td>
+              <td className={cellClass}>$ {Number(pedido.total_simp).toLocaleString("es-AR")}</td>
               <td className={cellClass}>{formatDate(pedido.fecha_conf)}</td>
               <td className={cellClass}>{formatDate(pedido.fecha_prom)}</td>
               <td className={cellClass}>{formatDate(pedido.fecha_ent)}</td>
@@ -545,17 +556,7 @@ const cellClass =
                 }
               />
             </label>
-            <label className="block mb-4">
-            <p className="text-black">Subt prov uno</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.subt_prov1 ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, subt_prov1: Number(e.target.value)  })
-                }
-              />
-            </label>
+           
 
              <label className="block mb-4">
                <p className="text-black">Prov dos</p>
@@ -579,17 +580,7 @@ const cellClass =
                 }
               />
             </label>
-             <label className="block mb-4">
-            <p className="text-black">Subt prov dos</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.subt_prov2 ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, subt_prov2: Number(e.target.value)  })
-                }
-              />
-            </label>
+            
 
             <label className="block mb-4">
              <p className="text-black">Prov tres</p>
@@ -613,17 +604,7 @@ const cellClass =
                 }
               />
             </label>
-             <label className="block mb-4">
-            <p className="text-black">Subt prov tres</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.subt_prov3 ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, subt_prov3: Number(e.target.value)  })
-                }
-              />
-            </label>
+             
 
 
            <label className="block mb-4">
@@ -776,17 +757,7 @@ const cellClass =
                 }
               />
             </label>
-            <label className="block mb-4">
-             <p className="text-black">Total sin imp</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.total_simp ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, total_simp: Number(e.target.value)  })
-                }
-              />
-            </label>
+            
             <label className="block mb-2">
                <p className="text-black">Fecha confirm</p>
               <input
@@ -842,31 +813,49 @@ const cellClass =
                 }
               />
             </label>
-            <label className="block mb-4">
-             <p className="text-black">Mod de pago</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.mod_pago ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, mod_pago: e.target.value})
-                }
-              />
-            </label>
-             <label className="block mb-4">
-             <p className="text-black">Proceso</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.proceso ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, proceso: e.target.value})
-                }
-              />
-            </label>
-             
-       
 
+            <label className="block mb-4">
+              <p className="text-black">Mod de pago</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.mod_pago ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, mod_pago: e.target.value })
+                }
+              >
+                <option value="">Mod de pago</option>
+                <option value="Cta A" className="bg-yellow-300 text-black">
+                  Cta A
+                </option>
+                <option value="Cta B" className="bg-green-400 text-white">
+                  Cta B
+                </option>
+                <option value="Mercado libre" className="bg-orange-300 text-black">
+                  Mercado libre
+                </option>
+               
+              </select>
+                  </label>
+
+              <label className="block mb-4">
+              <p className="text-black">Proceso</p>
+              <select
+                className="w-full border p-2 rounded mt-1"
+                value={formData.proceso ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, proceso: e.target.value })
+                }
+              >
+                <option value="">Proceso</option>
+                <option value="Bajo proceso" className="bg-yellow-300 text-black">
+                  Bajo Proceso
+                </option>
+                <option value="Fuera de proceso" className="bg-green-400 text-white">
+                  Fuera de proceso
+                </option>
+               </select>
+                  </label>
+            
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setEditingPedido(null)}
@@ -874,28 +863,67 @@ const cellClass =
               >
                 Cancelar
               </button>
-              <button
-                onClick={async () => {
-                  const { error } = await supabase
-                    .from("pic")
-                    .update(formData)
-                    .eq("id", editingPedido.id);
+             <button
+                  onClick={async () => {
+                    /* Normalizá los números que vas a usar */
+                    const cantNum        = Number(formData.cant ?? editingPedido.cant ?? 0);
+                    const costProvUnoNum = Number(
+                      formData.cost_prov_uno ?? editingPedido.cost_prov_uno ?? 0
+                    );
+                    const costProvDosNum = Number(
+                      formData.cost_prov_dos ?? editingPedido.cost_prov_dos ?? 0
+                    );
+                    const costProvTresNum = Number(
+                      formData.cost_prov_tres ?? editingPedido.cost_prov_tres ?? 0
+                    );
 
-                  if (error) {
-                    alert("Error actualizando");
-                    console.error(error);
-                  } else {
-                    alert("Actualizado correctamente");
-                    setEditingPedido(null);
-                    setFormData({});
-                    const { data } = await supabase.from("pic").select("*");
-                    if (data) setPedidos(data);
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Guardar
-              </button>
+                    const costProvSelecNum = Number(
+                      formData.ars ?? editingPedido.ars ?? 0
+                    );
+
+                    /* Calculá el subtotal (o poné null si algo falta) */
+                    const subtProv1 =
+                      cantNum && costProvUnoNum ? cantNum * costProvUnoNum : null;
+                    
+                    const subtProv2 =
+                      cantNum && costProvDosNum ? cantNum * costProvDosNum : null;
+
+                    const subtProv3 =
+                      cantNum && costProvTresNum ? cantNum * costProvTresNum : null;
+
+                     const subtProvSelec =
+                      cantNum && costProvSelecNum ? cantNum * costProvSelecNum : null;
+
+                    /* Armá el objeto de actualización */
+                    const updateData = {
+                      ...formData,          // ➜ todo lo que ya cambiaste en el modal
+                      subt_prov1: subtProv1, // ➜ sobrescribe/añade el subtotal
+                      subt_prov2: subtProv2,
+                      subt_prov3: subtProv3,
+                      total_simp: subtProvSelec,
+                    };
+
+                    /* 4️⃣ Enviá a Supabase */
+                    const { error } = await supabase
+                      .from("pic")
+                      .update(updateData)
+                      .eq("id", editingPedido.id);
+
+                    if (error) {
+                      alert("Error actualizando");
+                      console.error(error);
+                    } else {
+                      alert("Actualizado correctamente");
+                      setEditingPedido(null);
+                      setFormData({});
+                      const { data } = await supabase.from("pic").select("*");
+                      if (data) setPedidos(data);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Guardar
+                </button>
             </div>
           </div>
         </div>

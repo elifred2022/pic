@@ -41,6 +41,17 @@ export default function ListUs() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+        useEffect(() => {
+          const saved = localStorage.getItem("ocultarCumplidos");
+          if (saved !== null) setOcultarCumplidos(saved === "true");
+        }, []);
+      
+        /* Cada vez que cambia, actualizá localStorage */
+        useEffect(() => {
+          localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+        }, [ocultarCumplidos]);
+
   // Cargar datos
   useEffect(() => {
   const fetchPedidos = async () => {
@@ -155,7 +166,7 @@ function renderValue(value: unknown): string {
           <input
             type="checkbox"
             checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos(!ocultarCumplidos)}
+            onChange={() => setOcultarCumplidos((v) => !v)}
             className="w-4 h-4"
           />
           Ocultar cumplidos

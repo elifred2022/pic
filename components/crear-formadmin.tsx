@@ -71,6 +71,29 @@ function parseDate(value: string) {
     setIsLoading(true);
     setError(null);
 
+     // 1️⃣ Convierte una sola vez los campos numéricos que necesitas reutilizar
+  const cantNum         = parseNumber(cant);          // number | null
+  const costProvUnoNum  = parseNumber(cost_prov_uno); // number | null
+  const costProvDosNum  = parseNumber(cost_prov_dos); // number | null
+  const costProvTresNum  = parseNumber(cost_prov_tres); // number | null
+
+  // 2️⃣ Calcula el subtotal solo si ambos valores son válidos
+  const subtProv1 =
+    cantNum !== null && costProvUnoNum !== null
+      ? cantNum * costProvUnoNum
+      : null;
+
+  const subtProv2 =
+    cantNum !== null && costProvDosNum !== null
+      ? cantNum * costProvDosNum
+      : null;
+
+  const subtProv3 =
+    cantNum !== null && costProvTresNum !== null
+      ? cantNum * costProvTresNum
+      : null;
+
+
     const { error } = await supabase
       .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
       .insert([
@@ -89,10 +112,13 @@ function parseDate(value: string) {
           aprueba,
           prov_uno,
           cost_prov_uno: parseNumber(cost_prov_uno),
+          subt_prov1: subtProv1,
           prov_dos,
           cost_prov_dos: parseNumber(cost_prov_dos),
+          subt_prov2: subtProv2,
           prov_tres,
           cost_prov_tres: parseNumber(cost_prov_tres),
+          subt_prov3: subtProv3,
           oc: parseNumber(oc),
           proveedor_selec,
           usd: parseNumber(usd),
@@ -155,8 +181,8 @@ function parseDate(value: string) {
                       className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
                     >
                       <option value="">Seleccione categoria</option>
-                      <option value="Pañol Cardales">Programado</option>
-                      <option value="Pañol Gascon">Urgente</option>
+                      <option value="Programado">Programado</option>
+                      <option value="Urgente">Urgente</option>
                      
                     </select>
               </div>
@@ -194,6 +220,7 @@ function parseDate(value: string) {
                       <option value="Reparaciones">Reparaciones</option>
                        <option value="Reparaciones">Mediciones</option>
                       <option value="Maestranza">Maestranza</option>
+                      <option value="Compras">Compras</option>
                     </select>
                   </div>
 

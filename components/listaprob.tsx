@@ -50,6 +50,17 @@ export default function ListAprob() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+    useEffect(() => {
+      const saved = localStorage.getItem("ocultarCumplidos");
+      if (saved !== null) setOcultarCumplidos(saved === "true");
+    }, []);
+  
+    /* Cada vez que cambia, actualizá localStorage */
+    useEffect(() => {
+      localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+    }, [ocultarCumplidos]);
+
   // Cargar datos
   useEffect(() => {
     const fetchPedidos = async () => {
@@ -140,7 +151,7 @@ function renderValue(value: unknown): string {
           <input
             type="checkbox"
             checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos(!ocultarCumplidos)}
+           onChange={() => setOcultarCumplidos((v) => !v)}
             className="w-4 h-4"
           />
           Ocultar cumplidos
@@ -315,15 +326,26 @@ function renderValue(value: unknown): string {
                 <span className="text-black font-semibold">Solicita: {editingPedido.solicita}</span>
               </div>
 
-              <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2">
-                <div className="text-black">Proveedor 1: {editingPedido.prov_uno}</div>
-                <div className="text-black">c/u ${editingPedido.cost_prov_uno}</div>
+              <div className="mb-4 flex gap-4">
+                <div>
+                  <div className="text-black">Proveedor 1: {editingPedido.prov_uno}</div>
+                  <div className="text-black">c/u ${editingPedido.cost_prov_uno}</div>
+                  <div className="text-black">subt ${editingPedido.subt_prov1}</div>
+                </div>
+                
+                <div>
+                  <div className="text-black">Proveedor 2: {editingPedido.prov_dos}</div>
+                  <div className="text-black">c/u ${editingPedido.cost_prov_dos}</div>
+                  <div className="text-black">subt ${editingPedido.subt_prov2}</div>
+                </div>
 
-                <div className="text-black">Proveedor 2: {editingPedido.prov_dos}</div>
-                <div className="text-black">c/u ${editingPedido.cost_prov_dos}</div>
+                <div>
+                  <div className="text-black">Proveedor 3: {editingPedido.prov_tres}</div>
+                  <div className="text-black">c/u ${editingPedido.cost_prov_tres}</div>
+                  <div className="text-black">subt ${editingPedido.subt_prov3}</div>
+                </div>
 
-                <div className="text-black">Proveedor 3: {editingPedido.prov_tres}</div>
-                <div className="text-black">c/u ${editingPedido.cost_prov_tres}</div>
+                
               </div>
             </div>
 

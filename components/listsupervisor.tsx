@@ -56,6 +56,17 @@ export default function ListSupervisor() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
+   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+      useEffect(() => {
+        const saved = localStorage.getItem("ocultarCumplidos");
+        if (saved !== null) setOcultarCumplidos(saved === "true");
+      }, []);
+    
+      /* Cada vez que cambia, actualizá localStorage */
+      useEffect(() => {
+        localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+      }, [ocultarCumplidos]);
+
   // Cargar datos
   useEffect(() => {
     const fetchPedidos = async () => {
@@ -130,7 +141,10 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
-
+const headerClass =
+  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+const cellClass =
+  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
 
 
@@ -148,7 +162,7 @@ function renderValue(value: unknown): string {
           <input
             type="checkbox"
             checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos(!ocultarCumplidos)}
+            onChange={() => setOcultarCumplidos((v) => !v)}
             className="w-4 h-4"
           />
           Ocultar cumplidos
@@ -164,40 +178,40 @@ function renderValue(value: unknown): string {
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-             <th className="px-4 py-2 border">Acciones</th>
-            <th className="px-4 py-2 border">Nº PIC</th>
-            <th className="px-4 py-2 border">Fecha sol</th>
-            <th className="px-4 py-2 border">Fecha nec</th>
-            <th className="px-4 py-2 border">Categoria</th>
-            <th className="px-4 py-2 border">Solicita</th>
-            <th className="px-4 py-2 border">Sector</th>
-            <th className="px-4 py-2 border">Cod cta</th>
-            <th className="px-4 py-2 border">Cant sol</th>
-            <th className="px-4 py-2 border">Cant exist</th>
-            <th className="px-4 py-2 border">Articulo</th>
-            <th className="px-4 py-2 border">Descripcion/Observacion</th>
-            <th className="px-4 py-2 border">Controlado/Revisado</th>
-            <th className="px-4 py-2 border">Prov. 1</th>
-            <th className="px-4 py-2 border">Prov. 2</th>
-            <th className="px-4 py-2 border">Prov. 3</th>
-            <th className="px-4 py-2 border">Estado</th>
-            <th className="px-4 py-2 border">Aprueba</th>
-            <th className="px-4 py-2 border">OC</th>
-            <th className="px-4 py-2 border">Proveedor Selec.</th>
-            <th className="px-4 py-2 border">USD</th>
-            <th className="px-4 py-2 border">EUR</th>
-            <th className="px-4 py-2 border">T.C</th>
-            <th className="px-4 py-2 border">ARS</th>
-            <th className="px-4 py-2 border">% Desc</th>
-            <th className="px-4 py-2 border">ARS Con desc</th>
-            <th className="px-4 py-2 border">Total sin imp</th>
-            <th className="px-4 py-2 border">Fecha confirm</th>
-            <th className="px-4 py-2 border">Fecha prometida</th>
-            <th className="px-4 py-2 border">Fecha entrega</th>
-            <th className="px-4 py-2 border">Rto</th>
-            <th className="px-4 py-2 border">Fact</th>
-            <th className="px-4 py-2 border">MOD pago</th>
-            <th className="px-4 py-2 border">Proceso</th>
+            <th  className={headerClass}>Acciones</th>
+            <th  className={headerClass}>Nº PIC</th>
+            <th  className={headerClass}>Fecha sol</th>
+            <th  className={headerClass}>Fecha nec</th>
+            <th  className={headerClass}>Categoria</th>
+            <th  className={headerClass}>Solicita</th>
+            <th  className={headerClass}>Sector</th>
+            <th  className={headerClass}>Cod cta</th>
+            <th  className={headerClass}>Cant sol</th>
+            <th  className={headerClass}>Cant exist</th>
+            <th  className={headerClass}>Articulo</th>
+            <th  className={headerClass}>Descripcion/Observacion</th>
+            <th  className={headerClass}>Controlado/Revisado</th>
+            <th  className={headerClass}>Prov. 1</th>
+            <th  className={headerClass}>Prov. 2</th>
+            <th  className={headerClass}>Prov. 3</th>
+            <th  className={headerClass}>Estado</th>
+            <th  className={headerClass}>Aprueba</th>
+            <th  className={headerClass}>OC</th>
+            <th  className={headerClass}>Proveedor Selec.</th>
+            <th  className={headerClass}>USD</th>
+            <th  className={headerClass}>EUR</th>
+            <th  className={headerClass}>T.C</th>
+            <th  className={headerClass}>ARS unit</th>
+            <th  className={headerClass}>% Desc</th>
+            <th  className={headerClass}>ARS Con desc</th>
+            <th  className={headerClass}>Total sin imp</th>
+            <th  className={headerClass}>Fecha confirm</th>
+            <th  className={headerClass}>Fecha prometida</th>
+            <th  className={headerClass}>Fecha entrega</th>
+            <th  className={headerClass}>Rto</th>
+            <th  className={headerClass}>Fact</th>
+            <th  className={headerClass}>MOD pago</th>
+            <th  className={headerClass}>Proceso</th>
            
             
           </tr>
@@ -206,7 +220,7 @@ function renderValue(value: unknown): string {
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
-              <td className="border px-4 py-2">
+              <td className={cellClass}>
                 <div className="flex gap-2">
                   <button
                     className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
@@ -256,26 +270,26 @@ function renderValue(value: unknown): string {
 
                  
                 </div></td>
-              <td className="px-4 py-2 border">{pedido.id}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.created_at) || "-"}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
-              <td className="px-4 py-2 border">{pedido.categoria}</td>
-              <td className="px-4 py-2 border">{pedido.solicita}</td>
-              <td className="px-4 py-2 border">{pedido.sector}</td>
-              <td className="px-4 py-2 border">{pedido.cc}</td>
-              <td className="px-4 py-2 border">{pedido.cant}</td>
-              <td className="px-4 py-2 border">{pedido.cant_exist}</td>
-              <td className="px-4 py-2 border">{pedido.articulo}</td>
-              <td className="px-4 py-2 border">{pedido.descripcion}</td>
+               <td className={cellClass}>{pedido.id}</td>
+              <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
+              <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
+              <td className={cellClass}>{pedido.categoria}</td>
+              <td className={cellClass}>{pedido.solicita}</td>
+              <td className={cellClass}>{pedido.sector}</td>
+              <td className={cellClass}>{pedido.cc}</td>
+              <td className={cellClass}>{pedido.cant}</td>
+              <td className={cellClass}>{pedido.cant_exist}</td>
+              <td className={cellClass}>{pedido.articulo}</td>
+              <td className={cellClass}>{pedido.descripcion}</td>
 
-              <td className="px-4 py-2 border">
+               <td className={cellClass}>
                 <div className="flex flex-col">
                   <span> {pedido.controlado} </span>
                   <span>{pedido.superviso}</span>
                 </div>
               </td>
              
-           <td className="px-4 py-2 border">
+               <td className={cellClass}>
                 <div className="flex flex-col">
                     <span>{pedido.prov_uno}</span>
                     <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
@@ -283,7 +297,7 @@ function renderValue(value: unknown): string {
                 </div>
             </td>
               
-            <td className="px-4 py-2 border">
+            <td className={cellClass}>
                 <div className="flex flex-col">
                     <span>{pedido.prov_dos}</span>
                     <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
@@ -291,7 +305,7 @@ function renderValue(value: unknown): string {
                 </div>
             </td>
              
-            <td className="px-4 py-2 border">
+            <td className={cellClass}>
                 <div className="flex flex-col">
                     <span>{pedido.prov_tres}</span>
                     <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
@@ -301,7 +315,7 @@ function renderValue(value: unknown): string {
 
                
               
-             <td className="px-4 py-2 border">
+             <td className={cellClass}>
                 <span
                     className={
                     pedido.estado === "anulado"
@@ -322,23 +336,23 @@ function renderValue(value: unknown): string {
                    {renderValue(pedido.estado)}
                 </span>
             </td>
-              <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
-              <td className="px-4 py-2 border">{pedido.oc}</td>
-              <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)}</td>
-              <td className="px-4 py-2 border">{pedido.usd}</td>
-              <td className="px-4 py-2 border">{pedido.eur}</td>
-              <td className="px-4 py-2 border">{pedido.tc}</td>
-              <td className="px-4 py-2 border">{pedido.ars}</td>
-              <td className="px-4 py-2 border">{pedido.porcent}</td>
-              <td className="px-4 py-2 border">{pedido.ars_desc}</td>
-              <td className="px-4 py-2 border">{pedido.total_simp}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
-              <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-              <td className="px-4 py-2 border">{pedido.rto}</td>
-              <td className="px-4 py-2 border">{pedido.fac}</td>
-              <td className="px-4 py-2 border">{pedido.mod_pago}</td>
-              <td className="px-4 py-2 border">{pedido.proceso}</td>
+              <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
+              <td className={cellClass}>{pedido.oc}</td>
+              <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
+              <td className={cellClass}>{pedido.usd}</td>
+              <td className={cellClass}>{pedido.eur}</td>
+              <td className={cellClass}>{pedido.tc}</td>
+              <td className={cellClass}>$ {Number(pedido.ars).toLocaleString("es-AR")}</td>
+              <td className={cellClass}>{pedido.porcent}</td>
+              <td className={cellClass}>{pedido.ars_desc}</td>
+              <td className={cellClass}>$ {Number(pedido.total_simp).toLocaleString("es-AR")}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_conf)}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_prom)}</td>
+              <td className={cellClass}>{formatDate(pedido.fecha_ent)}</td>
+              <td className={cellClass}>{pedido.rto}</td>
+              <td className={cellClass}>{pedido.fac}</td>
+              <td className={cellClass}>{pedido.mod_pago}</td>
+              <td className={cellClass}>{pedido.proceso}</td>
               
             
             </tr>
