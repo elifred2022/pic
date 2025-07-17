@@ -54,19 +54,51 @@ export default function ListAdmin() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
+  const [ocultarAprobados, setOcultarAprobados] = useState(false);
+  const [ocultarAnulados, setOcultarAnulados] = useState(false);
+  const [ocultarStandBy, setOcultarStandBy] = useState(false);
+  const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
   useEffect(() => {
-    const saved = localStorage.getItem("ocultarCumplidos");
-    if (saved !== null) setOcultarCumplidos(saved === "true");
-  }, []);
+  const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+  const savedAprobados = localStorage.getItem("ocultarAprobados");
+  const savedAnulados = localStorage.getItem("ocultarAnulados");
+  const savedStandBy = localStorage.getItem("ocultarStandBy");
+  const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+
+  if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+  if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+  if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+  if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+  if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+}, []);
+
 
   /* Cada vez que cambia, actualizá localStorage */
-  useEffect(() => {
-    localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-  }, [ocultarCumplidos]);
+ useEffect(() => {
+  localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+}, [ocultarCumplidos]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+}, [ocultarAprobados]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+}, [ocultarAnulados]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+}, [ocultarStandBy]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+}, [ocultarConfirmado]);
+
 
   // Cargar datos
   useEffect(() => {
@@ -127,7 +159,15 @@ const filteredPedidos = pedidos
       return false;
     });
   })
-  .filter((pedido) => !ocultarCumplidos || pedido.estado !== "cumplido");
+ .filter((pedido) => {
+  if (ocultarCumplidos && pedido.estado === "cumplido") return false;
+  if (ocultarAprobados && pedido.estado === "aprobado") return false;
+  if (ocultarAnulados && pedido.estado === "anulado") return false;
+  if (ocultarStandBy && pedido.estado === "stand by") return false;
+  if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+  return true;
+});
+
 
 
 function renderValue(value: unknown): string {
@@ -152,15 +192,27 @@ const cellClass =
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
-      <input
-        type="text"
-        placeholder="Buscar pedido..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-      />
+        <h1 className="text-xl font-bold mb-4">Pedidos</h1>
+        <div className="flex flex-wrap gap-4 items-center">
+          
+          <Link
+            href="/auth/crear-formus"
+            className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+          >
+            Crear nuevo pedido
+          </Link>
+          
+          <input
+            type="text"
+            placeholder="Buscar pedido..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+          />
+        </div>
 
-       <label className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap gap-4 items-center">
+          <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
@@ -170,17 +222,56 @@ const cellClass =
           Ocultar cumplidos
         </label>
 
-      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
-      <Link
-        href="/auth/crear-form"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-      >
-        Nuevo pedido
-      </Link>
+        <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar aprobados
+          </label>
+
+           <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar confirmados
+          </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarAnulados}
+                  onChange={() => setOcultarAnulados((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar anulados
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarStandBy}
+                  onChange={() => setOcultarStandBy((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar stand by
+              </label>
+      </div>
+
+       
+
+
+      
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
          <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
             <th  className={headerClass}>Acciones</th>
+             <th  className={headerClass}>Estado</th>
             <th  className={headerClass}>Nº PIC</th>
             <th  className={headerClass}>Fecha sol</th>
             <th  className={headerClass}>Fecha nec</th>
@@ -196,7 +287,7 @@ const cellClass =
             <th  className={headerClass}>Prov. 1</th>
             <th  className={headerClass}>Prov. 2</th>
             <th  className={headerClass}>Prov. 3</th>
-            <th  className={headerClass}>Estado</th>
+           
             <th  className={headerClass}>Aprueba</th>
             <th  className={headerClass}>OC</th>
             <th  className={headerClass}>Proveedor Selec.</th>
@@ -295,7 +386,30 @@ const cellClass =
                     Elim
                   </button>
                 </div></td>
-              <td className={cellClass}>{pedido.id}</td>
+             
+               <td className={cellClass}>
+                <span
+                    className={
+                    pedido.estado === "anulado"
+                        ? "text-red-500 font-semibold"
+                        : pedido.estado === "aprobado"
+                        ? "text-green-600 font-semibold"
+                        : pedido.estado === "cotizado"
+                        ? "text-yellow-600 font-semibold"
+                        : pedido.estado === "stand by"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "Presentar presencial"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "cumplido"
+                        ? "text-green-800 font-semibold"
+                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
+                        : "text-black"
+                    }
+                >
+                   {renderValue(pedido.estado)}
+                </span>
+            </td>
+             <td className={cellClass}>{pedido.id}</td>
               <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
               <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
               <td className={cellClass}>{pedido.categoria}</td>
@@ -320,47 +434,27 @@ const cellClass =
                     <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
                     <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
                 </div>
-            </td>
+                </td>
               
-            <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_dos}</span>
-                    <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
-                </div>
-            </td>
-             
-            <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_tres}</span>
-                    <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
-                </div>
-            </td>
+                  <td className={cellClass}>
+                      <div className="flex flex-col">
+                          <span>{pedido.prov_dos}</span>
+                          <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                          <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
+                      </div>
+                  </td>
+                  
+                  <td className={cellClass}>
+                      <div className="flex flex-col">
+                          <span>{pedido.prov_tres}</span>
+                          <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                          <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
+                      </div>
+                  </td>
 
                
               
-             <td className={cellClass}>
-                <span
-                    className={
-                    pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : "text-black"
-                    }
-                >
-                   {renderValue(pedido.estado)}
-                </span>
-            </td>
+            
               <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
               <td className={cellClass}>{pedido.oc}</td>
               <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
@@ -622,6 +716,9 @@ const cellClass =
                 </option>
                 <option value="aprobado" className="bg-green-400 text-white">
                   Aprobado
+                </option>
+                 <option value="confirmado" className="bg-green-400 text-white">
+                  Confirmado
                 </option>
                 <option value="stand by" className="bg-orange-300 text-black">
                   Stand By

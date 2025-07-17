@@ -29,11 +29,12 @@ export default async function ProtectedPage() {
     "luciana.ledesma@perfilesyservicios.com.ar",
     "carolina@perfilesyservicios.com.ar",
     "elifredmason@gmail.com",
+    
   ];
 
    const supervisorEmails = [
     "victor@perfilesyservicios.com.ar",
-     "elifred21@hotmail.com",
+   "elifred21@hotmail.com",
     
   ];
 
@@ -42,6 +43,7 @@ export default async function ProtectedPage() {
     "gestioncalidad@perfilesyservicios.com.ar",
     "bianca@perfilesyservicios.com.ar",
     "Agustina@perfilesyservicios.com.ar",
+      
    
   ];
 

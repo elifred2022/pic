@@ -18,6 +18,7 @@ type Pedido = {
   descripcion: string;
   controlado: string;
   superviso: string;
+
   estado: string;
   aprueba: string;
   oc: number;
@@ -36,7 +37,7 @@ type Pedido = {
   fac: number;
   mod_pago: string;
   proceso: string;
- prov_uno: string;
+  prov_uno: string;
   cost_prov_uno: number;
   subt_prov1: number;
   prov_dos: string;
@@ -48,24 +49,56 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListSupervisor() {
+export default function ListAdmin() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
+  const [ocultarAprobados, setOcultarAprobados] = useState(false);
+  const [ocultarAnulados, setOcultarAnulados] = useState(false);
+  const [ocultarStandBy, setOcultarStandBy] = useState(false);
+  const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
-   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-      useEffect(() => {
-        const saved = localStorage.getItem("ocultarCumplidos");
-        if (saved !== null) setOcultarCumplidos(saved === "true");
-      }, []);
-    
-      /* Cada vez que cambia, actualizá localStorage */
-      useEffect(() => {
-        localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-      }, [ocultarCumplidos]);
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+  useEffect(() => {
+  const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+  const savedAprobados = localStorage.getItem("ocultarAprobados");
+  const savedAnulados = localStorage.getItem("ocultarAnulados");
+  const savedStandBy = localStorage.getItem("ocultarStandBy");
+  const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+
+  if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+  if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+  if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+  if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+  if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+}, []);
+
+
+  /* Cada vez que cambia, actualizá localStorage */
+ useEffect(() => {
+  localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+}, [ocultarCumplidos]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+}, [ocultarAprobados]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+}, [ocultarAnulados]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+}, [ocultarStandBy]);
+
+useEffect(() => {
+  localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+}, [ocultarConfirmado]);
+
 
   // Cargar datos
   useEffect(() => {
@@ -126,7 +159,16 @@ const filteredPedidos = pedidos
       return false;
     });
   })
-  .filter((pedido) => !ocultarCumplidos || pedido.estado !== "cumplido");
+ .filter((pedido) => {
+  if (ocultarCumplidos && pedido.estado === "cumplido") return false;
+  if (ocultarAprobados && pedido.estado === "aprobado") return false;
+  if (ocultarAnulados && pedido.estado === "anulado") return false;
+  if (ocultarStandBy && pedido.estado === "stand by") return false;
+  if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+  return true;
+});
+
+
 
 function renderValue(value: unknown): string {
   if (
@@ -150,15 +192,28 @@ const cellClass =
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+     <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
+     <div className="flex flex-wrap gap-4 items-center">
+       
+       <Link
+        href="/auth/crear-formus"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+      >
+        Crear nuevo pedido
+      </Link>
+       
       <input
         type="text"
-        placeholder="Buscar..."
+        placeholder="Buscar pedido..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-        />
+      />
+     </div>
+     
 
-         <label className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap gap-4 items-center">
+          <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
@@ -168,17 +223,53 @@ const cellClass =
           Ocultar cumplidos
         </label>
 
-      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
-      <Link
-        href="/auth/crear-formus"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-      >
-        Nuevo pedido
-      </Link>
+        <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar aprobados
+          </label>
+
+           <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar confirmados
+          </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarAnulados}
+                  onChange={() => setOcultarAnulados((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar anulados
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarStandBy}
+                  onChange={() => setOcultarStandBy((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar stand by
+              </label>
+      </div>
+
+     
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
+         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
             <th  className={headerClass}>Acciones</th>
+             <th  className={headerClass}>Estado</th>
             <th  className={headerClass}>Nº PIC</th>
             <th  className={headerClass}>Fecha sol</th>
             <th  className={headerClass}>Fecha nec</th>
@@ -194,7 +285,7 @@ const cellClass =
             <th  className={headerClass}>Prov. 1</th>
             <th  className={headerClass}>Prov. 2</th>
             <th  className={headerClass}>Prov. 3</th>
-            <th  className={headerClass}>Estado</th>
+           
             <th  className={headerClass}>Aprueba</th>
             <th  className={headerClass}>OC</th>
             <th  className={headerClass}>Proveedor Selec.</th>
@@ -258,19 +349,45 @@ const cellClass =
                         proceso: pedido.proceso,
                         prov_uno: pedido.prov_uno,
                         cost_prov_uno: pedido.cost_prov_uno,
+                        subt_prov1: pedido.subt_prov1,
                         prov_dos: pedido.prov_dos,
                         cost_prov_dos: pedido.cost_prov_dos,
+                        subt_prov2: pedido.subt_prov2,
                         prov_tres: pedido.prov_tres,
-                        cost_prov_tres: pedido.cost_prov_tres
+                        cost_prov_tres: pedido.cost_prov_tres,
+                        subt_prov3: pedido.subt_prov3,
                       });
                     }}
                   >
                     Edit
                   </button>
 
-                 
+                  
                 </div></td>
-               <td className={cellClass}>{pedido.id}</td>
+             
+               <td className={cellClass}>
+                <span
+                    className={
+                    pedido.estado === "anulado"
+                        ? "text-red-500 font-semibold"
+                        : pedido.estado === "aprobado"
+                        ? "text-green-600 font-semibold"
+                        : pedido.estado === "cotizado"
+                        ? "text-yellow-600 font-semibold"
+                        : pedido.estado === "stand by"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "Presentar presencial"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "cumplido"
+                        ? "text-green-800 font-semibold"
+                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
+                        : "text-black"
+                    }
+                >
+                   {renderValue(pedido.estado)}
+                </span>
+            </td>
+             <td className={cellClass}>{pedido.id}</td>
               <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
               <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
               <td className={cellClass}>{pedido.categoria}</td>
@@ -295,47 +412,27 @@ const cellClass =
                     <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
                     <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
                 </div>
-            </td>
+                </td>
               
-            <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_dos}</span>
-                    <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
-                </div>
-            </td>
-             
-            <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_tres}</span>
-                    <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
-                </div>
-            </td>
+                  <td className={cellClass}>
+                      <div className="flex flex-col">
+                          <span>{pedido.prov_dos}</span>
+                          <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                          <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
+                      </div>
+                  </td>
+                  
+                  <td className={cellClass}>
+                      <div className="flex flex-col">
+                          <span>{pedido.prov_tres}</span>
+                          <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                          <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
+                      </div>
+                  </td>
 
                
               
-             <td className={cellClass}>
-                <span
-                    className={
-                    pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : "text-black"
-                    }
-                >
-                   {renderValue(pedido.estado)}
-                </span>
-            </td>
+            
               <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
               <td className={cellClass}>{pedido.oc}</td>
               <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
@@ -367,7 +464,7 @@ const cellClass =
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
-           
+            
             <label className="block mb-4">
              <p className="text-black">Cant. Exist</p>
               <input
@@ -381,7 +478,7 @@ const cellClass =
             </label>
             
              <label className="block mb-4">
-             <p className="text-black">Descripcion/Observacion</p>
+             <p className="text-black">Descripcion</p>
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
@@ -431,6 +528,7 @@ const cellClass =
                 
               </select>
             </label>
+
            
              <label className="block mb-2">
                <p className="text-black">Fecha entrega</p>
@@ -465,10 +563,9 @@ const cellClass =
                 }
               />
             </label>
-           
-             
-                      
 
+          
+            
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setEditingPedido(null)}
@@ -476,28 +573,67 @@ const cellClass =
               >
                 Cancelar
               </button>
-              <button
-                onClick={async () => {
-                  const { error } = await supabase
-                    .from("pic")
-                    .update(formData)
-                    .eq("id", editingPedido.id);
+             <button
+                  onClick={async () => {
+                    /* Normalizá los números que vas a usar */
+                    const cantNum        = Number(formData.cant ?? editingPedido.cant ?? 0);
+                    const costProvUnoNum = Number(
+                      formData.cost_prov_uno ?? editingPedido.cost_prov_uno ?? 0
+                    );
+                    const costProvDosNum = Number(
+                      formData.cost_prov_dos ?? editingPedido.cost_prov_dos ?? 0
+                    );
+                    const costProvTresNum = Number(
+                      formData.cost_prov_tres ?? editingPedido.cost_prov_tres ?? 0
+                    );
 
-                  if (error) {
-                    alert("Error actualizando");
-                    console.error(error);
-                  } else {
-                    alert("Actualizado correctamente");
-                    setEditingPedido(null);
-                    setFormData({});
-                    const { data } = await supabase.from("pic").select("*");
-                    if (data) setPedidos(data);
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Guardar
-              </button>
+                    const costProvSelecNum = Number(
+                      formData.ars ?? editingPedido.ars ?? 0
+                    );
+
+                    /* Calculá el subtotal (o poné null si algo falta) */
+                    const subtProv1 =
+                      cantNum && costProvUnoNum ? cantNum * costProvUnoNum : null;
+                    
+                    const subtProv2 =
+                      cantNum && costProvDosNum ? cantNum * costProvDosNum : null;
+
+                    const subtProv3 =
+                      cantNum && costProvTresNum ? cantNum * costProvTresNum : null;
+
+                     const subtProvSelec =
+                      cantNum && costProvSelecNum ? cantNum * costProvSelecNum : null;
+
+                    /* Armá el objeto de actualización */
+                    const updateData = {
+                      ...formData,          // ➜ todo lo que ya cambiaste en el modal
+                      subt_prov1: subtProv1, // ➜ sobrescribe/añade el subtotal
+                      subt_prov2: subtProv2,
+                      subt_prov3: subtProv3,
+                      total_simp: subtProvSelec,
+                    };
+
+                    /* 4️⃣ Enviá a Supabase */
+                    const { error } = await supabase
+                      .from("pic")
+                      .update(updateData)
+                      .eq("id", editingPedido.id);
+
+                    if (error) {
+                      alert("Error actualizando");
+                      console.error(error);
+                    } else {
+                      alert("Actualizado correctamente");
+                      setEditingPedido(null);
+                      setFormData({});
+                      const { data } = await supabase.from("pic").select("*");
+                      if (data) setPedidos(data);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Guardar
+                </button>
             </div>
           </div>
         </div>
@@ -505,4 +641,3 @@ const cellClass =
     </div>
   );
 }
-

@@ -153,6 +153,7 @@ function parseNumber(value: string) {
                       <option value="Reparaciones">Mediciones</option>
                       <option value="Maestranza">Maestranza</option>
                       <option value="Compras">Compras</option>
+                       <option value="Calidad">Calidad</option>
                     </select>
                   </div>
 

@@ -38,19 +38,49 @@ export default function ListUs() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
+  const [ocultarAprobados, setOcultarAprobados] = useState(false);
+  const [ocultarAnulados, setOcultarAnulados] = useState(false);
+  const [ocultarStandBy, setOcultarStandBy] = useState(false);
+  const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+       useEffect(() => {
+         const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+         const savedAprobados = localStorage.getItem("ocultarAprobados");
+         const savedAnulados = localStorage.getItem("ocultarAnulados");
+         const savedStandBy = localStorage.getItem("ocultarStandBy");
+         const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+       
+         if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+         if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+         if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+         if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+         if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+       }, []);
+       
+       
+         /* Cada vez que cambia, actualizá localStorage */
         useEffect(() => {
-          const saved = localStorage.getItem("ocultarCumplidos");
-          if (saved !== null) setOcultarCumplidos(saved === "true");
-        }, []);
-      
-        /* Cada vez que cambia, actualizá localStorage */
-        useEffect(() => {
-          localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-        }, [ocultarCumplidos]);
+         localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+       }, [ocultarCumplidos]);
+       
+       useEffect(() => {
+         localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+       }, [ocultarAprobados]);
+       
+       useEffect(() => {
+         localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+       }, [ocultarAnulados]);
+       
+       useEffect(() => {
+         localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+       }, [ocultarStandBy]);
+       
+       useEffect(() => {
+         localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+       }, [ocultarConfirmado]);
 
   // Cargar datos
   useEffect(() => {
@@ -132,7 +162,14 @@ const filteredPedidos = pedidos
       return false;
     });
   })
-  .filter((pedido) => !ocultarCumplidos || pedido.estado !== "cumplido");
+  .filter((pedido) => {
+  if (ocultarCumplidos && pedido.estado === "cumplido") return false;
+  if (ocultarAprobados && pedido.estado === "aprobado") return false;
+  if (ocultarAnulados && pedido.estado === "anulado") return false;
+  if (ocultarStandBy && pedido.estado === "stand by") return false;
+  if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+  return true;
+});
 
 
 
@@ -154,15 +191,28 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+      
+      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
+     <div className="flex flex-wrap gap-4 items-center">
+       
+       <Link
+        href="/auth/crear-formus"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+      >
+        Crear nuevo pedido
+      </Link>
+       
       <input
-          type="text"
-          placeholder="Buscar pedido..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-        />
+        type="text"
+        placeholder="Buscar pedido..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+      />
+     </div>
 
-        <label className="flex items-center gap-2 mb-4">
+         <div className="flex flex-wrap gap-4 items-center">
+          <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
@@ -172,18 +222,54 @@ function renderValue(value: unknown): string {
           Ocultar cumplidos
         </label>
 
+        <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar aprobados
+          </label>
 
-      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
-      <Link
-        href="/auth/crear-formus"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-      >
-        Nuevo pedido
-      </Link>
+           <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar confirmados
+          </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarAnulados}
+                  onChange={() => setOcultarAnulados((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar anulados
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarStandBy}
+                  onChange={() => setOcultarStandBy((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar stand by
+              </label>
+      </div>
+
+
+      
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
              <th className="px-4 py-2 border">Acciones</th>
+             <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">Nº PIC</th>
             <th className="px-4 py-2 border">Fecha sol</th>
             <th className="px-4 py-2 border">Fecha nec</th>
@@ -196,7 +282,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Articulo</th>
             <th className="px-4 py-2 border">Descripcion/Observacion</th>
             <th className="px-4 py-2 border">Controlado/Revisado</th>
-            <th className="px-4 py-2 border">Estado</th>
+            
             <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
@@ -247,6 +333,28 @@ function renderValue(value: unknown): string {
           </button>
         </div>
       </td>
+       <td className="px-4 py-2 border">
+       <span
+                    className={
+                    pedido.estado === "anulado"
+                        ? "text-red-500 font-semibold"
+                        : pedido.estado === "aprobado"
+                        ? "text-green-600 font-semibold"
+                        : pedido.estado === "cotizado"
+                        ? "text-yellow-600 font-semibold"
+                        : pedido.estado === "stand by"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "Presentar presencial"
+                        ? "text-orange-500 font-semibold"
+                        : pedido.estado === "cumplido"
+                        ? "text-green-800 font-semibold"
+                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
+                        : "text-black"
+                    }
+                >
+                   {renderValue(pedido.estado)}
+                </span>
+      </td>
       <td className="px-4 py-2 border">{renderValue(pedido.id)}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.created_at)}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
@@ -265,27 +373,7 @@ function renderValue(value: unknown): string {
                 </div>
               </td>
 
-      <td className="px-4 py-2 border">
-        <span
-          className={
-            pedido.estado === "anulado"
-              ? "text-red-500 font-semibold"
-              : pedido.estado === "aprobado"
-              ? "text-green-600 font-semibold"
-              : pedido.estado === "cotizado"
-              ? "text-yellow-600 font-semibold"
-              : pedido.estado === "stand by"
-              ? "text-orange-500 font-semibold"
-              : pedido.estado === "Presentar presencial"
-              ? "text-orange-500 font-semibold"
-              : pedido.estado === "cumplido"
-              ? "text-green-800 font-semibold"
-              : "text-black"
-          }
-        >
-          {renderValue(pedido.estado)|| "-"}
-        </span>
-      </td>
+     
       <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
@@ -307,7 +395,7 @@ function renderValue(value: unknown): string {
             <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
             
              <label className="block mb-4">
-            <p className="text-black">Descripcion</p>
+            <p className="text-black">Descripcion/Observacion</p>
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
