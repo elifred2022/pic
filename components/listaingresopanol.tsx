@@ -155,7 +155,7 @@ const cellClass =
             onChange={() => setOcultarObservacion((v) => !v)}
             className="w-4 h-4"
           />
-          Ocultar observados "si"
+          <p> Ocultar observados: si</p>
         </label>
     </div>
 
