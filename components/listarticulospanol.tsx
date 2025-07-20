@@ -1,0 +1,770 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+
+
+type Articulo = {
+  id: string;
+  created_at: string;
+  codint: string;
+  articulo: string;
+  descripcion: string;
+  existencia: string;
+  provsug: string;
+  codprovsug: string;
+  familia: string;
+  situacion: string;
+  
+  // Agregá más campos si los usás en el .map()
+};
+
+export default function ListArticulosPanol() {
+  const [search, setSearch] = useState("");
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [editingArticulo, setEditingArticulo] = useState<Articulo | null>(null);
+  const [ingresarArticulo, setIngresarArticulo] = useState<Articulo | null>(null);
+  const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
+  const [ocultarArticuloInactivo, setOcultarArticuloInactivo] = useState(false);
+
+    //variables ingreso y egreso articulos
+    const [ingresart, setIngresArt] = useState("");
+    const [descontart, setDescontArt] = useState(""); // este es cantretiro en registro de egreso
+    const [retira, setRetira] = useState("");
+    const [obra, setObra] = useState("");
+    const [sector, setSector] = useState("");
+    const [nombreprov, setNombreprov] = useState("");
+    const [rto, setRto] = useState("");
+    const [fac, setFac] = useState("");
+    const [fecha_ent, setFecha_ent] = useState("");
+    const [observacion, setObservacion] = useState("");
+    
+      
+  
+  const [formData, setFormData] = useState<Partial<Articulo>>({});
+  const supabase = createClient();
+
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+    useEffect(() => {
+     const savedInactivo = localStorage.getItem("ocultarArticuloInactivo");
+     
+   
+     if (savedInactivo !== null) setOcultarArticuloInactivo(savedInactivo === "true");
+     
+   }, []);
+   
+   
+     /* Cada vez que cambia, actualizá localStorage */
+    useEffect(() => {
+     localStorage.setItem("ocultarArticuloInactivo", String(ocultarArticuloInactivo));
+   }, [ocultarArticuloInactivo]);
+   
+ 
+   
+
+  // Cargar datos
+  useEffect(() => {
+    const fetchArticulos = async () => {
+      const { data, error } = await supabase.from("articulos").select("*")
+  
+      if (error) console.error("Error cargando articulos:", error);
+      else setArticulos(data);
+    };
+    fetchArticulos();
+  }, [supabase]);
+
+  // funcion para formatear las fechas
+ function formatDate(dateString: string | null): string {
+  if (!dateString) return "-";
+
+  // Evitar que el navegador aplique zona horaria
+  const parts = dateString.split("T")[0].split("-");
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
+  const day = parseInt(parts[2]);
+
+  const date = new Date(year, month, day); // Esto crea la fecha en hora local
+  return date.toLocaleDateString("es-AR");
+}
+
+//Campos de tabla que son fecha para funcion filtrar
+const dateFields: (keyof Articulo)[] = [
+  "created_at",
+  
+  
+];
+
+//Filtro que también contempla las fechas
+const filteredArticulos = articulos
+  .filter((articulo) => {
+    const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
+    if (!s) return true;                     // si el input está vacío, no filtra nada
+
+    return Object.entries(articulo).some(([key, value]) => {
+      if (value === null || value === undefined) return false;
+
+      // A) Comparar contra la versión texto “tal cual viene”
+      if (String(value).toLowerCase().includes(s)) return true;
+
+      // B) Si el campo es fecha, probar otras representaciones
+      if (dateFields.includes(key as keyof Articulo)) {
+        const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
+        const niceDate = formatDate(value as string);         // DD/MM/YYYY
+
+        return (
+          isoDate.toLowerCase().includes(s) ||
+          niceDate.toLowerCase().includes(s)
+        );
+      }
+      return false;
+    });
+  })
+  .filter((articulo) => {
+  if (ocultarArticuloInactivo && articulo.situacion === "inactivo") return false;
+  
+  return true;
+});
+
+function renderValue(value: unknown): string {
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "") ||
+    value === ""
+  ) {
+    return "-";
+  }
+
+  return String(value);
+}
+
+const headerClass =
+  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+const cellClass =
+  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+
+  return (
+    <div className="flex-2 w-full overflow-auto p-2">
+        <div className="flex flex-wrap gap-4 items-center" >
+             <Link
+              href="/protected"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Ir a Pedidos
+            </Link>
+           
+        </div>
+           
+    <h1 className="text-xl font-bold mb-4">Modulo Articulos</h1>
+
+        <div className="flex flex-wrap gap-4 items-center">
+            
+            <input
+            type="text"
+            placeholder="Buscar articulo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+          />
+
+           <Link
+              href="/auth/list-egresopanol"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Registros de Egresos
+            </Link>
+
+             <Link
+              href="/auth/list-ingresopanol"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Registros de ingresos
+            </Link>
+        </div>
+
+       <div className="flex flex-wrap gap-4 items-center">
+          <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={ocultarArticuloInactivo}
+            onChange={() => setOcultarArticuloInactivo((v) => !v)}
+            className="w-4 h-4"
+          />
+          Ocultar articulos inactivos
+        </label>
+    </div>
+
+     
+      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
+        <thead className="bg-gray-100 text-gray-700">
+          <tr className="bg-gray-100">
+
+           
+            <th  className={headerClass}>Accion</th>
+             <th  className={headerClass}>Id</th>
+             <th  className={headerClass}>Fecha de alta</th>
+            <th  className={headerClass}>Cod int</th>
+            <th  className={headerClass}>Articulo</th>
+            <th  className={headerClass}>Descripcion</th>
+            <th  className={headerClass}>Exsitencia</th>
+            <th  className={headerClass}>Prov. sug.</th>
+            <th  className={headerClass}>Cod. porv. sug.</th>
+            <th  className={headerClass}>Familia</th>
+            <th  className={headerClass}>Situacion</th>
+       
+           
+            
+          </tr>
+        </thead>
+        <tbody>
+          {filteredArticulos.map((articulo) => (
+            <tr key={articulo.id}>
+              <td className={cellClass}>
+                <div className="flex gap-2">
+                    
+                  <button
+                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    onClick={() => {
+                        setIngresArt(""); // limpiar antes de abrir
+                        setIngresarArticulo(articulo);
+                        setFormData({
+                        created_at: articulo.created_at,
+                        id: articulo.id,
+                        codint: articulo.codint,
+                        articulo: articulo.articulo,
+                        descripcion: articulo.descripcion,
+                        existencia: articulo.existencia,
+                        provsug: articulo.provsug,
+                        codprovsug: articulo.codprovsug,
+                        familia: articulo.familia,
+                        situacion: articulo.situacion,
+
+                      });
+                    }}
+                  >
+                    Ingreso
+                  </button>
+
+                  
+                  <button
+                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    onClick={() => {
+                      setDescontArt(""); // limpiar antes de abrir
+                      setDescontarArticulo(articulo);
+                      setFormData({
+                        created_at: articulo.created_at,
+                        id: articulo.id,
+                        codint: articulo.codint,
+                        articulo: articulo.articulo,
+                        descripcion: articulo.descripcion,
+                        existencia: articulo.existencia,
+                        provsug: articulo.provsug,
+                        codprovsug: articulo.codprovsug,
+                        familia: articulo.familia,
+                        situacion: articulo.situacion,
+
+                      });
+                    }}
+                  >
+                    Egreso
+                  </button>
+  
+                </div></td>
+
+                <td className={cellClass}>{articulo.id}</td>
+              <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
+                <td className={cellClass}>{renderValue(articulo.codint)}</td>
+                <td className={cellClass}>{articulo.articulo}</td>
+                <td className={cellClass}>{articulo.descripcion}</td>
+                <td className={cellClass}>{articulo.existencia}</td>
+                <td className={cellClass}>{articulo.provsug}</td>
+                <td className={cellClass}>{articulo.codprovsug}</td>
+                <td className={cellClass}>{articulo.familia}</td>
+                <td className={cellClass}>{articulo.situacion}</td>
+
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      
+
+      {/* MODAL */}
+      {editingArticulo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
+            <h2 className="text-black font-bold mb-4">Editar articulo #{editingArticulo.id}</h2>
+           
+            
+            
+              <div className="mb-4 flex justify-between">
+                <span className="text-black font-semibold">Articulo: {editingArticulo.articulo}</span>
+               
+              </div>
+
+             
+                       
+                       
+
+                <label className="block mb-4">
+                    <p className="text-black">Articulo</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.articulo ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, articulo: e.target.value})
+                            }
+                        />
+                        </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Descripcion</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.descripcion ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, descripcion: e.target.value})
+                            }
+                        />
+                </label>
+
+                 <label className="block mb-4">
+                    <p className="text-black">Existencia</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.existencia ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, existencia: e.target.value})
+                            }
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Prov sugerido</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.provsug ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, provsug: e.target.value})
+                            }
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Cod. prov. sug.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.codprovsug ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, codprovsug: e.target.value})
+                            }
+                        />
+                </label>
+                
+                <label className="block mb-4">
+                    <p className="text-black">Familia</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.familia ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, familia: e.target.value})
+                            }
+                        />
+                </label>
+                
+                <label className="block mb-4">
+                    <p className="text-black">Situacion</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.situacion ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, situacion: e.target.value})
+                            }
+                        />
+                </label>
+
+                       
+          
+
+                <div className="flex justify-end space-x-2">
+                <button
+                    onClick={() => setEditingArticulo(null)}
+                    className="px-4 py-2 bg-gray-400 text-white rounded"
+                >
+                    Cancelar
+                </button>
+                <button
+                    onClick={async () => {
+                    const { error } = await supabase
+                        .from("articulos")
+                        .update(formData)
+                        .eq("id", editingArticulo.id);
+
+                    if (error) {
+                        alert("Error actualizando");
+                        console.error(error);
+                    } else {
+                        alert("Actualizado correctamente");
+                        setEditingArticulo(null);
+                        setFormData({});
+                        const { data } = await supabase.from("articulos").select("*");
+                        if (data) setArticulos(data);
+                    }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                   Guardar
+            </button>
+            </div>
+          </div>
+        </div>
+      )}
+        
+       {ingresarArticulo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
+            <h2 className="text-black font-bold mb-4">Ingresar articulo #{ingresarArticulo.id}</h2>
+
+              <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-2">
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Código:</span>
+                  <span className="text-black">{ingresarArticulo.codint}</span>
+                </div>
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Artículo:</span>
+                  <span className="text-black">{ingresarArticulo.articulo}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-sm font-semibold text-gray-700">Descripción:</span>
+                  <span className="text-black">{ingresarArticulo.descripcion}</span>
+                </div>
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Stock actual:</span>
+                  <span className="text-black">{ingresarArticulo.existencia}</span>
+                </div>
+              </div>
+
+                 <label className="block mb-4">
+                    <p className="text-black">Cant. a ingresar</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            inputMode="numeric"
+                            value={ingresart}
+                            onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^\d*$/.test(value)) setIngresArt(value);
+                            }}
+                            
+                        />
+                    </label>
+
+                  <label className="block">
+                        <p className="text-black mb-1">Proveedor</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        required
+                        value={nombreprov}
+                        onChange={(e) => setNombreprov(e.target.value)}
+                        />
+                    </label>
+                          
+                 <label className="block mb-4">
+                  <p className="text-black">Fac.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            inputMode="numeric"
+                            value={fac}
+                            required
+                            onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^\d*$/.test(value)) setFac(value);
+                            }}
+                            
+                        />
+                    </label>
+
+                   <label className="block mb-4">
+                  <p className="text-black">Rto.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            inputMode="numeric"
+                            value={rto}
+                            required
+                            onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^\d*$/.test(value)) setRto(value);
+                            }}
+                            
+                        />
+                    </label>
+
+                  <label className="block">
+                        <p className="text-black mb-1">Fecha recibido</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="date"
+                        required
+                        value={fecha_ent}
+                        onChange={(e) => setFecha_ent(e.target.value)}
+                        />
+                    </label>
+
+                    <label className="block">
+                        <p className="text-black mb-1">Observacion</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        required
+                        value={observacion}
+                        onChange={(e) => setObservacion(e.target.value)}
+                        />
+                    </label>
+
+
+                <div className="flex justify-end space-x-2 mt-6">
+                <button
+                    onClick={() => setIngresarArticulo(null)}
+                    className="px-4 py-2 bg-gray-400 text-white rounded"
+                >
+                    Cancelar
+                </button>
+               <button
+                onClick={async () => {
+                    const cantExist = Number(ingresarArticulo.existencia ?? 0);
+                    const cantIngreso = Number(ingresart ?? 0);
+
+                    if (cantIngreso <= 0) {
+                      alert("La cantidad a ingresar debe ser mayor a 0");
+                      return;
+                    }
+
+                    if (fac.trim() === "") {
+                      alert("El campo Factura (Fac.) no puede estar vacío");
+                      return;
+                    }
+
+                    if (rto.trim() === "") {
+                      alert("El campo Remito (Rto.) no puede estar vacío");
+                      return;
+                    }
+
+                   
+                    const nuevaExistencia = cantExist + cantIngreso;
+
+                    // 1. Actualizar existencia
+                    const { error: updateError } = await supabase
+                    .from("articulos")
+                    .update({ existencia: nuevaExistencia })
+                    .eq("id", ingresarArticulo.id);
+
+                    if (updateError) {
+                    alert("Error al actualizar el stock");
+                    console.error(updateError);
+                    return;
+                    }
+
+                    // 2. Insertar en ingarticulos
+                    const { error: insertError } = await supabase.from("ingarticulos").insert({
+                    codint: ingresarArticulo.codint,
+                    articulo: ingresarArticulo.articulo,
+                    descripcion: ingresarArticulo.descripcion,
+                    ingresart: cantIngreso,
+                    nombreprov,
+                    rto,
+                    fac,
+                    fecha_ent,
+                    observacion,
+
+                    });
+
+                    if (insertError) {
+                    alert("Stock actualizado, pero error al guardar el ingreso.");
+                    console.error(insertError);
+                    } else {
+                    alert("Ingreso registrado correctamente");
+                    }
+
+                    setIngresarArticulo(null);
+                    setFormData({});
+                    setNombreprov("");
+                    setFac("");
+                    setRto("");
+                    setIngresArt("");
+                    setFecha_ent("");
+                    setObservacion("");
+
+                    const { data } = await supabase.from("articulos").select("*");
+                    if (data) setArticulos(data);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                Guardar
+                </button>
+
+            </div>
+          </div>
+        </div>
+      )} 
+       {descontarArticulo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
+            <h2 className="text-black font-bold mb-4">Salida de articulo #{descontarArticulo.id}</h2>
+            
+             <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-2">
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Código:</span>
+                  <span className="text-black">{descontarArticulo.codint}</span>
+                </div>
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Artículo:</span>
+                  <span className="text-black">{descontarArticulo.articulo}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-sm font-semibold text-gray-700">Descripción:</span>
+                  <span className="text-black">{descontarArticulo.descripcion}</span>
+                </div>
+                <div>
+                  <span className="block text-sm font-semibold text-gray-700">Stock actual:</span>
+                  <span className="text-black">{descontarArticulo.existencia}</span>
+                </div>
+              </div>
+
+
+              <div className="grid gap-4">
+                    <label className="block">
+                        <p className="text-black mb-1">Cant. a descontar</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        inputMode="numeric"
+                        value={descontart}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^\d*$/.test(value)) setDescontArt(value);
+                        }}
+                        />
+                    </label>
+
+                    <label className="block">
+                        <p className="text-black mb-1">Retira</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        required
+                        value={retira}
+                        onChange={(e) => setRetira(e.target.value)}
+                        />
+                    </label>
+
+                    <label className="block">
+                        <p className="text-black mb-1">Sector</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        required
+                        value={sector}
+                        onChange={(e) => setSector(e.target.value)}
+                        />
+                    </label>
+
+                    <label className="block">
+                        <p className="text-black mb-1">Obra</p>
+                        <input
+                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        required
+                        value={obra}
+                        onChange={(e) => setObra(e.target.value)}
+                        />
+                    </label>
+                </div>
+             
+
+                <div className="flex justify-end space-x-2 mt-6">
+                <button
+                    onClick={() => setDescontarArticulo(null)}
+                    className="px-4 py-2 bg-gray-400 text-white rounded"
+                >
+                    Cancelar
+                </button>
+               <button
+                onClick={async () => {
+                    const cantExist = Number(descontarArticulo.existencia ?? 0);
+                    const cantEgreso = Number(descontart ?? 0);
+
+                    if (cantEgreso <= 0) {
+                    alert("La cantidad a descontar debe ser mayor a 0");
+                    return;
+                    }
+
+                    if (cantEgreso > cantExist) {
+                    alert("No hay suficiente stock para realizar el egreso");
+                    return;
+                    }
+
+                    const nuevaExistencia = cantExist - cantEgreso;
+
+                    // 1. Actualizar existencia
+                    const { error: updateError } = await supabase
+                    .from("articulos")
+                    .update({ existencia: nuevaExistencia })
+                    .eq("id", descontarArticulo.id);
+
+                    if (updateError) {
+                    alert("Error al actualizar el stock");
+                    console.error(updateError);
+                    return;
+                    }
+
+                    // 2. Insertar en egarticulos
+                    const { error: insertError } = await supabase.from("egarticulos").insert({
+                    codint: descontarArticulo.codint,
+                    articulo: descontarArticulo.articulo,
+                    descripcion: descontarArticulo.descripcion,
+                    descontart: cantEgreso,
+                    retira,
+                    sector,
+                    obra,
+                    });
+
+                    if (insertError) {
+                    alert("Stock actualizado, pero error al guardar el egreso.");
+                    console.error(insertError);
+                    } else {
+                    alert("Egreso registrado correctamente");
+                    }
+
+                    setDescontarArticulo(null);
+                    setFormData({});
+                    setRetira("");
+                    setObra("");
+                    setSector("");
+                    setDescontArt("");
+
+                    const { data } = await supabase.from("articulos").select("*");
+                    if (data) setArticulos(data);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                Guardar
+                </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

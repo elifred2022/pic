@@ -12,6 +12,7 @@ type Pedido = {
   solicita: string;
   sector: string;
   cc: number;
+  codint: string;
   cant: number;
   cant_exist: number;
   articulo: string;
@@ -192,11 +193,26 @@ const cellClass =
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+      <div className="flex flex-wrap gap-4 items-center" >
+           <Link
+              href="/auth/listaproveedores"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Proveedores
+            </Link>
+
+            <Link
+              href="/auth/lista-articulos"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Articulos
+            </Link>  
+       </div>
         <h1 className="text-xl font-bold mb-4">Pedidos</h1>
         <div className="flex flex-wrap gap-4 items-center">
           
           <Link
-            href="/auth/crear-formus"
+            href="/auth/crear-formstock"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo pedido
@@ -279,6 +295,7 @@ const cellClass =
             <th  className={headerClass}>Solicita</th>
             <th  className={headerClass}>Sector</th>
             <th  className={headerClass}>Cod cta</th>
+            <th  className={headerClass}>Cod. Int. Artic.</th>
             <th  className={headerClass}>Cant sol</th>
             <th  className={headerClass}>Cant exist</th>
             <th  className={headerClass}>Articulo</th>
@@ -326,6 +343,7 @@ const cellClass =
                         solicita: pedido.solicita,
                         sector: pedido.sector,
                         cc: pedido.cc,
+                        codint: pedido.codint,
                         cant: pedido.cant,
                         cant_exist: pedido.cant_exist,
                         articulo: pedido.articulo,
@@ -416,6 +434,7 @@ const cellClass =
               <td className={cellClass}>{pedido.solicita}</td>
               <td className={cellClass}>{pedido.sector}</td>
               <td className={cellClass}>{pedido.cc}</td>
+              <td className={cellClass}>{pedido.codint}</td>
               <td className={cellClass}>{pedido.cant}</td>
               <td className={cellClass}>{pedido.cant_exist}</td>
               <td className={cellClass}>{pedido.articulo}</td>
@@ -540,6 +559,17 @@ const cellClass =
                 value={formData.cc ?? 0}
                 onChange={(e) =>
                   setFormData({ ...formData, cc: Number(e.target.value) })
+                }
+              />
+            </label>
+             <label className="block mb-4">
+              <p className="text-black">Cod. Int. Artic.</p>
+              <input
+                className="w-full border p-2 rounded mt-1"
+                type="text"
+                value={formData.codint ?? 0}
+                onChange={(e) =>
+                  setFormData({ ...formData, codint: e.target.value })
                 }
               />
             </label>
