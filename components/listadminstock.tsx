@@ -52,7 +52,8 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListAdmin() {
+
+export default function ListAdminStock() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -106,7 +107,7 @@ useEffect(() => {
   // Cargar datos tabla pic
   useEffect(() => {
     const fetchPedidos = async () => {
-      const { data, error } = await supabase.from("pic").select("*")
+      const { data, error } = await supabase.from("picstock").select("*")
   
       if (error) console.error("Error cargando pedidos:", error);
       else setPedidos(data);
@@ -198,8 +199,7 @@ const cellClass =
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
-
-       <div className="flex flex-wrap gap-4 items-center" >
+        <div className="flex flex-wrap gap-4 items-center" >
              <Link
               href="/protected"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
@@ -209,14 +209,14 @@ const cellClass =
            
         </div>
       
-        <h1 className="text-xl font-bold mb-4">Pedidos Generales</h1>
+        <h1 className="text-xl font-bold mb-4">Pedidos productivos</h1>
         <div className="flex flex-wrap gap-4 items-center">
           
           <Link
             href="/auth/crear-formstock"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
-            Crear nuevo pedido general
+            Crear nuevo pedido productivo
           </Link>
           
           <input
@@ -280,10 +280,6 @@ const cellClass =
               </label>
       </div>
 
-       
-
-
-      
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
          <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
@@ -391,13 +387,13 @@ const cellClass =
                       );
                       if (!confirm) return;
 
-                      const { error } = await supabase.from("pic").delete().eq("id", pedido.id);
+                      const { error } = await supabase.from("picstock").delete().eq("id", pedido.id);
                       if (error) {
                         alert("Error al eliminar");
                         console.error(error);
                       } else {
                         alert("Pedido eliminado");
-                        const { data } = await supabase.from("pic").select("*");
+                        const { data } = await supabase.from("picstock").select("*");
                         if (data) setPedidos(data);
                       }
                     }}
@@ -1023,7 +1019,7 @@ const cellClass =
 
                     /* 4️⃣ Enviá a Supabase */
                     const { error } = await supabase
-                      .from("pic")
+                      .from("picstock")
                       .update(updateData)
                       .eq("id", editingPedido.id);
 
@@ -1034,7 +1030,7 @@ const cellClass =
                       alert("Actualizado correctamente");
                       setEditingPedido(null);
                       setFormData({});
-                      const { data } = await supabase.from("pic").select("*");
+                      const { data } = await supabase.from("picstock").select("*");
                       if (data) setPedidos(data);
                     }
                   }}

@@ -24,7 +24,7 @@ export function CrearFormUs({
   const [sector, setSector] = useState("");
   const [cc, setCc] = useState("");
  const [cant, setCant] = useState("");
- const [cant_exist, setCant_exist] = useState("");
+ const [existencia, setExistencia] = useState("");
  const [articulo, setArticulo] = useState("");
  const [descripcion, setDescripcion] = useState("");
  
@@ -62,7 +62,7 @@ function parseNumber(value: string) {
           sector,
           cc: parseNumber(cc),
           cant: parseNumber(cant),
-          cant_exist: parseNumber(cant_exist),
+          existencia: parseNumber(existencia),
           articulo,
           descripcion,
           
@@ -192,10 +192,10 @@ function parseNumber(value: string) {
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  value={cant_exist}
+                  value={existencia}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (/^\d*$/.test(value)) setCant_exist(value); // solo dígitos
+                    if (/^\d*$/.test(value)) setExistencia(value); // solo dígitos
                   }}
                 />
               </div>

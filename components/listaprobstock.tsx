@@ -14,7 +14,7 @@ type Pedido = {
   sector: string;
   cc: number;
   cant: number;
-  cant_exist: number;
+  existencia: number;
   articulo: string;
   descripcion: string;
   controlado: string;
@@ -43,7 +43,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListAprob() {
+export default function ListAprobStock() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -96,7 +96,7 @@ export default function ListAprob() {
   // Cargar datos
   useEffect(() => {
     const fetchPedidos = async () => {
-      const { data, error } = await supabase.from("pic").select("*")
+      const { data, error } = await supabase.from("picstock").select("*")
   
       if (error) console.error("Error cargando pedidos:", error);
       else setPedidos(data);
@@ -308,7 +308,7 @@ const cellClass =
                         sector: pedido.sector,
                         cc: pedido.cc,
                         cant: pedido.cant,
-                        cant_exist: pedido.cant_exist,
+                        existencia: pedido.existencia,
                         articulo: pedido.articulo,
                         descripcion: pedido.descripcion,
                          controlado: pedido.controlado,
@@ -361,7 +361,7 @@ const cellClass =
               <td className={cellClass}>{pedido.sector}</td>
               <td className={cellClass}>{pedido.cc}</td>
               <td className={cellClass}>{pedido.cant}</td>
-              <td className={cellClass}>{pedido.cant_exist}</td>
+              <td className={cellClass}>{pedido.existencia}</td>
               <td className={cellClass}>{pedido.articulo}</td>
               <td className={cellClass}>{pedido.descripcion}</td>
 
@@ -421,9 +421,10 @@ const cellClass =
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">Aprobar pedido #{editingPedido.id}</h2>
-            <span className="text-black font-semibold">Cant; {editingPedido.cant} </span>
+            <span className="text-black font-semibold">Cant sol.; {editingPedido.cant} </span>
             <span className="text-black font-semibold">{editingPedido.articulo}  </span>
             <span className="text-black font-semibold">, {editingPedido.descripcion} </span>
+             <span className="text-black font-semibold">,Stock: {editingPedido.existencia} </span>
             <div>
               <div className="mb-4 flex justify-between">
                 <span className="text-black font-semibold">Sector: {editingPedido.sector}</span>
@@ -553,7 +554,7 @@ const cellClass =
               <button
                 onClick={async () => {
                   const { error } = await supabase
-                    .from("pic")
+                    .from("picstock")
                     .update(formData)
                     .eq("id", editingPedido.id);
 
@@ -564,7 +565,7 @@ const cellClass =
                     alert("Actualizado correctamente");
                     setEditingPedido(null);
                     setFormData({});
-                    const { data } = await supabase.from("pic").select("*");
+                    const { data } = await supabase.from("picstock").select("*");
                     if (data) setPedidos(data);
                   }
                 }}

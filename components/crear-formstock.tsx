@@ -23,13 +23,17 @@ export function CrearFormStock({
   const [solicita, setSolicita] = useState("");
   const [sector, setSector] = useState("");
   const [cc, setCc] = useState("");
- const [cant, setCant] = useState("");
- const [cant_exist, setCant_exist] = useState("");
- const [codint, setCodint] = useState("");
- const [articulo, setArticulo] = useState("");
- const [descripcion, setDescripcion] = useState("");
+  const [cant, setCant] = useState("");
+  const [aprueba, setAprueba] = useState("");
+
+  // variables para traer articulo de tabla el articulo
+  const [codint, setCodint] = useState("");
+  const [articulo, setArticulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [existencia, setExistencia] = useState("");
+  const [codintError, setCodintError] = useState("");
+
  
- const [aprueba, setAprueba] = useState("");
  
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +44,30 @@ export function CrearFormStock({
 function parseNumber(value: string) {
   return value.trim() === "" ? null : Number(value);
 }
+
+const handleCodintChange = async (value: string) => {
+  setCodint(value);
+  setArticulo("");
+  setDescripcion("");
+  setExistencia("");
+  setCodintError("");
+
+  if (value.trim() === "") return;
+
+  const { data: articuloEncontrado, error } = await supabase
+    .from("articulos")
+    .select("articulo, descripcion, existencia")
+    .eq("codint", value)
+    .single();
+
+  if (error || !articuloEncontrado) {
+    setCodintError("Artículo no encontrado.");
+  } else {
+    setArticulo(articuloEncontrado.articulo);
+    setDescripcion(articuloEncontrado.descripcion);
+    setExistencia(articuloEncontrado.existencia);
+  }
+};
 
 
 
@@ -53,7 +81,7 @@ function parseNumber(value: string) {
 } = await supabase.auth.getUser();
 
     const { error } = await supabase
-      .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
+      .from("picstock") // nombre de la tabla en supabase
       .insert([
         {
          
@@ -64,7 +92,7 @@ function parseNumber(value: string) {
           cc: parseNumber(cc),
           codint,
           cant: parseNumber(cant),
-          cant_exist: parseNumber(cant_exist),
+          existencia: existencia,
           articulo,
           descripcion,
           
@@ -78,7 +106,7 @@ function parseNumber(value: string) {
 
     if (error) {
       console.error("Error al insertar:", error);
-      setError("Hubo un error al crear el pedido.");
+  setError(`Error: ${error.message} - ${error.details || ""}`);
     } else {
       // redirecciona o resetea formulario
       router.push("/protected"); // 🔁 O la ruta que prefieras después de crear
@@ -143,19 +171,12 @@ function parseNumber(value: string) {
                       <option value="">Seleccione un sector</option>
                       <option value="Pañol Cardales">Pañol Cardales</option>
                       <option value="Pañol Gascon">Pañol Gascon</option>
-                      <option value="Mantenimiento">Mantenimiento</option>
-                      <option value="RRHH">RRHH</option>
-                      <option value="Seguridad e Higiene">Seguridad e Higiene</option>
                       <option value="Vidrio">Vidrio</option>
                       <option value="Pvc">Pvc</option>
                       <option value="Perf. Aluminio">Perf. Aluminio</option>
                       <option value="Administracion">Administración</option>
-                      <option value="Colocaciones">Colocaciones</option>
-                      <option value="Reparaciones">Reparaciones</option>
-                      <option value="Reparaciones">Mediciones</option>
-                      <option value="Maestranza">Maestranza</option>
                       <option value="Compras">Compras</option>
-                       <option value="Calidad">Calidad</option>
+                       
                     </select>
                   </div>
 
@@ -174,15 +195,17 @@ function parseNumber(value: string) {
                 />
               </div>
                <div className="grid gap-2">
-                <Label htmlFor="codint">Codigo interno</Label>
+                <Label htmlFor="codint">Código interno</Label>
                 <Input
                   id="codint"
                   type="text"
                   required
                   value={codint}
-                  onChange={(e) => setCodint(e.target.value)}
+                  onChange={(e) => handleCodintChange(e.target.value)}
                 />
+                {codintError && <p className="text-red-600 text-sm">{codintError}</p>}
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="cant">Cant Sol</Label>
                 <Input
@@ -197,40 +220,37 @@ function parseNumber(value: string) {
                   }}
                 />
               </div>
+              <div className="grid gap-2">
+                  <Label htmlFor="articulo">En stock</Label>
+                  <Input
+                    id="articulo"
+                    type="text"
+                    value={existencia}
+                    readOnly
+                    
+                  />
+                </div>
                <div className="grid gap-2">
-                <Label htmlFor="cant_exist">Cant exist</Label>
-                 <Input
-                  id="cant_exist"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={cant_exist}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) setCant_exist(value); // solo dígitos
-                  }}
-                />
-              </div>
-               <div className="grid gap-2">
-                <Label htmlFor="articulo">Articulo</Label>
-                <Input
-                  id="articulo"
-                  type="text"
-                  required
-                  value={articulo}
-                  onChange={(e) => setArticulo(e.target.value)}
-                />
-              </div>
-               <div className="grid gap-2">
-                <Label htmlFor="descripcion">Descripcion</Label>
-                <Input
-                  id="descripcion"
-                  type="text"
-                  
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                />
-              </div>
+                  <Label htmlFor="articulo">Artículo</Label>
+                  <Input
+                    id="articulo"
+                    type="text"
+                    value={articulo}
+                    readOnly
+                   
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="descripcion">Descripción</Label>
+                  <Input
+                    id="descripcion"
+                    type="text"
+                    value={descripcion}
+                    readOnly
+                   
+                  />
+                </div>
               <div className="grid gap-2">
                     <Label htmlFor="aprueba">Aprueba</Label>
                     <select

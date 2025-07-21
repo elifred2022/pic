@@ -20,12 +20,14 @@ type Articulo = {
   // Agregá más campos si los usás en el .map()
 };
 
+
 export default function ListArticulosPanol() {
   const [search, setSearch] = useState("");
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [editingArticulo, setEditingArticulo] = useState<Articulo | null>(null);
   const [ingresarArticulo, setIngresarArticulo] = useState<Articulo | null>(null);
   const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
+  
   const [ocultarArticuloInactivo, setOcultarArticuloInactivo] = useState(false);
 
     //variables ingreso y egreso articulos
@@ -151,7 +153,7 @@ const cellClass =
               href="/protected"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
             >
-              Ir a Pedidos
+              Home
             </Link>
            
         </div>
@@ -522,15 +524,27 @@ const cellClass =
                     </label>
 
                     <label className="block">
-                        <p className="text-black mb-1">Observacion</p>
-                        <input
-                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        type="text"
-                        required
-                        value={observacion}
-                        onChange={(e) => setObservacion(e.target.value)}
-                        />
+                      <p className="text-black">Con observacion</p>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={observacion}
+                      onChange={(e) =>
+                        setObservacion(e.target.value)
+                      }
+                    >
+                      <option value="">Observado?</option>
+                      <option value="si" className="bg-yellow-300 text-black">
+                        Si
+                      </option>
+                      <option value="no" className="bg-green-400 text-white">
+                        No
+                      </option>
+                      
+                    </select>
+                       
                     </label>
+
+                    
 
 
                 <div className="flex justify-end space-x-2 mt-6">
@@ -555,19 +569,34 @@ const cellClass =
                       return;
                     }
 
+                     if (nombreprov.trim() === "") {
+                      alert("El campo Proveedor no puede estar vacío");
+                      return;
+                    }
+
                     if (rto.trim() === "") {
                       alert("El campo Remito (Rto.) no puede estar vacío");
+                      return;
+                    }
+
+                    if (fecha_ent.trim() === "") {
+                      alert("Falta fecha de ingreso");
+                      return;
+                    }
+
+                    if (observacion.trim() === "") {
+                      alert("Fue observado si o no?");
                       return;
                     }
 
                    
                     const nuevaExistencia = cantExist + cantIngreso;
 
-                    // 1. Actualizar existencia
+                    // 1. Actualizar existencia en articulos
                     const { error: updateError } = await supabase
                     .from("articulos")
                     .update({ existencia: nuevaExistencia })
-                    .eq("id", ingresarArticulo.id);
+                    .eq("codint", ingresarArticulo.codint);
 
                     if (updateError) {
                     alert("Error al actualizar el stock");
@@ -575,6 +604,8 @@ const cellClass =
                     return;
                     }
 
+                   
+                    
                     // 2. Insertar en ingarticulos
                     const { error: insertError } = await supabase.from("ingarticulos").insert({
                     codint: ingresarArticulo.codint,
@@ -709,10 +740,28 @@ const cellClass =
                     return;
                     }
 
+                    
                     if (cantEgreso > cantExist) {
                     alert("No hay suficiente stock para realizar el egreso");
                     return;
                     }
+
+                     if (retira.trim() === "") {
+                      alert("El campo Retira no puede estar vacío");
+                      return;
+                    }
+
+                     if (sector.trim() === "") {
+                      alert("El campo Sector no puede estar vacío");
+                      return;
+                    }
+
+                    if (obra.trim() === "") {
+                      alert("El campo Obra no puede estar vacío");
+                      return;
+                    }
+
+
 
                     const nuevaExistencia = cantExist - cantEgreso;
 

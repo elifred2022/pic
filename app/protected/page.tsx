@@ -1,11 +1,16 @@
+
+
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import ListAdmin from "@/components/listadmin";
 import ListUs from "@/components/listus";
-import ListAprob from "@/components/listaprob";
+
 import ListSupervisor from "@/components/listsupervisor";
 import ListConsultas from "@/components/listconsultas";
-import ListStock from "@/components/liststock";
+
+import ListBiComponentAdmin from "@/components/listbicomponentadmin";
+import ListBiComponentAprob from "@/components/listbicomponenteaprob";
+import ListBiComponentePanol from "@/components/listbicomponentepanol";
+
 
 
 export default async function ProtectedPage() {
@@ -20,13 +25,18 @@ export default async function ProtectedPage() {
 
   const adminEmails = [
     
-    "asistentecompras@perfilesyservicios.com.ar",    
+    "asistentecompras@perfilesyservicios.com.ar",
+      "victor@perfilesyservicios.com.ar",
+    
   ];
 
-  const stockEmails = [
+  const panolesEmails = [
     
+    "panol@perfilesyservicios.com.ar",
+    "pañolgasconperfilesyservicios.com.ar",
+      "elifred21@hotmail.com",
+
     
-    "elifred21@hotmail.com",
   ];
 
   const aprobEmails = [
@@ -34,18 +44,19 @@ export default async function ProtectedPage() {
     "julio@perfilesyservicios.com.ar",
     "luciana.ledesma@perfilesyservicios.com.ar",
     "carolina@perfilesyservicios.com.ar",
-    
     "carolina@perfilesyservicios.com.ar",
     "eduardo@perfilesyservicios.com.ar",
     "pedro@perfilesyservicios.com.ar",
     "Sofia sofiastok@perfilesyservicios.com.ar",
+
+     "elifredmason@gmail.com",
     
   ];
 
    const supervisorEmails = [
-    "victor@perfilesyservicios.com.ar",
+    
     "joseluis@perfilesyservicios.com.ar",
-       "elifredmason@gmail.com",
+     
 
   ];
 
@@ -63,15 +74,15 @@ export default async function ProtectedPage() {
   let ComponentToRender = <ListUs />;
 
   if (adminEmails.includes(email)) {
-    ComponentToRender = <ListAdmin />;
+    ComponentToRender =  <ListBiComponentAdmin/>;
   } else if (aprobEmails.includes(email)) {
-    ComponentToRender = <ListAprob />;
+    ComponentToRender = <ListBiComponentAprob />;
   } else if (consultasEmails.includes(email)) {
     ComponentToRender = <ListConsultas/>
   } else if (supervisorEmails.includes(email)) {
     ComponentToRender = <ListSupervisor/>
-  } else if (stockEmails.includes(email)) {
-    ComponentToRender = <ListStock/>
+  } else if (panolesEmails.includes(email)) {
+    ComponentToRender = <ListBiComponentePanol/>
   }
 
   return (

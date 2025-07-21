@@ -52,7 +52,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListAdmin() {
+export default function ListAdminVer() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -199,25 +199,12 @@ const cellClass =
   return (
     <div className="flex-1 w-full overflow-auto p-4">
 
-       <div className="flex flex-wrap gap-4 items-center" >
-             <Link
-              href="/protected"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Home
-            </Link>
-           
-        </div>
+      
       
         <h1 className="text-xl font-bold mb-4">Pedidos Generales</h1>
         <div className="flex flex-wrap gap-4 items-center">
           
-          <Link
-            href="/auth/crear-formstock"
-            className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-          >
-            Crear nuevo pedido general
-          </Link>
+         
           
           <input
             type="text"
@@ -228,57 +215,8 @@ const cellClass =
           />
         </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar cumplidos
-        </label>
-
-        <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={ocultarAprobados}
-              onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-4 h-4"
-            />
-            Ocultar aprobados
-          </label>
-
-           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={ocultarConfirmado}
-              onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-4 h-4"
-            />
-            Ocultar confirmados
-          </label>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ocultarAnulados}
-                  onChange={() => setOcultarAnulados((v) => !v)}
-                  className="w-4 h-4"
-                />
-                Ocultar anulados
-              </label>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ocultarStandBy}
-                  onChange={() => setOcultarStandBy((v) => !v)}
-                  className="w-4 h-4"
-                />
-                Ocultar stand by
-              </label>
-      </div>
+     
+      
 
        
 
@@ -287,7 +225,7 @@ const cellClass =
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
          <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-            <th  className={headerClass}>Acciones</th>
+            
              <th  className={headerClass}>Estado</th>
             <th  className={headerClass}>Nº PIC</th>
             <th  className={headerClass}>Fecha sol</th>
@@ -331,80 +269,7 @@ const cellClass =
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
-              <td className={cellClass}>
-                <div className="flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-                    onClick={() => {
-                      setEditingPedido(pedido);
-                      setFormData({
-                        created_at: pedido.created_at,
-                        necesidad: pedido.necesidad,
-                        categoria: pedido.categoria,
-                        solicita: pedido.solicita,
-                        sector: pedido.sector,
-                        cc: pedido.cc,
-                        codint: pedido.codint,
-                        cant: pedido.cant,
-                        existencia: pedido.existencia,
-                        articulo: pedido.articulo,
-                        descripcion: pedido.descripcion,
-                        controlado: pedido.controlado,
-                        superviso: pedido.superviso,
-                        estado: pedido.estado,
-                        oc: pedido.oc,
-                        proveedor_selec: pedido.proveedor_selec,
-                        usd: pedido.usd,
-                        eur: pedido.eur,
-                        tc: pedido.tc,
-                        ars: pedido.ars,
-                        porcent: pedido.porcent,
-                        ars_desc: pedido.ars_desc,
-                        total_simp: pedido.total_simp,
-                        fecha_conf: pedido.fecha_conf,
-                        fecha_prom: pedido.fecha_prom,
-                        fecha_ent: pedido.fecha_ent,
-                        rto: pedido.rto,
-                        fac: pedido.fac,
-                        mod_pago: pedido.mod_pago,
-                        proceso: pedido.proceso,
-                        prov_uno: pedido.prov_uno,
-                        cost_prov_uno: pedido.cost_prov_uno,
-                        subt_prov1: pedido.subt_prov1,
-                        prov_dos: pedido.prov_dos,
-                        cost_prov_dos: pedido.cost_prov_dos,
-                        subt_prov2: pedido.subt_prov2,
-                        prov_tres: pedido.prov_tres,
-                        cost_prov_tres: pedido.cost_prov_tres,
-                        subt_prov3: pedido.subt_prov3,
-                      });
-                    }}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    className="px-4 py-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
-                    onClick={async () => {
-                      const confirm = window.confirm(
-                        `¿Estás seguro de que querés eliminar el pedido ${pedido.id}?`
-                      );
-                      if (!confirm) return;
-
-                      const { error } = await supabase.from("pic").delete().eq("id", pedido.id);
-                      if (error) {
-                        alert("Error al eliminar");
-                        console.error(error);
-                      } else {
-                        alert("Pedido eliminado");
-                        const { data } = await supabase.from("pic").select("*");
-                        if (data) setPedidos(data);
-                      }
-                    }}
-                  >
-                    Elim
-                  </button>
-                </div></td>
+             
              
                <td className={cellClass}>
                 <span

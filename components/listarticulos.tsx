@@ -150,7 +150,7 @@ const cellClass =
               href="/protected"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
             >
-              Ir a Pedidos
+              Home
             </Link>
            
         </div>
@@ -428,22 +428,27 @@ const cellClass =
                             }
                         />
                 </label>
-                
-                <label className="block mb-4">
+
+               <label className="block mb-4">
                     <p className="text-black">Situacion</p>
-                        <input
-                            className="w-full border p-2 rounded mt-1"
-                            type="text"
-                            value={formData.situacion ?? ""}
-                            onChange={(e) =>
-                            setFormData({ ...formData, situacion: e.target.value})
-                            }
-                        />
-                </label>
-
-                       
-          
-
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={formData.situacion ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, situacion: e.target.value })
+                      }
+                    >
+                      <option value="">Seleccionar situacion</option>
+                      <option value="activo" className="bg-yellow-300 text-black">
+                        Activo
+                      </option>
+                      <option value="inactivo" className="bg-green-400 text-white">
+                        Inactivo
+                      </option>
+                      
+                    </select>
+                  </label>
+            
                 <div className="flex justify-end space-x-2">
                 <button
                     onClick={() => setEditingArticulo(null)}
@@ -569,21 +574,33 @@ const cellClass =
                         />
                     </label>
 
-                    <label className="block">
-                        <p className="text-black mb-1">Observacion</p>
-                        <input
-                        className="w-full p-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        type="text"
-                        required
-                        value={observacion}
-                        onChange={(e) => setObservacion(e.target.value)}
-                        />
+                      <label className="block">
+                      <p className="text-black">Con observacion</p>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={observacion}
+                      onChange={(e) =>
+                        setObservacion(e.target.value)
+                      }
+                    >
+                      <option value="">Observado?</option>
+                      <option value="si" className="bg-yellow-300 text-black">
+                        Si
+                      </option>
+                      <option value="no" className="bg-green-400 text-white">
+                        No
+                      </option>
+                      
+                    </select>
+                       
                     </label>
+
+                    
 
 
                 <div className="flex justify-end space-x-2 mt-6">
                 <button
-                    onClick={() => setDescontarArticulo(null)}
+                    onClick={() => setIngresarArticulo(null)}
                     className="px-4 py-2 bg-gray-400 text-white rounded"
                 >
                     Cancelar
@@ -598,6 +615,11 @@ const cellClass =
                       return;
                     }
 
+                    if (nombreprov.trim() === "") {
+                      alert("El campo Proveedor no puede estar vacío");
+                      return;
+                    }
+
                     if (fac.trim() === "") {
                       alert("El campo Factura (Fac.) no puede estar vacío");
                       return;
@@ -608,6 +630,15 @@ const cellClass =
                       return;
                     }
 
+                    if (fecha_ent.trim() === "") {
+                      alert("Falta fecha de ingreso");
+                      return;
+                    }
+
+                    if (observacion.trim() === "") {
+                      alert("Fue observado si o no?");
+                      return;
+                    }
 
                    
                     const nuevaExistencia = cantExist + cantIngreso;
@@ -753,15 +784,33 @@ const cellClass =
                     const cantExist = Number(descontarArticulo.existencia ?? 0);
                     const cantEgreso = Number(descontart ?? 0);
 
-                    if (cantEgreso <= 0) {
+                     if (cantEgreso <= 0) {
                     alert("La cantidad a descontar debe ser mayor a 0");
                     return;
                     }
 
-                    if (cantEgreso > cantExist) {
+                     if (cantEgreso > cantExist) {
                     alert("No hay suficiente stock para realizar el egreso");
                     return;
                     }
+
+                     if (retira.trim() === "") {
+                      alert("El campo Retira no puede estar vacío");
+                      return;
+                    }
+
+                     if (sector.trim() === "") {
+                      alert("El campo Sector no puede estar vacío");
+                      return;
+                    }
+
+                    if (obra.trim() === "") {
+                      alert("El campo Obra no puede estar vacío");
+                      return;
+                    }
+
+
+                   
 
                     const nuevaExistencia = cantExist - cantEgreso;
 
