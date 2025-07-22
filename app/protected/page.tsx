@@ -11,7 +11,7 @@ import ListBiComponentAdmin from "@/components/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/listbicomponentepanol";
 
-import ListSupervisorGenerales from "@/components/listsupervisor";
+
 import ListBiComponenteSupervisor from "@/components/listabicomponentesupervisor";
 
 
