@@ -9,8 +9,10 @@ type Articulo = {
   id: string;
   created_at: string;
   codint: string;
+  cc: string;
   articulo: string;
   descripcion: string;
+  costunit: string;
   existencia: string;
   provsug: string;
   codprovsug: string;
@@ -209,8 +211,10 @@ const cellClass =
              <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
             <th  className={headerClass}>Cod int</th>
+            <th  className={headerClass}>Cod cta</th>
             <th  className={headerClass}>Articulo</th>
             <th  className={headerClass}>Descripcion</th>
+             <th  className={headerClass}>Cost. unit.</th>
             <th  className={headerClass}>Exsitencia</th>
             <th  className={headerClass}>Prov. sug.</th>
             <th  className={headerClass}>Cod. porv. sug.</th>
@@ -243,6 +247,8 @@ const cellClass =
                         codprovsug: articulo.codprovsug,
                         familia: articulo.familia,
                         situacion: articulo.situacion,
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
 
                       });
                     }}
@@ -267,7 +273,8 @@ const cellClass =
                         codprovsug: articulo.codprovsug,
                         familia: articulo.familia,
                         situacion: articulo.situacion,
-
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
                       });
                     }}
                   >
@@ -289,7 +296,8 @@ const cellClass =
                         codprovsug: articulo.codprovsug,
                         familia: articulo.familia,
                         situacion: articulo.situacion,
-
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
                       });
                     }}
                   >
@@ -325,8 +333,10 @@ const cellClass =
                 <td className={cellClass}>{articulo.id}</td>
               <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
                 <td className={cellClass}>{renderValue(articulo.codint)}</td>
+                <td className={cellClass}>{renderValue(articulo.cc)}</td>
                 <td className={cellClass}>{articulo.articulo}</td>
                 <td className={cellClass}>{articulo.descripcion}</td>
+                <td className={cellClass}>{articulo.costunit}</td>
                 <td className={cellClass}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
                 <td className={cellClass}>{articulo.codprovsug}</td>
@@ -353,7 +363,17 @@ const cellClass =
                
               </div>
 
-             
+              <label className="block mb-4">
+                    <p className="text-black">Cod. Cta.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.cc ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, cc: e.target.value})
+                            }
+                        />
+                </label>
                        
                        
 
@@ -367,7 +387,7 @@ const cellClass =
                             setFormData({ ...formData, articulo: e.target.value})
                             }
                         />
-                        </label>
+                </label>
 
                 <label className="block mb-4">
                     <p className="text-black">Descripcion</p>
@@ -377,6 +397,18 @@ const cellClass =
                             value={formData.descripcion ?? ""}
                             onChange={(e) =>
                             setFormData({ ...formData, descripcion: e.target.value})
+                            }
+                        />
+                </label>
+
+                 <label className="block mb-4">
+                    <p className="text-black">Cost. unit.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.costunit ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, costunit: e.target.value})
                             }
                         />
                 </label>

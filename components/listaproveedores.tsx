@@ -8,6 +8,7 @@ import Link from "next/link";
 type Proveedor = {
   id: string;
   created_at: string;
+  codintprov: string;
   nombreprov: string;
   cuitprov: string;
   direccionprov: string;
@@ -179,6 +180,7 @@ const cellClass =
             <th  className={headerClass}>Accion</th>
              <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
+            <th  className={headerClass}>Codigo interno</th>
             <th  className={headerClass}>Proveedor</th>
             <th  className={headerClass}>Cuit</th>
             <th  className={headerClass}>Direcc.</th>
@@ -204,6 +206,7 @@ const cellClass =
                       setFormData({
                         created_at: proveedor.created_at,
                         id: proveedor.id,
+                        codintprov: proveedor.codintprov,
                         nombreprov: proveedor.nombreprov,
                         cuitprov: proveedor.cuitprov,
                         direccionprov: proveedor.direccionprov,
@@ -244,8 +247,8 @@ const cellClass =
 
                 <td className={cellClass}>{proveedor.id}</td>
               <td className={cellClass}>{formatDate(proveedor.created_at) || "-"}</td>
-                <td className={cellClass}>{renderValue(proveedor.nombreprov)}</td>
-             
+                <td className={cellClass}>{proveedor.codintprov}</td>
+             <td className={cellClass}>{renderValue(proveedor.nombreprov)}</td>
                <td className={cellClass}>{proveedor.cuitprov}</td>
                 <td className={cellClass}>{proveedor.direccionprov}</td>
                 <td className={cellClass}>{proveedor.emailprov}</td>

@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <div className="p-4">
       
-      <ListStock/>
+      <ListStock/>{/* este es el componente de pañol de productivos*/}
     </div>
   );
 }

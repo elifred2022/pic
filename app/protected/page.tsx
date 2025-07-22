@@ -4,12 +4,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ListUs from "@/components/listus";
 
-import ListSupervisor from "@/components/listsupervisor";
+
 import ListConsultas from "@/components/listconsultas";
 
 import ListBiComponentAdmin from "@/components/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/listbicomponentepanol";
+
+import ListSupervisorGenerales from "@/components/listsupervisor";
+import ListBiComponenteSupervisor from "@/components/listabicomponentesupervisor";
 
 
 
@@ -26,14 +29,15 @@ export default async function ProtectedPage() {
   const adminEmails = [
     
     "asistentecompras@perfilesyservicios.com.ar",
-      "victor@perfilesyservicios.com.ar",
+   "victor@perfilesyservicios.com.ar",
     
   ];
 
   const panolesEmails = [
     
-    "panol@perfilesyservicios.com.ar",
-    "pañolgasconperfilesyservicios.com.ar",
+    "paniol@perfilesyservicios.com.ar",
+   
+    "panolgascon@perfilesyservicios.com.ar",
       "elifred21@hotmail.com",
 
     
@@ -49,26 +53,23 @@ export default async function ProtectedPage() {
     "pedro@perfilesyservicios.com.ar",
     "Sofia sofiastok@perfilesyservicios.com.ar",
 
-     "elifredmason@gmail.com",
+   
     
   ];
 
    const supervisorEmails = [
-    
-    "joseluis@perfilesyservicios.com.ar",
      
-
+      "joseluis@perfilesyservicios.com.ar",
+     
+      "elifredmason@gmail.com",
   ];
-
-
 
     const consultasEmails = [
     
     "gestioncalidad@perfilesyservicios.com.ar",
     "bianca@perfilesyservicios.com.ar",
     "Agustina@perfilesyservicios.com.ar",
-      
-   
+ 
   ];
 
   let ComponentToRender = <ListUs />;
@@ -80,7 +81,7 @@ export default async function ProtectedPage() {
   } else if (consultasEmails.includes(email)) {
     ComponentToRender = <ListConsultas/>
   } else if (supervisorEmails.includes(email)) {
-    ComponentToRender = <ListSupervisor/>
+    ComponentToRender = <ListBiComponenteSupervisor/>
   } else if (panolesEmails.includes(email)) {
     ComponentToRender = <ListBiComponentePanol/>
   }

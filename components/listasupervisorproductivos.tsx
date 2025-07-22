@@ -50,7 +50,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListSupervisorGenerales() {
+export default function ListSupervisorProductivos() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -197,13 +197,13 @@ const cellClass =
         <div className="flex flex-wrap gap-4 items-center" >
           
             <Link
-              href="/protected"
+              href="/auth/lista-articulos"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
             >
-              Home
+              Articulos
             </Link>  
        </div>
-     <h1 className="text-xl font-bold mb-4">Pedidos generales pañoles</h1>
+     <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
      <div className="flex flex-wrap gap-4 items-center">
        
        <Link

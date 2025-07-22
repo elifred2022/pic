@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 
 type Pedido = {
@@ -197,7 +198,15 @@ function renderValue(value: unknown): string {
       <h1 className="text-xl font-bold mb-4">Sus pedidos generales</h1>
       
      <div className="flex flex-wrap gap-4 items-center">
-       
+        <div className="flex flex-wrap gap-4 items-center" >
+          
+            <Link
+              href="/protected"
+              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            >
+              Home
+            </Link>  
+       </div>
       
        
       <input
@@ -215,7 +224,7 @@ function renderValue(value: unknown): string {
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-           
+            <th className="px-4 py-2 border">Acciones</th>
              <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">Nº PIC</th>
             <th className="px-4 py-2 border">Fecha sol</th>
@@ -247,6 +256,41 @@ function renderValue(value: unknown): string {
        <tbody>
   {filteredPedidos.map((pedido) => (
     <tr key={pedido.id}>
+      <td className="border px-4 py-2">
+        <div className="flex gap-2">
+          <button
+            className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            onClick={() => {
+              setEditingPedido(pedido);
+              setFormData({
+                created_at: pedido.created_at,
+                necesidad: pedido.necesidad,
+                categoria: pedido.categoria,
+                solicita: pedido.solicita,
+                sector: pedido.sector,
+                cc: pedido.cc,
+                codint: pedido.codint,
+                cant: pedido.cant,
+                existencia: pedido.existencia,
+                articulo: pedido.articulo,
+                descripcion: pedido.descripcion,
+                 controlado: pedido.controlado,
+                        superviso: pedido.superviso,
+                estado: pedido.estado,
+                oc: pedido.oc,
+                proveedor_selec: pedido.proveedor_selec,
+                fecha_conf: pedido.fecha_conf,
+                fecha_prom: pedido.fecha_prom,
+                fecha_ent: pedido.fecha_ent,
+                rto: pedido.rto,
+                fac: pedido.fac,
+              });
+            }}
+          >
+            Edit
+          </button>
+        </div>
+      </td>
      
        <td className="px-4 py-2 border">
        <span

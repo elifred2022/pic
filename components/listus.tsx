@@ -192,7 +192,7 @@ function renderValue(value: unknown): string {
   return (
     <div className="flex-1 w-full overflow-auto p-4">
       
-      <h1 className="text-xl font-bold mb-4">Sus pedidos</h1>
+      <h1 className="text-xl font-bold mb-4">Pedidos de compras no productivas </h1>
      <div className="flex flex-wrap gap-4 items-center">
        
        <Link

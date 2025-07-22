@@ -22,6 +22,7 @@ export function CrearFormProveedor({ className, ...props }: React.ComponentProps
   const [telefonoprov, setTelefonoProv] = useState("");
   const [contactoprov, setContactoProv] = useState("");
   const [activoprov, setActivoProv] = useState("");
+  const [codintprov, setCodintprov] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +64,7 @@ export function CrearFormProveedor({ className, ...props }: React.ComponentProps
     .from("proveedor")
     .insert([
       {
+        codintprov,
         nombreprov,
         cuitprov,
         direccionprov,
@@ -93,6 +95,17 @@ export function CrearFormProveedor({ className, ...props }: React.ComponentProps
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCrear} className="flex flex-col gap-6">
+
+             <div className="grid gap-2">
+              <Label htmlFor="codintprov">Codigo interno de proveedor</Label>
+              <Input
+                id="codintprov"
+                type="text"
+                required
+                value={codintprov}
+                onChange={(e) => setCodintprov(e.target.value)}
+              />
+            </div>
 
             <div className="grid gap-2">
               <Label htmlFor="nombreprov">Nombre de proveedor</Label>
