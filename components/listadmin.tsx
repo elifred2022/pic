@@ -6,6 +6,8 @@ import Link from "next/link";
 
 
 
+
+
 type Pedido = {
   id: string;
   created_at: string;
@@ -41,13 +43,13 @@ type Pedido = {
   mod_pago: string;
   proceso: string;
   prov_uno: string;
-  cost_prov_uno: number;
+  cost_prov_uno: string | number;
   subt_prov1: number;
   prov_dos: string;
-  cost_prov_dos: number;
+  cost_prov_dos: string | number;
   subt_prov2: number;
   prov_tres: string;
-  cost_prov_tres: number;
+  cost_prov_tres: string | number;
   subt_prov3: number;
   // Agregá más campos si los usás en el .map()
 };
@@ -213,7 +215,7 @@ const cellClass =
         <div className="flex flex-wrap gap-4 items-center">
           
           <Link
-            href="/auth/crear-formstock"
+            href="/auth/crear-formus"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo pedido general
@@ -509,7 +511,7 @@ const cellClass =
             <label className="block mb-2">
               <p className="text-black">Necesidad</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               // className="w-full border p-2 rounded mt-1"
                 type="date"
                 value={formData.necesidad ?? ""}
                 onChange={(e) =>
@@ -521,7 +523,7 @@ const cellClass =
             <label className="block mb-4">
               <p className="text-black">Categoria</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.categoria ?? 0}
                 onChange={(e) =>
@@ -533,7 +535,7 @@ const cellClass =
              <label className="block mb-4">
              <p className="text-black">Solicita</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.solicita ?? 0}
                 onChange={(e) =>
@@ -544,7 +546,7 @@ const cellClass =
             <label className="block mb-4">
               <p className="text-black">Sector</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.sector ?? 0}
                 onChange={(e) =>
@@ -555,7 +557,7 @@ const cellClass =
              <label className="block mb-4">
               <p className="text-black">C.C.</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.cc ?? 0}
                 onChange={(e) =>
@@ -566,7 +568,7 @@ const cellClass =
              <label className="block mb-4">
               <p className="text-black">Cod. Int. Artic.</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.codint ?? 0}
                 onChange={(e) =>
@@ -577,7 +579,7 @@ const cellClass =
             <label className="block mb-4">
              <p className="text-black">Cant.</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.cant ?? 0}
                 onChange={(e) =>
@@ -589,7 +591,7 @@ const cellClass =
             <label className="block mb-4">
              <p className="text-black">Articulo</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.articulo ?? 0}
                 onChange={(e) =>
@@ -600,7 +602,7 @@ const cellClass =
              <label className="block mb-4">
              <p className="text-black">Descripcion</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.descripcion ?? 0}
                 onChange={(e) =>
@@ -612,7 +614,7 @@ const cellClass =
               <label className="block mb-4">
               <p className="text-black">Controlado</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+               
                 value={formData.controlado ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, controlado: e.target.value })
@@ -632,7 +634,7 @@ const cellClass =
             <label className="block mb-4">
               <p className="text-black">Supervisor</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+                
                 value={formData.superviso ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, superviso: e.target.value })
@@ -652,33 +654,42 @@ const cellClass =
             <label className="block mb-4">
             <p className="text-black">Prov uno</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.prov_uno ?? 0}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_uno: e.target.value})
                 }
               />
+
             </label>
              <label className="block mb-4">
             <p className="text-black">Cost prov uno</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_uno ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_uno: Number(e.target.value)  })
-                }
-              />
+                  <input
+                     type="text"
+                      name="cost_prov_uno"
+                      value={formData.cost_prov_uno ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_uno: val,
+                          });
+                        }
+                      }}
+                     
+                      />
+
             </label>
            
 
              <label className="block mb-4">
                <p className="text-black">Prov dos</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
-                value={formData.prov_dos ?? 0}
+                value={formData.prov_dos ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_dos: e.target.value})
                 }
@@ -686,23 +697,30 @@ const cellClass =
             </label>
              <label className="block mb-4">
             <p className="text-black">Cost prov dos</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_dos ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_dos: Number(e.target.value)  })
-                }
-              />
+               <input
+                     type="text"
+                      name="cost_prov_dos"
+                      value={formData.cost_prov_dos ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_dos: val,
+                          });
+                        }
+                      }}
+                     
+                      />
             </label>
             
 
             <label className="block mb-4">
              <p className="text-black">Prov tres</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
-                value={formData.prov_tres ?? 0}
+                value={formData.prov_tres ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_tres: e.target.value})
                 }
@@ -710,14 +728,21 @@ const cellClass =
             </label>
              <label className="block mb-4">
                <p className="text-black">Cost prov tres</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_tres ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_tres: Number(e.target.value)  })
-                }
-              />
+             <input
+                     type="text"
+                      name="cost_prov_tres"
+                      value={formData.cost_prov_tres ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_tres: val,
+                          });
+                        }
+                      }}
+                    
+                      />
             </label>
              
 
@@ -725,7 +750,7 @@ const cellClass =
            <label className="block mb-4">
               <p className="text-black">Estado</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+                
                 value={formData.estado ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, estado: e.target.value })
@@ -756,7 +781,7 @@ const cellClass =
             <label className="block mb-4">
               <p className="text-black">Aprueba</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+               
                 value={formData.aprueba ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, aprueba: e.target.value })
@@ -790,7 +815,7 @@ const cellClass =
              <label className="block mb-4">
                <p className="text-black">OC</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.oc ?? 0}
                 onChange={(e) =>
@@ -801,7 +826,7 @@ const cellClass =
              <label className="block mb-4">
                  <p className="text-black">Proveedor selecc</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.proveedor_selec ?? 0}
                 onChange={(e) =>
@@ -812,7 +837,7 @@ const cellClass =
             <label className="block mb-4">
              <p className="text-black">Usd</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.usd ?? 0}
                 onChange={(e) =>
@@ -823,7 +848,7 @@ const cellClass =
              <label className="block mb-4">
              <p className="text-black">Eur</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.eur ?? 0}
                 onChange={(e) =>
@@ -834,7 +859,7 @@ const cellClass =
             <label className="block mb-4">
             <p className="text-black">TC</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.tc ?? 0}
                 onChange={(e) =>
@@ -845,7 +870,7 @@ const cellClass =
              <label className="block mb-4">
              <p className="text-black">Ars</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.ars ?? 0}
                 onChange={(e) =>
@@ -856,7 +881,7 @@ const cellClass =
              <label className="block mb-4">
              <p className="text-black">% desc</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.porcent ?? 0}
                 onChange={(e) =>
@@ -867,7 +892,7 @@ const cellClass =
              <label className="block mb-4">
                <p className="text-black">Ars con desc</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.ars_desc ?? 0}
                 onChange={(e) =>
@@ -879,7 +904,7 @@ const cellClass =
             <label className="block mb-2">
                <p className="text-black">Fecha confirm</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="date"
                 value={formData.fecha_conf ?? ""}
                 onChange={(e) =>
@@ -890,7 +915,7 @@ const cellClass =
              <label className="block mb-2">
               <p className="text-black">Fecha prom</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="date"
                 value={formData.fecha_prom ?? ""}
                 onChange={(e) =>
@@ -901,7 +926,7 @@ const cellClass =
              <label className="block mb-2">
                <p className="text-black">Fecha entrega</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="date"
                 value={formData.fecha_ent ?? ""}
                 onChange={(e) =>
@@ -912,7 +937,7 @@ const cellClass =
              <label className="block mb-4">
                  <p className="text-black">Rto</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+               
                 type="text"
                 value={formData.rto ?? 0}
                 onChange={(e) =>
@@ -923,7 +948,7 @@ const cellClass =
              <label className="block mb-4">
                <p className="text-black">Fac</p>
               <input
-                className="w-full border p-2 rounded mt-1"
+                
                 type="text"
                 value={formData.fac ?? 0}
                 onChange={(e) =>
@@ -935,7 +960,7 @@ const cellClass =
             <label className="block mb-4">
               <p className="text-black">Mod de pago</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+               
                 value={formData.mod_pago ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, mod_pago: e.target.value })
@@ -958,7 +983,7 @@ const cellClass =
               <label className="block mb-4">
               <p className="text-black">Proceso</p>
               <select
-                className="w-full border p-2 rounded mt-1"
+             
                 value={formData.proceso ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, proceso: e.target.value })

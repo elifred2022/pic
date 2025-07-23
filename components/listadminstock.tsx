@@ -41,13 +41,13 @@ type Pedido = {
   mod_pago: string;
   proceso: string;
   prov_uno: string;
-  cost_prov_uno: number;
+  cost_prov_uno: string | number;
   subt_prov1: number;
   prov_dos: string;
-  cost_prov_dos: number;
+  cost_prov_dos: string | number;
   subt_prov2: number;
   prov_tres: string;
-  cost_prov_tres: number;
+  cost_prov_tres: string | number;
   subt_prov3: number;
   // Agregá más campos si los usás en el .map()
 };
@@ -650,7 +650,7 @@ const cellClass =
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
-                value={formData.prov_uno ?? 0}
+                value={formData.prov_uno ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_uno: e.target.value})
                 }
@@ -658,14 +658,21 @@ const cellClass =
             </label>
              <label className="block mb-4">
             <p className="text-black">Cost prov uno</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_uno ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_uno: Number(e.target.value)  })
-                }
-              />
+             <input
+                     type="text"
+                      name="cost_prov_uno"
+                      value={formData.cost_prov_uno ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_uno: val,
+                          });
+                        }
+                      }}
+                     
+                      />
             </label>
            
 
@@ -674,7 +681,7 @@ const cellClass =
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
-                value={formData.prov_dos ?? 0}
+                value={formData.prov_dos ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_dos: e.target.value})
                 }
@@ -683,13 +690,20 @@ const cellClass =
              <label className="block mb-4">
             <p className="text-black">Cost prov dos</p>
               <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_dos ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_dos: Number(e.target.value)  })
-                }
-              />
+                     type="text"
+                      name="cost_prov_dos"
+                      value={formData.cost_prov_dos ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_dos: val,
+                          });
+                        }
+                      }}
+                     
+                      />
             </label>
             
 
@@ -698,7 +712,7 @@ const cellClass =
               <input
                 className="w-full border p-2 rounded mt-1"
                 type="text"
-                value={formData.prov_tres ?? 0}
+                value={formData.prov_tres ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, prov_tres: e.target.value})
                 }
@@ -706,14 +720,21 @@ const cellClass =
             </label>
              <label className="block mb-4">
                <p className="text-black">Cost prov tres</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.cost_prov_tres ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_prov_tres: Number(e.target.value)  })
-                }
-              />
+             <input
+                     type="text"
+                      name="cost_prov_tres"
+                      value={formData.cost_prov_tres ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val) || val === "") {
+                          setFormData({
+                            ...formData,
+                            cost_prov_tres: val,
+                          });
+                        }
+                      }}
+                     
+                      />
             </label>
              
 
