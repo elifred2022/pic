@@ -13,11 +13,13 @@ type Articulo = {
   articulo: string;
   descripcion: string;
   costunit: string;
+  divisa: string;
   existencia: string;
   provsug: string;
   codprovsug: string;
   familia: string;
   situacion: string;
+  
   
   // Agregá más campos si los usás en el .map()
 };
@@ -215,6 +217,7 @@ const cellClass =
             <th  className={headerClass}>Articulo</th>
             <th  className={headerClass}>Descripcion</th>
              <th  className={headerClass}>Cost. unit.</th>
+             <th  className={headerClass}>Divisa</th>
             <th  className={headerClass}>Exsitencia</th>
             <th  className={headerClass}>Prov. sug.</th>
             <th  className={headerClass}>Cod. porv. sug.</th>
@@ -249,6 +252,7 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        divisa: articulo.divisa,
 
                       });
                     }}
@@ -275,6 +279,7 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        divisa: articulo.divisa,
                       });
                     }}
                   >
@@ -298,6 +303,7 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        divisa: articulo.divisa,
                       });
                     }}
                   >
@@ -337,6 +343,7 @@ const cellClass =
                 <td className={cellClass}>{articulo.articulo}</td>
                 <td className={cellClass}>{articulo.descripcion}</td>
                 <td className={cellClass}>{articulo.costunit}</td>
+                <td className={cellClass}>{articulo.divisa}</td>
                 <td className={cellClass}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
                 <td className={cellClass}>{articulo.codprovsug}</td>
@@ -405,13 +412,36 @@ const cellClass =
                     <p className="text-black">Cost. unit.</p>
                         <input
                             className="w-full border p-2 rounded mt-1"
-                            type="text"
+                            type="numeric"
+                         
                             value={formData.costunit ?? ""}
                             onChange={(e) =>
                             setFormData({ ...formData, costunit: e.target.value})
                             }
                         />
                 </label>
+
+                   <label className="block mb-4">
+                    <p className="text-black">Divisa</p>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={formData.divisa ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, divisa: e.target.value })
+                      }
+                    >
+                      <option value="">Seleccionar divisa</option>
+                      <option value="Ars" className="bg-yellow-300 text-black">
+                        Ars
+                      </option>
+                      <option value="Usd" className="bg-green-400 text-white">
+                        Usd
+                      </option>
+                       <option value="Eur" className="bg-green-400 text-white">
+                        Eur
+                      </option>
+                    </select>
+                  </label>
 
                  <label className="block mb-4">
                     <p className="text-black">Existencia</p>
@@ -489,27 +519,36 @@ const cellClass =
                     Cancelar
                 </button>
                 <button
-                    onClick={async () => {
-                    const { error } = await supabase
-                        .from("articulos")
-                        .update(formData)
-                        .eq("id", editingArticulo.id);
+  onClick={async () => {
+    if (
+      formData.costunit === undefined ||
+      formData.costunit === null ||
+      formData.costunit.toString().trim() === ""
+    ) {
+      alert("El campo 'Cost. unit.' no puede estar vacío. Si no tiene valor, usá 0.");
+      return;
+    }
 
-                    if (error) {
-                        alert("Error actualizando");
-                        console.error(error);
-                    } else {
-                        alert("Actualizado correctamente");
-                        setEditingArticulo(null);
-                        setFormData({});
-                        const { data } = await supabase.from("articulos").select("*");
-                        if (data) setArticulos(data);
-                    }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                   Guardar
-            </button>
+    const { error } = await supabase
+      .from("articulos")
+      .update(formData)
+      .eq("id", editingArticulo.id);
+
+    if (error) {
+      alert("Error actualizando");
+      console.error(error);
+    } else {
+      alert("Actualizado correctamente");
+      setEditingArticulo(null);
+      setFormData({});
+      const { data } = await supabase.from("articulos").select("*");
+      if (data) setArticulos(data);
+    }
+  }}
+  className="px-4 py-2 bg-blue-600 text-white rounded"
+>
+  Guardar
+</button>
             </div>
           </div>
         </div>

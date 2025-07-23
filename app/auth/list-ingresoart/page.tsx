@@ -1,6 +1,8 @@
 
 
+
 import ListIngresoArticulos from "@/components/listaingresoart";
+
 
 export default function Page() {
   return (

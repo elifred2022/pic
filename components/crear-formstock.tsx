@@ -22,17 +22,19 @@ export function CrearFormStock({
   const [categoria, setCategoria] = useState("");
   const [solicita, setSolicita] = useState("");
   const [sector, setSector] = useState("");
-  const [cc, setCc] = useState("");
+  
   const [cant, setCant] = useState("");
   const [aprueba, setAprueba] = useState("");
 
   // variables para traer articulo de tabla el articulo
   const [codint, setCodint] = useState("");
-  const [articulo, setArticulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [existencia, setExistencia] = useState("");
-  const [codintError, setCodintError] = useState("");
+  const [cc, setCc] = useState(""); // ✅ string vacío
+const [existencia, setExistencia] = useState(""); // ✅
+const [articulo, setArticulo] = useState(""); // ✅
+const [descripcion, setDescripcion] = useState(""); // ✅
 
+  const [codintError, setCodintError] = useState("");
+ 
  
  
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ function parseNumber(value: string) {
 
 const handleCodintChange = async (value: string) => {
   setCodint(value);
+  setCc("");
   setArticulo("");
   setDescripcion("");
   setExistencia("");
@@ -56,18 +59,20 @@ const handleCodintChange = async (value: string) => {
 
   const { data: articuloEncontrado, error } = await supabase
     .from("articulos")
-    .select("articulo, descripcion, existencia")
+    .select("cc, articulo, descripcion, existencia")
     .eq("codint", value)
     .single();
 
   if (error || !articuloEncontrado) {
     setCodintError("Artículo no encontrado.");
   } else {
-    setArticulo(articuloEncontrado.articulo);
-    setDescripcion(articuloEncontrado.descripcion);
-    setExistencia(articuloEncontrado.existencia);
+    setCc(String(articuloEncontrado.cc ?? ""));               // <-- asegura string
+    setArticulo(articuloEncontrado.articulo ?? "");           // <-- asegura string
+    setDescripcion(articuloEncontrado.descripcion ?? "");     // <-- asegura string
+    setExistencia(String(articuloEncontrado.existencia ?? "")); // <-- asegura string
   }
 };
+
 
 
 
@@ -89,7 +94,7 @@ const handleCodintChange = async (value: string) => {
           categoria,
           solicita,
           sector,
-          cc: parseNumber(cc),
+          cc: cc,
           codint,
           cant: parseNumber(cant),
           existencia: existencia,
@@ -180,31 +185,29 @@ const handleCodintChange = async (value: string) => {
                     </select>
                   </div>
 
+                  <div className="grid gap-2">
+                    <Label htmlFor="codint">Código interno</Label>
+                    <Input
+                      id="codint"
+                      type="text"
+                      required
+                      value={codint}
+                      onChange={(e) => handleCodintChange(e.target.value)}
+                    />
+                    {codintError && <p className="text-red-600 text-sm">{codintError}</p>}
+                  </div>
+
                 <div className="grid gap-2">
                 <Label htmlFor="cc">Cod cta</Label>
                 <Input
                   id="cc"
                   type="text"
-                  inputMode="numeric"
                   pattern="[0-9]*"
                   value={cc}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) setCc(value); // solo dígitos
-                  }}
+                 readOnly
                 />
               </div>
-               <div className="grid gap-2">
-                <Label htmlFor="codint">Código interno</Label>
-                <Input
-                  id="codint"
-                  type="text"
-                  required
-                  value={codint}
-                  onChange={(e) => handleCodintChange(e.target.value)}
-                />
-                {codintError && <p className="text-red-600 text-sm">{codintError}</p>}
-              </div>
+               
 
               <div className="grid gap-2">
                 <Label htmlFor="cant">Cant Sol</Label>

@@ -9,17 +9,20 @@ type Articulo = {
   id: string;
   created_at: string;
   codint: string;
+  cc: string;
   articulo: string;
   descripcion: string;
+  costunit: string;
+  divisa: string;
   existencia: string;
   provsug: string;
   codprovsug: string;
   familia: string;
   situacion: string;
   
+  
   // Agregá más campos si los usás en el .map()
 };
-
 
 export default function ListArticulosPanol() {
   const [search, setSearch] = useState("");
@@ -27,7 +30,6 @@ export default function ListArticulosPanol() {
   const [editingArticulo, setEditingArticulo] = useState<Articulo | null>(null);
   const [ingresarArticulo, setIngresarArticulo] = useState<Articulo | null>(null);
   const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
-  
   const [ocultarArticuloInactivo, setOcultarArticuloInactivo] = useState(false);
 
     //variables ingreso y egreso articulos
@@ -94,7 +96,6 @@ export default function ListArticulosPanol() {
 const dateFields: (keyof Articulo)[] = [
   "created_at",
   
-  
 ];
 
 //Filtro que también contempla las fechas
@@ -158,10 +159,15 @@ const cellClass =
            
         </div>
            
-    <h1 className="text-xl font-bold mb-4">Modulo Articulos</h1>
+    <h1 className="text-xl font-bold mb-4">Modulo Articulos Productivos</h1>
 
         <div className="flex flex-wrap gap-4 items-center">
-            
+             <Link
+            href="/auth/crear-articulo"
+            className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+          >
+            Crear nuevo articulo
+          </Link>
             <input
             type="text"
             placeholder="Buscar articulo..."
@@ -207,8 +213,10 @@ const cellClass =
              <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
             <th  className={headerClass}>Cod int</th>
+            <th  className={headerClass}>Cod cta</th>
             <th  className={headerClass}>Articulo</th>
             <th  className={headerClass}>Descripcion</th>
+             
             <th  className={headerClass}>Exsitencia</th>
             <th  className={headerClass}>Prov. sug.</th>
             <th  className={headerClass}>Cod. porv. sug.</th>
@@ -241,6 +249,9 @@ const cellClass =
                         codprovsug: articulo.codprovsug,
                         familia: articulo.familia,
                         situacion: articulo.situacion,
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
+                        divisa: articulo.divisa,
 
                       });
                     }}
@@ -265,20 +276,52 @@ const cellClass =
                         codprovsug: articulo.codprovsug,
                         familia: articulo.familia,
                         situacion: articulo.situacion,
-
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
+                        divisa: articulo.divisa,
                       });
                     }}
                   >
                     Egreso
                   </button>
-  
+
+                  <button
+                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    onClick={() => {
+                      setEditingArticulo(articulo);
+                      setFormData({
+                        created_at: articulo.created_at,
+                        id: articulo.id,
+                        codint: articulo.codint,
+                        articulo: articulo.articulo,
+                        descripcion: articulo.descripcion,
+                        existencia: articulo.existencia,
+                        provsug: articulo.provsug,
+                        codprovsug: articulo.codprovsug,
+                        familia: articulo.familia,
+                        situacion: articulo.situacion,
+                        cc: articulo.cc,
+                        costunit: articulo.costunit,
+                        divisa: articulo.divisa,
+                      });
+                    }}
+                  >
+                    Edit
+                  </button>
+
+
+                  
+
+                  
                 </div></td>
 
                 <td className={cellClass}>{articulo.id}</td>
               <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
                 <td className={cellClass}>{renderValue(articulo.codint)}</td>
+                <td className={cellClass}>{renderValue(articulo.cc)}</td>
                 <td className={cellClass}>{articulo.articulo}</td>
                 <td className={cellClass}>{articulo.descripcion}</td>
+                
                 <td className={cellClass}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
                 <td className={cellClass}>{articulo.codprovsug}</td>
@@ -305,7 +348,17 @@ const cellClass =
                
               </div>
 
-             
+              <label className="block mb-4">
+                    <p className="text-black">Cod. Cta.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.cc ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, cc: e.target.value})
+                            }
+                        />
+                </label>
                        
                        
 
@@ -319,7 +372,7 @@ const cellClass =
                             setFormData({ ...formData, articulo: e.target.value})
                             }
                         />
-                        </label>
+                </label>
 
                 <label className="block mb-4">
                     <p className="text-black">Descripcion</p>
@@ -332,6 +385,41 @@ const cellClass =
                             }
                         />
                 </label>
+
+                 <label className="block mb-4">
+                    <p className="text-black">Cost. unit.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="numeric"
+                         
+                            value={formData.costunit ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, costunit: e.target.value})
+                            }
+                        />
+                </label>
+
+                   <label className="block mb-4">
+                    <p className="text-black">Divisa</p>
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={formData.divisa ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, divisa: e.target.value })
+                      }
+                    >
+                      <option value="">Seleccionar divisa</option>
+                      <option value="Ars" className="bg-yellow-300 text-black">
+                        Ars
+                      </option>
+                      <option value="Usd" className="bg-green-400 text-white">
+                        Usd
+                      </option>
+                       <option value="Eur" className="bg-green-400 text-white">
+                        Eur
+                      </option>
+                    </select>
+                  </label>
 
                  <label className="block mb-4">
                     <p className="text-black">Existencia</p>
@@ -380,22 +468,27 @@ const cellClass =
                             }
                         />
                 </label>
-                
-                <label className="block mb-4">
+
+               <label className="block mb-4">
                     <p className="text-black">Situacion</p>
-                        <input
-                            className="w-full border p-2 rounded mt-1"
-                            type="text"
-                            value={formData.situacion ?? ""}
-                            onChange={(e) =>
-                            setFormData({ ...formData, situacion: e.target.value})
-                            }
-                        />
-                </label>
-
-                       
-          
-
+                    <select
+                      className="w-full border p-2 rounded mt-1"
+                      value={formData.situacion ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, situacion: e.target.value })
+                      }
+                    >
+                      <option value="">Seleccionar situacion</option>
+                      <option value="activo" className="bg-yellow-300 text-black">
+                        Activo
+                      </option>
+                      <option value="inactivo" className="bg-green-400 text-white">
+                        Inactivo
+                      </option>
+                      
+                    </select>
+                  </label>
+            
                 <div className="flex justify-end space-x-2">
                 <button
                     onClick={() => setEditingArticulo(null)}
@@ -404,27 +497,36 @@ const cellClass =
                     Cancelar
                 </button>
                 <button
-                    onClick={async () => {
-                    const { error } = await supabase
-                        .from("articulos")
-                        .update(formData)
-                        .eq("id", editingArticulo.id);
+  onClick={async () => {
+    if (
+      formData.costunit === undefined ||
+      formData.costunit === null ||
+      formData.costunit.toString().trim() === ""
+    ) {
+      alert("El campo 'Cost. unit.' no puede estar vacío. Si no tiene valor, usá 0.");
+      return;
+    }
 
-                    if (error) {
-                        alert("Error actualizando");
-                        console.error(error);
-                    } else {
-                        alert("Actualizado correctamente");
-                        setEditingArticulo(null);
-                        setFormData({});
-                        const { data } = await supabase.from("articulos").select("*");
-                        if (data) setArticulos(data);
-                    }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                   Guardar
-            </button>
+    const { error } = await supabase
+      .from("articulos")
+      .update(formData)
+      .eq("id", editingArticulo.id);
+
+    if (error) {
+      alert("Error actualizando");
+      console.error(error);
+    } else {
+      alert("Actualizado correctamente");
+      setEditingArticulo(null);
+      setFormData({});
+      const { data } = await supabase.from("articulos").select("*");
+      if (data) setArticulos(data);
+    }
+  }}
+  className="px-4 py-2 bg-blue-600 text-white rounded"
+>
+  Guardar
+</button>
             </div>
           </div>
         </div>
@@ -487,7 +589,6 @@ const cellClass =
                             type="text"
                             inputMode="numeric"
                             value={fac}
-                            required
                             onChange={(e) => {
                             const value = e.target.value;
                             if (/^\d*$/.test(value)) setFac(value);
@@ -503,7 +604,6 @@ const cellClass =
                             type="text"
                             inputMode="numeric"
                             value={rto}
-                            required
                             onChange={(e) => {
                             const value = e.target.value;
                             if (/^\d*$/.test(value)) setRto(value);
@@ -523,7 +623,7 @@ const cellClass =
                         />
                     </label>
 
-                    <label className="block">
+                      <label className="block">
                       <p className="text-black">Con observacion</p>
                     <select
                       className="w-full border p-2 rounded mt-1"
@@ -564,13 +664,13 @@ const cellClass =
                       return;
                     }
 
-                    if (fac.trim() === "") {
-                      alert("El campo Factura (Fac.) no puede estar vacío");
+                    if (nombreprov.trim() === "") {
+                      alert("El campo Proveedor no puede estar vacío");
                       return;
                     }
 
-                     if (nombreprov.trim() === "") {
-                      alert("El campo Proveedor no puede estar vacío");
+                    if (fac.trim() === "") {
+                      alert("El campo Factura (Fac.) no puede estar vacío");
                       return;
                     }
 
@@ -592,11 +692,11 @@ const cellClass =
                    
                     const nuevaExistencia = cantExist + cantIngreso;
 
-                    // 1. Actualizar existencia en articulos
+                    // 1. Actualizar existencia
                     const { error: updateError } = await supabase
                     .from("articulos")
                     .update({ existencia: nuevaExistencia })
-                    .eq("codint", ingresarArticulo.codint);
+                    .eq("id", ingresarArticulo.id);
 
                     if (updateError) {
                     alert("Error al actualizar el stock");
@@ -604,8 +704,6 @@ const cellClass =
                     return;
                     }
 
-                   
-                    
                     // 2. Insertar en ingarticulos
                     const { error: insertError } = await supabase.from("ingarticulos").insert({
                     codint: ingresarArticulo.codint,
@@ -735,13 +833,12 @@ const cellClass =
                     const cantExist = Number(descontarArticulo.existencia ?? 0);
                     const cantEgreso = Number(descontart ?? 0);
 
-                    if (cantEgreso <= 0) {
+                     if (cantEgreso <= 0) {
                     alert("La cantidad a descontar debe ser mayor a 0");
                     return;
                     }
 
-                    
-                    if (cantEgreso > cantExist) {
+                     if (cantEgreso > cantExist) {
                     alert("No hay suficiente stock para realizar el egreso");
                     return;
                     }
@@ -762,6 +859,7 @@ const cellClass =
                     }
 
 
+                   
 
                     const nuevaExistencia = cantExist - cantEgreso;
 

@@ -1,6 +1,6 @@
 
 
-import ListEgresoArticulosPanol from "@/components/listaegresoartpanol";
+import ListEgresoArticulosPanol from "@/components/modarticulopanol/listaegresoartpanol";
 
 export default function Page() {
   return (

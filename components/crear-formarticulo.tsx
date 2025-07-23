@@ -23,6 +23,9 @@ export function CrearFormArticulo({ className, ...props }: React.ComponentPropsW
   const [codprovsug, setCodprovsug] = useState("");
   const [familia, setFamilia] = useState("");
   const [situacion, setSituacion] = useState("");
+   const [cc, setCc] = useState("");
+   const [costunit, setCostUnit] = useState("");
+   const [divisa, setDivisa] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,7 +70,10 @@ export function CrearFormArticulo({ className, ...props }: React.ComponentPropsW
         codint,
         articulo,
         descripcion,
+        cc,
         existencia,
+        costunit,
+        divisa,
         provsug,
         codprovsug,
         familia,
@@ -130,6 +136,22 @@ export function CrearFormArticulo({ className, ...props }: React.ComponentPropsW
             </div>
 
              <div className="grid gap-2">
+              <Label htmlFor="cc">Cod. cta.</Label>
+              <Input
+                id="cc"
+                type="text"
+             
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={cc}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^\d*$/.test(value)) setCc(value);
+                }}
+              />
+            </div>
+
+             <div className="grid gap-2">
               <Label htmlFor="existencia">Existencia</Label>
               <Input
                 id="existencia"
@@ -144,6 +166,40 @@ export function CrearFormArticulo({ className, ...props }: React.ComponentPropsW
                 }}
               />
             </div>
+
+             <div className="grid gap-2">
+              <Label htmlFor="costunit">Costo unit</Label>
+              <Input
+                id="costunit"
+                type="text"
+             
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={costunit}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^\d*$/.test(value)) setCostUnit(value);
+                }}
+              />
+            </div>
+
+             <div className="grid gap-2">
+              <Label htmlFor="divisa">Divisa</Label>
+              <select
+                id="divisa"
+               
+                value={divisa}
+                onChange={(e) => setDivisa(e.target.value)}
+                className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
+              >
+                <option value="">Seleccione divisa</option>
+                <option value="Ars">Ars</option>
+                <option value="Usd">Usd</option>
+                <option value="Eur">Eur</option>
+              </select>
+            </div>
+
+             
 
              <div className="grid gap-2">
               <Label htmlFor="provsug">Prov. sugerido</Label>

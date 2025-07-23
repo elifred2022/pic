@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 
 type Pedido = {
@@ -34,7 +35,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListPanolProductivoVer() {
+export default function ListPanolProductosGeneralesVer() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -103,7 +104,7 @@ export default function ListPanolProductivoVer() {
     }
 
     const { data, error } = await supabase
-      .from("picstock")
+      .from("pic")
       .select("*")
       .eq("uuid", user.id); // 👈 Filtra por usuario logueado
 
@@ -193,11 +194,12 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
-       
+        
+    
       
-      <h1 className="text-xl font-bold mb-4">Pedidos productivos</h1>
+      <h1 className="text-xl font-bold mb-4">Pedidos generales</h1>
       
-      <div className="flex flex-wrap gap-4 items-center">
+     <div className="flex flex-wrap gap-4 items-center">
        
        
        
@@ -210,16 +212,10 @@ function renderValue(value: unknown): string {
       />
      </div>
 
-      
-      
-       
-
-
-      
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
-             
+           
              <th className="px-4 py-2 border">Estado</th>
             <th className="px-4 py-2 border">Nº PIC</th>
             <th className="px-4 py-2 border">Fecha sol</th>
@@ -251,6 +247,7 @@ function renderValue(value: unknown): string {
        <tbody>
   {filteredPedidos.map((pedido) => (
     <tr key={pedido.id}>
+      
      
        <td className="px-4 py-2 border">
        <span
@@ -372,7 +369,7 @@ function renderValue(value: unknown): string {
               <button
                 onClick={async () => {
                   const { error } = await supabase
-                    .from("picstock")
+                    .from("pic")
                     .update(formData)
                     .eq("id", editingPedido.id);
 
@@ -389,7 +386,7 @@ function renderValue(value: unknown): string {
 
                         if (user) {
                           const { data } = await supabase
-                            .from("picstock")
+                            .from("pic")
                             .select("*")
                             .eq("uuid", user.id);
 

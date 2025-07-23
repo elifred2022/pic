@@ -195,10 +195,7 @@ function renderValue(value: unknown): string {
   return (
     <div className="flex-1 w-full overflow-auto p-4">
         
-      <h1 className="text-xl font-bold mb-4">Sus pedidos generales</h1>
-      
-     <div className="flex flex-wrap gap-4 items-center">
-        <div className="flex flex-wrap gap-4 items-center" >
+     <div className="flex flex-wrap gap-4 items-center" >
           
             <Link
               href="/protected"
@@ -208,6 +205,16 @@ function renderValue(value: unknown): string {
             </Link>  
        </div>
       
+      <h1 className="text-xl font-bold mb-4">Pedidos generales</h1>
+      
+     <div className="flex flex-wrap gap-4 items-center">
+       
+       <Link
+        href="/auth/crear-formstock"
+        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+      >
+        Crear nuevo pedido
+      </Link>
        
       <input
         type="text"
@@ -218,7 +225,58 @@ function renderValue(value: unknown): string {
       />
      </div>
 
-      
+        <div className="flex flex-wrap gap-4 items-center">
+          <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={ocultarCumplidos}
+            onChange={() => setOcultarCumplidos((v) => !v)}
+            className="w-4 h-4"
+          />
+          Ocultar cumplidos
+        </label>
+
+        <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar aprobados
+          </label>
+
+           <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-4 h-4"
+            />
+            Ocultar confirmados
+          </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarAnulados}
+                  onChange={() => setOcultarAnulados((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar anulados
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ocultarStandBy}
+                  onChange={() => setOcultarStandBy((v) => !v)}
+                  className="w-4 h-4"
+                />
+                Ocultar stand by
+              </label>
+      </div>
+
 
       
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">

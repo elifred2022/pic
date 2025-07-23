@@ -1,7 +1,7 @@
 
 
 
-import ListIngresoArticulosPanol from "@/components/listaingresopanol";
+import ListIngresoArticulosPanol from "@/components/modarticulopanol/listaingresopanol";
 
 export default function Page() {
   return (

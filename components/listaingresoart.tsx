@@ -134,7 +134,7 @@ const cellClass =
             >
               Volver a Articulos
             </Link>
-        <h1 className="text-xl font-bold mb-4">Registro de ingreso de Articulos</h1>
+        <h1 className="text-xl font-bold mb-4">Registroc de ingreso de Articulos</h1>
 
         <div className="flex flex-wrap gap-4 items-center">
             

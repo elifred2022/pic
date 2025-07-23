@@ -1,6 +1,6 @@
 
 
-import ListArticulosPanol from "@/components/listarticulospanol";
+import ListArticulosPanol from "@/components/modarticulopanol/listarticulospanol";
 
 export default function Page() {
   return (

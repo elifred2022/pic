@@ -203,7 +203,7 @@ function renderValue(value: unknown): string {
             </Link>  
        </div>
       
-      <h1 className="text-xl font-bold mb-4">Sus pedidos productivos</h1>
+      <h1 className="text-xl font-bold mb-4">Pedidos productivos</h1>
       
      <div className="flex flex-wrap gap-4 items-center">
        
@@ -223,7 +223,7 @@ function renderValue(value: unknown): string {
       />
      </div>
 
-         <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-center">
           <label className="flex items-center gap-2">
           <input
             type="checkbox"
