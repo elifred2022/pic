@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 
+
 type Pedido = {
   id: string;
   created_at: string;
@@ -194,6 +195,8 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+
+    
         
      <div className="flex flex-wrap gap-4 items-center" >
           

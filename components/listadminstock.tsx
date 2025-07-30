@@ -21,7 +21,6 @@ type Pedido = {
   descripcion: string;
   controlado: string;
   superviso: string;
-
   estado: string;
   aprueba: string;
   oc: number;
@@ -57,6 +56,7 @@ export default function ListAdminStock() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
+  const [verInfo, setVerInfo] = useState<Pedido | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarAprobados, setOcultarAprobados] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
@@ -301,7 +301,6 @@ const cellClass =
             <th  className={headerClass}>Prov. 1</th>
             <th  className={headerClass}>Prov. 2</th>
             <th  className={headerClass}>Prov. 3</th>
-           
             <th  className={headerClass}>Aprueba</th>
             <th  className={headerClass}>OC</th>
             <th  className={headerClass}>Proveedor Selec.</th>
@@ -330,6 +329,55 @@ const cellClass =
               <td className={cellClass}>
                 <div className="flex gap-2">
                   <button
+                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    onClick={() => {
+                      setVerInfo(pedido);
+                      setFormData({
+                        created_at: pedido.created_at,
+                        necesidad: pedido.necesidad,
+                        categoria: pedido.categoria,
+                        solicita: pedido.solicita,
+                        sector: pedido.sector,
+                        cc: pedido.cc,
+                        codint: pedido.codint,
+                        cant: pedido.cant,
+                        existencia: pedido.existencia,
+                        articulo: pedido.articulo,
+                        descripcion: pedido.descripcion,
+                        controlado: pedido.controlado,
+                        superviso: pedido.superviso,
+                        estado: pedido.estado,
+                        oc: pedido.oc,
+                        proveedor_selec: pedido.proveedor_selec,
+                        usd: pedido.usd,
+                        eur: pedido.eur,
+                        tc: pedido.tc,
+                        ars: pedido.ars,
+                        porcent: pedido.porcent,
+                        ars_desc: pedido.ars_desc,
+                        total_simp: pedido.total_simp,
+                        fecha_conf: pedido.fecha_conf,
+                        fecha_prom: pedido.fecha_prom,
+                        fecha_ent: pedido.fecha_ent,
+                        rto: pedido.rto,
+                        fac: pedido.fac,
+                        mod_pago: pedido.mod_pago,
+                        proceso: pedido.proceso,
+                        prov_uno: pedido.prov_uno,
+                        cost_prov_uno: pedido.cost_prov_uno,
+                        subt_prov1: pedido.subt_prov1,
+                        prov_dos: pedido.prov_dos,
+                        cost_prov_dos: pedido.cost_prov_dos,
+                        subt_prov2: pedido.subt_prov2,
+                        prov_tres: pedido.prov_tres,
+                        cost_prov_tres: pedido.cost_prov_tres,
+                        subt_prov3: pedido.subt_prov3,
+                      });
+                    }}
+                  >
+                    Info
+                  </button>
+                   <button
                     className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                     onClick={() => {
                       setEditingPedido(pedido);
@@ -1062,6 +1110,73 @@ const cellClass =
             </div>
           </div>
         </div>
+      )}
+        {/* MODAL VER INFO */}
+      {verInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
+           <h2 className="text-black font-bold mb-4">Pedido interno de compra #{verInfo.id}</h2>
+           <div className="flex-col gap-2">
+                <span className="text-black font-semibold">Fecha necesidad: {verInfo.necesidad}</span>
+                 <br/>
+                <span className="text-black font-semibold">Sector: {verInfo.sector}</span>
+                  <br/>
+                <span className="text-black font-semibold">Solicita: {verInfo.solicita}</span>
+                <br/>
+                <span className="text-black font-semibold">Aprueba: {verInfo.aprueba}</span>
+              </div>
+              <br/>
+              <div >
+                <span className="text-black font-semibold">Cant; {verInfo.cant} </span>
+                <span className="text-black font-semibold">{verInfo.articulo}  </span>
+                <span className="text-black font-semibold">, {verInfo.descripcion} </span>
+              </div>
+                 <br/>
+                  <div className="mb-4 flex gap-4">
+                          <div className="flex-col gap-2">
+                            <span className="text-black">Proveedor 1: </span>
+                             <br/>
+                            <span className="text-black"> {verInfo.prov_uno}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(verInfo.cost_prov_uno).toLocaleString("es-AR")}</span>
+                            <br/>
+                            <span className="text-black">subt. ${Number(verInfo.subt_prov1).toLocaleString("es-AR")}</span>
+                            
+                          </div>
+                          
+                          <div>
+                            <span className="text-black">Proveedor 2:</span>
+                            <br/>
+                            <span className="text-black">{verInfo.prov_dos}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(verInfo.cost_prov_dos).toLocaleString("es-AR")}</span>
+                            <br/>
+                            <span className="text-black">subt. ${Number(verInfo.subt_prov2).toLocaleString("es-AR")}</span>
+                          </div>
+
+                          <div>
+                             <span className="text-black">Proveedor 3:</span>
+                            <br/>
+                            <span className="text-black">{verInfo.prov_tres}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(verInfo.cost_prov_tres).toLocaleString("es-AR")}</span>
+                              <br/>
+                            <span className="text-black">subt. ${Number(verInfo.subt_prov3).toLocaleString("es-AR")}</span>
+                          </div>
+                      
+                     
+                       </div>
+                        <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => setVerInfo(null)}
+                          className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                        >
+                          Cerrar
+                        </button>
+            </div>
+          </div>
+        </div>
+        
       )}
     </div>
   );

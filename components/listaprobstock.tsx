@@ -326,7 +326,7 @@ const cellClass =
                       });
                     }}
                   >
-                    Edit
+                    Aprobar/Edit
                   </button>
 
                   
@@ -420,39 +420,57 @@ const cellClass =
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-black font-bold mb-4">Aprobar pedido #{editingPedido.id}</h2>
-            <span className="text-black font-semibold">Cant sol.; {editingPedido.cant} </span>
-            <span className="text-black font-semibold">{editingPedido.articulo}  </span>
-            <span className="text-black font-semibold">, {editingPedido.descripcion} </span>
-             <span className="text-black font-semibold">,Stock: {editingPedido.existencia} </span>
-            <div>
-              <div className="mb-4 flex justify-between">
+           <h2 className="text-black font-bold mb-4">Pedido interno de compra #{editingPedido.id}</h2>
+           <div className="flex-col gap-2">
+                <span className="text-black font-semibold">Fecha necesidad: {editingPedido.necesidad}</span>
+                 <br/>
                 <span className="text-black font-semibold">Sector: {editingPedido.sector}</span>
+                  <br/>
                 <span className="text-black font-semibold">Solicita: {editingPedido.solicita}</span>
+                <br/>
+                <span className="text-black font-semibold">Aprueba: {editingPedido.aprueba}</span>
               </div>
-
-              <div className="mb-4 flex gap-4">
-                <div>
-                  <div className="text-black">Proveedor 1: {editingPedido.prov_uno}</div>
-                  <div className="text-black">c/u ${editingPedido.cost_prov_uno}</div>
-                  <div className="text-black">subt ${editingPedido.subt_prov1}</div>
-                </div>
-                
-                <div>
-                  <div className="text-black">Proveedor 2: {editingPedido.prov_dos}</div>
-                  <div className="text-black">c/u ${editingPedido.cost_prov_dos}</div>
-                  <div className="text-black">subt ${editingPedido.subt_prov2}</div>
-                </div>
-
-                <div>
-                  <div className="text-black">Proveedor 3: {editingPedido.prov_tres}</div>
-                  <div className="text-black">c/u ${editingPedido.cost_prov_tres}</div>
-                  <div className="text-black">subt ${editingPedido.subt_prov3}</div>
-                </div>
-
-                
+              <br/>
+              <div >
+                <span className="text-black font-semibold">Cant; {editingPedido.cant} </span>
+                <span className="text-black font-semibold">{editingPedido.articulo}  </span>
+                <span className="text-black font-semibold">, {editingPedido.descripcion} </span>
               </div>
-            </div>
+                 <br/>
+                  <div className="mb-4 flex gap-4">
+                          <div className="flex-col gap-2">
+                            <span className="text-black">Proveedor 1: </span>
+                             <br/>
+                            <span className="text-black"> {editingPedido.prov_uno}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_uno).toLocaleString("es-AR")}</span>
+                            <br/>
+                            <span className="text-black">subt. ${Number(editingPedido.subt_prov1).toLocaleString("es-AR")}</span>
+                            
+                          </div>
+                          
+                          <div>
+                            <span className="text-black">Proveedor 2:</span>
+                            <br/>
+                            <span className="text-black">{editingPedido.prov_dos}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                            <br/>
+                            <span className="text-black">subt. ${Number(editingPedido.subt_prov2).toLocaleString("es-AR")}</span>
+                          </div>
+
+                          <div>
+                             <span className="text-black">Proveedor 3:</span>
+                            <br/>
+                            <span className="text-black">{editingPedido.prov_tres}</span>
+                               <br/>
+                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                              <br/>
+                            <span className="text-black">subt. ${Number(editingPedido.subt_prov3).toLocaleString("es-AR")}</span>
+                          </div>
+                      
+                     
+                       </div>
 
             
            <label className="block mb-4">

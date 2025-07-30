@@ -4,11 +4,12 @@ import ListPanolProductosGenerales from "@/components/listpanolproductosgenerale
 
 
 
+
 export default function Page() {
   return (
     <div className="p-4">
       
-   
+ 
       <ListPanolProductosGenerales /> 
  
     </div>

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+
 type Pedido = {
   id: string;
   created_at: string;
@@ -191,6 +192,7 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+ 
       
       <h1 className="text-xl font-bold mb-4">Pedidos de compras no productivas </h1>
      <div className="flex flex-wrap gap-4 items-center">
@@ -297,6 +299,7 @@ function renderValue(value: unknown): string {
           </tr>
         </thead>
        <tbody>
+
   {filteredPedidos.map((pedido) => (
     <tr key={pedido.id}>
       <td className="border px-4 py-2">

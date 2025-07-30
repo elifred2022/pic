@@ -2,11 +2,15 @@
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
 import { hasEnvVars } from "@/lib/utils";
+import PicRealtimeListener from "@/components/picrealtimelistener/picrealtimelistener";
+
 
 
 
 
 export default function ProtectedLayout({
+   
+
   children,
 }: {
   children: React.ReactNode;
@@ -26,6 +30,7 @@ export default function ProtectedLayout({
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
+         <PicRealtimeListener/>
           {children}
         </div>
 
