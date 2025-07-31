@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import ListPanolProductivoVer from "./listpanolproductivover";
 import ListPanolProductosGeneralesVer from "./listpanolproductosgeneralesver";
+import PicRealtimeListener from "./picrealtimelistener/picrealtimelistener";
+import PicRealtimeListenerStock from "./picrealtimelistener/picrealtimelistenerproductivo";
+
 
 
 
@@ -49,9 +52,10 @@ function ListBiComponentePanol() {
 
   return (
     <div className="p-4 space-y-4">
+      <PicRealtimeListenerStock/>
+      <PicRealtimeListener/>
         <div className="flex flex-wrap gap-4 items-center" >
            
-
             <Link
               href="/auth/lista-articulospanol"
               className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"

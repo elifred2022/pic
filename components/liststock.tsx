@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import PicRealtimeListenerStock from "./picrealtimelistener/picrealtimelistenerproductivo";
+
 
 type Pedido = {
   id: string;
@@ -193,6 +195,7 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
+    <PicRealtimeListenerStock/>
         <div className="flex flex-wrap gap-4 items-center" >
           
             <Link

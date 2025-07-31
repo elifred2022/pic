@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-
+import PicRealtimeListener from "./picrealtimelistener/picrealtimelistener";
 
 
 type Pedido = {
@@ -37,6 +37,7 @@ type Pedido = {
 };
 
 export default function ListPanolProductosGenerales() {
+
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -195,7 +196,8 @@ function renderValue(value: unknown): string {
 
   return (
     <div className="flex-1 w-full overflow-auto p-4">
-
+      
+      <PicRealtimeListener/>
     
         
      <div className="flex flex-wrap gap-4 items-center" >

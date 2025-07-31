@@ -48,7 +48,7 @@ export default async function ProtectedPage() {
   const supervisorEmails = ["joseluis@perfilesyservicios.com.ar"];
 
   const consultasEmails = [
-    "gestioncalidad@perfilesyservicios.com.ar",
+   // "gestioncalidad@perfilesyservicios.com.ar",
     "bianca@perfilesyservicios.com.ar",
     "Agustina@perfilesyservicios.com.ar",
   ];

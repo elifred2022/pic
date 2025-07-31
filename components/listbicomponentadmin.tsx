@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import ListAdminStockVer from "./listadminstockver";
 import ListAdminVer from "./listadminver";
+import PicRealtimeListenerAdmin from "./picrealtimelistener/picrealtimelisteneradmin";
 
 function ListBiComponentAdmin() {
   const [showListAdmin, setShowListAdmin] = useState(true);
@@ -44,6 +45,7 @@ function ListBiComponentAdmin() {
 
   return (
     <div className="p-4 space-y-4">
+      <PicRealtimeListenerAdmin/>
         <div className="flex flex-wrap gap-4 items-center" >
            <Link
               href="/auth/listaproveedores"

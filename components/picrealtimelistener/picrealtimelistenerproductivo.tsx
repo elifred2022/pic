@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-type Pic = {
+type Picstock = {
   id: string;
   articulo: string;
   descripcion: string;
@@ -12,7 +12,7 @@ type Pic = {
   uuid: string; // Columna que almacena el auth.uid()
 };
 
-export default function PicRealtimeListener() {
+export default function PicRealtimeListenerStock() {
   const router = useRouter();
 
   useEffect(() => {
@@ -29,13 +29,13 @@ export default function PicRealtimeListener() {
 
       // Suscribirse a cambios en la tabla PIC
       channel = supabase
-        .channel(`realtime:pic:${currentUser.id}`) // Nombre único por usuario
+        .channel(`realtime:picstock:${currentUser.id}`) // Nombre único por usuario
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "pic" },
+          { event: "*", schema: "public", table: "picstock" },
           (payload) => {
-            const newItem = payload.new as Pic;
-            const oldItem = payload.old as Pic;
+            const newItem = payload.new as Picstock;
+            const oldItem = payload.old as Picstock;
 
             // Determinar dueño del pedido
             const ownerId = newItem?.uuid || oldItem?.uuid;
