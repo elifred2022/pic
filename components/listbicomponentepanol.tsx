@@ -75,6 +75,8 @@ function ListBiComponentePanol() {
             >
               Ir a Pedidos generales
             </Link>  
+
+           
        </div>
 
         <div className="flex gap-4 items-center">

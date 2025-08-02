@@ -100,7 +100,6 @@ const handleCodintChange = async (value: string) => {
           existencia: existencia,
           articulo,
           descripcion,
-          
           aprueba,
           uuid: user?.id,
   
