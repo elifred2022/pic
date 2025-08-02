@@ -195,21 +195,9 @@ function renderValue(value: unknown): string {
     <div className="flex-1 w-full overflow-auto p-4">
        
       
-      <h1 className="text-xl font-bold mb-4">Pedidos productivos</h1>
+      <h1 className="text-xl font-bold mb-4">Pedidos productivos vista prvia</h1>
       
-      <div className="flex flex-wrap gap-4 items-center">
-       
-       
-       
-      <input
-        type="text"
-        placeholder="Buscar pedido..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-      />
-     </div>
-
+     
       
       
        
@@ -238,11 +226,7 @@ function renderValue(value: unknown): string {
             <th className="px-4 py-2 border">Aprueba</th>
             <th className="px-4 py-2 border">OC</th>
             <th className="px-4 py-2 border">Proveedor Selec.</th>
-            <th className="px-4 py-2 border">Fecha confirm</th>
-            <th className="px-4 py-2 border">Fecha prometida</th>
-            <th className="px-4 py-2 border">Fecha entrega</th>
-            <th className="px-4 py-2 border">Rto</th>
-            <th className="px-4 py-2 border">Fact</th>
+            
            
            
             
@@ -297,115 +281,13 @@ function renderValue(value: unknown): string {
       <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.rto)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.fac)}</td>
+      
     </tr>
   ))}
 </tbody>
 
       </table>
 
-      {/* MODAL */}
-      {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
-            
-             <label className="block mb-4">
-            <p className="text-black">Descripcion/Observacion</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.descripcion ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value })
-                }
-              />
-            </label>
-            <label className="block mb-2">
-               <p className="text-black">Fecha entrega</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="date"
-                value={formData.fecha_ent ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_ent: e.target.value })
-                }
-              />
-            </label>
-            
-             <label className="block mb-4">
-           <p className="text-black">Rto.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.rto ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, rto: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-            <p className="text-black">Fac.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.fac ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, fac: Number(e.target.value)  })
-                }
-              />
-            </label>
-          
-                      
-
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-400 text-white rounded"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={async () => {
-                  const { error } = await supabase
-                    .from("picstock")
-                    .update(formData)
-                    .eq("id", editingPedido.id);
-
-                  if (error) {
-                    alert("Error actualizando");
-                    console.error(error);
-                  } else {
-                    alert("Actualizado correctamente");
-                    setEditingPedido(null);
-                    setFormData({});
-                    const {
-                          data: { user },
-                        } = await supabase.auth.getUser();
-
-                        if (user) {
-                          const { data } = await supabase
-                            .from("picstock")
-                            .select("*")
-                            .eq("uuid", user.id);
-
-                          if (data) setPedidos(data);
-                        }
-
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

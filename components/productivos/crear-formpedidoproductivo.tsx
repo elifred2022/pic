@@ -15,6 +15,7 @@ type Articulo = {
   existencia: number;
   costo_compra: number;
   provsug: string;
+  aprueba: string;
   
 };
 
@@ -22,13 +23,14 @@ export default function CrearFormPedidoProductivo() {
   const supabase = createClient();
  const router = useRouter();
 
-  const [fechaNecesidad, setFechaNecesidad] = useState("");
+  const [necesidad, setNecesidad] = useState("");
   const [categoria, setCategoria] = useState("");
   const [solicita, setSolicita] = useState("");
   const [sector, setSector] = useState("");
   const [estado, setEstado] = useState("iniciado");
   const [numeroOc, setNumeroOc] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+   const [aprueba, setAprueba] = useState("");
 
   const [codigoArticulo, setCodigoArticulo] = useState("");
   const [articuloEncontrado, setArticuloEncontrado] = useState<Articulo | null>(null);
@@ -116,12 +118,13 @@ export default function CrearFormPedidoProductivo() {
 
     const nuevoPedido = {
     
-      fecha_necesidad: fechaNecesidad,
+      necesidad: necesidad,
       categoria,
       solicita,
       sector,
       estado,
       observ,
+      aprueba,
       numero_oc: numeroOc || null,
       proveedor_seleccionado: proveedorSeleccionado || null,
       articulos: articulosSeleccionados.map((a) => ({
@@ -147,7 +150,7 @@ export default function CrearFormPedidoProductivo() {
     } else {
       setMessage("✅ Pedido creado con éxito");
       // Reset form
-      setFechaNecesidad("");
+      setNecesidad("");
       setCategoria("");
       setSolicita("");
       setSector("");
@@ -159,6 +162,7 @@ export default function CrearFormPedidoProductivo() {
       setCant(1);
       setArticulosSeleccionados([]);
       setObserv("");
+      setAprueba("")
 
       setTimeout(()=> {
         router.push("/auth/rutaproductivos/lista-pedidosproductivos");
@@ -180,9 +184,9 @@ export default function CrearFormPedidoProductivo() {
             <label className="text-black">Fecha de Necesidad</label>
             <input
               type="date"
-              value={fechaNecesidad}
-              onChange={(e) => setFechaNecesidad(e.target.value)}
-              className="border p-2 w-full rounded text-white"
+              value={necesidad}
+              onChange={(e) => setNecesidad(e.target.value)}
+              className="border p-2 w-full rounded text-black bg-white"
               required
             />
           </div>
@@ -194,7 +198,7 @@ export default function CrearFormPedidoProductivo() {
                               required
                               value={categoria}
                               onChange={(e) => setCategoria(e.target.value)}
-                              className="border p-2 w-full rounded text-white"
+                              className="border p-2 w-full rounded text-black bg-white"
                             >
                               <option value="">Seleccione categoria</option>
                               <option value="Programado">Programado</option>
@@ -210,7 +214,7 @@ export default function CrearFormPedidoProductivo() {
                               required
                               value={solicita}
                               onChange={(e) => setSolicita(e.target.value)}
-                              className="border p-2 w-full rounded text-white"
+                              className="border p-2 w-full rounded text-black bg-white"
                             >
                               <option value="">Seleccione</option>
                               <option value="Adrian">Adrian</option>
@@ -220,18 +224,14 @@ export default function CrearFormPedidoProductivo() {
                              <option value="Eliezer">Eliezer</option>
                             </select>
             </div>
-                      
-
-        
-
-          <div className="grid gap-2">
+                  <div className="grid gap-2">
                     <Label htmlFor="sector">Sector</Label>
                     <select
                       id="sector"
                       required
                       value={sector}
                       onChange={(e) => setSector(e.target.value)}
-                      className="border p-2 w-full rounded text-white"
+                      className="border p-2 w-full rounded text-black bg-white"
                     >
                       <option value="">Seleccione un sector</option>
                       <option value="Pañol Cardales">Pañol Cardales</option>
@@ -245,6 +245,27 @@ export default function CrearFormPedidoProductivo() {
                     </select>
                   </div>
 
+                   <div className="grid gap-2">
+                    <Label htmlFor="aprueba">Aprueba</Label>
+                    <select
+                      id="aprueba"
+                      required
+                      value={aprueba}
+                      onChange={(e) => setAprueba(e.target.value)}
+                      className="border p-2 w-full rounded text-black bg-white"
+                    >
+                      <option value="">Seleccione responsable de area</option>
+                      <option value="Juan S.">Juan S.</option>
+                      <option value="Julio A">Julio A.</option>
+                      <option value="Luciana L.">Luciana L.</option>
+                      <option value="Eduardo S.">Eduardo S.</option>
+                      <option value="Pedro S.">Pedro S.</option>
+                      <option value="Sofia S.">Sofia S.</option>
+                      <option value="Carolina S.">Carolina S.</option>
+                     
+                    </select>
+              </div>
+
           
         </div>
         {/* 🔍 Búsqueda por código */}
@@ -254,7 +275,7 @@ export default function CrearFormPedidoProductivo() {
             type="text"
             value={codigoArticulo}
             onChange={(e) => setCodigoArticulo(e.target.value)}
-            className="border p-2 w-full rounded mb-2 text-white"
+            className="border p-2 w-full rounded text-black bg-white"
             placeholder="Código interno (Ej: A123)"
           />
 
@@ -273,7 +294,7 @@ export default function CrearFormPedidoProductivo() {
                   min={1}
                   value={cant}
                   onChange={(e) => setCant(parseInt(e.target.value))}
-                  className="border p-2 w-24 rounded text-white"
+                  className="border p-2 w-full rounded text-black bg-white"
                 />
                 <button
                   type="button"

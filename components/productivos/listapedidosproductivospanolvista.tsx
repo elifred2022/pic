@@ -33,34 +33,21 @@ type Pedido = {
   }[];
 };
 
-export default function ListaPedidosProductivos() {
+export default function ListaPedidosProductivosVista() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
-    const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
-    const [verInfo, setVerInfo] = useState<Pedido | null>(null);
+   
+   
     const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
     const [ocultarAprobados, setOcultarAprobados] = useState(false);
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
   
-    const [formData, setFormData] = useState<Partial<Pedido>>({});
+    
     const supabase = createClient();
   
-    /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-    useEffect(() => {
-    const savedCumplidos = localStorage.getItem("ocultarCumplidos");
-    const savedAprobados = localStorage.getItem("ocultarAprobados");
-    const savedAnulados = localStorage.getItem("ocultarAnulados");
-    const savedStandBy = localStorage.getItem("ocultarStandBy");
-    const savedConfirmado = localStorage.getItem("ocultarConfirmado");
-  
-    if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
-    if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
-    if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
-    if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
-    if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
-  }, []);
+ 
   
   
     /* Cada vez que cambia, actualizá localStorage */
@@ -85,17 +72,36 @@ export default function ListaPedidosProductivos() {
   }, [ocultarConfirmado]);
   
   
-    // Cargar datos tabla pic
+     // Cargar datos
     useEffect(() => {
-      const fetchPedidos = async () => {
-        const { data, error } = await supabase.from("pedidos_productivos").select("*")
-    
-        if (error) console.error("Error cargando pedidos:", error);
-        else setPedidos(data);
-      };
+    const fetchPedidos = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
   
-      fetchPedidos();
-    }, [supabase]);
+  
+      if (userError) {
+        console.error("Error obteniendo el usuario:", userError);
+        return;
+      }
+  
+      if (!user) {
+        console.warn("No hay usuario logueado");
+        return;
+      }
+  
+      const { data, error } = await supabase
+        .from("pedidos_productivos")
+        .select("*")
+        .eq("uuid", user.id); // 👈 Filtra por usuario logueado
+  
+      if (error) console.error("Error cargando pedidos:", error);
+      else setPedidos(data);
+    };
+  
+    fetchPedidos();
+  }, [supabase]);
   
    
   
@@ -179,88 +185,8 @@ const cellClass =
 
   return (
     <div className="w-screen felx justifi-enter">  
-     
-      {/* Botones superiores */}
-      <div className="flex justify-between items-center mb-4">
-        <Link
-          href="/protected"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Home
-        </Link>
-      </div>
-
-      <h1 className="text-xl font-bold mb-4">Pedidos Productivos</h1>
-
-      <div className="flex flex-wrap gap-4 items-center">
-        <Link
-          href="/auth/rutaproductivos/crear-formpedidosproductivos"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Crear Pedido Productivo
-        </Link>
-        <input
-          type="text"
-          placeholder="Buscar pedido..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-        />
-      </div>
-
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center mb-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar cumplidos
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAprobados}
-            onChange={() => setOcultarAprobados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar aprobados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarConfirmado}
-            onChange={() => setOcultarConfirmado((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar confirmados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAnulados}
-            onChange={() => setOcultarAnulados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar anulados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarStandBy}
-            onChange={() => setOcultarStandBy((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar stand-by
-        </label>
-      </div>
-
+       <h1 className="text-xl font-bold mb-4">Pedidos Productivos Vista Previa</h1>
+      
       {/* Tabla de pedidos */}
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
@@ -275,7 +201,8 @@ const cellClass =
             <th className={headerClass}>Articulo solicitado</th>
             <th className={headerClass}>Observ/Mensaje</th>
             <th className={headerClass}>OC</th>
-            <th className={headerClass}>Proveedor Seleccionado</th>
+            <th className={headerClass}>Prov. Selecc.</th>
+            
           </tr>
         </thead>
         <tbody>
@@ -340,6 +267,7 @@ const cellClass =
                 <td className={"px-2 py-1 border align-top text-orange-500 text-justify whitespace-pre-wrap break-words"}>{p.observ || "-"}</td>
               <td className={cellClass}>{p.numero_oc || "-"}</td>
               <td className={cellClass}>{p.proveedor_seleccionado || "-"}</td>
+                
             </tr>
           ))}
         </tbody>

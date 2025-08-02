@@ -1,5 +1,5 @@
 
-import ListaPedidosProductivos from "@/components/productivos/listapedidosproductivos";
+import ListaPedidosProductivos from "@/components/productivos/listapedidosproductivospanol";
 
 
 export default function Page() {
