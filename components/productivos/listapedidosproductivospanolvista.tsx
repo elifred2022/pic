@@ -185,7 +185,7 @@ const cellClass =
 
   return (
     <div className="w-screen felx justifi-enter">  
-       <h1 className="text-xl font-bold mb-4">Pedidos Productivos Vista Previa</h1>
+       <h1 className="text-xl font-bold mb-4">Pedidos Productivos Vista Previa Arr</h1>
       
       {/* Tabla de pedidos */}
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
@@ -264,7 +264,7 @@ const cellClass =
                     </tbody>
                 </table>
                 </td>
-                <td className={"px-2 py-1 border align-top text-orange-500 text-justify whitespace-pre-wrap break-words"}>{p.observ || "-"}</td>
+                <td className={cellClass}>{p.observ || "-"}</td>
               <td className={cellClass}>{p.numero_oc || "-"}</td>
               <td className={cellClass}>{p.proveedor_seleccionado || "-"}</td>
                 

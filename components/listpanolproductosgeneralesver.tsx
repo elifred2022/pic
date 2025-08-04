@@ -174,8 +174,6 @@ const filteredPedidos = pedidos
 });
 
 
-
-
 function renderValue(value: unknown): string {
   if (
     value === null ||
@@ -189,39 +187,39 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
+const headerClass =
+  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+const cellClass =
+  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+
 
 
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
+    <div className="w-screen felx justifi-enter">
         
-    
-      
       <h1 className="text-xl font-bold mb-4">Pedidos generales vista previa</h1>
-      
-    
 
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
            
-             <th className="px-4 py-2 border">Estado</th>
-            <th className="px-4 py-2 border">Nº PIC</th>
-            <th className="px-4 py-2 border">Fecha sol</th>
-            <th className="px-4 py-2 border">Fecha nec</th>
-            <th className="px-4 py-2 border">Categoria</th>
-            <th className="px-4 py-2 border">Solicita</th>
-            <th className="px-4 py-2 border">Sector</th>
-            <th className="px-4 py-2 border">Cod cta</th>
-            <th className="px-4 py-2 border">Cod. int. artic.</th>
-            <th className="px-4 py-2 border">Cant sol</th>
-            <th className="px-4 py-2 border">Cant exist</th>
-            <th className="px-4 py-2 border">Articulo</th>
-            <th className="px-4 py-2 border">Descripcion/Observacion</th>
-            <th className="px-4 py-2 border">Controlado/Revisado</th>
-            
-            <th className="px-4 py-2 border">Aprueba</th>
-            <th className="px-4 py-2 border">OC</th>
-            <th className="px-4 py-2 border">Proveedor Selec.</th>         
+             <th className={headerClass}>Estado</th>
+            <th className={headerClass}>Nº PIC</th>
+            <th className={headerClass}>Fecha sol</th>
+            <th className={headerClass}>Fecha nec</th>
+            <th className={headerClass}>Categoria</th>
+            <th className={headerClass}>Solicita</th>
+            <th className={headerClass}>Sector</th>
+            <th className={headerClass}>Cod cta</th>
+            <th className={headerClass}>Cod. int. artic.</th>
+            <th className={headerClass}>Cant sol</th>
+            <th className={headerClass}>Cant exist</th>
+            <th className={headerClass}>Articulo</th>
+            <th className={headerClass}>Descripcion/Observacion</th>
+            <th className={headerClass}>Controlado/Revisado</th>
+            <th className={headerClass}>Aprueba</th>
+            <th className={headerClass}>OC</th>
+            <th className={headerClass}>Proveedor Selec.</th>         
           </tr>
         </thead>
        <tbody>
@@ -229,7 +227,7 @@ function renderValue(value: unknown): string {
     <tr key={pedido.id}>
       
      
-       <td className="px-4 py-2 border">
+       <td className={cellClass}>
        <span
                     className={
                     pedido.estado === "anulado"
@@ -251,29 +249,29 @@ function renderValue(value: unknown): string {
                    {renderValue(pedido.estado)}
                 </span>
       </td>
-      <td className="px-4 py-2 border">{renderValue(pedido.id)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.created_at)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.categoria)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.solicita)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.sector)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.cc)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.codint)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.cant)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.existencia)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.articulo)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.descripcion)}</td>
-      <td className="px-4 py-2 border">
-                <div className="flex flex-col">
+      <td className={cellClass}>{renderValue(pedido.id)}</td>
+      <td className={cellClass}>{formatDate(pedido.created_at)}</td>
+      <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
+      <td className={cellClass}>{renderValue(pedido.categoria)}</td>
+      <td className={cellClass}>{renderValue(pedido.solicita)}</td>
+      <td className={cellClass}>{renderValue(pedido.sector)}</td>
+      <td className={cellClass}>{renderValue(pedido.cc)}</td>
+      <td className={cellClass}>{renderValue(pedido.codint)}</td>
+      <td className={cellClass}>{renderValue(pedido.cant)}</td>
+      <td className={cellClass}>{renderValue(pedido.existencia)}</td>
+      <td className={cellClass}>{renderValue(pedido.articulo)}</td>
+      <td className={cellClass}>{renderValue(pedido.descripcion)}</td>
+      <td className={cellClass}>
+                <div className={cellClass}>
                   <span> {pedido.controlado} </span>
                   <span>{pedido.superviso}</span>
                 </div>
               </td>
 
      
-      <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
+      <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
+      <td className={cellClass}>{renderValue(pedido.oc)}</td>
+      <td className={cellClass}>{renderValue(pedido.proveedor_selec)|| "-"}</td>
       
     </tr>
   ))}

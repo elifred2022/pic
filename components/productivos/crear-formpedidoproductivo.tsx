@@ -165,7 +165,7 @@ export default function CrearFormPedidoProductivo() {
       setAprueba("")
 
       setTimeout(()=> {
-        router.push("/auth/rutaproductivos/lista-pedidosproductivos");
+        router.push("/protected");
       }, 500);
     }
 
