@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import ListAdminStockVer from "./listadminstockver";
+
 import ListAdminVer from "./listadminver";
 import ListaPedidosProductivosVista from "./productivos/listapedidosproductivospanolvista";
 
