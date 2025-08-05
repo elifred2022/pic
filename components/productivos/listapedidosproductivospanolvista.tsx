@@ -47,30 +47,42 @@ export default function ListaPedidosProductivosVista() {
     
     const supabase = createClient();
   
- 
-  
-  
-    /* Cada vez que cambia, actualizá localStorage */
-   useEffect(() => {
-    localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-  }, [ocultarCumplidos]);
-  
-  useEffect(() => {
-    localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
-  }, [ocultarAprobados]);
-  
-  useEffect(() => {
-    localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
-  }, [ocultarAnulados]);
-  
-  useEffect(() => {
-    localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
-  }, [ocultarStandBy]);
-  
-  useEffect(() => {
-    localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
-  }, [ocultarConfirmado]);
-  
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+        useEffect(() => {
+          const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+          const savedAprobados = localStorage.getItem("ocultarAprobados");
+          const savedAnulados = localStorage.getItem("ocultarAnulados");
+          const savedStandBy = localStorage.getItem("ocultarStandBy");
+          const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+        
+          if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+          if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+          if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+          if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+          if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+        }, []);
+        
+        
+          /* Cada vez que cambia, actualizá localStorage */
+         useEffect(() => {
+          localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+        }, [ocultarCumplidos]);
+        
+        useEffect(() => {
+          localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+        }, [ocultarAprobados]);
+        
+        useEffect(() => {
+          localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+        }, [ocultarAnulados]);
+        
+        useEffect(() => {
+          localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+        }, [ocultarStandBy]);
+        
+        useEffect(() => {
+          localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+        }, [ocultarConfirmado]);
   
      // Cargar datos
     useEffect(() => {
@@ -187,6 +199,13 @@ const cellClass =
     <div className="w-screen felx justifi-enter">  
        <h1 className="text-xl font-bold mb-4">Pedidos Productivos Vista Previa Arr</h1>
       
+<input
+        type="text"
+        placeholder="Buscar pedido..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+      />
       {/* Tabla de pedidos */}
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">

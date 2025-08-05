@@ -37,13 +37,13 @@ type Pedido = {
 export default function ListPanolProductosGeneralesVer() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
+  
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarAprobados, setOcultarAprobados] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [ocultarStandBy, setOcultarStandBy] = useState(false);
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
-  const [formData, setFormData] = useState<Partial<Pedido>>({});
+  
   const supabase = createClient();
 
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
@@ -198,7 +198,13 @@ const cellClass =
     <div className="w-screen felx justifi-enter">
         
       <h1 className="text-xl font-bold mb-4">Pedidos generales vista previa</h1>
-
+      <input
+        type="text"
+        placeholder="Buscar pedido..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+      />
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">

@@ -36,15 +36,13 @@ type Pedido = {
 export default function ListaPedidosProductivos() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
-    const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
-    const [verInfo, setVerInfo] = useState<Pedido | null>(null);
+    
+    
     const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
     const [ocultarAprobados, setOcultarAprobados] = useState(false);
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
-  
-    const [formData, setFormData] = useState<Partial<Pedido>>({});
     const supabase = createClient();
   
     /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
