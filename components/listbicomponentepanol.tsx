@@ -75,12 +75,7 @@ function ListBiComponentePanol() {
             >
               Secc. Articulos
             </Link>  
-             <Link
-              href="/auth/list-panolpedidosproductivos"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Ir a Pedidos productivos
-            </Link>
+           
 
             <Link
               href="/auth/list-panolpedidosgenerales"
@@ -106,7 +101,7 @@ function ListBiComponentePanol() {
             checked={showListaPedidosProductivosVista}
             onChange={() => setShowListaPedidosProductivosVista(!showListaPedidosProductivosVista)}
           />
-          Mostrar pedidos productivos arr
+          Mostrar pedidos productivos array
         </label>
 
         <label>

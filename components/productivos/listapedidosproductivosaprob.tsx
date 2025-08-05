@@ -50,7 +50,7 @@ type Pedido = {
   }[];
 };
 
-export default function ListaPedidosProductivosAdmin() {
+export default function ListaPedidosProductivosAprob() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [editingPedido, setEditingPedido] = useState<Pedido | null>(null); //modal edicion
@@ -378,33 +378,7 @@ const cellClass =
             <tr key={p.id}>
                <td className={cellClass}>
                 <div className="flex gap-2">
-                   <button className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-                         onClick={() => {
-                                    setEditingPedido(p);
-                                    setFormData(p);
-
-                                    // Inicializa el estado de la comparativa
-                                    if (p.comparativa_prov && p.comparativa_prov.length > 0) {
-                                      setComparativaForm(p.comparativa_prov);
-                                    } else {
-                                      // Si no hay datos, crea una estructura inicial para 3 proveedores
-                                      const articulosBase = p.articulos.map(a => ({
-                                          codint: a.codint,
-                                          articulo: a.articulo,
-                                          precioUnitario: 0,
-                                          subtotal: 0
-                                      }));
-
-                                      setComparativaForm([
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
-                                      ]);
-                                    }
-                                  }}
-                >
-                  Editar
-                </button>
+                  
                  <button
                       className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                       onClick={() => {
@@ -414,27 +388,7 @@ const cellClass =
                   >
                       Comparativa
                   </button>
-                <button
-                    className="px-4 py-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
-                    onClick={async () => {
-                      const confirm = window.confirm(
-                        `¿Estás seguro de que querés eliminar el pedido ${p.id}?`
-                      );
-                      if (!confirm) return;
-
-                      const { error } = await supabase.from("pedidos_productivos").delete().eq("id", p.id);
-                      if (error) {
-                        alert("Error al eliminar");
-                        console.error(error);
-                      } else {
-                        alert("Pedido eliminado");
-                        const { data } = await supabase.from("pedidos_productivos").select("*");
-                        if (data) setPedidos(data);
-                      }
-                    }}
-                  >
-                    Elim
-                  </button>
+              
                    
                 </div>
                
@@ -518,206 +472,7 @@ const cellClass =
         </tbody>
       </table>
 
-    {/* ✅ Modal de edición */}
-      {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded shadow-lg p-6 w-96 overflow-y-auto w-full max-w-md max-h-screen">
-            <h2 className="font-semibold mb-2 text-black">Pedido # {formData.id} </h2>
-              <p className="text-black">Sector: {formData.sector} </p>
-              <div className="text-black">
-                  <p className="font-semibold">Artículos:</p>
-                  {formData.articulos && formData.articulos.length > 0 ? (
-                    <ul className="list-disc pl-5">
-                      {formData.articulos.map((art, index) => (
-                        <li className="felx" key={index}>
-                        <p> {art.articulo}</p> <p> Cant sol: {art.cant} </p> <p>Stock: {art.existencia}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>- Sin artículos -</p>
-                  )}
-                </div>
-
-              {/* Sección de Comparativa de Proveedores */}
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 text-black">Comparativa de Proveedores</h3>
-                    <div className="overflow-x-auto">
-                      <div className="flex space-x-4">
-                        {comparativaForm?.map((prov, provIndex) => (
-                          <div key={provIndex} className="min-w-[300px] border p-4 rounded-md shadow-sm">
-                            <label className="block mb-2 text-sm font-medium text-black">Proveedor {provIndex + 1}:</label>
-                            <input
-                              type="text"
-                              className="border p-2 w-full mb-3 text-black bg-white"
-                              placeholder="Nombre del proveedor"
-                              value={prov.nombreProveedor}
-                              onChange={(e) => {
-                                const newComparativa = [...comparativaForm];
-                                newComparativa[provIndex].nombreProveedor = e.target.value;
-                                setComparativaForm(newComparativa);
-                              }}
-                            />
-
-                            <table className="w-full text-black text-sm">
-                              <thead>
-                                <tr>
-                                  <th className="px-1 text-left">Artículo</th>
-                                  <th className="px-1 text-right">Precio Unit.</th>
-                                  <th className="px-1 text-right">Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {prov.articulos.map((art, artIndex) => (
-                                  <tr key={artIndex}>
-                                    <td className="px-1">{art.articulo}</td>
-                                    <td className="px-1 text-right">
-                                      <input
-                                        type="number"
-                                        className="no-spinners border p-1 w-20 text-right text-black bg-white"
-                                        value={art.precioUnitario || ''}
-                                        onChange={(e) => {
-                                          const newComparativa = [...comparativaForm];
-                                          const precio = parseFloat(e.target.value) || 0;
-                                          const cantidad = formData.articulos?.[artIndex]?.cant ?? 0;
-                                          newComparativa[provIndex].articulos[artIndex].precioUnitario = precio;
-                                          newComparativa[provIndex].articulos[artIndex].subtotal = precio * cantidad;
-                                          
-                                          // Recalcula el total del proveedor
-                                          newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce((sum, item) => sum + item.subtotal, 0);
-
-                                          setComparativaForm(newComparativa);
-                                        }}
-                                      />
-                                    </td>
-                                    <td className="px-1 text-right">
-                                      $ {art.subtotal.toFixed(2)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            <div className="mt-2 text-right font-bold text-black">
-                              Total: $ {prov.total.toFixed(2)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-            <label className="block mb-2 text-sm font-medium text-black bg-white">Estado:</label>
-            <select
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.estado || ""}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-            >
-              <option value="iniciado">Iniciado</option>
-               <option value="visto/recibido">Visto/Recibido</option>
-              <option value="aprobado">Aprobado</option>
-              <option value="cotizado">Cotizado</option>
-              <option value="confirmado">Confirmado</option>
-              <option value="cumplido">Cumplido</option>
-              <option value="anulado">Anulado</option>
-              <option value="stand by">Stand By</option>
-            </select>
-
-            <label className="block mb-2 text-sm font-medium text-black">Observación/mensaje:</label>
-            <textarea
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.observ || ""}
-              onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
-            />
-
-             <label className="block mb-2 text-sm font-medium text-black"> Controlado</label>
-                <select
-                className="border p-2 w-full mb-3 bg-white text-black"
-                value={formData.controlado ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, controlado: e.target.value })
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="Autorizado" className="bg-yellow-300 text-black">
-                  Autorizado
-                </option>
-                <option value="Denegado" className="bg-green-400 text-white">
-                  Denegado
-                </option>
-              </select>
-
-              <label className="block mb-2 text-sm font-medium text-black">Supervisor:</label>
-                  <textarea
-                    className="border p-2 w-full mb-3 bg-white text-black"
-                    value={formData.supervisor || ""}
-                    onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
-                  />
-            
-            <label className="block mb-2 text-sm font-medium text-black">OC:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.numero_oc || ""}
-              onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
-            />
-
-            <label className="block mb-2 text-sm font-medium text-black">Proveedor Seleccionado:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.proveedor_seleccionado || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, proveedor_seleccionado: e.target.value })
-              }
-            />
-
-            <label className="text-black">Confirmado</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_conf || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_conf: e.target.value })
-              }
-            />  
-
-             <label className="text-black">Promesa</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_prom || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_prom: e.target.value })
-              }
-            /> 
-
-             <label className="text-black">Entregado</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_ent || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_ent: e.target.value })
-              }
-            />        
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleUpdatePedido}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  
 
       {/* ✅ Modal comparativa */}
       
@@ -728,6 +483,8 @@ const cellClass =
             <h2 className="font-semibold mb-2 text-black">
                 Comparativa de Proveedores - Pedido #{formData.id}
             </h2>
+             <p>Sector: {formData.sector}</p>
+              <p>Solicita: {formData.solicita}</p>
           <div className="text-black">
                   <p className="font-semibold">Artículos:</p>
                   {formData.articulos && formData.articulos.length > 0 ? (
@@ -747,6 +504,7 @@ const cellClass =
             <div className="mb-4">
                 <h3 className="font-semibold mb-2 text-black">Cotizaciones</h3>
                 <div className="overflow-x-auto">
+                 
                     <div className="flex space-x-4">
                         {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
                             <div key={provIndex} className="min-w-[300px] border p-4 rounded-md shadow-sm">
@@ -795,7 +553,7 @@ const cellClass =
 
             {/* Campos de edición */}
             <div className="flex flex-col gap-4">
-                <label className="block text-sm font-medium text-black">Estado:</label>
+                <label className="block text-sm font-medium text-black">Estado:Aprobar,</label>
                 <select
                     className="border p-2 w-full bg-white text-black"
                     value={formData.estado || ""}
