@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
 import ListAdminVer from "./listadminver";
-import ListaPedidosProductivosVista from "./productivos/listapedidosproductivospanolvista";
+import ListaPedidosProductivosAprobVista from "./productivos/listapedidosproductivosaprobvista";
+
 
 function ListBiComponentAprob() {
   const [showListAdmin, setShowListAdmin] = useState(true);
@@ -94,7 +95,7 @@ function ListBiComponentAprob() {
       </div>
 
       <div className="mt-4">
-        {showListAdminStock && <ListaPedidosProductivosVista />}
+        {showListAdminStock && <ListaPedidosProductivosAprobVista />}
         {showListAdmin && <ListAdminVer />}
       </div>
     </div>

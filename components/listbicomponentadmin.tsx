@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import ListAdminStockVer from "./listadminstockver";
+
 import ListAdminVer from "./listadminver";
 import PicRealtimeListenerAdmin from "./picrealtimelistener/picrealtimelisteneradmin";
+
+import ListaPedidosProductivosAprobVista from "./productivos/listapedidosproductivosaprobvista";
 
 function ListBiComponentAdmin() {
   const [showListAdmin, setShowListAdmin] = useState(true);
@@ -104,7 +106,7 @@ function ListBiComponentAdmin() {
       </div>
 
       <div className="mt-4">
-        {showListAdminStock && <ListAdminStockVer />}
+        {showListAdminStock && <ListaPedidosProductivosAprobVista />}
         {showListAdmin && <ListAdminVer />}
       </div>
     </div>

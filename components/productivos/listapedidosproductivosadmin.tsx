@@ -36,8 +36,8 @@ type Pedido = {
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
-  rto: number;
-  fac: number;
+  rto: string | null;
+  fac: string | null;
   
   
   articulos: {
@@ -228,6 +228,13 @@ const handleUpdatePedido = async () => {
         observ: formData.observ,
         numero_oc: formData.numero_oc,
         proveedor_seleccionado: formData.proveedor_seleccionado,
+        supervisor: formData.supervisor,
+        controlado: formData.controlado,
+        fecha_conf: formData.fecha_conf,
+        fecha_prom: formData.fecha_prom,
+        fecha_ent: formData.fecha_ent,
+        fac: formData.fac,
+        rto: formData.rto
     };
 
     // Solo actualiza la comparativa si estamos en el modal de edición completa
@@ -699,7 +706,23 @@ const cellClass =
               onChange={(e) =>
                 setFormData({ ...formData, fecha_ent: e.target.value })
               }
-            />        
+            />     
+
+            <label className="block mb-2 text-sm font-medium text-black">Fact:</label>
+            <input
+              type="text"
+              className="border p-2 w-full mb-3 bg-white text-black"
+              value={formData.fac || ""}
+              onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
+            />
+
+             <label className="block mb-2 text-sm font-medium text-black">Rto:</label>
+            <input
+              type="text"
+              className="border p-2 w-full mb-3 bg-white text-black"
+              value={formData.rto || ""}
+              onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
+            />
 
             <div className="flex justify-end gap-2">
               <button
