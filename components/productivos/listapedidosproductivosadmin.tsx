@@ -51,6 +51,16 @@ type Pedido = {
 };
 
 export default function ListaPedidosProductivosAdmin() {
+
+  interface Articulo {
+    codint: string;
+    articulo: string;
+    descripcion: string;
+    existencia: number;
+    cant: number;
+    provsug: string;
+  }
+
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [editingPedido, setEditingPedido] = useState<Pedido | null>(null); //modal edicion
@@ -161,20 +171,14 @@ export default function ListaPedidosProductivosAdmin() {
   
   //Filtro que también contempla las fechas
  const filteredPedidos = pedidos
-  .filter((pedido) => {
-    const s = search.trim().toLowerCase(); // normalizar búsqueda
-    if (!s) return true;
+    .filter((pedido) => {
+      const s = search.trim().toLowerCase(); // normalizar búsqueda
+      if (!s) return true;
 
-    // Aquí definición para verificar si algún campo del pedido o sus artículos coincide
-    return (
       // Verificar propiedades del pedido
-      Object.entries(pedido).some(([key, value]) => {
+      const matchPedidoPropiedades = Object.entries(pedido).some(([key, value]) => {
         if (value === null || value === undefined) return false;
-
-        // Comparar contra string directo
         if (String(value).toLowerCase().includes(s)) return true;
-
-        // Comparar fechas
         if (dateFields.includes(key as keyof Pedido)) {
           const isoDate = String(value).split("T")[0];
           const niceDate = formatDate(value as string);
@@ -184,17 +188,18 @@ export default function ListaPedidosProductivosAdmin() {
           );
         }
         return false;
-      }) ||
+      });
+
       // Verificar en los artículos
-      pedido.articulos?.some((art) =>
-        // Si alguno de los campos relevantes del artículo coincide
+      const matchArticulos = pedido.articulos?.some((art: Articulo) =>
         ['codint', 'articulo', 'descripcion', 'provsug'].some((campo) => {
-          const val = (art as any)[campo];
+          const val = art[campo as keyof Articulo];
           return val && String(val).toLowerCase().includes(s);
         })
-      )
-    );
-  })
+      ) ?? false;
+
+      return matchPedidoPropiedades || matchArticulos;
+    })
   .filter((pedido) => {
     // tus condiciones de ocultar
     if (ocultarCumplidos && pedido.estado === "cumplido") return false;
@@ -522,8 +527,8 @@ const cellClass =
                 </div>
                
                 </td>
-              <td className={cellClass}>{p.numero_oc || "-"}</td>
-              <td className={cellClass}>{p.proveedor_seleccionado || "-"}</td>
+              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{p.numero_oc || "-"}</td>
+              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{p.proveedor_seleccionado || "-"}</td>
                 <td className={cellClass}>{formatDate(p.fecha_conf)}</td>
                 <td className={cellClass}>{formatDate(p.fecha_prom)}</td>
                 <td className={cellClass}>{formatDate(p.fecha_ent)}</td>

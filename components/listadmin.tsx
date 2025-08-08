@@ -528,8 +528,8 @@ const cellClass =
               
             
               <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
-              <td className={cellClass}>{pedido.oc}</td>
-              <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
+              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{pedido.oc}</td>
+              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{renderValue(pedido.proveedor_selec)}</td>
               <td className={cellClass}>{pedido.usd}</td>
               <td className={cellClass}>{pedido.eur}</td>
               <td className={cellClass}>{pedido.tc}</td>
