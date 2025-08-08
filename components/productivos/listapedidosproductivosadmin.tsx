@@ -135,10 +135,6 @@ export default function ListaPedidosProductivosAdmin() {
   
     fetchPedidos();
   }, [supabase]);
-
-
-  
-   
   
     // funcion para formatear las fechas
    function formatDate(dateString: string | null): string {
@@ -164,31 +160,43 @@ export default function ListaPedidosProductivosAdmin() {
   ];
   
   //Filtro que también contempla las fechas
-  const filteredPedidos = pedidos
-    .filter((pedido) => {
-      const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
-      if (!s) return true;                     // si el input está vacío, no filtra nada
-  
-      return Object.entries(pedido).some(([key, value]) => {
+ const filteredPedidos = pedidos
+  .filter((pedido) => {
+    const s = search.trim().toLowerCase(); // normalizar búsqueda
+    if (!s) return true;
+
+    // Aquí definición para verificar si algún campo del pedido o sus artículos coincide
+    return (
+      // Verificar propiedades del pedido
+      Object.entries(pedido).some(([key, value]) => {
         if (value === null || value === undefined) return false;
-  
-        // A) Comparar contra la versión texto “tal cual viene”
+
+        // Comparar contra string directo
         if (String(value).toLowerCase().includes(s)) return true;
-  
-        // B) Si el campo es fecha, probar otras representaciones
+
+        // Comparar fechas
         if (dateFields.includes(key as keyof Pedido)) {
-          const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
-          const niceDate = formatDate(value as string);         // DD/MM/YYYY
-  
+          const isoDate = String(value).split("T")[0];
+          const niceDate = formatDate(value as string);
           return (
             isoDate.toLowerCase().includes(s) ||
             niceDate.toLowerCase().includes(s)
           );
         }
         return false;
-      });
-    })
-   .filter((pedido) => {
+      }) ||
+      // Verificar en los artículos
+      pedido.articulos?.some((art) =>
+        // Si alguno de los campos relevantes del artículo coincide
+        ['codint', 'articulo', 'descripcion', 'provsug'].some((campo) => {
+          const val = (art as any)[campo];
+          return val && String(val).toLowerCase().includes(s);
+        })
+      )
+    );
+  })
+  .filter((pedido) => {
+    // tus condiciones de ocultar
     if (ocultarCumplidos && pedido.estado === "cumplido") return false;
     if (ocultarAprobados && pedido.estado === "aprobado") return false;
     if (ocultarAnulados && pedido.estado === "anulado") return false;
@@ -196,6 +204,7 @@ export default function ListaPedidosProductivosAdmin() {
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
     return true;
   });
+
   
   
   

@@ -466,6 +466,8 @@ const cellClass =
                         : pedido.estado === "cotizado"
                         ? "text-yellow-600 font-semibold"
                         : pedido.estado === "stand by"
+                        ? "text-orange-500 font-semibold" 
+                        : pedido.estado === "Visto/recibido"
                         ? "text-orange-500 font-semibold"
                         : pedido.estado === "Presentar presencial"
                         ? "text-orange-500 font-semibold"
@@ -805,6 +807,9 @@ const cellClass =
                 }
               >
                 <option value="">Seleccionar estado</option>
+                 <option value="Visto/recibido" className="bg-yellow-300 text-black">
+                  Visto/recibido
+                </option>
                 <option value="cotizado" className="bg-yellow-300 text-black">
                   Cotizado
                 </option>
