@@ -28,6 +28,7 @@ type Pedido = {
     articulo: string;
     descripcion: string;
     existencia: number;
+    observacion: string;
     cant: number;
     provsug: string;
   }[];
@@ -346,6 +347,7 @@ const cellClass =
                         <th className="border px-1 py-1 text-xs">Descripción</th>
                         <th className="border px-1 py-1 text-xs">Cant. sol.</th>
                         <th className="border px-1 py-1 text-xs">Stock</th>
+                        <th className="border px-1 py-1 text-xs">Observ.</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -356,6 +358,7 @@ const cellClass =
                         <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
                         <td className="border px-1 py-1 text-xs">{a.cant}</td>
                         <td className="border px-1 py-1 text-xs">{a.existencia}</td>
+                         <td className="border px-1 py-1 text-xs">{a.observacion}</td>
                         </tr>
                     ))}
                     </tbody>

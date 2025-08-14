@@ -44,6 +44,7 @@ type Pedido = {
     codint: string;
     articulo: string;
     descripcion: string;
+    observacion: string;
     existencia: number;
     cant: number;
     provsug: string;
@@ -278,7 +279,7 @@ const cellClass =
         </Link>
       </div>
 
-      <h1 className="text-xl font-bold mb-4">Pedidos Productivos Admin Arr</h1>
+      <h1 className="text-xl font-bold mb-4">Pedidos Productivos</h1>
 
       <div className="flex flex-wrap gap-4 items-center">
         <Link
@@ -434,7 +435,8 @@ const cellClass =
                     <tr>
                         <th className="border px-1 py-1 text-xs">Cód. int.</th>
                         <th className="border px-1 py-1 text-xs">Artículo</th>
-                        <th className="border px-1 py-1 text-xs">Descripción</th>
+                        <th className="border px-1 py-1 text-xs">Descrip</th>
+                        <th className="border px-1 py-1 text-xs">Observ</th>
                         <th className="border px-1 py-1 text-xs">Cant. sol.</th>
                         <th className="border px-1 py-1 text-xs">Stock</th>
                     </tr>
@@ -445,6 +447,7 @@ const cellClass =
                         <td className="border px-1 py-1 text-xs">{a.codint}</td>
                         <td className="border px-1 py-1 text-xs">{a.articulo}</td>
                         <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
+                        <td className="border px-1 py-1 text-xs">{a.observacion}</td>
                         <td className="border px-1 py-1 text-xs">{a.cant}</td>
                         <td className="border px-1 py-1 text-xs">{a.existencia}</td>
                         </tr>
@@ -491,7 +494,7 @@ const cellClass =
                     <ul className="list-disc pl-5">
                       {formData.articulos.map((art, index) => (
                         <li className="felx" key={index}>
-                        <p> {art.articulo}</p> <p> Cant sol: {art.cant} </p> <p>Stock: {art.existencia}</p>
+                        <p> {art.articulo}</p> <p> {art.observacion}</p> <p> Cant sol: {art.cant} </p> <p>Stock: {art.existencia}</p>
                         </li>
                       ))}
                     </ul>

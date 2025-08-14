@@ -35,12 +35,13 @@ export default function CrearFormPedidoProductivo() {
   const [codigoArticulo, setCodigoArticulo] = useState("");
   const [articuloEncontrado, setArticuloEncontrado] = useState<Articulo | null>(null);
   const [cant, setCant] = useState<number>(1);
+   const [observacion, setObservacion] = useState("");
   const [observ, setObserv] = useState("");
 
   
 
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<
-    (Articulo & { cant: number })[]
+    (Articulo & { cant: number, observacion: string })[]
   >([]);
 
   const [loading, setLoading] = useState(false);
@@ -87,7 +88,7 @@ export default function CrearFormPedidoProductivo() {
       } else {
         setArticulosSeleccionados((prev) => [
           ...prev,
-          { ...articuloEncontrado, cant },
+          { ...articuloEncontrado, cant, observacion },
         ]);
       }
       // Reset inputs para cargar otro artículo
@@ -136,6 +137,7 @@ export default function CrearFormPedidoProductivo() {
         provsug: a.provsug,
         cc: a.cc,
         cant: a.cant,
+        observacion: a.observacion,
       })),
       
     };
@@ -160,6 +162,7 @@ export default function CrearFormPedidoProductivo() {
       setCodigoArticulo("");
       setArticuloEncontrado(null);
       setCant(1);
+      setObservacion("")
       setArticulosSeleccionados([]);
       setObserv("");
       setAprueba("")
@@ -287,23 +290,42 @@ export default function CrearFormPedidoProductivo() {
               <p><strong>Existencia:</strong> {articuloEncontrado.existencia}</p>
               <p><strong>Proveedor sugerido:</strong> {articuloEncontrado.provsug}</p>
 
-              <div className="mt-2 flex items-center">
-                <label className="text-black mr-2">Cantidad:</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={cant}
-                  onChange={(e) => setCant(parseInt(e.target.value))}
-                  className="border p-2 w-full rounded text-black bg-white"
-                />
-                <button
-                  type="button"
-                  onClick={handleAgregarArticulo}
-                  className="ml-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                >
-                  ➕ Agregar Artículo
-                </button>
-              </div>
+            <div className="mt-2 flex flex-col gap-2">
+  {/* Cantidad */}
+  <div className="flex flex-col">
+    <label className="text-black mb-1">Cantidad:</label>
+    <input
+      type="number"
+      min={1}
+      value={cant}
+      onChange={(e) => setCant(parseInt(e.target.value))}
+      className="border p-2 rounded text-black bg-white"
+    />
+  </div>
+
+  {/* Observación */}
+  <div className="flex flex-col">
+    <label className="text-black mb-1">Observ:</label>
+    <input
+      type="text"
+      value={observacion}
+      onChange={(e) => setObservacion(e.target.value)}
+      className="border p-2 rounded text-black bg-white"
+    />
+  </div>
+
+  {/* Botón */}
+  <button
+    type="button"
+    onClick={handleAgregarArticulo}
+    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 mt-2"
+  >
+    ➕ Agregar Artículo
+  </button>
+</div>
+
+
+
             </div>
           )}
         </div>
@@ -317,6 +339,7 @@ export default function CrearFormPedidoProductivo() {
                 <tr className="bg-gray-100">
                   <th className="border p-2">Código</th>
                   <th className="border p-2">Artículo</th>
+                  <th className="border p-2">Observ</th>
                   <th className="border p-2">Cantidad</th>
                   <th className="border p-2">Acciones</th>
                 </tr>
@@ -326,6 +349,7 @@ export default function CrearFormPedidoProductivo() {
                   <tr key={a.codint}>
                     <td className="border p-2">{a.codint}</td>
                     <td className="border p-2">{a.articulo}</td>
+                    <td className="border p-2">{a.observacion}</td>
                     <td className="border p-2">{a.cant}</td>
                     <td className="border p-2 text-center">
                       <button
