@@ -481,7 +481,6 @@ export default function ListAprob() {
 
                {/* Comparativa de proveedores */}
                <div className="mb-6" style={{display: 'block'}}>
-                {console.log('Renderizando comparativa de proveedores:', editingPedido?.prov_uno, editingPedido?.prov_dos, editingPedido?.prov_tres)}
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <span className="mr-2">💰</span>
                   Comparativa de Proveedores
