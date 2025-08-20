@@ -202,17 +202,23 @@ export default function CrearFormArticulo() {
               <option value="Victor">Victor</option>
               <option value="Agustin">Agustin</option>
               <option value="Eliezer">Eliezer</option>
+              <option value="Damian">Damian</option>
+              <option value="Jose">Jose</option>
+              <option value="Bianca">Bianca</option>
+              <option value="Fatima">Fatima</option>
+              <option value="Agustina">Agustina</option>
               <option value="Tamara">Tamara</option>
               <option value="Roberto">Roberto</option>
               <option value="Luciana T">Luciana T</option>
-              <option value="Brian P">Brian P</option>
+              <option value="Braian P">Braian P</option>
               <option value="Coria">Coria</option>
-              <option value="Arron">Arron</option>
+              <option value="Aaron">Aaron</option>
               <option value="Sergio V">Sergio V</option>
               <option value="Carla D">Carla D</option>
               <option value="Valentina">Valentina</option>
               <option value="Carlos">Carlos</option>
               <option value="Lucas M">Lucas M</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
 
