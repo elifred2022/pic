@@ -11,9 +11,7 @@ type Pedido = {
   categoria: string;
   solicita: string;
   sector: string;
-  cc: number;
-  cant: number;
-  existencia: number;
+
   articulos: Array<{
     articulo: string;
     descripcion?: string;
@@ -277,10 +275,6 @@ export default function ListAdmin() {
           <div class="info-section">
             <h3>Detalles Financieros</h3>
             <div class="info-item">
-              <span class="info-label">Centro de Costo:</span>
-              <span class="info-value">${verInfo.cc || '-'}</span>
-            </div>
-            <div class="info-item">
               <span class="info-label">Orden de Compra:</span>
               <span class="info-value">${verInfo.oc || '-'}</span>
             </div>
@@ -495,9 +489,6 @@ export default function ListAdmin() {
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Categoria</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicita</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cod cta</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cant sol</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Existencia</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
 
                   
@@ -536,9 +527,6 @@ export default function ListAdmin() {
                         categoria: pedido.categoria,
                         solicita: pedido.solicita,
                         sector: pedido.sector,
-                        cc: pedido.cc,
-                        cant: pedido.cant,
-                        existencia: pedido.existencia,
                         articulos: pedido.articulos,
                         descripcion: pedido.descripcion,
                         controlado: pedido.controlado,
@@ -584,9 +572,6 @@ export default function ListAdmin() {
                         categoria: pedido.categoria,
                         solicita: pedido.solicita,
                         sector: pedido.sector,
-                        cc: pedido.cc,
-                        cant: pedido.cant,
-                        existencia: pedido.existencia,
                         articulos: pedido.articulos,
                         descripcion: pedido.descripcion,
                         controlado: pedido.controlado,
@@ -678,9 +663,6 @@ export default function ListAdmin() {
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                 <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
                   {Array.isArray(pedido.articulos) ? (
@@ -703,8 +685,8 @@ export default function ListAdmin() {
                                  ? `${a.descripcion.substring(0, 30)}...` 
                                  : a.descripcion || "-"}
                              </td>
-                             <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
-                             <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                             <td className="px-2 py-1 text-center font-semibold">{Number(a.cant) || 0}</td>
+                             <td className="px-2 py-1 text-center">{Number(a.cant_exist) || 0}</td>
                              <td className="px-2 py-1 text-gray-600 max-w-20 break-words">
                                {a.observacion && a.observacion.length > 20 
                                  ? `${a.observacion.substring(0, 20)}...` 
@@ -806,51 +788,7 @@ export default function ListAdmin() {
                 }
               />
             </label>
-             <label className="block mb-4">
-              <p className="text-black">C.C.</p>
-              <input
-                
-                type="text"
-                value={formData.cc ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cc: Number(e.target.value) })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-              <p className="text-black">Cant.</p>
-              <input
-                
-                type="text"
-                value={formData.cant ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cant: Number(e.target.value) })
-                }
-              />
-            </label>
-            <label className="block mb-4">
-             <p className="text-black">Cant.</p>
-              <input
-                
-                type="text"
-                value={formData.cant ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cant: Number(e.target.value) })
-                }
-              />
-            </label>
-           
-            <label className="block mb-4">
-             <p className="text-black">Cantidad Total</p>
-              <input
-                
-                type="number"
-                value={formData.cant ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, cant: Number(e.target.value) })
-                }
-              />
-            </label>
+
              <label className="block mb-4">
              <p className="text-black">Descripcion</p>
               <input
@@ -1265,7 +1203,7 @@ export default function ListAdmin() {
              <button
                   onClick={async () => {
                     /* Normalizá los números que vas a usar */
-                    const cantNum        = Number(formData.cant ?? editingPedido.cant ?? 0);
+                    const cantNum        = 0; // Campo eliminado
                     const costProvUnoNum = Number(
                       formData.cost_prov_uno ?? editingPedido.cost_prov_uno ?? 0
                     );
@@ -1346,13 +1284,6 @@ export default function ListAdmin() {
                 <br/>
                 <span className="text-black font-semibold">Aprueba: {verInfo.aprueba}</span>
               </div>
-              <br/>
-              <div >
-                <span className="text-black font-semibold">Cantidad: {verInfo.cant} </span>
-                <span className="text-black font-semibold">Artículos: {Array.isArray(verInfo.articulos) ? verInfo.articulos.length : 0} </span>
-                <span className="text-black font-semibold">, {verInfo.descripcion} </span>
-              </div>
-              
               {/* Mostrar lista de artículos */}
               {Array.isArray(verInfo.articulos) && verInfo.articulos.length > 0 && (
                 <div className="mt-4">
@@ -1377,8 +1308,8 @@ export default function ListAdmin() {
                                 {a.descripcion || "-"}
                               </div>
                             </td>
-                            <td className="px-2 py-1 text-center">{a.cant}</td>
-                            <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                            <td className="px-2 py-1 text-center">{Number(a.cant) || 0}</td>
+                            <td className="px-2 py-1 text-center">{Number(a.cant_exist) || 0}</td>
                             <td className="px-2 py-1 text-gray-600">{a.observacion || "-"}</td>
                           </tr>
                         ))}

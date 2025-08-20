@@ -8,7 +8,7 @@ type ArticuloComparativa = {
   codint: string;
   cant: number;
   articulo: string;
-  precioUnitario: number;
+  precioUnitario: number | null;
   subtotal: number;
 };
 
@@ -77,22 +77,28 @@ export default function ListaPedidosProductivosAdmin() {
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
+    const [fechaImpresion, setFechaImpresion] = useState("");
     const supabase = createClient();
   
-    /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-    useEffect(() => {
-    const savedCumplidos = localStorage.getItem("ocultarCumplidos");
-    const savedAprobados = localStorage.getItem("ocultarAprobados");
-    const savedAnulados = localStorage.getItem("ocultarAnulados");
-    const savedStandBy = localStorage.getItem("ocultarStandBy");
-    const savedConfirmado = localStorage.getItem("ocultarConfirmado");
-  
-    if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
-    if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
-    if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
-    if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
-    if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
-  }, []);
+         /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+     useEffect(() => {
+     const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+     const savedAprobados = localStorage.getItem("ocultarAprobados");
+     const savedAnulados = localStorage.getItem("ocultarAnulados");
+     const savedStandBy = localStorage.getItem("ocultarStandBy");
+     const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+   
+     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+     if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+     if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+     if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+   }, []);
+   
+   // Establecer fecha de impresión para evitar errores de hidratación
+   useEffect(() => {
+     setFechaImpresion(new Date().toLocaleDateString('es-AR') + ' a las ' + new Date().toLocaleTimeString('es-AR'));
+   }, []);
   
   
     /* Cada vez que cambia, actualizá localStorage */
@@ -112,12 +118,35 @@ export default function ListaPedidosProductivosAdmin() {
     localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
   }, [ocultarStandBy]);
   
-  useEffect(() => {
-    localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
-  }, [ocultarConfirmado]);
-  
-  
-  // Cargar datos
+     useEffect(() => {
+     localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+   }, [ocultarConfirmado]);
+   
+       // Recalcular comparativa cuando se abre el modal de edición
+    useEffect(() => {
+      if (editingPedido && formData.articulos && formData.articulos.length > 0) {
+        // Solo recalcular si no hay comparativa o si es la primera vez que se abre
+        if (!comparativaForm) {
+          // Crear estructura inicial
+          const articulosBase = formData.articulos.map(a => ({
+            codint: a.codint,
+            articulo: a.articulo,
+            cant: a.cant,
+            precioUnitario: null,
+            subtotal: 0
+          }));
+
+          setComparativaForm([
+            { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+            { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+            { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
+          ]);
+        }
+      }
+    }, [editingPedido, formData.articulos]); // Removí comparativaForm de las dependencias
+   
+   
+   // Cargar datos
     useEffect(() => {
     const fetchPedidos = async () => {
       const {
@@ -430,7 +459,7 @@ const handleUpdatePedido = async () => {
         <div class="header">
           <h1>📊 Comparativa de Proveedores</h1>
           <p><strong>Pedido Productivo:</strong> ${comparativaPedido.id}</p>
-          <p><strong>Fecha de Impresión:</strong> ${new Date().toLocaleDateString('es-AR')}</p>
+                     <p><strong>Fecha de Impresión:</strong> ${fechaImpresion.split(' a las ')[0]}</p>
         </div>
 
         <div class="info-grid">
@@ -503,15 +532,15 @@ const handleUpdatePedido = async () => {
                       <tr>
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
-                        <td>$${art.precioUnitario.toFixed(0)}</td>
-                        <td>$${art.subtotal.toFixed(0)}</td>
+                        <td>$${(art.precioUnitario || 0).toFixed(0)}</td>
+                        <td>$${(art.subtotal || 0).toFixed(0)}</td>
                       </tr>
                     `).join('')}
                   </tbody>
                 </table>
                 
                 <div class="total-proveedor">
-                  Total: $${prov.total.toFixed(0)}
+                  Total: $${(prov.total || 0).toFixed(0)}
                 </div>
               </div>
             `).join('')
@@ -519,9 +548,9 @@ const handleUpdatePedido = async () => {
           }
         </div>
 
-        <div class="fecha-impresion">
-          Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}
-        </div>
+                 <div class="fecha-impresion">
+           Impreso el ${fechaImpresion}
+         </div>
       </body>
       </html>
     `;
@@ -659,29 +688,38 @@ const handleUpdatePedido = async () => {
                     <div className="flex flex-col gap-2">
                       <button 
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                         onClick={() => {
-                                    setEditingPedido(p);
-                                    setFormData(p);
+                                                   onClick={() => {
+                                     setEditingPedido(p);
+                                     setFormData(p);
 
-                                    // Inicializa el estado de la comparativa
-                                    if (p.comparativa_prov && p.comparativa_prov.length > 0) {
-                                      setComparativaForm(p.comparativa_prov);
-                                    } else {
-                                      // Si no hay datos, crea una estructura inicial para 3 proveedores
-                                      const articulosBase = p.articulos.map(a => ({
-                                          codint: a.codint,
-                                          articulo: a.articulo,
-                                          precioUnitario: 0,
-                                          subtotal: 0
-                                      }));
+                                     // Inicializa el estado de la comparativa
+                                     if (p.comparativa_prov && p.comparativa_prov.length > 0) {
+                                       // Asegurar que todos los artículos tengan la propiedad 'cant'
+                                       const comparativaConCant = p.comparativa_prov.map(prov => ({
+                                         ...prov,
+                                         articulos: prov.articulos.map(art => ({
+                                           ...art,
+                                           cant: art.cant || p.articulos.find(a => a.codint === art.codint)?.cant || 0
+                                         }))
+                                       }));
+                                       setComparativaForm(comparativaConCant);
+                                     } else {
+                                       // Si no hay datos, crea una estructura inicial para 3 proveedores
+                                       const articulosBase = p.articulos.map(a => ({
+                                           codint: a.codint,
+                                           articulo: a.articulo,
+                                           cant: a.cant,
+                                           precioUnitario: null,
+                                           subtotal: 0
+                                       }));
 
-                                      setComparativaForm([
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                        { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
-                                      ]);
-                                    }
-                                  }}
+                                       setComparativaForm([
+                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
+                                       ]);
+                                     }
+                                   }}
                 >
                         ✏️ Editar
                 </button>
@@ -801,46 +839,151 @@ const handleUpdatePedido = async () => {
               <p className="text-blue-100 mt-2">Modifica los datos del pedido productivo</p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="mr-2">🏭</span>
-                    Información del Pedido
-                  </h3>
-                  <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
-                  <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
-                  <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
-                </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                 <div className="bg-gray-50 p-4 rounded-lg">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                     <span className="mr-2">🏭</span>
+                     Información del Pedido
+                   </h3>
+                   <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
+                   <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
+                   <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="mr-2">📦</span>
-                    Artículos Solicitados
-                  </h3>
-                  {formData.articulos && formData.articulos.length > 0 ? (
-                    <div className="space-y-3">
-                      {formData.articulos.map((art, index) => (
-                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
-                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
-                          <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
-                          <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
-                          <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
-                  )}
-                </div>
-                </div>
+                 <div className="bg-gray-50 p-4 rounded-lg">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                     <span className="mr-2">📦</span>
+                     Artículos Solicitados
+                   </h3>
+                   {formData.articulos && formData.articulos.length > 0 ? (
+                     <div className="space-y-3">
+                       {formData.articulos.map((art, index) => (
+                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                           <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                           <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
+                           <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
+                           <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     <p className="text-gray-500 text-sm">- Sin artículos -</p>
+                   )}
+                 </div>
+               </div>
 
-              {/* Sección de Comparativa de Proveedores */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <span className="mr-2">📊</span>
-                  Comparativa de Proveedores
-                </h3>
+               {/* Campos de edición del estado */}
+               <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                   <span className="mr-2">⚙️</span>
+                   Cambiar Estado del Pedido
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Estado Actual: <span className="font-bold text-blue-600">{formData.estado || 'No definido'}</span>
+                     </label>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.estado || ""}
+                       onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+                     >
+                       <option value="">Seleccionar nuevo estado</option>
+                       <option value="iniciado">🟡 Iniciado</option>
+                       <option value="visto/recibido">🟠 Visto/Recibido</option>
+                       <option value="cotizado">🟡 Cotizado</option>
+                       <option value="aprobado">🟢 Aprobado</option>
+                       <option value="confirmado">🟢 Confirmado</option>
+                       <option value="cumplido">⚪ Cumplido</option>
+                       <option value="stand by">🟠 Stand By</option>
+                       <option value="anulado">🔴 Anulado</option>
+                     </select>
+                   </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Observaciones:
+                     </label>
+                     <textarea
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       rows={3}
+                       placeholder="Agregar observaciones sobre el cambio de estado..."
+                       value={formData.observ || ""}
+                       onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
+                     />
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Proveedor Seleccionado:
+                     </label>
+                     <input
+                       type="text"
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       placeholder="Nombre del proveedor seleccionado"
+                       value={formData.proveedor_seleccionado || ""}
+                       onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
+                     />
+                   </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Número de OC:
+                     </label>
+                     <input
+                       type="text"
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       placeholder="Número de orden de compra"
+                       value={formData.numero_oc || ""}
+                       onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
+                     />
+                   </div>
+                 </div>
+               </div>
+
+                             {/* Sección de Comparativa de Proveedores */}
+               <div className="mb-6">
+                 <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                     <span className="mr-2">📊</span>
+                     Comparativa de Proveedores
+                   </h3>
+                                       <button
+                      onClick={() => {
+                        if (comparativaForm && formData.articulos && formData.articulos.length > 0) {
+                          const nuevaComparativa = comparativaForm.map(prov => ({
+                            ...prov,
+                                                         articulos: prov.articulos.map(art => {
+                               // Obtener la cantidad del artículo original del pedido
+                               const articuloOriginal = formData.articulos!.find(a => a.codint === art.codint);
+                               const cantidad = articuloOriginal?.cant || 0;
+                               const subtotal = (art.precioUnitario ? art.precioUnitario * cantidad : 0);
+                               
+                               return {
+                                 ...art,
+                                 cant: cantidad, // Asegurar que tenga la cantidad correcta
+                                 subtotal: subtotal
+                               };
+                             }),
+                            total: 0 // Se recalculará abajo
+                          }));
+                          
+                          // Recalcular totales de proveedores
+                          nuevaComparativa.forEach(prov => {
+                            prov.total = prov.articulos.reduce((sum, art) => sum + (art.subtotal || 0), 0);
+                          });
+                          
+                          setComparativaForm(nuevaComparativa);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      🔄 Recalcular Totales
+                    </button>
+                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {comparativaForm?.map((prov, provIndex) => (
                     <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
@@ -872,34 +1015,41 @@ const handleUpdatePedido = async () => {
                             <tr key={artIndex} className="border-b border-gray-100">
                               <td className="px-2 py-2 text-sm">{art.articulo}</td>
                               <td className="px-2 py-2 text-right">
-                                      <input
-                                        type="number"
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                                  value={art.precioUnitario}
-                                        onChange={(e) => {
-                                          const newComparativa = [...comparativaForm];
-                                    const newPrecio = parseFloat(e.target.value) || 0;
-                                    newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
-                                    newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * art.cant;
-                                    
-                                    // Recalcular total del proveedor
-                                    newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
-                                      (sum, articulo) => sum + articulo.subtotal, 0
-                                    );
+                                                                             <input
+                                         type="number"
+                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                   value={art.precioUnitario || ''}
+                                                                                 onChange={(e) => {
+                                           if (!comparativaForm) return;
+                                           
+                                           const newComparativa = [...comparativaForm];
+                                           const newPrecio = parseFloat(e.target.value) || 0;
+                                           
+                                           // Obtener la cantidad del artículo original del pedido
+                                           const articuloOriginal = formData.articulos?.find(a => a.codint === art.codint);
+                                           const cantidad = articuloOriginal?.cant || 0;
+                                           
+                                           newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
+                                           newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * cantidad;
+                                           
+                                           // Recalcular total del proveedor
+                                           newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
+                                             (sum, articulo) => sum + (articulo.subtotal || 0), 0
+                                           );
 
-                                          setComparativaForm(newComparativa);
-                                        }}
+                                           setComparativaForm(newComparativa);
+                                         }}
                                       />
                                     </td>
                               <td className="px-2 py-2 text-right text-sm font-medium">
-                                ${art.subtotal.toFixed(0)}
+                                ${(art.subtotal || 0).toFixed(0)}
                                     </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                       <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
-                        Total: ${prov.total.toFixed(0)}
+                        Total: ${(prov.total || 0).toFixed(0)}
                             </div>
                           </div>
                         ))}
@@ -947,23 +1097,24 @@ const handleUpdatePedido = async () => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos</h3>
-                  {comparativaPedido.articulos && comparativaPedido.articulos.length > 0 ? (
-                    <div className="space-y-2">
-                      {comparativaPedido.articulos.map((art, index) => (
-                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
-                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
-                          <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
-                          <div className="text-gray-600 text-xs">Desc: {art.descripcion}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
-                  )}
-                </div>
+                                 <div className="bg-gray-50 p-4 rounded-lg">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos</h3>
+                   {comparativaPedido.articulos && comparativaPedido.articulos.length > 0 ? (
+                     <div className="space-y-2">
+                       {comparativaPedido.articulos.map((art, index) => (
+                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                           <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                           <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
+                           <div className="text-gray-600 text-xs">Desc: {art.descripcion}</div>
+                           <div className="text-gray-600 text-xs">Observ: {art.observacion || '-'}</div>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     <p className="text-gray-500 text-sm">- Sin artículos -</p>
+                   )}
+                 </div>
                 </div>
             
             {/* Sección de Comparativa de Proveedores (Solo lectura) */}
@@ -972,45 +1123,54 @@ const handleUpdatePedido = async () => {
                   <span className="mr-2">💰</span>
                   Cotizaciones de Proveedores
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                    <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm">
-                      <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
-                                <input
-                                    type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 font-semibold bg-white text-center text-sm"
-                                    value={prov.nombreProveedor}
-                        readOnly
-                                />
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
+                     <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
+                                             <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
+                                 <input
+                                     type="text"
+                         className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 font-semibold bg-white text-center text-sm break-words"
+                                     value={prov.nombreProveedor}
+                         readOnly
+                                 />
 
-                      <table className="w-full text-gray-700 text-sm">
-                                    <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
-                            <th className="px-2 py-2 text-center font-medium">Cant.</th>
-                            <th className="px-2 py-2 text-center font-medium">Precio</th>
-                            <th className="px-2 py-2 text-center font-medium">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {prov.articulos.map((art, artIndex) => (
-                            <tr key={artIndex} className="border-b border-gray-100">
-                              <td className="px-2 py-2 text-sm truncate" title={art.articulo}>
-                                {art.articulo}
-                                                </td>
-                              <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
-                              <td className="px-2 py-2 text-center text-sm">
-                                ${art.precioUnitario.toFixed(0)}
-                              </td>
-                              <td className="px-2 py-2 text-center text-sm">
-                                ${art.subtotal.toFixed(0)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                             <table className="w-full text-gray-700 text-sm">
+                                     <thead>
+                           <tr className="border-b border-gray-200">
+                             <th className="px-2 py-2 text-left font-medium w-2/5">Artículo</th>
+                             <th className="px-2 py-2 text-center font-medium w-1/6">Cant.</th>
+                             <th className="px-2 py-2 text-center font-medium w-1/6">Stock</th>
+                             <th className="px-2 py-2 text-center font-medium w-1/6">Precio</th>
+                             <th className="px-2 py-2 text-center font-medium w-1/6">Subtotal</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         {prov.articulos.map((art, artIndex) => (
+                             <tr key={artIndex} className="border-b border-gray-100">
+                               <td className="px-2 py-2 text-sm break-words" title={art.articulo}>
+                                 <div className="max-w-full">
+                                   {art.articulo}
+                                 </div>
+                               </td>
+                               <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
+                               <td className="px-2 py-2 text-center text-sm">
+                                 {(() => {
+                                   const articuloOriginal = comparativaPedido.articulos.find(a => a.codint === art.codint);
+                                   return articuloOriginal?.existencia || 0;
+                                 })()}
+                               </td>
+                               <td className="px-2 py-2 text-center text-sm">
+                                 ${(art.precioUnitario || 0).toFixed(0)}
+                               </td>
+                               <td className="px-2 py-2 text-center text-sm">
+                                 ${(art.subtotal || 0).toFixed(0)}
+                               </td>
+                                             </tr>
+                                         ))}
+                                     </tbody>
+                                 </table>
                       <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
-                        Total: ${prov.total.toFixed(0)}
+                        Total: ${(prov.total || 0).toFixed(0)}
                                 </div>
                             </div>
                         ))}
