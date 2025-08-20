@@ -14,7 +14,13 @@ type Pedido = {
   cc: number;
   cant: number;
   existencia: number;
-  articulos: any[]; // Array de artículos
+  articulos: Array<{
+    articulo: string;
+    descripcion?: string;
+    cant: number;
+    cant_exist?: number;
+    observacion?: string;
+  }>; // Array de artículos
   descripcion: string;
   controlado: string;
   superviso: string;
@@ -132,10 +138,9 @@ export default function ListAdmin() {
     return String(value);
   }
 
-  const headerClass =
-    "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
-  const cellClass =
-    "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+  // Estilos para la tabla (comentados por ahora)
+  // const headerClass = "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap";
+  // const cellClass = "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
   // ✅ Función para imprimir información del pedido
   const imprimirInfoPedido = () => {
@@ -308,7 +313,7 @@ export default function ListAdmin() {
               </tr>
             </thead>
             <tbody>
-              ${verInfo.articulos.map((a: any) => `
+              ${verInfo.articulos.map((a) => `
                 <tr>
                   <td>${a.articulo || '-'}</td>
                   <td>${a.descripcion || '-'}</td>
@@ -690,7 +695,7 @@ export default function ListAdmin() {
                         </tr>
                       </thead>
                       <tbody>
-                        {pedido.articulos.map((a: any, idx: number) => (
+                        {pedido.articulos.map((a, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                             <td className="px-2 py-1 font-medium">{a.articulo}</td>
                              <td className="px-2 py-1 text-gray-700">
@@ -700,7 +705,11 @@ export default function ListAdmin() {
                              </td>
                              <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                              <td className="px-2 py-1 text-center">{a.cant_exist}</td>
-                             <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                             <td className="px-2 py-1 text-gray-600 max-w-20 break-words">
+                               {a.observacion && a.observacion.length > 20 
+                                 ? `${a.observacion.substring(0, 20)}...` 
+                                 : a.observacion || "-"}
+                             </td>
                            </tr>
                         ))}
                       </tbody>
@@ -1360,7 +1369,7 @@ export default function ListAdmin() {
                         </tr>
                       </thead>
                       <tbody>
-                        {verInfo.articulos.map((a: any, idx: number) => (
+                        {verInfo.articulos.map((a, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                             <td className="px-2 py-1 font-medium">{a.articulo}</td>
                             <td className="px-2 py-1 text-gray-700 max-w-xs">

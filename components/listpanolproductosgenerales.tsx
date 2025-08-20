@@ -16,7 +16,13 @@ type Pedido = {
   cc: number;
   cant: number;
   existencia: number;
-  articulos: any[]; // Array de artículos
+  articulos: Array<{
+    articulo: string;
+    descripcion?: string;
+    cant: number;
+    cant_exist?: number;
+    observacion?: string;
+  }>; // Array de artículos
   descripcion: string;
   controlado: string;
   superviso: string;
@@ -386,7 +392,7 @@ function renderValue(value: unknown): string {
                              </tr>
                            </thead>
                            <tbody>
-                             {pedido.articulos.map((a: any, idx: number) => (
+                             {pedido.articulos.map((a, idx: number) => (
                                <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                                  <td className="px-2 py-1 font-medium">{a.articulo}</td>
                                  <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
@@ -473,7 +479,7 @@ function renderValue(value: unknown): string {
                         </tr>
                       </thead>
                       <tbody>
-                        {editingPedido.articulos.map((a: any, idx: number) => (
+                        {editingPedido.articulos.map((a, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                             <td className="px-3 py-2 font-medium text-gray-800">{a.articulo}</td>
                             <td className="px-3 py-2 text-gray-700">{a.descripcion}</td>

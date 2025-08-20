@@ -1,4 +1,4 @@
-import { CrearFormArticulo } from "@/components/crear-formarticulo";
+import CrearFormArticulo from "@/components/crear-formarticulo";
 
 
 export default function Page() {

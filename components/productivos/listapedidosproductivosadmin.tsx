@@ -282,10 +282,9 @@ const handleUpdatePedido = async () => {
     setComparativaForm(null);
 };
 
-const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
-const cellClass =
-  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+// Estilos para la tabla (comentados por ahora)
+// const headerClass = "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap";
+// const cellClass = "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
   // ✅ Función para imprimir comparativa
   const imprimirComparativa = () => {
