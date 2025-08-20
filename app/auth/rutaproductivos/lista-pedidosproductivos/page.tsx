@@ -4,10 +4,9 @@ import ListaPedidosProductivos from "@/components/productivos/listapedidosproduc
 
 export default function Page() {
   return (
-    <div className="w-screen">
-      <div className="w-full max-w-sm">
+    <div className="w-full">
+      <div className="w-full">
         <ListaPedidosProductivos/>
-      
       </div>
     </div>
   );

@@ -267,301 +267,316 @@ const cellClass =
 
 
   return (
-    <div className="w-screen felx justifi-enter">  
-     
-      {/* Botones superiores */}
-      <div className="flex justify-between items-center mb-4">
-        <Link
-          href="/protected"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Home
-        </Link>
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+          <Link
+            href="/protected"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+          >
+            ← Home
+          </Link>
+          
+          <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos Productivos Aprobación</h1>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 items-center">
+          <Link
+            href="/auth/rutaproductivos/crear-formpedidosproductivos"
+            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+          >
+            ➕ Crear Pedido Productivo
+          </Link>
+          
+          <input
+            type="text"
+            placeholder="🔍 Buscar pedido productivo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+          />
+        </div>
       </div>
 
-      <h1 className="text-xl font-bold mb-4">Pedidos Productivos</h1>
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarCumplidos}
+              onChange={() => setOcultarCumplidos((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
+          </label>
 
-      <div className="flex flex-wrap gap-4 items-center">
-        <Link
-          href="/auth/rutaproductivos/crear-formpedidosproductivos"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Crear Pedido Productivo
-        </Link>
-        <input
-          type="text"
-          placeholder="Buscar pedido..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-        />
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAnulados}
+              onChange={() => setOcultarAnulados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarStandBy}
+              onChange={() => setOcultarStandBy((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar stand by</span>
+          </label>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center mb-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar cumplidos
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAprobados}
-            onChange={() => setOcultarAprobados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar aprobados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarConfirmado}
-            onChange={() => setOcultarConfirmado((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar confirmados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAnulados}
-            onChange={() => setOcultarAnulados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar anulados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarStandBy}
-            onChange={() => setOcultarStandBy((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar stand-by
-        </label>
+      {/* Tabla con scroll horizontal y encabezado congelado */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left">Acciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">PIC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicitante</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículo Solicitado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Observ/Mensaje</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Supervisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. Selecc.</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Confirmado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Promesa</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Entrego</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fac</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Rto</th>
+              </tr>
+            </thead>
+                         <tbody>
+               {filteredPedidos.map((p) => (
+                 <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
+                    <td className="px-4 py-3 border-b border-gray-200 align-top">
+                     <div className="flex flex-col gap-2">
+                      <button
+                           className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                           onClick={() => {
+                               setComparativaPedido(p);
+                               setFormData(p);
+                           }}
+                       >
+                           📊 Comparativa
+                       </button>
+                     </div>
+                   </td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <span
+                         className={
+                         p.estado === "anulado"
+                             ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
+                             : p.estado === "aprobado"
+                             ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                             : p.estado === "cotizado"
+                             ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
+                             : p.estado === "iniciado"
+                             ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
+                             : p.estado === "visto/recibido"
+                             ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                             : p.estado === "stand by"
+                             ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                             : p.estado === "Presentar presencial"
+                             ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                             : p.estado === "cumplido"
+                             ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                             : p.estado === "confirmado" 
+                             ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                             : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
+                         }
+                     >
+                        {renderValue(p.estado)}
+                     </span>
+                 </td>
+                 
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{p.id}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{new Date(p.created_at).toLocaleDateString()}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{new Date(p.necesidad).toLocaleDateString()}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     {p.articulos && p.articulos.length > 0 ? (
+                       <div className="space-y-2">
+                         {p.articulos.map((a, idx) => (
+                           <div key={idx} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
+                             <div className="font-medium text-gray-800">{a.articulo}</div>
+                             <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded">Código: {a.codint}</div>
+                             <div className="text-gray-600 text-xs">Cant: {a.cant}</div>
+                             <div className="text-gray-600 text-xs">Stock: {a.existencia}</div>
+                           </div>
+                         ))}
+                       </div>
+                     ) : (
+                       <span className="text-gray-400 text-sm">- Sin artículos -</span>
+                     )}
+                   </td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="max-w-xs">
+                       <span className="text-sm text-gray-700">{p.observ || "-"}</span>
+                     </div>
+                   </td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="flex flex-col gap-1">
+                       <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
+                       <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
+                     </div>
+                   </td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.numero_oc || "-"}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.proveedor_seleccionado || "-"}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_prom)}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_ent)}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.fac || "-"}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.rto || "-"}</td>
+                 </tr>
+               ))}
+             </tbody>
+          </table>
+        </div>
       </div>
-
-      {/* Tabla de pedidos */}
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr>
-            <th className={headerClass}>Acc.</th>
-            <th className={headerClass}>Estado</th>
-             <th className={headerClass}>Pic</th>
-            <th className={headerClass}>Fecha sol</th>
-            <th className={headerClass}>Fecha nec</th>
-            <th className={headerClass}>Categoria</th>
-            <th className={headerClass}>Solicitante</th>
-            <th className={headerClass}>Sector</th>
-            <th className={headerClass}>Articulo solicitado</th>
-            <th className={headerClass}>Observ/Mensaje</th>
-             <th className={headerClass}>Supervisado</th>
-            <th className={headerClass}>OC</th>
-            <th className={headerClass}>Prov. Selecc.</th>
-            <th className={headerClass}>Confirmado</th>
-            <th className={headerClass}>Promesa</th>
-            <th className={headerClass}>Entrego</th>
-            <th className={headerClass}>Fac</th>
-            <th className={headerClass}>Rto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPedidos.map((p) => (
-            <tr key={p.id}>
-               <td className={cellClass}>
-                <div className="flex gap-2">
-                  
-                 <button
-                      className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-                      onClick={() => {
-                          setComparativaPedido(p);
-                          setFormData(p); // Carga los datos al `formData` para poder editar el estado y el proveedor
-                      }}
-                  >
-                      Comparativa
-                  </button>
-              
-                   
-                </div>
-               
-              </td>
-              <td className={cellClass}>
-                <span
-                    className={
-                    p.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : p.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : p.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : p.estado === "iniciado"
-                        ? "text-yellow-600 font-semibold"
-                        : p.estado === "visto/recibido"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : p.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
-                    }
-                >
-                   {renderValue(p.estado)}
-                </span>
-            </td>
-            
-              <td className={cellClass}>{p.id}</td>
-              <td className={cellClass}>
-                {new Date(p.created_at).toLocaleDateString()}
-              </td>
-              <td className={cellClass}>{new Date(p.necesidad).toLocaleDateString()}</td>
-              <td className={cellClass}>{p.categoria}</td>
-              <td className={cellClass}>{p.solicita}</td>
-              <td className={cellClass}>{p.sector}</td>
-              <td className={cellClass}>
-                <table className="w-full border border-gray-300">
-                    <thead>
-                    <tr>
-                        <th className="border px-1 py-1 text-xs">Cód. int.</th>
-                        <th className="border px-1 py-1 text-xs">Artículo</th>
-                        <th className="border px-1 py-1 text-xs">Descrip</th>
-                        <th className="border px-1 py-1 text-xs">Observ</th>
-                        <th className="border px-1 py-1 text-xs">Cant. sol.</th>
-                        <th className="border px-1 py-1 text-xs">Stock</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {p.articulos?.map((a, idx) => (
-                        <tr key={idx}>
-                        <td className="border px-1 py-1 text-xs">{a.codint}</td>
-                        <td className="border px-1 py-1 text-xs">{a.articulo}</td>
-                        <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
-                        <td className="border px-1 py-1 text-xs">{a.observacion}</td>
-                        <td className="border px-1 py-1 text-xs">{a.cant}</td>
-                        <td className="border px-1 py-1 text-xs">{a.existencia}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-                </td>
-                <td className={"px-2 py-1 border align-top text-orange-500 text-justify whitespace-pre-wrap break-words"}>{p.observ || "-"}</td>
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                  <span>{p.controlado}</span> 
-                  <span>{p.supervisor || "-"}</span>
-                </div>
-               
-                </td>
-              <td className={cellClass}>{p.numero_oc || "-"}</td>
-              <td className={cellClass}>{p.proveedor_seleccionado || "-"}</td>
-                <td className={cellClass}>{formatDate(p.fecha_conf)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_prom)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_ent)}</td>
-               <td className={cellClass}>{p.fac || "-"}</td>
-               <td className={cellClass}>{p.rto || "-"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
   
 
       {/* ✅ Modal comparativa */}
       
   
-{comparativaPedido && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-semibold mb-2 text-black">
-                Comparativa de Proveedores - Pedido #{formData.id}
-            </h2>
-             <p>Sector: {formData.sector}</p>
-              <p>Solicita: {formData.solicita}</p>
-          <div className="text-black">
-                  <p className="font-semibold">Artículos:</p>
+      {/* Modal de comparativa */}
+      {comparativaPedido && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{formData.id}</h2>
+              <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
+            </div>
+            <div className="p-6">
+              {/* Información del pedido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Sector:</span> {formData.sector}</p>
+                    <p><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos</h3>
                   {formData.articulos && formData.articulos.length > 0 ? (
-                    <ul className="list-disc pl-5">
+                    <div className="space-y-2">
                       {formData.articulos.map((art, index) => (
-                        <li className="felx" key={index}>
-                        <p> {art.articulo}</p> <p> {art.observacion}</p> <p> Cant sol: {art.cant} </p> <p>Stock: {art.existencia}</p>
-                        </li>
+                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                          <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
+                          <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
-                    <p>- Sin artículos -</p>
+                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
                   )}
                 </div>
-            
-            {/* Sección de Comparativa de Proveedores (Solo lectura) */}
-            <div className="mb-4">
-                <h3 className="font-semibold mb-2 text-black">Cotizaciones</h3>
-                <div className="overflow-x-auto">
-                 
-                    <div className="flex space-x-4">
-                        {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                            <div key={provIndex} className="min-w-[300px] border p-4 rounded-md shadow-sm">
-                                <label className="block mb-2 text-sm font-medium text-black">Proveedor: </label>
-                                <input
-                                    type="text"
-                                    className="border p-2 w-full mb-3 text-black font-semibold bg-gray-100"
-                                    value={prov.nombreProveedor}
-                                    readOnly // Campo de solo lectura
-                                />
+              </div>
+              
+              {/* Sección de Comparativa de Proveedores (Solo lectura) */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Cotizaciones de Proveedores
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
+                    <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm">
+                      <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 font-semibold bg-white text-center text-sm"
+                        value={prov.nombreProveedor}
+                        readOnly
+                      />
 
-                                <table className="w-full text-black text-sm">
-                                    <thead>
-                                        <tr>
-                                            <th className="px-1 text-left">Artículo</th>
-                                            <th className="px-1 text-right">Cant.</th>
-                                            <th className="px-1 text-right">Precio Unit.</th>
-                                            <th className="px-1 text-right">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {prov.articulos.map((art, artIndex) => (
-                                            <tr key={artIndex}>
-                                                <td className="px-1">{art.articulo}</td>
-                                                <td className="px-1 text-right">{art.cant}</td>
-                                                <td className="px-1 text-right">
-                                                    $ {art.precioUnitario.toFixed(2)}
-                                                </td>
-                                                <td className="px-1 text-right">
-                                                    $ {art.subtotal.toFixed(2)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <div className="mt-2 text-right font-bold text-black">
-                                    Total: $ {prov.total.toFixed(2)}
-                                </div>
-                            </div>
-                        ))}
+                      <table className="w-full text-gray-700 text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
+                            <th className="px-2 py-2 text-center font-medium">Cant.</th>
+                            <th className="px-2 py-2 text-center font-medium">Precio</th>
+                            <th className="px-2 py-2 text-center font-medium">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {prov.articulos.map((art, artIndex) => (
+                            <tr key={artIndex} className="border-b border-gray-100">
+                              <td className="px-2 py-2 text-sm truncate" title={art.articulo}>
+                                {art.articulo}
+                              </td>
+                              <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                ${art.precioUnitario.toFixed(0)}
+                              </td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                ${art.subtotal.toFixed(0)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
+                        Total: ${prov.total.toFixed(0)}
+                      </div>
                     </div>
+                  ))}
                 </div>
-            </div>
+              </div>
 
-            <hr className="my-4" />
+              <hr className="my-6" />
 
-            {/* Campos de edición */}
-            <div className="flex flex-col gap-4">
-                <label className="block text-sm font-medium text-black">Estado:Aprobar,</label>
-                <select
-                    className="border p-2 w-full bg-white text-black"
+              {/* Campos de edición */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                  <select
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={formData.estado || ""}
                     onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                >
+                  >
                     <option value="iniciado">Iniciado</option>
                     <option value="visto/recibido">Visto/Recibido</option>
                     <option value="aprobado">Aprobado</option>
@@ -570,34 +585,39 @@ const cellClass =
                     <option value="cumplido">Cumplido</option>
                     <option value="anulado">Anulado</option>
                     <option value="stand by">Stand By</option>
-                </select>
+                  </select>
+                </div>
 
-                <label className="block text-sm font-medium text-black">Proveedor Seleccionado:</label>
-                <input
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor Seleccionado:</label>
+                  <input
                     type="text"
-                    className="border p-2 w-full bg-white text-black"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={formData.proveedor_seleccionado || ""}
                     onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
-                />
-            </div>
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-2 mt-4">
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
                 <button
-                    onClick={() => setComparativaPedido(null)}
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                  onClick={() => setComparativaPedido(null)}
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                 >
-                    Cerrar
+                  ❌ Cerrar
                 </button>
                 <button
-                    onClick={handleUpdatePedido}
-                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={handleUpdatePedido}
+                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
                 >
-                    Guardar
+                  💾 Guardar
                 </button>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
-)}
+      )}
 
       
     </div>

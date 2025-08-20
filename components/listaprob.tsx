@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
-
 type Pedido = {
   id: string;
   created_at: string;
@@ -14,8 +13,8 @@ type Pedido = {
   sector: string;
   cc: number;
   cant: number;
-  cant_exist: number;
-  articulo: string;
+  existencia: number;
+  articulos: any[]; // Array de artículos
   descripcion: string;
   controlado: string;
   superviso: string;
@@ -32,15 +31,11 @@ type Pedido = {
   aprueba: string;
   oc: number;
   proveedor_selec: string;
- 
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
   rto: number;
   fac: number;
-  
-  
-  // Agregá más campos si los usás en el .map()
 };
 
 export default function ListAprob() {
@@ -55,43 +50,41 @@ export default function ListAprob() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
-  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-    useEffect(() => {
-     const savedCumplidos = localStorage.getItem("ocultarCumplidos");
-     const savedAprobados = localStorage.getItem("ocultarAprobados");
-     const savedAnulados = localStorage.getItem("ocultarAnulados");
-     const savedStandBy = localStorage.getItem("ocultarStandBy");
-     const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+  // Para que no desactive checkbox al reset página - Al montar, leé localStorage
+  useEffect(() => {
+    const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+    const savedAprobados = localStorage.getItem("ocultarAprobados");
+    const savedAnulados = localStorage.getItem("ocultarAnulados");
+    const savedStandBy = localStorage.getItem("ocultarStandBy");
+    const savedConfirmado = localStorage.getItem("ocultarConfirmado");
    
-     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
-     if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
-     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
-     if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
-     if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
-   }, []);
+    if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+    if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+    if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+    if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+    if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+  }, []);
    
+  // Cada vez que cambia, actualizá localStorage
+  useEffect(() => {
+    localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+  }, [ocultarCumplidos]);
    
-     /* Cada vez que cambia, actualizá localStorage */
-    useEffect(() => {
-     localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-   }, [ocultarCumplidos]);
+  useEffect(() => {
+    localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+  }, [ocultarAprobados]);
    
-   useEffect(() => {
-     localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
-   }, [ocultarAprobados]);
+  useEffect(() => {
+    localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+  }, [ocultarAnulados]);
    
-   useEffect(() => {
-     localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
-   }, [ocultarAnulados]);
+  useEffect(() => {
+    localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+  }, [ocultarStandBy]);
    
-   useEffect(() => {
-     localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
-   }, [ocultarStandBy]);
-   
-   useEffect(() => {
-     localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
-   }, [ocultarConfirmado]);
-   
+  useEffect(() => {
+    localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+  }, [ocultarConfirmado]);
 
   // Cargar datos
   useEffect(() => {
@@ -104,491 +97,529 @@ export default function ListAprob() {
     fetchPedidos();
   }, [supabase]);
 
-  // funcion para formatear las fechas
- function formatDate(dateString: string | null): string {
-  if (!dateString) return "-";
+  // Función para formatear las fechas
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return "-";
 
-  // Evitar que el navegador aplique zona horaria
-  const parts = dateString.split("T")[0].split("-");
-  const year = parseInt(parts[0]);
-  const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
-  const day = parseInt(parts[2]);
+    // Evitar que el navegador aplique zona horaria
+    const parts = dateString.split("T")[0].split("-");
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
+    const day = parseInt(parts[2]);
 
-  const date = new Date(year, month, day); // Esto crea la fecha en hora local
-  return date.toLocaleDateString("es-AR");
-}
-
-//Campos de tabla que son fecha para funcion filtrar
-const dateFields: (keyof Pedido)[] = [
-  "created_at",
-  "necesidad",
-  "fecha_conf",
-  "fecha_prom",
-  "fecha_ent",
-];
-
-//Filtro que también contempla las fechas
-const filteredPedidos = pedidos
-  .filter((pedido) => {
-    const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
-    if (!s) return true;                     // si el input está vacío, no filtra nada
-
-    return Object.entries(pedido).some(([key, value]) => {
-      if (value === null || value === undefined) return false;
-
-      // A) Comparar contra la versión texto “tal cual viene”
-      if (String(value).toLowerCase().includes(s)) return true;
-
-      // B) Si el campo es fecha, probar otras representaciones
-      if (dateFields.includes(key as keyof Pedido)) {
-        const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
-        const niceDate = formatDate(value as string);         // DD/MM/YYYY
-
-        return (
-          isoDate.toLowerCase().includes(s) ||
-          niceDate.toLowerCase().includes(s)
-        );
-      }
-      return false;
-    });
-  })
-  .filter((pedido) => {
-  if (ocultarCumplidos && pedido.estado === "cumplido") return false;
-  if (ocultarAprobados && pedido.estado === "aprobado") return false;
-  if (ocultarAnulados && pedido.estado === "anulado") return false;
-  if (ocultarStandBy && pedido.estado === "stand by") return false;
-  if (ocultarConfirmado && pedido.estado === "confirmado") return false;
-  return true;
-});
-
-function renderValue(value: unknown): string {
-  if (
-    value === null ||
-    value === undefined ||
-    (typeof value === "string" && value.trim() === "") ||
-    value === ""
-  ) {
-    return "-";
+    const date = new Date(year, month, day); // Esto crea la fecha en hora local
+    return date.toLocaleDateString("es-AR");
   }
 
-  return String(value);
-}
+  // Campos de tabla que son fecha para función filtrar
+  const dateFields: (keyof Pedido)[] = [
+    "created_at",
+    "necesidad",
+    "fecha_conf",
+    "fecha_prom",
+    "fecha_ent",
+  ];
 
-const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
-const cellClass =
-  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+  // Filtro que también contempla las fechas
+  const filteredPedidos = pedidos
+    .filter((pedido) => {
+      const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
+      if (!s) return true;                     // si el input está vacío, no filtra nada
+
+      return Object.entries(pedido).some(([key, value]) => {
+        if (value === null || value === undefined) return false;
+
+        // A) Comparar contra la versión texto "tal cual viene"
+        if (String(value).toLowerCase().includes(s)) return true;
+
+        // B) Si el campo es fecha, probar otras representaciones
+        if (dateFields.includes(key as keyof Pedido)) {
+          const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
+          const niceDate = formatDate(value as string);         // DD/MM/YYYY
+
+          return (
+            isoDate.toLowerCase().includes(s) ||
+            niceDate.toLowerCase().includes(s)
+          );
+        }
+        return false;
+      });
+    })
+    .filter((pedido) => {
+      if (ocultarCumplidos && pedido.estado === "cumplido") return false;
+      if (ocultarAprobados && pedido.estado === "aprobado") return false;
+      if (ocultarAnulados && pedido.estado === "anulado") return false;
+      if (ocultarStandBy && pedido.estado === "stand by") return false;
+      if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+      return true;
+    });
+
+  function renderValue(value: unknown): string {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === "string" && value.trim() === "") ||
+      value === ""
+    ) {
+      return "-";
+    }
+
+    return String(value);
+  }
 
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
-       <div className="flex flex-wrap gap-4 items-center" >
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+          <Link
+            href="/protected"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+          >
+            ← Home
+          </Link>
           
-            <Link
-              href="/protected"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Home
-            </Link>
-       </div>
-            <h1 className="text-xl font-bold mb-4">Pedidos</h1>
+          <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos Generales Aprobación</h1>
+        </div>
+        
         <div className="flex flex-wrap gap-4 items-center">
-          
-          
-          
           <input
             type="text"
-            placeholder="Buscar pedido..."
+            placeholder="🔍 Buscar pedido general..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
           />
         </div>
+      </div>
 
-       <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar cumplidos
-        </label>
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarCumplidos}
+              onChange={() => setOcultarCumplidos((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
+          </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarAprobados}
               onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar aprobados
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
           </label>
 
-           <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarConfirmado}
               onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar confirmados
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
           </label>
 
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ocultarAnulados}
-                  onChange={() => setOcultarAnulados((v) => !v)}
-                  className="w-4 h-4"
-                />
-                Ocultar anulados
-              </label>
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAnulados}
+              onChange={() => setOcultarAnulados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
+          </label>
 
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ocultarStandBy}
-                  onChange={() => setOcultarStandBy((v) => !v)}
-                  className="w-4 h-4"
-                />
-                Ocultar stand by
-              </label>
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarStandBy}
+              onChange={() => setOcultarStandBy((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar stand by</span>
+          </label>
+        </div>
       </div>
 
-     
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr className="bg-gray-100">
-             <th  className={headerClass}>Acciones</th>
-             <th  className={headerClass}>Estado</th>
-            <th  className={headerClass}>Nº PIC</th>
-            <th  className={headerClass}>Fecha sol</th>
-            <th  className={headerClass}>Fecha nec</th>
-            <th  className={headerClass}>Categoria</th>
-            <th  className={headerClass}>Solicita</th>
-            <th  className={headerClass}>Sector</th>
-            <th  className={headerClass}>Cod cta</th>
-            <th  className={headerClass}>Cant sol</th>
-            <th  className={headerClass}>Cant exist</th>
-            <th  className={headerClass}>Articulo</th>
-            <th  className={headerClass}>Descripcion/Observacion</th>
-            <th  className={headerClass}>Controlado/Revisado</th>
-            <th  className={headerClass}>Prov. 1</th>
-            <th  className={headerClass}>Prov. 2</th>
-            <th  className={headerClass}>Prov. 3</th>
-            <th  className={headerClass}>Aprueba</th>
-            <th  className={headerClass}>OC</th>
-            <th  className={headerClass}>Proveedor Selec.</th>
-            <th className={headerClass}>Fecha confirm</th>
-            <th className={headerClass}>Fecha prometida</th>
-            <th className={headerClass}>Fecha entrega</th>
-            <th className={headerClass}>Rto</th>
-            <th className={headerClass}>Fact</th>     
-            
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPedidos.map((pedido) => (
-            <tr key={pedido.id}>
-              <td className={cellClass}>
-                <div className="flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-                    onClick={() => {
-                      setEditingPedido(pedido);
-                      setFormData({
-                        created_at: pedido.created_at,
-                        necesidad: pedido.necesidad,
-                        categoria: pedido.categoria,
-                        solicita: pedido.solicita,
-                        sector: pedido.sector,
-                        cc: pedido.cc,
-                        cant: pedido.cant,
-                        cant_exist: pedido.cant_exist,
-                        articulo: pedido.articulo,
-                        descripcion: pedido.descripcion,
-                         controlado: pedido.controlado,
-                        superviso: pedido.superviso,
-                        estado: pedido.estado,
-                        oc: pedido.oc,
-                        proveedor_selec: pedido.proveedor_selec,
-                       
-                        fecha_conf: pedido.fecha_conf,
-                        fecha_prom: pedido.fecha_prom,
-                        fecha_ent: pedido.fecha_ent,
-                        rto: pedido.rto,
-                        fac: pedido.fac,
-                       
-                      });
-                    }}
-                  >
-                    Aprobar/edit
-                  </button>
-
-                  
-                </div></td>
-                <td className={cellClass}>
-                <span
-                    className={
-                    pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
-                    }
-                >
-                   {renderValue(pedido.estado)}
-                </span>
-            </td>
-             <td className={cellClass}>{pedido.id}</td>
-              <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
-              <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
-              <td className={cellClass}>{pedido.categoria}</td>
-              <td className={cellClass}>{pedido.solicita}</td>
-              <td className={cellClass}>{pedido.sector}</td>
-              <td className={cellClass}>{pedido.cc}</td>
-              <td className={cellClass}>{pedido.cant}</td>
-              <td className={cellClass}>{pedido.cant_exist}</td>
-              <td className={cellClass}>{pedido.articulo}</td>
-              <td className={cellClass}>{pedido.descripcion}</td>
-
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                  <span> {pedido.controlado} </span>
-                  <span>{pedido.superviso}</span>
-                </div>
-              </td>
-             
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_uno}</span>
-                    <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
-                </div>
-                </td>
-              
-                  <td className={cellClass}>
-                      <div className="flex flex-col">
-                          <span>{pedido.prov_dos}</span>
-                          <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                          <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
-                      </div>
+      {/* Tabla con scroll horizontal y encabezado congelado */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left">Acciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicita</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 1</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 2</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 3</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Confirm</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Prometida</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Entrega</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Rto</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPedidos.map((pedido) => (
+                <tr key={pedido.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top">
+                    <div className="flex flex-col gap-2">
+                      <button
+                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                        onClick={() => {
+                          setEditingPedido(pedido);
+                          setFormData({
+                            created_at: pedido.created_at,
+                            necesidad: pedido.necesidad,
+                            categoria: pedido.categoria,
+                            solicita: pedido.solicita,
+                            sector: pedido.sector,
+                            cc: pedido.cc,
+                            cant: pedido.cant,
+                            existencia: pedido.existencia,
+                            articulos: pedido.articulos,
+                            descripcion: pedido.descripcion,
+                            controlado: pedido.controlado,
+                            superviso: pedido.superviso,
+                            estado: pedido.estado,
+                            oc: pedido.oc,
+                            proveedor_selec: pedido.proveedor_selec,
+                            fecha_conf: pedido.fecha_conf,
+                            fecha_prom: pedido.fecha_prom,
+                            fecha_ent: pedido.fecha_ent,
+                            rto: pedido.rto,
+                            fac: pedido.fac,
+                          });
+                        }}
+                      >
+                        ✏️ Aprobar/Edit
+                      </button>
+                    </div>
                   </td>
-                  
-                  <td className={cellClass}>
-                      <div className="flex flex-col">
-                          <span>{pedido.prov_tres}</span>
-                          <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                          <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
-                      </div>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <span
+                      className={
+                        pedido.estado === "anulado"
+                          ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "aprobado"
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "cotizado"
+                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "stand by"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "Presentar presencial"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "cumplido"
+                          ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "confirmado" 
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
+                      }
+                    >
+                      {renderValue(pedido.estado)}
+                    </span>
                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{pedido.id}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
+                      {Array.isArray(pedido.articulos) ? (
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pedido.articulos.map((a: any, idx: number) => (
+                              <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                                <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                                <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
+                                <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
+                                <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                                <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <span className="text-sm text-gray-500">Sin artículos</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{pedido.controlado}</span>
+                      <span className="text-sm text-gray-600">{pedido.superviso}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{pedido.prov_uno}</span>
+                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
+                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{pedido.prov_dos}</span>
+                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
+                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{pedido.prov_tres}</span>
+                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
+                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{pedido.oc}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(pedido.proveedor_selec)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_prom)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_ent)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.rto || ""}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.fac || ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-               
-              
-            
-              <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
-              <td className={cellClass}>{pedido.oc}</td>
-              <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
-             
-              <td className={cellClass}>{formatDate(pedido.fecha_conf)}</td>
-              <td className={cellClass}>{formatDate(pedido.fecha_prom)}</td>
-              <td className={cellClass}>{formatDate(pedido.fecha_ent)}</td>
-              <td className={cellClass}>{pedido.rto || ""}</td>
-              <td className={cellClass}>{pedido.fac || ""}</td>
-             
-              
-            
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* MODAL */}
+      {/* Modal de edición */}
       {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-         
-           <h2 className="text-black font-bold mb-4">Pedido interno de compra #{editingPedido.id}</h2>
-           <div className="flex-col gap-2">
-                <span className="text-black font-semibold">Fecha necesidad: {editingPedido.necesidad}</span>
-                 <br/>
-                <span className="text-black font-semibold">Sector: {editingPedido.sector}</span>
-                  <br/>
-                <span className="text-black font-semibold">Solicita: {editingPedido.solicita}</span>
-                <br/>
-                <span className="text-black font-semibold">Aprueba: {editingPedido.aprueba}</span>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">✏️ Editar Pedido #{editingPedido.id}</h2>
+              <p className="text-blue-100 mt-2">Modifica los datos del pedido general</p>
+            </div>
+            <div className="p-6">
+              {/* Información del pedido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Fecha necesidad:</span> {formatDate(editingPedido.necesidad)}</p>
+                    <p><span className="font-medium">Sector:</span> {editingPedido.sector}</p>
+                    <p><span className="font-medium">Solicitante:</span> {editingPedido.solicita}</p>
+                    <p><span className="font-medium">Aprueba:</span> {editingPedido.aprueba}</p>
+                  </div>
+                </div>
+
+                                 <div className="bg-gray-50 p-4 rounded-lg">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos</h3>
+                   <div className="space-y-2 text-sm">
+                     <p><span className="font-medium">Cantidad Total:</span> {editingPedido.cant}</p>
+                     <p><span className="font-medium">Cantidad de Artículos:</span> {Array.isArray(editingPedido.articulos) ? editingPedido.articulos.length : 0}</p>
+                     <p><span className="font-medium">Descripción General:</span> {editingPedido.descripcion}</p>
+                   </div>
+                 </div>
               </div>
-              <br/>
-              <div >
-                <span className="text-black font-semibold">Cant; {editingPedido.cant} </span>
-                <span className="text-black font-semibold">{editingPedido.articulo}  </span>
-                <span className="text-black font-semibold">, {editingPedido.descripcion} </span>
+               
+                             {/* Lista detallada de artículos */}
+               {Array.isArray(editingPedido.articulos) && editingPedido.articulos.length > 0 && (
+                 <div className="mb-6">
+                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                     <span className="mr-2">📋</span>
+                     Lista de Artículos del Pedido
+                   </h3>
+                   <div className="bg-gray-50 rounded-lg p-4">
+                     <table className="w-full text-sm">
+                       <thead>
+                         <tr className="border-b border-gray-200">
+                           <th className="px-3 py-2 text-left text-gray-600 font-semibold">Artículo</th>
+                           <th className="px-3 py-2 text-left text-gray-600 font-semibold">Descripción</th>
+                           <th className="px-3 py-2 text-center text-gray-600 font-semibold">Cantidad</th>
+                           <th className="px-3 py-2 text-center text-gray-600 font-semibold">Stock</th>
+                           <th className="px-3 py-2 text-left text-gray-600 font-semibold">Observación</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {editingPedido.articulos.map((a: any, idx: number) => (
+                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                             <td className="px-3 py-2 font-medium text-gray-800">{a.articulo}</td>
+                             <td className="px-3 py-2 text-gray-700">{a.descripcion}</td>
+                             <td className="px-3 py-2 text-center font-semibold text-gray-800">{a.cant}</td>
+                             <td className="px-3 py-2 text-center text-gray-700">{a.cant_exist}</td>
+                             <td className="px-3 py-2 text-gray-600">{a.observacion}</td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
+
+               {/* Comparativa de proveedores */}
+               <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Comparativa de Proveedores
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 1</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_uno}</p>
+                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_uno).toLocaleString("es-AR")}</p>
+                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov1).toLocaleString("es-AR")}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 2</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_dos}</p>
+                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_dos).toLocaleString("es-AR")}</p>
+                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov2).toLocaleString("es-AR")}</p>
+                    </div>
+                  </div>
+                   
+                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 3</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_tres}</p>
+                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_tres).toLocaleString("es-AR")}</p>
+                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov3).toLocaleString("es-AR")}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-                 <br/>
-                  <div className="mb-4 flex gap-4">
-                          <div className="flex-col gap-2">
-                            <span className="text-black">Proveedor 1: </span>
-                             <br/>
-                            <span className="text-black"> {editingPedido.prov_uno}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_uno).toLocaleString("es-AR")}</span>
-                            <br/>
-                            <span className="text-black">subt. ${Number(editingPedido.subt_prov1).toLocaleString("es-AR")}</span>
-                            
-                          </div>
-                          
-                          <div>
-                            <span className="text-black">Proveedor 2:</span>
-                            <br/>
-                            <span className="text-black">{editingPedido.prov_dos}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                            <br/>
-                            <span className="text-black">subt. ${Number(editingPedido.subt_prov2).toLocaleString("es-AR")}</span>
-                          </div>
 
-                          <div>
-                             <span className="text-black">Proveedor 3:</span>
-                            <br/>
-                            <span className="text-black">{editingPedido.prov_tres}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(editingPedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                              <br/>
-                            <span className="text-black">subt. ${Number(editingPedido.subt_prov3).toLocaleString("es-AR")}</span>
-                          </div>
-                      
-                     
-                       </div>
+              <hr className="my-6" />
 
-            
-           <label className="block mb-4">
-            <p className="text-black">Estado</p>
-            <select
-                className="w-full border p-2 rounded mt-1"
-                value={formData.estado ?? ""}
-                onChange={(e) =>
-                setFormData({ ...formData, estado: e.target.value })
-                }
-            >
-                <option value="">Seleccionar estado</option>
-            
-                <option value="aprobado" className="bg-green-400 text-white">
-                Aprobado
-                </option>
-                <option value="stand by" className="bg-orange-300 text-black">
-                Stand By
-                </option>
-                <option value="anulado" className="bg-red-500 text-white">
-                Anulado
-                </option>
-                <option value="Presentar presencial" className="bg-green-600 text-white">
-                Presentar presencial
-                </option>
-            </select>
-            </label>
+              {/* Campos de edición */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                  <select
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.estado ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, estado: e.target.value })
+                    }
+                  >
+                    <option value="">Seleccionar estado</option>
+                    <option value="aprobado">Aprobado</option>
+                    <option value="stand by">Stand By</option>
+                    <option value="anulado">Anulado</option>
+                    <option value="Presentar presencial">Presentar presencial</option>
+                  </select>
+                </div>
 
-            
-           
-             <label className="block mb-4">
-             <p className="text-black">Proveedor selec.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.proveedor_selec ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, proveedor_selec: e.target.value})
-                }
-              />
-            </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor Seleccionado:</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.proveedor_selec ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proveedor_selec: e.target.value})
+                    }
+                  />
+                </div>
 
-             <label className="block mb-4">
-             <p className="text-black">Agregar observacion</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.descripcion ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value})
-                }
-              />
-            </label>
-           
-            <label className="block mb-4">
-              <p className="text-black">Aprueba</p>
-              <select
-                className="w-full border p-2 rounded mt-1"
-                value={formData.aprueba ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, aprueba: e.target.value })
-                }
-              >
-                <option value="">Selec. responsable de area</option>
-                <option value="Juan S." >
-                  Juan S.
-                </option>
-                <option value="Julio A." >
-                  Julio A.
-                </option>
-                <option value="Luciana L." >
-                  Luciana L.
-                </option>
-                <option value="Eduardo S." >
-                  Eduardo S.
-                </option>
-                <option value="Pedro S." >
-                  Pedro S.
-                </option>
-                <option value="Sofia S." >
-                  Sofia S.
-                </option>
-                <option value=" Carolina S." >
-                  Carolina S.
-                </option>
-              </select>
-                  </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Observación:</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.descripcion ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, descripcion: e.target.value})
+                    }
+                  />
+                </div>
+               
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Aprueba:</label>
+                  <select
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.aprueba ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, aprueba: e.target.value })
+                    }
+                  >
+                    <option value="">Seleccionar responsable de área</option>
+                    <option value="Juan S.">Juan S.</option>
+                    <option value="Julio A.">Julio A.</option>
+                    <option value="Luciana L.">Luciana L.</option>
+                    <option value="Eduardo S.">Eduardo S.</option>
+                    <option value="Pedro S.">Pedro S.</option>
+                    <option value="Sofia S.">Sofia S.</option>
+                    <option value="Carolina S.">Carolina S.</option>
+                  </select>
+                </div>
+              </div>
 
-          
-                      
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setEditingPedido(null)}
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
+                >
+                  ❌ Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from("pic")
+                      .update(formData)
+                      .eq("id", editingPedido.id);
 
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-400 text-white rounded"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={async () => {
-                  const { error } = await supabase
-                    .from("pic")
-                    .update(formData)
-                    .eq("id", editingPedido.id);
-
-                  if (error) {
-                    alert("Error actualizando");
-                    console.error(error);
-                  } else {
-                    alert("Actualizado correctamente");
-                    setEditingPedido(null);
-                    setFormData({});
-                    const { data } = await supabase.from("pic").select("*");
-                    if (data) setPedidos(data);
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Guardar
-              </button>
+                    if (error) {
+                      alert("Error actualizando");
+                      console.error(error);
+                    } else {
+                      alert("Actualizado correctamente");
+                      setEditingPedido(null);
+                      setFormData({});
+                      const { data } = await supabase.from("pic").select("*");
+                      if (data) setPedidos(data);
+                    }
+                  }}
+                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
+                >
+                  💾 Guardar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -596,4 +627,3 @@ const cellClass =
     </div>
   );
 }
-

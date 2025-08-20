@@ -148,7 +148,8 @@ export default function ListaPedidosProductivos() {
       const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
       if (!s) return true;                     // si el input está vacío, no filtra nada
   
-      return Object.entries(pedido).some(([key, value]) => {
+      // Buscar en campos principales del pedido
+      const mainFieldsMatch = Object.entries(pedido).some(([key, value]) => {
         if (value === null || value === undefined) return false;
   
         // A) Comparar contra la versión texto “tal cual viene”
@@ -166,6 +167,22 @@ export default function ListaPedidosProductivos() {
         }
         return false;
       });
+
+      // Si ya encontró en campos principales, retornar true
+      if (mainFieldsMatch) return true;
+
+      // Buscar dentro del array de artículos
+      if (pedido.articulos && Array.isArray(pedido.articulos)) {
+        return pedido.articulos.some(articulo => {
+          // Buscar en todos los campos del artículo
+          return Object.values(articulo).some(value => {
+            if (value === null || value === undefined) return false;
+            return String(value).toLowerCase().includes(s);
+          });
+        });
+      }
+
+      return false;
     })
    .filter((pedido) => {
     if (ocultarCumplidos && pedido.estado === "cumplido") return false;
@@ -198,184 +215,198 @@ const cellClass =
 
 
   return (
-    <div className="w-screen felx justifi-enter">  
-     
-      {/* Botones superiores */}
-      <div className="flex justify-between items-center mb-4">
-        <Link
-          href="/protected"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Home
-        </Link>
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+          <Link
+            href="/protected"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+          >
+            ← Home
+          </Link>
+          
+          <h1 className="text-3xl font-bold text-gray-800">🏭 Pedidos Productivos</h1>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 items-center">
+          <Link
+            href="/auth/rutaproductivos/crear-formpedidosproductivos"
+            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+          >
+            ➕ Crear Pedido Productivo
+          </Link>
+          
+          <input
+            type="text"
+            placeholder="🔍 Buscar pedido productivo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+          />
+        </div>
       </div>
 
-      <h1 className="text-xl font-bold mb-4">Pedidos Productivos</h1>
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarCumplidos}
+              onChange={() => setOcultarCumplidos((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
+          </label>
 
-      <div className="flex flex-wrap gap-4 items-center">
-        <Link
-          href="/auth/rutaproductivos/crear-formpedidosproductivos"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-        >
-          Crear Pedido Productivo
-        </Link>
-        <input
-          type="text"
-          placeholder="Buscar pedido..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-        />
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAprobados}
+              onChange={() => setOcultarAprobados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarConfirmado}
+              onChange={() => setOcultarConfirmado((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAnulados}
+              onChange={() => setOcultarAnulados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarStandBy}
+              onChange={() => setOcultarStandBy((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar stand-by</span>
+          </label>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center mb-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar cumplidos
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAprobados}
-            onChange={() => setOcultarAprobados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar aprobados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarConfirmado}
-            onChange={() => setOcultarConfirmado((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar confirmados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarAnulados}
-            onChange={() => setOcultarAnulados((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar anulados
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarStandBy}
-            onChange={() => setOcultarStandBy((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar stand-by
-        </label>
+      {/* Tabla con scroll horizontal y encabezado congelado */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicitante</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Observaciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Seleccionado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Confirmación</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Prometida</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Entrega</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">FAC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">RTO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPedidos.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <span
+                      className={
+                        p.estado === "anulado"
+                          ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
+                          : p.estado === "aprobado"
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : p.estado === "cotizado"
+                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
+                          : p.estado === "iniciado"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          : p.estado === "stand by"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          : p.estado === "Presentar presencial"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          : p.estado === "cumplido"
+                          ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                          : p.estado === "confirmado" 
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
+                      }
+                    >
+                      {renderValue(p.estado)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{p.id}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.created_at)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.necesidad)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cód. Int.</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {p.articulos?.map((a, idx) => (
+                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                              <td className="px-2 py-1 font-mono text-blue-600">{a.codint}</td>
+                              <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                              <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
+                              <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
+                              <td className="px-2 py-1 text-center">{a.existencia}</td>
+                              <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="max-w-xs">
+                      <span className="text-sm text-gray-700 bg-orange-50 px-2 py-1 rounded">{p.observ || "-"}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.numero_oc || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.proveedor_seleccionado || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_prom)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_ent)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.fac || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.rto || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      {/* Tabla de pedidos */}
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr>
-            <th className={headerClass}>Estado</th>
-             <th className={headerClass}>Pic</th>
-            <th className={headerClass}>Fecha sol</th>
-            <th className={headerClass}>Fecha nec</th>
-            <th className={headerClass}>Categoria</th>
-            <th className={headerClass}>Solicitante</th>
-            <th className={headerClass}>Sector</th>
-            <th className={headerClass}>Articulo solicitado</th>
-            <th className={headerClass}>Observ/Mensaje</th>
-            <th className={headerClass}>OC</th>
-            <th className={headerClass}>Prov. Selecc.</th>
-            <th className={headerClass}>Confirmado</th>
-            <th className={headerClass}>Proemsa</th>
-            <th className={headerClass}>Entrego</th>
-            <th className={headerClass}>Fac</th>
-            <th className={headerClass}>Rto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPedidos.map((p) => (
-            <tr key={p.id}>
-              <td className={cellClass}>
-                <span
-                    className={
-                    p.estado === "anulado"
-                        ? "text-red-500 font-semibold"
-                        : p.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
-                        : p.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
-                        : p.estado === "iniciado"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
-                        : p.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : p.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
-                    }
-                >
-                   {renderValue(p.estado)}
-                </span>
-            </td>
-              <td className={cellClass}>{p.id}</td>
-              <td className={cellClass}>
-                {new Date(p.created_at).toLocaleDateString()}
-              </td>
-              <td className={cellClass}>{new Date(p.necesidad).toLocaleDateString()}</td>
-              <td className={cellClass}>{p.categoria}</td>
-              <td className={cellClass}>{p.solicita}</td>
-              <td className={cellClass}>{p.sector}</td>
-              <td className={cellClass}>
-                <table className="w-full border border-gray-300">
-                    <thead>
-                    <tr>
-                        <th className="border px-1 py-1 text-xs">Cód. int.</th>
-                        <th className="border px-1 py-1 text-xs">Artículo</th>
-                        <th className="border px-1 py-1 text-xs">Descripción</th>
-                        <th className="border px-1 py-1 text-xs">Cant. sol.</th>
-                        <th className="border px-1 py-1 text-xs">Stock</th>
-                        <th className="border px-1 py-1 text-xs">Observ.</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {p.articulos?.map((a, idx) => (
-                        <tr key={idx}>
-                        <td className="border px-1 py-1 text-xs">{a.codint}</td>
-                        <td className="border px-1 py-1 text-xs">{a.articulo}</td>
-                        <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
-                        <td className="border px-1 py-1 text-xs">{a.cant}</td>
-                        <td className="border px-1 py-1 text-xs">{a.existencia}</td>
-                         <td className="border px-1 py-1 text-xs">{a.observacion}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-                </td>
-                <td className={"px-2 py-1 border align-top text-orange-500 text-justify whitespace-pre-wrap break-words"}>{p.observ || "-"}</td>
-              <td className={cellClass}>{p.numero_oc || "-"}</td>
-              <td className={cellClass}>{p.proveedor_seleccionado || "-"}</td>
-                <td className={cellClass}>{formatDate(p.fecha_conf)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_prom)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_ent)}</td>
-               <td className={cellClass}>{p.fac || "-"}</td>
-               <td className={cellClass}>{p.rto || "-"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

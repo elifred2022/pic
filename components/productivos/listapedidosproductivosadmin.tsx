@@ -287,121 +287,379 @@ const headerClass =
 const cellClass =
   "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
+  // ✅ Función para imprimir comparativa
+  const imprimirComparativa = () => {
+    if (!comparativaPedido) return;
+    
+    const ventanaImpresion = window.open('', '_blank');
+    if (!ventanaImpresion) return;
+
+    const contenidoHTML = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Comparativa de Proveedores - Pedido ${comparativaPedido.id}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 {
+            color: #2563eb;
+            margin: 0;
+            font-size: 28px;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #666;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+          }
+          .info-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+          }
+          .info-section h3 {
+            color: #1e40af;
+            margin-top: 0;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+          }
+          .info-item {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #374151;
+          }
+          .articulos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .proveedor-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .proveedor-header {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #d1d5db;
+          }
+          .proveedor-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 0;
+          }
+          .tabla-articulos {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+          }
+          .tabla-articulos th {
+            background: #f9fafb;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+            font-weight: bold;
+            color: #374151;
+          }
+          .tabla-articulos td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #6b7280;
+          }
+          .tabla-articulos th:last-child,
+          .tabla-articulos td:last-child {
+            text-align: right;
+          }
+          .total-proveedor {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #f59e0b;
+            font-weight: bold;
+            color: #92400e;
+            font-size: 16px;
+          }
+          .fecha-impresion {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+          }
+          @media print {
+            body { margin: 0; }
+            .header { border-bottom-color: #000; }
+            .info-section { background: #fff; border-color: #000; }
+            .proveedor-card { border-color: #000; box-shadow: none; }
+            .proveedor-header { background: #fff; border-color: #000; }
+            .tabla-articulos th { background: #fff; border-color: #000; }
+            .total-proveedor { background: #fff; border-color: #000; color: #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>📊 Comparativa de Proveedores</h1>
+          <p><strong>Pedido Productivo:</strong> ${comparativaPedido.id}</p>
+          <p><strong>Fecha de Impresión:</strong> ${new Date().toLocaleDateString('es-AR')}</p>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-section">
+            <h3>📋 Detalles del Pedido</h3>
+            <div class="info-item">
+              <span class="info-label">Fecha Necesidad:</span>
+              <span>${formatDate(comparativaPedido.necesidad)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Sector:</span>
+              <span>${comparativaPedido.sector || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Solicitante:</span>
+              <span>${comparativaPedido.solicita || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Aprueba:</span>
+              <span>${comparativaPedido.aprueba || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Estado:</span>
+              <span>${comparativaPedido.estado || '-'}</span>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <h3>📦 Artículos Solicitados</h3>
+            ${comparativaPedido.articulos && comparativaPedido.articulos.length > 0 
+              ? comparativaPedido.articulos.map(art => `
+                <div class="info-item">
+                  <span class="info-label">${art.articulo}</span>
+                  <span>Cant: ${art.cant}</span>
+                </div>
+                <div class="info-item" style="margin-left: 20px; margin-bottom: 15px;">
+                  <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">
+                    Código: ${art.codint}
+                  </span>
+                </div>
+              `).join('')
+              : '<p>Sin artículos</p>'
+            }
+          </div>
+        </div>
+
+        <h2 style="color: #1e40af; text-align: center; margin: 40px 0 30px 0; border-bottom: 2px solid #3b82f6; padding-bottom: 15px;">
+          💰 Cotizaciones de Proveedores
+        </h2>
+
+        <div class="articulos-grid">
+          ${comparativaPedido.comparativa_prov && comparativaPedido.comparativa_prov.length > 0
+            ? comparativaPedido.comparativa_prov.map(prov => `
+              <div class="proveedor-card">
+                <div class="proveedor-header">
+                  <h3 class="proveedor-nombre">${prov.nombreProveedor || 'Proveedor sin nombre'}</h3>
+                </div>
+                
+                <table class="tabla-articulos">
+                  <thead>
+                    <tr>
+                      <th>Artículo</th>
+                      <th>Cant.</th>
+                      <th>Precio Unit.</th>
+                      <th>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${prov.articulos.map(art => `
+                      <tr>
+                        <td title="${art.articulo}">${art.articulo}</td>
+                        <td>${art.cant}</td>
+                        <td>$${art.precioUnitario.toFixed(0)}</td>
+                        <td>$${art.subtotal.toFixed(0)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+                
+                <div class="total-proveedor">
+                  Total: $${prov.total.toFixed(0)}
+                </div>
+              </div>
+            `).join('')
+            : '<p style="text-align: center; color: #6b7280; grid-column: 1 / -1;">No hay cotizaciones de proveedores</p>'
+          }
+        </div>
+
+        <div class="fecha-impresion">
+          Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}
+        </div>
+      </body>
+      </html>
+    `;
+
+    ventanaImpresion.document.write(contenidoHTML);
+    ventanaImpresion.document.close();
+    
+    // Esperar a que se cargue el contenido antes de imprimir
+    ventanaImpresion.onload = () => {
+      ventanaImpresion.print();
+      ventanaImpresion.close();
+    };
+  };
+
 
   return (
-    <div className="w-screen felx justifi-enter">  
-     
-      {/* Botones superiores */}
-      <div className="flex justify-between items-center mb-4">
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
         <Link
           href="/protected"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
         >
-          Home
+            ← Home
         </Link>
+          
+          <h1 className="text-3xl font-bold text-gray-800">⚙️ Pedidos Productivos Admin</h1>
       </div>
-
-      <h1 className="text-xl font-bold mb-4">Pedidos Productivos Admin Arr</h1>
 
       <div className="flex flex-wrap gap-4 items-center">
         <Link
           href="/auth/rutaproductivos/crear-formpedidosproductivos"
-          className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
         >
-          Crear Pedido Productivo
+            ➕ Crear Pedido Productivo
         </Link>
+          
         <input
           type="text"
-          placeholder="Buscar pedido..."
+            placeholder="🔍 Buscar pedido productivo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
         />
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center mb-4">
-        <label className="flex items-center gap-2">
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
             onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar cumplidos
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarAprobados}
             onChange={() => setOcultarAprobados((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar aprobados
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarConfirmado}
             onChange={() => setOcultarConfirmado((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar confirmados
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarAnulados}
             onChange={() => setOcultarAnulados((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar anulados
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarStandBy}
             onChange={() => setOcultarStandBy((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar stand-by
+            <span className="text-gray-700 font-medium">Ocultar stand by</span>
         </label>
+        </div>
       </div>
 
-      {/* Tabla de pedidos */}
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr>
-            <th className={headerClass}>Acc.</th>
-            <th className={headerClass}>Estado</th>
-             <th className={headerClass}>Pic</th>
-            <th className={headerClass}>Fecha sol</th>
-            <th className={headerClass}>Fecha nec</th>
-            <th className={headerClass}>Categoria</th>
-            <th className={headerClass}>Solicitante</th>
-            <th className={headerClass}>Sector</th>
-            <th className={headerClass}>Articulo solicitado</th>
-            <th className={headerClass}>Observ/Mensaje</th>
-             <th className={headerClass}>Supervisado</th>
-            <th className={headerClass}>OC</th>
-            <th className={headerClass}>Prov. Selecc.</th>
-            <th className={headerClass}>Confirmado</th>
-            <th className={headerClass}>Promesa</th>
-            <th className={headerClass}>Entrego</th>
-            <th className={headerClass}>Fac</th>
-            <th className={headerClass}>Rto</th>
+      {/* Tabla con scroll horizontal y encabezado congelado */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left bg-gradient-to-r from-blue-600 to-blue-700">Acciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Estado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">PIC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Categoría</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicitante</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículo Solicitado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Observ/Mensaje</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Prov. Selecc.</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Confirmado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Promesa</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Entrego</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fac</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Rto</th>
           </tr>
         </thead>
         <tbody>
           {filteredPedidos.map((p) => (
-            <tr key={p.id}>
-               <td className={cellClass}>
-                <div className="flex gap-2">
-                   <button className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top">
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
                          onClick={() => {
                                     setEditingPedido(p);
                                     setFormData(p);
@@ -426,19 +684,19 @@ const cellClass =
                                     }
                                   }}
                 >
-                  Editar
+                        ✏️ Editar
                 </button>
                  <button
-                      className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                        className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-sm"
                       onClick={() => {
                           setComparativaPedido(p);
                           setFormData(p); // Carga los datos al `formData` para poder editar el estado y el proveedor
                       }}
                   >
-                      Comparativa
+                        📊 Comparativa
                   </button>
                 <button
-                    className="px-4 py-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
+                        className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
                     onClick={async () => {
                       const confirm = window.confirm(
                         `¿Estás seguro de que querés eliminar el pedido ${p.id}?`
@@ -456,125 +714,143 @@ const cellClass =
                       }
                     }}
                   >
-                    Elim
+                        🗑️ Elim
                   </button>
-                   
                 </div>
-               
               </td>
-              <td className={cellClass}>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                 <span
                     className={
                     p.estado === "anulado"
-                        ? "text-red-500 font-semibold"
+                          ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
                         : p.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
                         : p.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
+                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
                         : p.estado === "iniciado"
-                        ? "text-yellow-600 font-semibold"
+                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
                         : p.estado === "visto/recibido"
-                        ? "text-orange-500 font-semibold"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : p.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : p.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : p.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : p.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
+                          ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                          : p.estado === "confirmado" 
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
                     }
                 >
                    {renderValue(p.estado)}
                 </span>
             </td>
             
-              <td className={cellClass}>{p.id}</td>
-              <td className={cellClass}>
-                {new Date(p.created_at).toLocaleDateString()}
-              </td>
-              <td className={cellClass}>{new Date(p.necesidad).toLocaleDateString()}</td>
-              <td className={cellClass}>{p.categoria}</td>
-              <td className={cellClass}>{p.solicita}</td>
-              <td className={cellClass}>{p.sector}</td>
-              <td className={cellClass}>
-                <table className="w-full border border-gray-300">
-                    <thead>
-                    <tr>
-                        <th className="border px-1 py-1 text-xs">Cód. int.</th>
-                        <th className="border px-1 py-1 text-xs">Artículo</th>
-                        <th className="border px-1 py-1 text-xs">Descripción</th>
-                        <th className="border px-1 py-1 text-xs">Cant. sol.</th>
-                        <th className="border px-1 py-1 text-xs">Stock</th>
-                        <th className="border px-1 py-1 text-xs">Observ.</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {p.articulos?.map((a, idx) => (
-                        <tr key={idx}>
-                        <td className="border px-1 py-1 text-xs">{a.codint}</td>
-                        <td className="border px-1 py-1 text-xs">{a.articulo}</td>
-                        <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
-                        <td className="border px-1 py-1 text-xs">{a.cant}</td>
-                        <td className="border px-1 py-1 text-xs">{a.existencia}</td>
-                        <td className="border px-1 py-1 text-xs">{a.observacion}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{p.id}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.created_at)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.necesidad)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    {p.articulos && p.articulos.length > 0 ? (
+                      <div className="space-y-2">
+                        {p.articulos.map((art, index) => (
+                          <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div className="font-medium text-gray-800">{art.articulo}</div>
+                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded">Código: {art.codint}</div>
+                            <div className="text-gray-600">Cant: {art.cant}</div>
+                            <div className="text-gray-600">Prov: {art.provsug || '-'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">- Sin artículos -</span>
+                    )}
                 </td>
-                <td className={"px-2 py-1 border align-top text-orange-500 text-justify whitespace-pre-wrap break-words"}>{p.observ || "-"}</td>
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                  <span>{p.controlado}</span> 
-                  <span>{p.supervisor || "-"}</span>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="max-w-xs">
+                      <span className="text-sm text-gray-700">{renderValue(p.observ)}</span>
                 </div>
-               
                 </td>
-              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{p.numero_oc || "-"}</td>
-              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{p.proveedor_seleccionado || "-"}</td>
-                <td className={cellClass}>{formatDate(p.fecha_conf)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_prom)}</td>
-                <td className={cellClass}>{formatDate(p.fecha_ent)}</td>
-               <td className={cellClass}>{p.fac || "-"}</td>
-               <td className={cellClass}>{p.rto || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
+                      <span className="text-sm text-gray-600">{p.supervisor}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.numero_oc)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.proveedor_seleccionado)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_prom)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_ent)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(p.fac)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(p.rto)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+        </div>
+      </div>
 
     {/* ✅ Modal de edición */}
       {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded shadow-lg p-6 w-96 overflow-y-auto w-full max-w-md max-h-screen">
-            <h2 className="font-semibold mb-2 text-black">Pedido # {formData.id} </h2>
-              <p className="text-black">Sector: {formData.sector} </p>
-              <div className="text-black">
-                  <p className="font-semibold">Artículos:</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">✏️ Editar Pedido Productivo #{formData.id}</h2>
+              <p className="text-blue-100 mt-2">Modifica los datos del pedido productivo</p>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <span className="mr-2">🏭</span>
+                    Información del Pedido
+                  </h3>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <span className="mr-2">📦</span>
+                    Artículos Solicitados
+                  </h3>
                   {formData.articulos && formData.articulos.length > 0 ? (
-                    <ul className="list-disc pl-5">
+                    <div className="space-y-3">
                       {formData.articulos.map((art, index) => (
-                        <li className="felx" key={index}>
-                        <p> {art.articulo}</p> <p> Cant sol: {art.cant} </p> <p> Observ: {art.observacion} </p> <p>Stock: {art.existencia}</p>
-                        </li>
+                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                          <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
+                          <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
+                          <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
-                    <p>- Sin artículos -</p>
+                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
                   )}
+                </div>
                 </div>
 
               {/* Sección de Comparativa de Proveedores */}
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 text-black">Comparativa de Proveedores</h3>
-                    <div className="overflow-x-auto">
-                      <div className="flex space-x-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">📊</span>
+                  Comparativa de Proveedores
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {comparativaForm?.map((prov, provIndex) => (
-                          <div key={provIndex} className="min-w-[300px] border p-4 rounded-md shadow-sm">
-                            <label className="block mb-2 text-sm font-medium text-black">Proveedor {provIndex + 1}:</label>
+                    <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
+                      <label className="block mb-3 text-sm font-medium text-gray-700">
+                        Proveedor {provIndex + 1}:
+                      </label>
                             <input
                               type="text"
-                              className="border p-2 w-full mb-3 text-black bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               placeholder="Nombre del proveedor"
                               value={prov.nombreProveedor}
                               onChange={(e) => {
@@ -584,261 +860,172 @@ const cellClass =
                               }}
                             />
 
-                            <table className="w-full text-black text-sm">
+                      <table className="w-full text-gray-700 text-sm">
                               <thead>
-                                <tr>
-                                  <th className="px-1 text-left">Artículo</th>
-                                  <th className="px-1 text-right">Precio Unit.</th>
-                                  <th className="px-1 text-right">Subtotal</th>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
+                            <th className="px-2 py-2 text-right font-medium">Precio Unit.</th>
+                            <th className="px-2 py-2 text-right font-medium">Subtotal</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {prov.articulos.map((art, artIndex) => (
-                                  <tr key={artIndex}>
-                                    <td className="px-1">{art.articulo}</td>
-                                    <td className="px-1 text-right">
+                            <tr key={artIndex} className="border-b border-gray-100">
+                              <td className="px-2 py-2 text-sm">{art.articulo}</td>
+                              <td className="px-2 py-2 text-right">
                                       <input
                                         type="number"
-                                        className="no-spinners border p-1 w-20 text-right text-black bg-white"
-                                        value={art.precioUnitario || ''}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  value={art.precioUnitario}
                                         onChange={(e) => {
                                           const newComparativa = [...comparativaForm];
-                                          const precio = parseFloat(e.target.value) || 0;
-                                          const cantidad = formData.articulos?.[artIndex]?.cant ?? 0;
-                                          newComparativa[provIndex].articulos[artIndex].precioUnitario = precio;
-                                          newComparativa[provIndex].articulos[artIndex].subtotal = precio * cantidad;
-                                          
-                                          // Recalcula el total del proveedor
-                                          newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce((sum, item) => sum + item.subtotal, 0);
+                                    const newPrecio = parseFloat(e.target.value) || 0;
+                                    newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * art.cant;
+                                    
+                                    // Recalcular total del proveedor
+                                    newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
+                                      (sum, articulo) => sum + articulo.subtotal, 0
+                                    );
 
                                           setComparativaForm(newComparativa);
                                         }}
                                       />
                                     </td>
-                                    <td className="px-1 text-right">
-                                      $ {art.subtotal.toFixed(2)}
+                              <td className="px-2 py-2 text-right text-sm font-medium">
+                                ${art.subtotal.toFixed(0)}
                                     </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
-                            <div className="mt-2 text-right font-bold text-black">
-                              Total: $ {prov.total.toFixed(2)}
+                      <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
+                        Total: ${prov.total.toFixed(0)}
                             </div>
                           </div>
                         ))}
-                      </div>
                     </div>
                   </div>
 
-            <label className="block mb-2 text-sm font-medium text-black bg-white">Estado:</label>
-            <select
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.estado || ""}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-            >
-              <option value="iniciado">Iniciado</option>
-               <option value="visto/recibido">Visto/Recibido</option>
-              <option value="aprobado">Aprobado</option>
-              <option value="cotizado">Cotizado</option>
-              <option value="confirmado">Confirmado</option>
-              <option value="cumplido">Cumplido</option>
-              <option value="anulado">Anulado</option>
-              <option value="stand by">Stand By</option>
-            </select>
-
-            <label className="block mb-2 text-sm font-medium text-black">Observación/mensaje:</label>
-            <textarea
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.observ || ""}
-              onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
-            />
-
-             <label className="block mb-2 text-sm font-medium text-black"> Controlado</label>
-                <select
-                className="border p-2 w-full mb-3 bg-white text-black"
-                value={formData.controlado ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, controlado: e.target.value })
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="Autorizado" className="bg-yellow-300 text-black">
-                  Autorizado
-                </option>
-                <option value="Denegado" className="bg-green-400 text-white">
-                  Denegado
-                </option>
-              </select>
-
-              <label className="block mb-2 text-sm font-medium text-black">Supervisor:</label>
-                  <textarea
-                    className="border p-2 w-full mb-3 bg-white text-black"
-                    value={formData.supervisor || ""}
-                    onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
-                  />
-            
-            <label className="block mb-2 text-sm font-medium text-black">OC:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.numero_oc || ""}
-              onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
-            />
-
-            <label className="block mb-2 text-sm font-medium text-black">Proveedor Seleccionado:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.proveedor_seleccionado || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, proveedor_seleccionado: e.target.value })
-              }
-            />
-
-            <label className="text-black">Confirmado</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_conf || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_conf: e.target.value })
-              }
-            />  
-
-             <label className="text-black">Promesa</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_prom || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_prom: e.target.value })
-              }
-            /> 
-
-             <label className="text-black">Entregado</label>
-            <input
-              type="date"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fecha_ent || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, fecha_ent: e.target.value })
-              }
-            />     
-
-            <label className="block mb-2 text-sm font-medium text-black">Fact:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.fac || ""}
-              onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
-            />
-
-             <label className="block mb-2 text-sm font-medium text-black">Rto:</label>
-            <input
-              type="text"
-              className="border p-2 w-full mb-3 bg-white text-black"
-              value={formData.rto || ""}
-              onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
-            />
-
-            <div className="flex justify-end gap-2">
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
               >
-                Cancelar
+                  ❌ Cancelar
               </button>
               <button
                 onClick={handleUpdatePedido}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
               >
-                Guardar
+                  💾 Guardar
               </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ✅ Modal comparativa */}
-      
-  
+      {/* ✅ Modal de comparativa */}
 {comparativaPedido && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-semibold mb-2 text-black">
-                Comparativa de Proveedores - Pedido #{formData.id}
-            </h2>
-          <div className="text-black">
-                  <p className="font-semibold">Artículos:</p>
-                  {formData.articulos && formData.articulos.length > 0 ? (
-                    <ul className="list-disc pl-5">
-                      {formData.articulos.map((art, index) => (
-                        <li className="felx" key={index}>
-                        <p> {art.articulo}</p> <p> {art.observacion}</p> <p> Cant sol: {art.cant} </p> <p>Stock: {art.existencia}</p>
-                        </li>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{comparativaPedido.id}</h2>
+              <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
+            </div>
+            <div className="p-6">
+              {/* Información del pedido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Fecha necesidad:</span> {formatDate(comparativaPedido.necesidad)}</p>
+                    <p><span className="font-medium">Sector:</span> {comparativaPedido.sector}</p>
+                    <p><span className="font-medium">Solicitante:</span> {comparativaPedido.solicita}</p>
+                    <p><span className="font-medium">Aprueba:</span> {comparativaPedido.aprueba}</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos</h3>
+                  {comparativaPedido.articulos && comparativaPedido.articulos.length > 0 ? (
+                    <div className="space-y-2">
+                      {comparativaPedido.articulos.map((art, index) => (
+                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                          <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
+                          <div className="text-gray-600 text-xs">Desc: {art.descripcion}</div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
-                    <p>- Sin artículos -</p>
+                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
                   )}
+                </div>
                 </div>
             
             {/* Sección de Comparativa de Proveedores (Solo lectura) */}
-            <div className="mb-4">
-                <h3 className="font-semibold mb-2 text-black">Cotizaciones</h3>
-                <div className="overflow-x-auto">
-                    <div className="flex space-x-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Cotizaciones de Proveedores
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                            <div key={provIndex} className="min-w-[300px] border p-4 rounded-md shadow-sm">
-                                <label className="block mb-2 text-sm font-medium text-black">Proveedor: </label>
+                    <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm">
+                      <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
                                 <input
                                     type="text"
-                                    className="border p-2 w-full mb-3 text-black font-semibold bg-gray-100"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 font-semibold bg-white text-center text-sm"
                                     value={prov.nombreProveedor}
-                                    readOnly // Campo de solo lectura
+                        readOnly
                                 />
 
-                                <table className="w-full text-black text-sm">
+                      <table className="w-full text-gray-700 text-sm">
                                     <thead>
-                                        <tr>
-                                            <th className="px-1 text-left">Artículo</th>
-                                            <th className="px-1 text-right">Cant.</th>
-                                            <th className="px-1 text-right">Precio Unit.</th>
-                                            <th className="px-1 text-right">Subtotal</th>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
+                            <th className="px-2 py-2 text-center font-medium">Cant.</th>
+                            <th className="px-2 py-2 text-center font-medium">Precio</th>
+                            <th className="px-2 py-2 text-center font-medium">Subtotal</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {prov.articulos.map((art, artIndex) => (
-                                            <tr key={artIndex}>
-                                                <td className="px-1">{art.articulo}</td>
-                                                <td className="px-1 text-right">{art.cant}</td>
-                                                <td className="px-1 text-right">
-                                                    $ {art.precioUnitario.toFixed(2)}
+                            <tr key={artIndex} className="border-b border-gray-100">
+                              <td className="px-2 py-2 text-sm truncate" title={art.articulo}>
+                                {art.articulo}
                                                 </td>
-                                                <td className="px-1 text-right">
-                                                    $ {art.subtotal.toFixed(2)}
+                              <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                ${art.precioUnitario.toFixed(0)}
+                              </td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                ${art.subtotal.toFixed(0)}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                <div className="mt-2 text-right font-bold text-black">
-                                    Total: $ {prov.total.toFixed(2)}
+                      <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
+                        Total: ${prov.total.toFixed(0)}
                                 </div>
                             </div>
                         ))}
-                    </div>
                 </div>
             </div>
 
-            <hr className="my-4" />
+              <hr className="my-6" />
 
             {/* Campos de edición */}
-            <div className="flex flex-col gap-4">
-                <label className="block text-sm font-medium text-black">Estado:</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
                 <select
-                    className="border p-2 w-full bg-white text-black"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={formData.estado || ""}
                     onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                 >
@@ -851,35 +1038,44 @@ const cellClass =
                     <option value="anulado">Anulado</option>
                     <option value="stand by">Stand By</option>
                 </select>
+                </div>
 
-                <label className="block text-sm font-medium text-black">Proveedor Seleccionado:</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor Seleccionado:</label>
                 <input
                     type="text"
-                    className="border p-2 w-full bg-white text-black"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={formData.proveedor_seleccionado || ""}
                     onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
                 />
+                </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-4">
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={imprimirComparativa}
+                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
+                >
+                  🖨️ Imprimir
+                </button>
                 <button
                     onClick={() => setComparativaPedido(null)}
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                 >
-                    Cerrar
+                  ❌ Cerrar
                 </button>
                 <button
                     onClick={handleUpdatePedido}
-                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
                 >
-                    Guardar
+                  💾 Guardar
                 </button>
+              </div>
             </div>
         </div>
     </div>
 )}
-
-      
     </div>
   );
 

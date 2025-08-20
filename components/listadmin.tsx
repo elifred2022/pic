@@ -19,7 +19,7 @@ type Pedido = {
   codint: string;
   cant: number;
   existencia: number;
-  articulo: string;
+  articulos: any[]; // Array de artículos
   descripcion: string;
   controlado: string;
   superviso: string;
@@ -196,146 +196,377 @@ const headerClass =
 const cellClass =
   "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
+  // ✅ Función para imprimir información del pedido
+  const imprimirInfoPedido = () => {
+    if (!verInfo) return;
+    
+    const ventanaImpresion = window.open('', '_blank');
+    if (!ventanaImpresion) return;
 
+    const contenidoHTML = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pedido Interno de Compra - ${verInfo.id}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #059669;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 {
+            color: #059669;
+            margin: 0;
+            font-size: 28px;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #666;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+          }
+          .info-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+          }
+          .info-section h3 {
+            color: #047857;
+            margin-top: 0;
+            border-bottom: 2px solid #10b981;
+            padding-bottom: 10px;
+          }
+          .info-item {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #374151;
+          }
+          .proveedores-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .proveedor-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+          }
+          .proveedor-header {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #d1d5db;
+          }
+          .proveedor-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 0;
+          }
+          .proveedor-info {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f9fafb;
+            border-radius: 4px;
+          }
+          .fecha-impresion {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+          }
+          @media print {
+            body { margin: 0; }
+            .header { border-bottom-color: #000; }
+            .info-section { background: #fff; border-color: #000; }
+            .proveedor-card { border-color: #000; box-shadow: none; }
+            .proveedor-header { background: #fff; border-color: #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>📋 Pedido Interno de Compra</h1>
+          <p><strong>Número:</strong> ${verInfo.id}</p>
+          <p><strong>Fecha de Impresión:</strong> ${new Date().toLocaleDateString('es-AR')}</p>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-section">
+            <h3>📅 Detalles del Pedido</h3>
+            <div class="info-item">
+              <span class="info-label">Fecha Necesidad:</span>
+              <span>${verInfo.necesidad || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Sector:</span>
+              <span>${verInfo.sector || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Solicitante:</span>
+              <span>${verInfo.solicita || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Aprueba:</span>
+              <span>${verInfo.aprueba || '-'}</span>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <h3>📦 Artículo Solicitado</h3>
+            <div class="info-item">
+              <span class="info-label">Cantidad:</span>
+              <span>${verInfo.cant || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Artículos:</span>
+              <span>${Array.isArray(verInfo.articulos) ? verInfo.articulos.length + ' artículos' : 'Sin artículos'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Descripción:</span>
+              <span>${verInfo.descripcion || '-'}</span>
+            </div>
+          </div>
+        </div>
+
+        <h2 style="color: #047857; text-align: center; margin: 40px 0 30px 0; border-bottom: 2px solid #10b981; padding-bottom: 15px;">
+          💰 Cotizaciones de Proveedores
+        </h2>
+
+        <div class="proveedores-grid">
+          <div class="proveedor-card">
+            <div class="proveedor-header">
+              <h3 class="proveedor-nombre">Proveedor 1</h3>
+            </div>
+            <div class="proveedor-info">
+              <strong>Nombre:</strong><br>
+              ${verInfo.prov_uno || 'No especificado'}
+            </div>
+            <div class="proveedor-info">
+              <strong>Costo Unitario:</strong><br>
+              $${Number(verInfo.cost_prov_uno || 0).toLocaleString("es-AR")}
+            </div>
+            <div class="proveedor-info">
+              <strong>Subtotal:</strong><br>
+              $${Number(verInfo.subt_prov1 || 0).toLocaleString("es-AR")}
+            </div>
+          </div>
+
+          <div class="proveedor-card">
+            <div class="proveedor-header">
+              <h3 class="proveedor-nombre">Proveedor 2</h3>
+            </div>
+            <div class="proveedor-info">
+              <strong>Nombre:</strong><br>
+              ${verInfo.prov_dos || 'No especificado'}
+            </div>
+            <div class="proveedor-info">
+              <strong>Costo Unitario:</strong><br>
+              $${Number(verInfo.cost_prov_dos || 0).toLocaleString("es-AR")}
+            </div>
+            <div class="proveedor-info">
+              <strong>Subtotal:</strong><br>
+              ${Number(verInfo.subt_prov2 || 0).toLocaleString("es-AR")}
+            </div>
+          </div>
+
+          <div class="proveedor-card">
+            <div class="proveedor-header">
+              <h3 class="proveedor-nombre">Proveedor 3</h3>
+            </div>
+            <div class="proveedor-info">
+              <strong>Nombre:</strong><br>
+              ${verInfo.prov_tres || 'No especificado'}
+            </div>
+            <div class="proveedor-info">
+              <strong>Costo Unitario:</strong><br>
+              $${Number(verInfo.cost_prov_tres || 0).toLocaleString("es-AR")}
+            </div>
+            <div class="proveedor-info">
+              <strong>Subtotal:</strong><br>
+              $${Number(verInfo.subt_prov3 || 0).toLocaleString("es-AR")}
+            </div>
+          </div>
+        </div>
+
+        <div class="fecha-impresion">
+          Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}
+        </div>
+      </body>
+      </html>
+    `;
+
+    ventanaImpresion.document.write(contenidoHTML);
+    ventanaImpresion.document.close();
+    
+    // Esperar a que se cargue el contenido antes de imprimir
+    ventanaImpresion.onload = () => {
+      ventanaImpresion.print();
+      ventanaImpresion.close();
+    };
+  };
 
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
-
-       <div className="flex flex-wrap gap-4 items-center" >
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
              <Link
               href="/protected"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
             >
-              Home
+            ← Home
             </Link>
            
+          <h1 className="text-3xl font-bold text-gray-800">Pedidos Generales</h1>
         </div>
       
-        <h1 className="text-xl font-bold mb-4">Pedidos Generales</h1>
         <div className="flex flex-wrap gap-4 items-center">
-          
           <Link
             href="/auth/crear-formus"
-            className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
           >
-            Crear nuevo pedido general
+            ➕ Crear nuevo pedido general
           </Link>
           
           <input
             type="text"
-            placeholder="Buscar pedido..."
+            placeholder="🔍 Buscar pedido..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="mb-4 px-4 py-2 border rounded w-full max-w-md"
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
           />
         </div>
+        </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center gap-2">
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
             onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar cumplidos
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarAprobados}
               onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar aprobados
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
           </label>
 
-           <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarConfirmado}
               onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar confirmados
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
           </label>
 
-              <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                 <input
                   type="checkbox"
                   checked={ocultarAnulados}
                   onChange={() => setOcultarAnulados((v) => !v)}
-                  className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                Ocultar anulados
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
               </label>
 
-              <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                 <input
                   type="checkbox"
                   checked={ocultarStandBy}
                   onChange={() => setOcultarStandBy((v) => !v)}
-                  className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                Ocultar stand by
+            <span className="text-gray-700 font-medium">Ocultar stand by</span>
               </label>
+        </div>
       </div>
 
-       
+             {/* Tabla con scroll horizontal y encabezado congelado */}
+       <div className="bg-white rounded-lg shadow-md overflow-hidden">
+         <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+           <table className="min-w-full table-auto border-collapse">
+             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+               <tr>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left bg-gradient-to-r from-blue-600 to-blue-700">Acciones</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Estado</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Nº PIC</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha sol</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha nec</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Categoria</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicita</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cod cta</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cod. Int. Artic.</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cant sol</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Existencia</th>
+                                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
 
-
-      
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-         <thead className="bg-gray-100 text-gray-700">
-          <tr className="bg-gray-100">
-            <th  className={headerClass}>Acciones</th>
-             <th  className={headerClass}>Estado</th>
-            <th  className={headerClass}>Nº PIC</th>
-            <th  className={headerClass}>Fecha sol</th>
-            <th  className={headerClass}>Fecha nec</th>
-            <th  className={headerClass}>Categoria</th>
-            <th  className={headerClass}>Solicita</th>
-            <th  className={headerClass}>Sector</th>
-            <th  className={headerClass}>Cod cta</th>
-            <th  className={headerClass}>Cod. Int. Artic.</th>
-            <th  className={headerClass}>Cant sol</th>
-            <th  className={headerClass}>Existencia</th>
-            <th  className={headerClass}>Articulo</th>
-            <th  className={headerClass}>Descripcion/Observacion</th>
-            <th  className={headerClass}>Controlado/Revisado</th>
-            <th  className={headerClass}>Prov. 1</th>
-            <th  className={headerClass}>Prov. 2</th>
-            <th  className={headerClass}>Prov. 3</th>
-            <th  className={headerClass}>Aprueba</th>
-            <th  className={headerClass}>OC</th>
-            <th  className={headerClass}>Proveedor Selec.</th>
-            <th  className={headerClass}>USD</th>
-            <th  className={headerClass}>EUR</th>
-            <th  className={headerClass}>T.C</th>
-            <th  className={headerClass}>ARS unit</th>
-            <th  className={headerClass}>% Desc</th>
-            <th  className={headerClass}>ARS Con desc</th>
-            <th  className={headerClass}>Total sin imp</th>
-            <th  className={headerClass}>Fecha confirm</th>
-            <th  className={headerClass}>Fecha prometida</th>
-            <th  className={headerClass}>Fecha entrega</th>
-            <th  className={headerClass}>Rto</th>
-            <th  className={headerClass}>Fact</th>
-            <th  className={headerClass}>MOD pago</th>
-            <th  className={headerClass}>Proceso</th>
-           
-            
+                  
+                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Proveedor Selec.</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">USD</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">EUR</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">T.C</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">ARS unit</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">% Desc</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">ARS Con desc</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Total sin imp</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha confirm</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha prometida</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha entrega</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Rto</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fact</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">MOD pago</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Proceso</th>
           </tr>
         </thead>
           
         <tbody>
           {filteredPedidos.map((pedido) => (
             <tr key={pedido.id}>
-              <td className={cellClass}>
-                <div className="flex gap-2">
+              <td className="px-4 py-3 border-b border-gray-200 align-top">
+                <div className="flex flex-col gap-2">
                    <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-xs"
                     onClick={() => {
                       setVerInfo(pedido);
                       setFormData({
@@ -348,7 +579,7 @@ const cellClass =
                         codint: pedido.codint,
                         cant: pedido.cant,
                         existencia: pedido.existencia,
-                        articulo: pedido.articulo,
+                        articulos: pedido.articulos,
                         descripcion: pedido.descripcion,
                         controlado: pedido.controlado,
                         superviso: pedido.superviso,
@@ -381,10 +612,10 @@ const cellClass =
                       });
                     }}
                   >
-                    Info
+                    📋 Info
                   </button>
                   <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-xs"
                     onClick={() => {
                       setEditingPedido(pedido);
                       setFormData({
@@ -397,7 +628,7 @@ const cellClass =
                         codint: pedido.codint,
                         cant: pedido.cant,
                         existencia: pedido.existencia,
-                        articulo: pedido.articulo,
+                        articulos: pedido.articulos,
                         descripcion: pedido.descripcion,
                         controlado: pedido.controlado,
                         superviso: pedido.superviso,
@@ -430,11 +661,11 @@ const cellClass =
                       });
                     }}
                   >
-                    Edit
+                    ✏️ Edit
                   </button>
 
                   <button
-                    className="px-4 py-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
+                    className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-xs"
                     onClick={async () => {
                       const confirm = window.confirm(
                         `¿Estás seguro de que querés eliminar el pedido ${pedido.id}?`
@@ -452,121 +683,130 @@ const cellClass =
                       }
                     }}
                   >
-                    Elim
+                    🗑️ Elim
                   </button>
-                </div></td>
+                </div>
+              </td>
              
-               <td className={cellClass}>
+                              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                 <span
                     className={
                     pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
+                         ? "px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
+                         ? "px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
+                         ? "px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold" 
+                         ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "Visto/recibido"
-                        ? "text-orange-500 font-semibold"
+                         ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
+                         ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
+                         ? "px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full"
+                         : pedido.estado === "confirmado" 
+                         ? "px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full"
+                         : "px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
                     }
                 >
                    {renderValue(pedido.estado)}
                 </span>
             </td>
-             <td className={cellClass}>{pedido.id}</td>
-              <td className={cellClass}>{formatDate(pedido.created_at) || "-"}</td>
-              <td className={cellClass}>{formatDate(pedido.necesidad)}</td>
-              <td className={cellClass}>{pedido.categoria}</td>
-              <td className={cellClass}>{pedido.solicita}</td>
-              <td className={cellClass}>{pedido.sector}</td>
-              <td className={cellClass}>{pedido.cc}</td>
-              <td className={cellClass}>{pedido.codint}</td>
-              <td className={cellClass}>{pedido.cant}</td>
-              <td className={cellClass}>{pedido.existencia}</td>
-              <td className={cellClass}>{pedido.articulo}</td>
-              <td className={cellClass}>{pedido.descripcion}</td>
-
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                  <span> {pedido.controlado} </span>
-                  <span>{pedido.superviso}</span>
+             <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.id}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.codint}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
+                  {Array.isArray(pedido.articulos) ? (
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pedido.articulos.map((a: any, idx: number) => (
+                                                     <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                             <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                             <td className="px-2 py-1 text-gray-700">
+                               {a.descripcion && a.descripcion.length > 30 
+                                 ? `${a.descripcion.substring(0, 30)}...` 
+                                 : a.descripcion || "-"}
+                             </td>
+                             <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
+                             <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                             <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                           </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <span className="text-sm text-gray-500">Sin artículos</span>
+                  )}
                 </div>
-              </td>
-             
-               <td className={cellClass}>
-                <div className="flex flex-col">
-                    <span>{pedido.prov_uno}</span>
-                    <span>c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
-                    <span>subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
-                </div>
-                </td>
-              
-                  <td className={cellClass}>
-                      <div className="flex flex-col">
-                          <span>{pedido.prov_dos}</span>
-                          <span>c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                          <span>subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
-                      </div>
-                  </td>
-                  
-                  <td className={cellClass}>
-                      <div className="flex flex-col">
-                          <span>{pedido.prov_tres}</span>
-                          <span>c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                          <span>subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
-                      </div>
-                  </td>
+                             </td>
 
+                
                
-              
-            
-              <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
-              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{pedido.oc}</td>
-              <td className={"px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words text-orange-500"}>{renderValue(pedido.proveedor_selec)}</td>
-              <td className={cellClass}>{pedido.usd}</td>
-              <td className={cellClass}>{pedido.eur}</td>
-              <td className={cellClass}>{pedido.tc}</td>
-              <td className={cellClass}>$ {Number(pedido.ars).toLocaleString("es-AR")}</td>
-              <td className={cellClass}>{pedido.porcent}</td>
-              <td className={cellClass}>{pedido.ars_desc}</td>
-              <td className={cellClass}>$ {Number(pedido.total_simp).toLocaleString("es-AR")}</td>
-              <td className={cellClass}>{formatDate(pedido.fecha_conf)}</td>
-              <td className={cellClass}>{formatDate(pedido.fecha_prom)}</td>
-              <td className={cellClass}>{formatDate(pedido.fecha_ent)}</td>
-              <td className={cellClass}>{pedido.rto}</td>
-              <td className={cellClass}>{pedido.fac}</td>
-              <td className={cellClass}>{pedido.mod_pago}</td>
-              <td className={cellClass}>{pedido.proceso}</td>
+             
+               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{pedido.oc}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{renderValue(pedido.proveedor_selec)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.usd}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.eur}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.tc}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium">$ {Number(pedido.ars).toLocaleString("es-AR")}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.porcent}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.ars_desc}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-bold text-green-700">$ {Number(pedido.total_simp).toLocaleString("es-AR")}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_prom)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_ent)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.rto}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.fac}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.mod_pago}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.proceso}</td>
               
             
             </tr>
           ))}
         </tbody>
       </table>
-    
+        </div>
+      </div>
       
 
       {/* MODAL */}
       {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
-            <label className="block mb-2">
-              <p className="text-black">Necesidad</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">✏️ Editar Pedido #{editingPedido.id}</h2>
+              <p className="text-blue-100 mt-2">Modifica los datos del pedido</p>
+            </div>
+            <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <label className="block">
+                <p className="text-gray-700 font-medium mb-2">📅 Fecha Necesidad</p>
               <input
-               // className="w-full border p-2 rounded mt-1"
                 type="date"
                 value={formData.necesidad ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, necesidad: e.target.value })
                 }
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
               />
             </label>
 
@@ -639,13 +879,13 @@ const cellClass =
             </label>
            
             <label className="block mb-4">
-             <p className="text-black">Articulo</p>
+             <p className="text-black">Cantidad Total</p>
               <input
                 
-                type="text"
-                value={formData.articulo ?? 0}
+                type="number"
+                value={formData.cant ?? 0}
                 onChange={(e) =>
-                  setFormData({ ...formData, articulo: e.target.value })
+                  setFormData({ ...formData, cant: Number(e.target.value) })
                 }
               />
             </label>
@@ -1051,13 +1291,14 @@ const cellClass =
                 </option>
                </select>
                   </label>
+            </div>
             
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-400 text-white rounded"
+                className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
               >
-                Cancelar
+                ❌ Cancelar
               </button>
              <button
                   onClick={async () => {
@@ -1116,19 +1357,24 @@ const cellClass =
                       if (data) setPedidos(data);
                     }
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
                 >
-                  Guardar
+                  💾 Guardar
                 </button>
+            </div>
             </div>
           </div>
         </div>
       )}
       {/* MODAL VER INFO */}
       {verInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-           <h2 className="text-black font-bold mb-4">Pedido interno de compra #{verInfo.id}</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">📋 Pedido interno de compra #{verInfo.id}</h2>
+              <p className="text-green-100 mt-2">Información detallada del pedido</p>
+            </div>
+            <div className="p-6">
            <div className="flex-col gap-2">
                 <span className="text-black font-semibold">Fecha necesidad: {verInfo.necesidad}</span>
                  <br/>
@@ -1140,10 +1386,45 @@ const cellClass =
               </div>
               <br/>
               <div >
-                <span className="text-black font-semibold">Cant; {verInfo.cant} </span>
-                <span className="text-black font-semibold">{verInfo.articulo}  </span>
+                <span className="text-black font-semibold">Cantidad: {verInfo.cant} </span>
+                <span className="text-black font-semibold">Artículos: {Array.isArray(verInfo.articulos) ? verInfo.articulos.length : 0} </span>
                 <span className="text-black font-semibold">, {verInfo.descripcion} </span>
               </div>
+              
+              {/* Mostrar lista de artículos */}
+              {Array.isArray(verInfo.articulos) && verInfo.articulos.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos del Pedido</h4>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cantidad</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {verInfo.articulos.map((a: any, idx: number) => (
+                          <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                            <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                            <td className="px-2 py-1 text-gray-700 max-w-xs">
+                              <div className="break-words">
+                                {a.descripcion || "-"}
+                              </div>
+                            </td>
+                            <td className="px-2 py-1 text-center">{a.cant}</td>
+                            <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                            <td className="px-2 py-1 text-gray-600">{a.observacion || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
                  <br/>
                   <div className="mb-4 flex gap-4">
                           <div className="flex-col gap-2">
@@ -1179,13 +1460,20 @@ const cellClass =
                       
                      
                        </div>
-                        <div className="flex justify-end space-x-2">
+                        <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                        <button
+                          onClick={imprimirInfoPedido}
+                          className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
+                        >
+                          🖨️ Imprimir
+                        </button>
                         <button
                           onClick={() => setVerInfo(null)}
-                          className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                          className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                         >
-                          Cerrar
+                          🔒 Cerrar
                         </button>
+                        </div>
             </div>
           </div>
         </div>

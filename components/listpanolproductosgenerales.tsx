@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PicRealtimeListener from "./picrealtimelistener/picrealtimelistener";
-
 
 type Pedido = {
   id: string;
@@ -14,30 +14,24 @@ type Pedido = {
   solicita: string;
   sector: string;
   cc: number;
-  codint: string;
   cant: number;
   existencia: number;
-  articulo: string;
+  articulos: any[]; // Array de artículos
   descripcion: string;
-   controlado: string;
+  controlado: string;
   superviso: string;
   estado: string;
   aprueba: string;
   oc: number;
   proveedor_selec: string;
- 
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
   rto: number;
   fac: number;
-  
-  
-  // Agregá más campos si los usás en el .map()
 };
 
 export default function ListPanolProductosGenerales() {
-
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -48,8 +42,9 @@ export default function ListPanolProductosGenerales() {
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
+  const router = useRouter();
 
-  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+  // Para que no desactive checkbox al reset página - Al montar, leé localStorage
        useEffect(() => {
          const savedCumplidos = localStorage.getItem("ocultarCumplidos");
          const savedAprobados = localStorage.getItem("ocultarAprobados");
@@ -64,8 +59,7 @@ export default function ListPanolProductosGenerales() {
          if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
        }, []);
        
-       
-         /* Cada vez que cambia, actualizá localStorage */
+  // Cada vez que cambia, actualizá localStorage
         useEffect(() => {
          localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
        }, [ocultarCumplidos]);
@@ -94,7 +88,6 @@ export default function ListPanolProductosGenerales() {
       error: userError,
     } = await supabase.auth.getUser();
 
-
     if (userError) {
       console.error("Error obteniendo el usuario:", userError);
       return;
@@ -108,7 +101,7 @@ export default function ListPanolProductosGenerales() {
     const { data, error } = await supabase
       .from("pic")
       .select("*")
-      .eq("uuid", user.id); // 👈 Filtra por usuario logueado
+        .eq("uuid", user.id);
 
     if (error) console.error("Error cargando pedidos:", error);
     else setPedidos(data);
@@ -117,9 +110,7 @@ export default function ListPanolProductosGenerales() {
   fetchPedidos();
 }, [supabase]);
 
-
-
-  // funcion para formatear las fechas
+  // Función para formatear las fechas
  function formatDate(dateString: string | null): string {
   if (!dateString) return "-";
 
@@ -133,7 +124,7 @@ export default function ListPanolProductosGenerales() {
   return date.toLocaleDateString("es-AR");
 }
 
-//Campos de tabla que son fecha para funcion filtrar
+  // Campos de tabla que son fecha para función filtrar
 const dateFields: (keyof Pedido)[] = [
   "created_at",
   "necesidad",
@@ -142,7 +133,7 @@ const dateFields: (keyof Pedido)[] = [
   "fecha_ent",
 ];
 
-//Filtro que también contempla las fechas
+  // Filtro que también contempla las fechas
 const filteredPedidos = pedidos
   .filter((pedido) => {
     const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
@@ -151,7 +142,7 @@ const filteredPedidos = pedidos
     return Object.entries(pedido).some(([key, value]) => {
       if (value === null || value === undefined) return false;
 
-      // A) Comparar contra la versión texto “tal cual viene”
+        // A) Comparar contra la versión texto "tal cual viene"
       if (String(value).toLowerCase().includes(s)) return true;
 
       // B) Si el campo es fecha, probar otras representaciones
@@ -176,9 +167,6 @@ const filteredPedidos = pedidos
   return true;
 });
 
-
-
-
 function renderValue(value: unknown): string {
   if (
     value === null ||
@@ -192,137 +180,136 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
-
-
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
-      
-      <PicRealtimeListener/>
-    
-        
-     <div className="flex flex-wrap gap-4 items-center" >
-          
+    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+      {/* Header con navegación */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
             <Link
               href="/protected"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
             >
-              Home
+            ← Home
             </Link>  
+          
+          <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos Generales Panol</h1>
        </div>
       
-      <h1 className="text-xl font-bold mb-4">Pedidos generales</h1>
-      
      <div className="flex flex-wrap gap-4 items-center">
-       
        <Link
-        href="/auth/crear-formus"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+        href="/auth/crear-formarticulo"
+            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
       >
-        Crear nuevo pedido
+            ➕ Crear Nuevo Pedido
       </Link>
        
       <input
         type="text"
-        placeholder="Buscar pedido..."
+            placeholder="🔍 Buscar pedido general..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-      />
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+          />
+        </div>
+      </div>
+
+      {/* Componente de tiempo real */}
+      <div className="mb-6">
+        <PicRealtimeListener />
      </div>
 
-        <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center gap-2">
+      {/* Filtros con mejor diseño */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
             onChange={() => setOcultarCumplidos((v) => !v)}
-            className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
           />
-          Ocultar cumplidos
+            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
         </label>
 
-        <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarAprobados}
               onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar aprobados
+            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
           </label>
 
-           <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
             <input
               type="checkbox"
               checked={ocultarConfirmado}
               onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            Ocultar confirmados
+            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
           </label>
 
-              <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                 <input
                   type="checkbox"
                   checked={ocultarAnulados}
                   onChange={() => setOcultarAnulados((v) => !v)}
-                  className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                Ocultar anulados
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
               </label>
 
-              <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                 <input
                   type="checkbox"
                   checked={ocultarStandBy}
                   onChange={() => setOcultarStandBy((v) => !v)}
-                  className="w-4 h-4"
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                Ocultar stand by
+            <span className="text-gray-700 font-medium">Ocultar stand by</span>
               </label>
+        </div>
       </div>
 
-
-      
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr className="bg-gray-100">
-            <th className="px-4 py-2 border">Acciones</th>
-             <th className="px-4 py-2 border">Estado</th>
-            <th className="px-4 py-2 border">Nº PIC</th>
-            <th className="px-4 py-2 border">Fecha sol</th>
-            <th className="px-4 py-2 border">Fecha nec</th>
-            <th className="px-4 py-2 border">Categoria</th>
-            <th className="px-4 py-2 border">Solicita</th>
-            <th className="px-4 py-2 border">Sector</th>
-            <th className="px-4 py-2 border">Cod cta</th>
-            <th className="px-4 py-2 border">Cod. int. artic.</th>
-            <th className="px-4 py-2 border">Cant sol</th>
-            <th className="px-4 py-2 border">Cant exist</th>
-            <th className="px-4 py-2 border">Articulo</th>
-            <th className="px-4 py-2 border">Descripcion/Observacion</th>
-            <th className="px-4 py-2 border">Controlado/Revisado</th>
-            
-            <th className="px-4 py-2 border">Aprueba</th>
-            <th className="px-4 py-2 border">OC</th>
-            <th className="px-4 py-2 border">Proveedor Selec.</th>
-            <th className="px-4 py-2 border">Fecha confirm</th>
-            <th className="px-4 py-2 border">Fecha prometida</th>
-            <th className="px-4 py-2 border">Fecha entrega</th>
-            <th className="px-4 py-2 border">Rto</th>
-            <th className="px-4 py-2 border">Fact</th>
-           
-           
-            
+      {/* Tabla con scroll horizontal y encabezado congelado */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left">Acciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicita</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
+                                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Confirm</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Prometida</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Entrega</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Rto</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fact</th>
           </tr>
         </thead>
        <tbody>
   {filteredPedidos.map((pedido) => (
-    <tr key={pedido.id}>
-      <td className="border px-4 py-2">
-        <div className="flex gap-2">
+                <tr key={pedido.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top">
+                    <div className="flex flex-col gap-2">
           <button
-            className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
             onClick={() => {
               setEditingPedido(pedido);
               setFormData({
@@ -332,10 +319,9 @@ function renderValue(value: unknown): string {
                 solicita: pedido.solicita,
                 sector: pedido.sector,
                 cc: pedido.cc,
-                codint: pedido.codint,
-                cant: pedido.cant,
-                existencia: pedido.existencia,
-                articulo: pedido.articulo,
+                                        cant: pedido.cant,
+                        existencia: pedido.existencia,
+                        articulos: pedido.articulos,
                 descripcion: pedido.descripcion,
                  controlado: pedido.controlado,
                         superviso: pedido.superviso,
@@ -350,127 +336,206 @@ function renderValue(value: unknown): string {
               });
             }}
           >
-            Edit
+                        ✏️ Editar
           </button>
         </div>
       </td>
-     
-       <td className="px-4 py-2 border">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
        <span
                     className={
                     pedido.estado === "anulado"
-                        ? "text-red-500 font-semibold"
+                          ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "aprobado"
-                        ? "text-green-600 font-semibold"
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "cotizado"
-                        ? "text-yellow-600 font-semibold"
+                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "stand by"
-                        ? "text-orange-500 font-semibold"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "Presentar presencial"
-                        ? "text-orange-500 font-semibold"
+                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
-                        : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
-                        : "text-black"
+                          ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                          : pedido.estado === "confirmado" 
+                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
+                          : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
                     }
                 >
                    {renderValue(pedido.estado)}
                 </span>
       </td>
-      <td className="px-4 py-2 border">{renderValue(pedido.id)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.created_at)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.necesidad)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.categoria)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.solicita)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.sector)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.cc)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.codint)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.cant)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.existencia)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.articulo)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.descripcion)}</td>
-      <td className="px-4 py-2 border">
-                <div className="flex flex-col">
-                  <span> {pedido.controlado} </span>
-                  <span>{pedido.superviso}</span>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{pedido.id}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
+                                     <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
+                       {Array.isArray(pedido.articulos) ? (
+                         <table className="w-full text-xs">
+                           <thead>
+                             <tr className="border-b border-gray-200">
+                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
+                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
+                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
+                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {pedido.articulos.map((a: any, idx: number) => (
+                               <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                                 <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                                 <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
+                                 <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
+                                 <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                                 <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                               </tr>
+                             ))}
+                           </tbody>
+                         </table>
+                       ) : (
+                         <span className="text-sm text-gray-500">Sin artículos</span>
+                       )}
+                     </div>
+                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{pedido.controlado}</span>
+                      <span className="text-sm text-gray-600">{pedido.superviso}</span>
                 </div>
               </td>
-
-     
-      <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_prom)}</td>
-      <td className="px-4 py-2 border">{formatDate(pedido.fecha_ent)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.rto)}</td>
-      <td className="px-4 py-2 border">{renderValue(pedido.fac)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{pedido.oc}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(pedido.proveedor_selec)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_prom)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_ent)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.rto || ""}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.fac || ""}</td>
     </tr>
   ))}
 </tbody>
-
       </table>
+        </div>
+      </div>
 
-      {/* MODAL */}
+      {/* Modal de edición */}
       {editingPedido && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Editar Pedido #{editingPedido.id}</h2>
-            
-             <label className="block mb-4">
-            <p className="text-black">Descripcion/Observacion</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.descripcion ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value })
-                }
-              />
-            </label>
-            <label className="block mb-2">
-               <p className="text-black">Fecha entrega</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="date"
-                value={formData.fecha_ent ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_ent: e.target.value })
-                }
-              />
-            </label>
-            
-             <label className="block mb-4">
-           <p className="text-black">Rto.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.rto ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, rto: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-            <p className="text-black">Fac.</p>
-              <input
-                className="w-full border p-2 rounded mt-1"
-                type="text"
-                value={formData.fac ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, fac: Number(e.target.value)  })
-                }
-              />
-            </label>
-          
-                      
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">✏️ Editar Pedido #{editingPedido.id}</h2>
+              <p className="text-blue-100 mt-2">Modifica los datos del pedido general</p>
+            </div>
+            <div className="p-6">
+              {/* Información del pedido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Cantidad Total:</span> {editingPedido.cant}</p>
+                    <p><span className="font-medium">Artículos:</span> {Array.isArray(editingPedido.articulos) ? editingPedido.articulos.length : 0}</p>
+                    <p><span className="font-medium">Estado:</span> {editingPedido.estado}</p>
+                    <p><span className="font-medium">Estado:</span> {editingPedido.estado}</p>
+                  </div>
+                </div>
 
-            <div className="flex justify-end space-x-2">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📅 Fechas</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Fecha necesidad:</span> {formatDate(editingPedido.necesidad)}</p>
+                    <p><span className="font-medium">Fecha confirmación:</span> {formatDate(editingPedido.fecha_conf)}</p>
+                    <p><span className="font-medium">Fecha prometida:</span> {formatDate(editingPedido.fecha_prom)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista detallada de artículos */}
+              {Array.isArray(editingPedido.articulos) && editingPedido.articulos.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span className="mr-2">📋</span>
+                    Lista de Artículos del Pedido
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-3 py-2 text-left text-gray-600 font-semibold">Artículo</th>
+                          <th className="px-3 py-2 text-left text-gray-600 font-semibold">Descripción</th>
+                          <th className="px-3 py-2 text-center text-gray-600 font-semibold">Cantidad</th>
+                          <th className="px-3 py-2 text-center text-gray-600 font-semibold">Stock</th>
+                          <th className="px-3 py-2 text-left text-gray-600 font-semibold">Observación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editingPedido.articulos.map((a: any, idx: number) => (
+                          <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                            <td className="px-3 py-2 font-medium text-gray-800">{a.articulo}</td>
+                            <td className="px-3 py-2 text-gray-700">{a.descripcion}</td>
+                            <td className="px-3 py-2 text-center font-semibold text-gray-800">{a.cant}</td>
+                            <td className="px-3 py-2 text-center text-gray-700">{a.cant_exist}</td>
+                            <td className="px-3 py-2 text-gray-600">{a.observacion}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <hr className="my-6" />
+
+                             {/* Campos de edición */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Entrega:</label>
+               <input
+                 type="date"
+                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                 value={formData.fecha_ent ?? ""}
+                 onChange={(e) =>
+                   setFormData({ ...formData, fecha_ent: e.target.value })
+                 }
+               />
+                 </div>
+            
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">RTO:</label>
+               <input
+                     type="number"
+                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                     value={formData.rto ?? ""}
+                 onChange={(e) =>
+                       setFormData({ ...formData, rto: Number(e.target.value) })
+                     }
+                   />
+                 </div>
+
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">FAC:</label>
+               <input
+                     type="number"
+                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                     value={formData.fac ?? ""}
+                 onChange={(e) =>
+                       setFormData({ ...formData, fac: Number(e.target.value) })
+                 }
+               />
+                 </div>
+               </div>
+          
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={() => setEditingPedido(null)}
-                className="px-4 py-2 bg-gray-400 text-white rounded"
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
               >
-                Cancelar
+                  ❌ Cancelar
               </button>
               <button
                 onClick={async () => {
@@ -499,12 +564,15 @@ function renderValue(value: unknown): string {
                           if (data) setPedidos(data);
                         }
 
+                      // Redirigir a la página de pedidos generales
+                      router.push("/auth/list-panolpedidosgenerales");
                   }
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
+                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
               >
-                Guardar
+                  💾 Guardar
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -512,4 +580,3 @@ function renderValue(value: unknown): string {
     </div>
   );
 }
-
