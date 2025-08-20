@@ -4,10 +4,6 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
-
-
-
-
 type Pedido = {
   id: string;
   created_at: string;
@@ -16,7 +12,6 @@ type Pedido = {
   solicita: string;
   sector: string;
   cc: number;
-  codint: string;
   cant: number;
   existencia: number;
   articulos: any[]; // Array de artículos
@@ -67,134 +62,80 @@ export default function ListAdmin() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
-  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
-  useEffect(() => {
-  const savedCumplidos = localStorage.getItem("ocultarCumplidos");
-  const savedAprobados = localStorage.getItem("ocultarAprobados");
-  const savedAnulados = localStorage.getItem("ocultarAnulados");
-  const savedStandBy = localStorage.getItem("ocultarStandBy");
-  const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+  // función para formatear las fechas
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return "-";
 
-  if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
-  if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
-  if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
-  if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
-  if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
-}, []);
+    // Evitar que el navegador aplique zona horaria
+    const parts = dateString.split("T")[0].split("-");
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
+    const day = parseInt(parts[2]);
 
-
-  /* Cada vez que cambia, actualizá localStorage */
- useEffect(() => {
-  localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
-}, [ocultarCumplidos]);
-
-useEffect(() => {
-  localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
-}, [ocultarAprobados]);
-
-useEffect(() => {
-  localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
-}, [ocultarAnulados]);
-
-useEffect(() => {
-  localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
-}, [ocultarStandBy]);
-
-useEffect(() => {
-  localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
-}, [ocultarConfirmado]);
-
-
-  // Cargar datos tabla pic
-  useEffect(() => {
-    const fetchPedidos = async () => {
-      const { data, error } = await supabase.from("pic").select("*")
-  
-      if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
-    };
-
-    fetchPedidos();
-  }, [supabase]);
-
- 
-
-  // funcion para formatear las fechas
- function formatDate(dateString: string | null): string {
-  if (!dateString) return "-";
-
-  // Evitar que el navegador aplique zona horaria
-  const parts = dateString.split("T")[0].split("-");
-  const year = parseInt(parts[0]);
-  const month = parseInt(parts[1]) - 1; // meses en JS van de 0 a 11
-  const day = parseInt(parts[2]);
-
-  const date = new Date(year, month, day); // Esto crea la fecha en hora local
-  return date.toLocaleDateString("es-AR");
-}
-
-//Campos de tabla que son fecha para funcion filtrar
-const dateFields: (keyof Pedido)[] = [
-  "created_at",
-  "necesidad",
-  "fecha_conf",
-  "fecha_prom",
-  "fecha_ent",
-];
-
-//Filtro que también contempla las fechas
-const filteredPedidos = pedidos
-  .filter((pedido) => {
-    const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
-    if (!s) return true;                     // si el input está vacío, no filtra nada
-
-    return Object.entries(pedido).some(([key, value]) => {
-      if (value === null || value === undefined) return false;
-
-      // A) Comparar contra la versión texto “tal cual viene”
-      if (String(value).toLowerCase().includes(s)) return true;
-
-      // B) Si el campo es fecha, probar otras representaciones
-      if (dateFields.includes(key as keyof Pedido)) {
-        const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
-        const niceDate = formatDate(value as string);         // DD/MM/YYYY
-
-        return (
-          isoDate.toLowerCase().includes(s) ||
-          niceDate.toLowerCase().includes(s)
-        );
-      }
-      return false;
-    });
-  })
- .filter((pedido) => {
-  if (ocultarCumplidos && pedido.estado === "cumplido") return false;
-  if (ocultarAprobados && pedido.estado === "aprobado") return false;
-  if (ocultarAnulados && pedido.estado === "anulado") return false;
-  if (ocultarStandBy && pedido.estado === "stand by") return false;
-  if (ocultarConfirmado && pedido.estado === "confirmado") return false;
-  return true;
-});
-
-
-
-function renderValue(value: unknown): string {
-  if (
-    value === null ||
-    value === undefined ||
-    (typeof value === "string" && value.trim() === "") ||
-    value === ""
-  ) {
-    return "-";
+    const date = new Date(year, month, day); // Esto crea la fecha en hora local
+    return date.toLocaleDateString("es-AR");
   }
 
-  return String(value);
-}
+  //Campos de tabla que son fecha para funcion filtrar
+  const dateFields: (keyof Pedido)[] = [
+    "created_at",
+    "necesidad",
+    "fecha_conf",
+    "fecha_prom",
+    "fecha_ent",
+  ];
 
-const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
-const cellClass =
-  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+  //Filtro que también contempla las fechas
+  const filteredPedidos = pedidos
+    .filter((pedido) => {
+      const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
+      if (!s) return true;                     // si el input está vacío, no filtra nada
+
+      return Object.entries(pedido).some(([key, value]) => {
+        if (value === null || value === undefined) return false;
+
+        // A) Comparar contra la versión texto "tal cual viene"
+        if (String(value).toLowerCase().includes(s)) return true;
+
+        // B) Si el campo es fecha, probar otras representaciones
+        if (dateFields.includes(key as keyof Pedido)) {
+          const isoDate = String(value).split("T")[0];          // YYYY-MM-DD
+          const niceDate = formatDate(value as string);         // DD/MM/YYYY
+
+          return (
+            isoDate.toLowerCase().includes(s) ||
+            niceDate.toLowerCase().includes(s)
+          );
+        }
+        return false;
+      });
+    })
+   .filter((pedido) => {
+    if (ocultarCumplidos && pedido.estado === "cumplido") return false;
+    if (ocultarAprobados && pedido.estado === "aprobado") return false;
+    if (ocultarAnulados && pedido.estado === "anulado") return false;
+    if (ocultarStandBy && pedido.estado === "stand by") return false;
+    if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+    return true;
+  });
+
+  function renderValue(value: unknown): string {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === "string" && value.trim() === "") ||
+      value === ""
+    ) {
+      return "-";
+    }
+
+    return String(value);
+  }
+
+  const headerClass =
+    "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+  const cellClass =
+    "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
   // ✅ Función para imprimir información del pedido
   const imprimirInfoPedido = () => {
@@ -253,168 +194,136 @@ const cellClass =
             margin: 10px 0;
             display: flex;
             justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
           }
           .info-label {
             font-weight: bold;
             color: #374151;
           }
-          .proveedores-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-          }
-          .proveedor-card {
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-          }
-          .proveedor-header {
-            background: #f3f4f6;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            border: 1px solid #d1d5db;
-          }
-          .proveedor-nombre {
-            font-size: 18px;
-            font-weight: bold;
+          .info-value {
             color: #1f2937;
-            margin: 0;
           }
-          .proveedor-info {
-            margin: 10px 0;
-            padding: 8px;
+          .articulos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          .articulos-table th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+          }
+          .articulos-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          .articulos-table tr:hover {
             background: #f9fafb;
-            border-radius: 4px;
           }
-          .fecha-impresion {
-            text-align: center;
-            margin-top: 40px;
+          .footer {
+            margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
             color: #6b7280;
-            font-size: 14px;
-          }
-          @media print {
-            body { margin: 0; }
-            .header { border-bottom-color: #000; }
-            .info-section { background: #fff; border-color: #000; }
-            .proveedor-card { border-color: #000; box-shadow: none; }
-            .proveedor-header { background: #fff; border-color: #000; }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>📋 Pedido Interno de Compra</h1>
-          <p><strong>Número:</strong> ${verInfo.id}</p>
-          <p><strong>Fecha de Impresión:</strong> ${new Date().toLocaleDateString('es-AR')}</p>
+          <h1>Pedido Interno de Compra</h1>
+          <p><strong>ID:</strong> ${verInfo.id}</p>
+          <p><strong>Fecha de Creación:</strong> ${formatDate(verInfo.created_at)}</p>
         </div>
-
+        
         <div class="info-grid">
           <div class="info-section">
-            <h3>📅 Detalles del Pedido</h3>
+            <h3>Información del Pedido</h3>
             <div class="info-item">
-              <span class="info-label">Fecha Necesidad:</span>
-              <span>${verInfo.necesidad || '-'}</span>
+              <span class="info-label">Necesidad:</span>
+              <span class="info-value">${verInfo.necesidad || '-'}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Sector:</span>
-              <span>${verInfo.sector || '-'}</span>
+              <span class="info-label">Categoría:</span>
+              <span class="info-value">${verInfo.categoria || '-'}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Solicitante:</span>
-              <span>${verInfo.solicita || '-'}</span>
+              <span class="info-value">${verInfo.solicita || '-'}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Aprueba:</span>
-              <span>${verInfo.aprueba || '-'}</span>
+              <span class="info-label">Sector:</span>
+              <span class="info-value">${verInfo.sector || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Estado:</span>
+              <span class="info-value">${verInfo.estado || '-'}</span>
             </div>
           </div>
-
+          
           <div class="info-section">
-            <h3>📦 Artículo Solicitado</h3>
+            <h3>Detalles Financieros</h3>
             <div class="info-item">
-              <span class="info-label">Cantidad:</span>
-              <span>${verInfo.cant || '-'}</span>
+              <span class="info-label">Centro de Costo:</span>
+              <span class="info-value">${verInfo.cc || '-'}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Artículos:</span>
-              <span>${Array.isArray(verInfo.articulos) ? verInfo.articulos.length + ' artículos' : 'Sin artículos'}</span>
+              <span class="info-label">Orden de Compra:</span>
+              <span class="info-value">${verInfo.oc || '-'}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Descripción:</span>
-              <span>${verInfo.descripcion || '-'}</span>
+              <span class="info-label">Total USD:</span>
+              <span class="info-value">$${verInfo.usd || 0}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total EUR:</span>
+              <span class="info-value">€${verInfo.eur || 0}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total ARS:</span>
+              <span class="info-value">$${verInfo.ars || 0}</span>
             </div>
           </div>
         </div>
-
-        <h2 style="color: #047857; text-align: center; margin: 40px 0 30px 0; border-bottom: 2px solid #10b981; padding-bottom: 15px;">
-          💰 Cotizaciones de Proveedores
-        </h2>
-
-        <div class="proveedores-grid">
-          <div class="proveedor-card">
-            <div class="proveedor-header">
-              <h3 class="proveedor-nombre">Proveedor 1</h3>
-            </div>
-            <div class="proveedor-info">
-              <strong>Nombre:</strong><br>
-              ${verInfo.prov_uno || 'No especificado'}
-            </div>
-            <div class="proveedor-info">
-              <strong>Costo Unitario:</strong><br>
-              $${Number(verInfo.cost_prov_uno || 0).toLocaleString("es-AR")}
-            </div>
-            <div class="proveedor-info">
-              <strong>Subtotal:</strong><br>
-              $${Number(verInfo.subt_prov1 || 0).toLocaleString("es-AR")}
-            </div>
-          </div>
-
-          <div class="proveedor-card">
-            <div class="proveedor-header">
-              <h3 class="proveedor-nombre">Proveedor 2</h3>
-            </div>
-            <div class="proveedor-info">
-              <strong>Nombre:</strong><br>
-              ${verInfo.prov_dos || 'No especificado'}
-            </div>
-            <div class="proveedor-info">
-              <strong>Costo Unitario:</strong><br>
-              $${Number(verInfo.cost_prov_dos || 0).toLocaleString("es-AR")}
-            </div>
-            <div class="proveedor-info">
-              <strong>Subtotal:</strong><br>
-              ${Number(verInfo.subt_prov2 || 0).toLocaleString("es-AR")}
-            </div>
-          </div>
-
-          <div class="proveedor-card">
-            <div class="proveedor-header">
-              <h3 class="proveedor-nombre">Proveedor 3</h3>
-            </div>
-            <div class="proveedor-info">
-              <strong>Nombre:</strong><br>
-              ${verInfo.prov_tres || 'No especificado'}
-            </div>
-            <div class="proveedor-info">
-              <strong>Costo Unitario:</strong><br>
-              $${Number(verInfo.cost_prov_tres || 0).toLocaleString("es-AR")}
-            </div>
-            <div class="proveedor-info">
-              <strong>Subtotal:</strong><br>
-              $${Number(verInfo.subt_prov3 || 0).toLocaleString("es-AR")}
-            </div>
-          </div>
+        
+        ${Array.isArray(verInfo.articulos) && verInfo.articulos.length > 0 ? `
+        <div class="info-section">
+          <h3>Artículos del Pedido</h3>
+          <table class="articulos-table">
+            <thead>
+              <tr>
+                <th>Artículo</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+                <th>Stock</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${verInfo.articulos.map((a: any) => `
+                <tr>
+                  <td>${a.articulo || '-'}</td>
+                  <td>${a.descripcion || '-'}</td>
+                  <td>${a.cant || 0}</td>
+                  <td>${a.cant_exist || 0}</td>
+                  <td>${a.observacion || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
-
-        <div class="fecha-impresion">
-          Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}
+        ` : ''}
+        
+        <div class="footer">
+          <p>Documento generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}</p>
         </div>
       </body>
       </html>
@@ -429,6 +338,54 @@ const cellClass =
       ventanaImpresion.close();
     };
   };
+
+  /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
+  useEffect(() => {
+    const savedCumplidos = localStorage.getItem("ocultarCumplidos");
+    const savedAprobados = localStorage.getItem("ocultarAprobados");
+    const savedAnulados = localStorage.getItem("ocultarAnulados");
+    const savedStandBy = localStorage.getItem("ocultarStandBy");
+    const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+
+    if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+    if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
+    if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+    if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
+    if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+  }, []);
+
+  /* Cada vez que cambia, actualizá localStorage */
+  useEffect(() => {
+    localStorage.setItem("ocultarCumplidos", String(ocultarCumplidos));
+  }, [ocultarCumplidos]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarAprobados", String(ocultarAprobados));
+  }, [ocultarAprobados]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarAnulados", String(ocultarAnulados));
+  }, [ocultarAnulados]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarStandBy", String(ocultarStandBy));
+  }, [ocultarStandBy]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
+  }, [ocultarConfirmado]);
+
+  // Cargar datos tabla pic
+  useEffect(() => {
+    const fetchPedidos = async () => {
+      const { data, error } = await supabase.from("pic").select("*")
+  
+      if (error) console.error("Error cargando pedidos:", error);
+      else setPedidos(data);
+    };
+
+    fetchPedidos();
+  }, [supabase]);
 
   return (
     <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
@@ -534,10 +491,9 @@ const cellClass =
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicita</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cod cta</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cod. Int. Artic.</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Cant sol</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Existencia</th>
-                                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
 
                   
                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
@@ -576,7 +532,6 @@ const cellClass =
                         solicita: pedido.solicita,
                         sector: pedido.sector,
                         cc: pedido.cc,
-                        codint: pedido.codint,
                         cant: pedido.cant,
                         existencia: pedido.existencia,
                         articulos: pedido.articulos,
@@ -625,7 +580,6 @@ const cellClass =
                         solicita: pedido.solicita,
                         sector: pedido.sector,
                         cc: pedido.cc,
-                        codint: pedido.codint,
                         cant: pedido.cant,
                         existencia: pedido.existencia,
                         articulos: pedido.articulos,
@@ -720,7 +674,6 @@ const cellClass =
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.codint}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
@@ -738,8 +691,8 @@ const cellClass =
                       </thead>
                       <tbody>
                         {pedido.articulos.map((a: any, idx: number) => (
-                                                     <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                             <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                          <tr key={idx} className="border-b border-gray-100 last:border-b-0">
+                            <td className="px-2 py-1 font-medium">{a.articulo}</td>
                              <td className="px-2 py-1 text-gray-700">
                                {a.descripcion && a.descripcion.length > 30 
                                  ? `${a.descripcion.substring(0, 30)}...` 
@@ -856,13 +809,13 @@ const cellClass =
               />
             </label>
              <label className="block mb-4">
-              <p className="text-black">Cod. Int. Artic.</p>
+              <p className="text-black">Cant.</p>
               <input
                 
                 type="text"
-                value={formData.codint ?? 0}
+                value={formData.cant ?? 0}
                 onChange={(e) =>
-                  setFormData({ ...formData, codint: e.target.value })
+                  setFormData({ ...formData, cant: Number(e.target.value) })
                 }
               />
             </label>
