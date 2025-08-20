@@ -14,7 +14,13 @@ type Pedido = {
   cc: number;
   cant: number;
   existencia: number;
-  articulos: any[]; // Array de artículos
+  articulos: Array<{
+    articulo: string;
+    descripcion?: string;
+    cant: number;
+    cant_exist?: number;
+    observacion?: string;
+  }>; // Array de artículos
   descripcion: string;
   controlado: string;
   superviso: string;
@@ -360,17 +366,19 @@ export default function ListAprob() {
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
-                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {pedido.articulos.map((a: any, idx: number) => (
+                            {pedido.articulos.map((a, idx: number) => (
                               <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                                 <td className="px-2 py-1 font-medium">{a.articulo}</td>
-                                <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
+                                <td className="px-2 py-1 text-gray-700 max-w-32 break-words text-xs leading-tight">
+                                  {a.descripcion && a.descripcion.length > 30 
+                                    ? `${a.descripcion.substring(0, 30)}...` 
+                                    : a.descripcion || "-"}
+                                </td>
                                 <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                                 <td className="px-2 py-1 text-center">{a.cant_exist}</td>
-                                <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -386,27 +394,9 @@ export default function ListAprob() {
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-gray-700">{pedido.prov_uno}</span>
-                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_uno).toLocaleString("es-AR")}</span>
-                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov1).toLocaleString("es-AR")}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-gray-700">{pedido.prov_dos}</span>
-                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_dos).toLocaleString("es-AR")}</span>
-                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov2).toLocaleString("es-AR")}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-gray-700">{pedido.prov_tres}</span>
-                      <span className="text-sm text-gray-600">c/u ${Number(pedido.cost_prov_tres).toLocaleString("es-AR")}</span>
-                      <span className="text-sm text-gray-600">subt ${Number(pedido.subt_prov3).toLocaleString("es-AR")}</span>
-                    </div>
-                  </td>
+
+
+
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{pedido.oc}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(pedido.proveedor_selec)}</td>
@@ -468,17 +458,19 @@ export default function ListAprob() {
                            <th className="px-3 py-2 text-left text-gray-600 font-semibold">Descripción</th>
                            <th className="px-3 py-2 text-center text-gray-600 font-semibold">Cantidad</th>
                            <th className="px-3 py-2 text-center text-gray-600 font-semibold">Stock</th>
-                           <th className="px-3 py-2 text-left text-gray-600 font-semibold">Observación</th>
                          </tr>
                        </thead>
                        <tbody>
-                         {editingPedido.articulos.map((a: any, idx: number) => (
+                         {editingPedido.articulos.map((a, idx: number) => (
                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                              <td className="px-3 py-2 font-medium text-gray-800">{a.articulo}</td>
-                             <td className="px-3 py-2 text-gray-700">{a.descripcion}</td>
+                             <td className="px-3 py-2 text-gray-700 max-w-32 break-words text-xs leading-tight">
+                               {a.descripcion && a.descripcion.length > 30 
+                                 ? `${a.descripcion.substring(0, 30)}...` 
+                                 : a.descripcion || "-"}
+                             </td>
                              <td className="px-3 py-2 text-center font-semibold text-gray-800">{a.cant}</td>
                              <td className="px-3 py-2 text-center text-gray-700">{a.cant_exist}</td>
-                             <td className="px-3 py-2 text-gray-600">{a.observacion}</td>
                            </tr>
                          ))}
                        </tbody>
@@ -488,7 +480,8 @@ export default function ListAprob() {
                )}
 
                {/* Comparativa de proveedores */}
-               <div className="mb-6">
+               <div className="mb-6" style={{display: 'block'}}>
+                {console.log('Renderizando comparativa de proveedores:', editingPedido?.prov_uno, editingPedido?.prov_dos, editingPedido?.prov_tres)}
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <span className="mr-2">💰</span>
                   Comparativa de Proveedores
