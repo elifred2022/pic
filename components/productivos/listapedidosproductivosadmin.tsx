@@ -332,46 +332,50 @@ const handleUpdatePedido = async () => {
         <style>
           body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 10px;
             color: #333;
+            font-size: 10px;
           }
           .header {
             text-align: center;
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
           }
           .header h1 {
             color: #2563eb;
             margin: 0;
-            font-size: 28px;
+            font-size: 18px;
           }
           .header p {
-            margin: 5px 0;
+            margin: 2px 0;
             color: #666;
+            font-size: 10px;
           }
           .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
+            gap: 15px;
+            margin-bottom: 15px;
           }
           .info-section {
             background: #f8fafc;
-            padding: 20px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 4px;
             border: 1px solid #e2e8f0;
           }
           .info-section h3 {
             color: #1e40af;
-            margin-top: 0;
-            border-bottom: 2px solid #3b82f6;
-            padding-bottom: 10px;
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid #3b82f6;
+            padding-bottom: 5px;
+            font-size: 12px;
           }
           .info-item {
-            margin: 10px 0;
+            margin: 5px 0;
             display: flex;
             justify-content: space-between;
+            font-size: 9px;
           }
           .info-label {
             font-weight: bold;
@@ -379,27 +383,27 @@ const handleUpdatePedido = async () => {
           }
           .articulos-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
           }
           .proveedor-card {
             background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
           }
           .proveedor-header {
             background: #f3f4f6;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
             text-align: center;
             border: 1px solid #d1d5db;
           }
           .proveedor-nombre {
-            font-size: 18px;
+            font-size: 12px;
             font-weight: bold;
             color: #1f2937;
             margin: 0;
@@ -407,20 +411,22 @@ const handleUpdatePedido = async () => {
           .tabla-articulos {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
           }
           .tabla-articulos th {
             background: #f9fafb;
-            padding: 12px 8px;
+            padding: 6px 4px;
             text-align: left;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
             font-weight: bold;
             color: #374151;
+            font-size: 9px;
           }
           .tabla-articulos td {
-            padding: 10px 8px;
+            padding: 6px 4px;
             border-bottom: 1px solid #f3f4f6;
             color: #6b7280;
+            font-size: 9px;
           }
           .tabla-articulos th:last-child,
           .tabla-articulos td:last-child {
@@ -428,20 +434,28 @@ const handleUpdatePedido = async () => {
           }
           .total-proveedor {
             background: #fef3c7;
-            padding: 15px;
-            border-radius: 6px;
+            padding: 8px;
+            border-radius: 4px;
             text-align: center;
             border: 1px solid #f59e0b;
             font-weight: bold;
             color: #92400e;
-            font-size: 16px;
+            font-size: 10px;
           }
           .fecha-impresion {
             text-align: center;
-            margin-top: 40px;
-            padding-top: 20px;
+            margin-top: 15px;
+            padding-top: 10px;
             border-top: 1px solid #e5e7eb;
             color: #6b7280;
+            font-size: 8px;
+          }
+          .cotizaciones-titulo {
+            color: #1e40af;
+            text-align: center;
+            margin: 20px 0 15px 0;
+            border-bottom: 1px solid #3b82f6;
+            padding-bottom: 8px;
             font-size: 14px;
           }
           @media print {
@@ -459,7 +473,7 @@ const handleUpdatePedido = async () => {
         <div class="header">
           <h1>📊 Comparativa de Proveedores</h1>
           <p><strong>Pedido Productivo:</strong> ${comparativaPedido.id}</p>
-                     <p><strong>Fecha de Impresión:</strong> ${fechaImpresion.split(' a las ')[0]}</p>
+          <p><strong>Fecha de Impresión:</strong> ${fechaImpresion.split(' a las ')[0]}</p>
         </div>
 
         <div class="info-grid">
@@ -495,8 +509,8 @@ const handleUpdatePedido = async () => {
                   <span class="info-label">${art.articulo}</span>
                   <span>Cant: ${art.cant}</span>
                 </div>
-                <div class="info-item" style="margin-left: 20px; margin-bottom: 15px;">
-                  <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">
+                <div class="info-item" style="margin-left: 15px; margin-bottom: 8px;">
+                  <span style="font-family: monospace; background: #f3f4f6; padding: 1px 4px; border-radius: 2px; font-size: 8px;">
                     Código: ${art.codint}
                   </span>
                 </div>
@@ -506,7 +520,7 @@ const handleUpdatePedido = async () => {
           </div>
         </div>
 
-        <h2 style="color: #1e40af; text-align: center; margin: 40px 0 30px 0; border-bottom: 2px solid #3b82f6; padding-bottom: 15px;">
+        <h2 class="cotizaciones-titulo">
           💰 Cotizaciones de Proveedores
         </h2>
 
@@ -548,9 +562,9 @@ const handleUpdatePedido = async () => {
           }
         </div>
 
-                 <div class="fecha-impresion">
-           Impreso el ${fechaImpresion}
-         </div>
+        <div class="fecha-impresion">
+          Impreso el ${fechaImpresion}
+        </div>
       </body>
       </html>
     `;
@@ -915,33 +929,61 @@ const handleUpdatePedido = async () => {
                    </div>
                  </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Proveedor Seleccionado:
-                     </label>
-                     <input
-                       type="text"
-                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       placeholder="Nombre del proveedor seleccionado"
-                       value={formData.proveedor_seleccionado || ""}
-                       onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
-                     />
-                   </div>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Proveedor Seleccionado:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Nombre del proveedor seleccionado"
+                        value={formData.proveedor_seleccionado || ""}
+                        onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
+                      />
+                    </div>
 
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Número de OC:
-                     </label>
-                     <input
-                       type="text"
-                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       placeholder="Número de orden de compra"
-                       value={formData.numero_oc || ""}
-                       onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
-                     />
-                   </div>
-                 </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de OC:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de orden de compra"
+                        value={formData.numero_oc || ""}
+                        onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de Factura:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de factura"
+                        value={formData.fac || ""}
+                        onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de RTO:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de RTO"
+                        value={formData.rto || ""}
+                        onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
+                      />
+                    </div>
+                  </div>
                </div>
 
                              {/* Sección de Comparativa de Proveedores */}

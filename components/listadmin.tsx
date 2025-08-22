@@ -4,6 +4,19 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+type ArticuloComparativa = {
+  articulo: string;
+  cant: number;
+  precioUnitario: number | null;
+  subtotal: number;
+};
+
+type ProveedorComparativa = {
+  nombreProveedor: string;
+  articulos: ArticuloComparativa[];
+  total: number;
+};
+
 type Pedido = {
   id: string;
   created_at: string;
@@ -49,6 +62,7 @@ type Pedido = {
   prov_tres: string;
   cost_prov_tres: string | number;
   subt_prov3: number;
+  comparativa_prov?: ProveedorComparativa[] | null;
   // Agregá más campos si los usás en el .map()
 };
 
@@ -64,7 +78,69 @@ export default function ListAdmin() {
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Pedido>>({});
+  const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
   const supabase = createClient();
+
+  // ✅ Función para actualizar pedido
+  const handleUpdatePedido = async () => {
+    if (!editingPedido) return;
+    
+    // Preparar datos para actualizar, incluyendo la comparativa de proveedores
+    const datosActualizar = {
+      ...formData,
+      comparativa_prov: comparativaForm ? comparativaForm.map(prov => ({
+        nombreProveedor: prov.nombreProveedor,
+        articulos: prov.articulos.map(art => ({
+          articulo: art.articulo,
+          cant: art.cant,
+          precioUnitario: art.precioUnitario,
+          subtotal: art.subtotal
+        })),
+        total: prov.total
+      })) : null
+    };
+    
+    const { error } = await supabase
+      .from("pic")
+      .update(datosActualizar)
+      .eq("id", editingPedido.id);
+
+    if (error) {
+      alert("Error actualizando");
+      console.error(error);
+    } else {
+      alert("Actualizado correctamente");
+      setEditingPedido(null);
+      setFormData({});
+      setComparativaForm(null);
+      const { data } = await supabase.from("pic").select("*");
+      if (data) setPedidos(data);
+    }
+  };
+
+  // Recalcular comparativa cuando se abre el modal de edición
+  useEffect(() => {
+    if (editingPedido && formData.articulos && formData.articulos.length > 0) {
+      // Si ya existe comparativa en la base de datos, cargarla
+      if (editingPedido.comparativa_prov && Array.isArray(editingPedido.comparativa_prov)) {
+        setComparativaForm(editingPedido.comparativa_prov);
+      } else if (!comparativaForm) {
+        // Crear estructura inicial si no existe
+        const articulosBase = formData.articulos.map(a => ({
+          articulo: a.articulo,
+          cant: a.cant,
+          precioUnitario: null,
+          subtotal: 0
+        }));
+
+        setComparativaForm([
+          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
+        ]);
+      }
+    }
+  }, [editingPedido, formData.articulos]); // Removí comparativaForm de las dependencias
 
   // función para formatear las fechas
   function formatDate(dateString: string | null): string {
@@ -157,142 +233,162 @@ export default function ListAdmin() {
         <style>
           body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 10px;
             color: #333;
+            font-size: 10px;
           }
           .header {
             text-align: center;
-            border-bottom: 3px solid #059669;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 2px solid #059669;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
           }
           .header h1 {
             color: #059669;
             margin: 0;
-            font-size: 28px;
+            font-size: 18px;
           }
           .header p {
-            margin: 5px 0;
+            margin: 2px 0;
             color: #666;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
+            font-size: 10px;
           }
           .info-section {
             background: #f8fafc;
-            padding: 20px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 4px;
             border: 1px solid #e2e8f0;
+            margin-bottom: 10px;
           }
           .info-section h3 {
             color: #047857;
-            margin-top: 0;
-            border-bottom: 2px solid #10b981;
-            padding-bottom: 10px;
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid #10b981;
+            padding-bottom: 5px;
+            font-size: 12px;
           }
-          .info-item {
+          .presupuestos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
             margin: 10px 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
           }
-          .info-label {
+          .presupuesto-card {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+          }
+          .presupuesto-card h4 {
+            color: #0369a1;
+            margin: 0 0 5px 0;
+            font-size: 10px;
+          }
+          .presupuesto-valor {
+            font-size: 12px;
             font-weight: bold;
-            color: #374151;
-          }
-          .info-value {
-            color: #1f2937;
+            color: #1e40af;
           }
           .articulos-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 10px 0;
             background: white;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
           }
           .articulos-table th {
             background: #f3f4f6;
-            padding: 12px;
+            padding: 6px;
             text-align: left;
             font-weight: bold;
             color: #374151;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 9px;
           }
           .articulos-table td {
-            padding: 12px;
+            padding: 6px;
             border-bottom: 1px solid #e5e7eb;
+            font-size: 9px;
           }
           .articulos-table tr:hover {
             background: #f9fafb;
           }
           .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px solid #e5e7eb;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
             text-align: center;
             color: #6b7280;
+            font-size: 8px;
           }
         </style>
       </head>
       <body>
         <div class="header">
           <h1>Pedido Interno de Compra</h1>
-          <p><strong>ID:</strong> ${verInfo.id}</p>
+          <p><strong>Número de Pedido:</strong> ${verInfo.id}</p>
           <p><strong>Fecha de Creación:</strong> ${formatDate(verInfo.created_at)}</p>
         </div>
         
-        <div class="info-grid">
-          <div class="info-section">
-            <h3>Información del Pedido</h3>
-            <div class="info-item">
-              <span class="info-label">Necesidad:</span>
-              <span class="info-value">${verInfo.necesidad || '-'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Categoría:</span>
-              <span class="info-value">${verInfo.categoria || '-'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Solicitante:</span>
-              <span class="info-value">${verInfo.solicita || '-'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Sector:</span>
-              <span class="info-value">${verInfo.sector || '-'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Estado:</span>
-              <span class="info-value">${verInfo.estado || '-'}</span>
-            </div>
-          </div>
-          
-          <div class="info-section">
-            <h3>Detalles Financieros</h3>
-            <div class="info-item">
-              <span class="info-label">Orden de Compra:</span>
-              <span class="info-value">${verInfo.oc || '-'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Total USD:</span>
-              <span class="info-value">$${verInfo.usd || 0}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Total EUR:</span>
-              <span class="info-value">€${verInfo.eur || 0}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Total ARS:</span>
-              <span class="info-value">$${verInfo.ars || 0}</span>
-            </div>
-          </div>
+        <!-- Información del Pedido -->
+        <div class="info-section">
+          <h3>Información del Pedido</h3>
+          <table class="articulos-table">
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Necesidad</strong></td>
+                <td>${verInfo.necesidad || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Categoría</strong></td>
+                <td>${verInfo.categoria || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Solicitante</strong></td>
+                <td>${verInfo.solicita || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Sector</strong></td>
+                <td>${verInfo.sector || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Estado</strong></td>
+                <td>${verInfo.estado || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Aprobador</strong></td>
+                <td>${verInfo.aprueba || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Orden de Compra</strong></td>
+                <td>${verInfo.oc || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Total USD</strong></td>
+                <td>$${verInfo.usd || 0}</td>
+              </tr>
+              <tr>
+                <td><strong>Total EUR</strong></td>
+                <td>€${verInfo.eur || 0}</td>
+              </tr>
+              <tr>
+                <td><strong>Total ARS</strong></td>
+                <td>$${verInfo.ars || 0}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        
+
+        <!-- Artículos del Pedido -->
         ${Array.isArray(verInfo.articulos) && verInfo.articulos.length > 0 ? `
         <div class="info-section">
           <h3>Artículos del Pedido</h3>
@@ -318,6 +414,53 @@ export default function ListAdmin() {
               `).join('')}
             </tbody>
           </table>
+        </div>
+        ` : ''}
+
+        <!-- Sección de Presupuestos -->
+        <div class="info-section">
+          <h3>Presupuestos por Moneda</h3>
+          <div class="presupuestos-grid">
+            <div class="presupuesto-card">
+              <h4>Presupuesto USD</h4>
+              <div class="presupuesto-valor">$${verInfo.usd || 0}</div>
+            </div>
+            <div class="presupuesto-card">
+              <h4>Presupuesto EUR</h4>
+              <div class="presupuesto-valor">€${verInfo.eur || 0}</div>
+            </div>
+            <div class="presupuesto-card">
+              <h4>Presupuesto ARS</h4>
+              <div class="presupuesto-valor">$${verInfo.ars || 0}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparativa de Proveedores -->
+        ${verInfo.comparativa_prov && Array.isArray(verInfo.comparativa_prov) && verInfo.comparativa_prov.length > 0 ? `
+        <div class="info-section">
+          <h3>Comparativa de Proveedores</h3>
+          <div class="presupuestos-grid">
+            ${verInfo.comparativa_prov.map((prov, provIndex) => `
+              <div class="presupuesto-card">
+                <h4>${prov.nombreProveedor || 'Proveedor ' + (provIndex + 1)}</h4>
+                ${prov.articulos && prov.articulos.length > 0 ? `
+                  <div style="margin: 5px 0; font-size: 8px;">
+                    ${prov.articulos.map(art => `
+                      <div style="margin: 2px 0; padding: 2px; background: #f8fafc; border-radius: 2px;">
+                        <strong>${art.articulo}</strong><br>
+                        <span>Precio: $${(art.precioUnitario || 0).toLocaleString('es-AR')}</span><br>
+                        <span>Subtotal: $${(art.subtotal || 0).toLocaleString('es-AR')}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                <div class="presupuesto-valor" style="margin-top: 5px;">
+                  Total: $${(prov.total || 0).toLocaleString('es-AR')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
         </div>
         ` : ''}
         
@@ -732,536 +875,363 @@ export default function ListAdmin() {
       </div>
       
 
-      {/* MODAL */}
+      {/* ✅ Modal de edición */}
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
-              <h2 className="text-2xl font-bold">✏️ Editar Pedido #{editingPedido.id}</h2>
-              <p className="text-blue-100 mt-2">Modifica los datos del pedido</p>
+              <h2 className="text-2xl font-bold">✏️ Editar Pedido General #{editingPedido.id}</h2>
+              <p className="text-blue-100 mt-2">Modifica los datos del pedido general</p>
             </div>
             <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <label className="block">
-                <p className="text-gray-700 font-medium mb-2">📅 Fecha Necesidad</p>
-              <input
-                type="date"
-                value={formData.necesidad ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, necesidad: e.target.value })
-                }
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-              />
-            </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <span className="mr-2">🏭</span>
+                    Información del Pedido
+                  </h3>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                </div>
 
-            <label className="block mb-4">
-              <p className="text-black">Categoria</p>
-              <input
-                
-                type="text"
-                value={formData.categoria ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoria: e.target.value })
-                }
-              />
-            </label>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <span className="mr-2">📦</span>
+                    Artículos Solicitados
+                  </h3>
+                  {formData.articulos && formData.articulos.length > 0 ? (
+                    <div className="space-y-3">
+                      {formData.articulos.map((art, index) => (
+                        <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                          <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
+                          <div className="text-gray-600 text-xs">Stock: {art.cant_exist}</div>
+                          <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">- Sin artículos -</p>
+                  )}
+                </div>
+              </div>
 
-             <label className="block mb-4">
-             <p className="text-black">Solicita</p>
-              <input
-                
-                type="text"
-                value={formData.solicita ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, solicita: e.target.value })
-                }
-              />
-            </label>
-            <label className="block mb-4">
-              <p className="text-black">Sector</p>
-              <input
-                
-                type="text"
-                value={formData.sector ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, sector: e.target.value })
-                }
-              />
-            </label>
+              {/* Campos de edición del estado */}
+              <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">⚙️</span>
+                  Cambiar Estado del Pedido
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estado Actual: <span className="font-bold text-blue-600">{formData.estado || 'No definido'}</span>
+                    </label>
+                    <select
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.estado || ""}
+                      onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+                    >
+                      <option value="">Seleccionar nuevo estado</option>
+                      <option value="iniciado">🟡 Iniciado</option>
+                      <option value="visto/recibido">🟠 Visto/Recibido</option>
+                      <option value="cotizado">🟡 Cotizado</option>
+                      <option value="aprobado">🟢 Aprobado</option>
+                      <option value="confirmado">🟢 Confirmado</option>
+                      <option value="cumplido">⚪ Cumplido</option>
+                      <option value="stand by">🟠 Stand By</option>
+                      <option value="anulado">🔴 Anulado</option>
+                    </select>
+                  </div>
 
-             <label className="block mb-4">
-             <p className="text-black">Descripcion</p>
-              <input
-                
-                type="text"
-                value={formData.descripcion ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value })
-                }
-              />
-            </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Observaciones:
+                    </label>
+                    <textarea
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      rows={3}
+                      placeholder="Agregar observaciones sobre el cambio de estado..."
+                      value={formData.descripcion || ""}
+                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    />
+                  </div>
+                </div>
 
-              <label className="block mb-4">
-              <p className="text-black">Controlado</p>
-              <select
-               
-                value={formData.controlado ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, controlado: e.target.value })
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="Autorizado" className="bg-yellow-300 text-black">
-                  Autorizado
-                </option>
-                <option value="Denegado" className="bg-green-400 text-white">
-                  Denegado
-                </option>
-                
-              </select>
-            </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Proveedor Seleccionado:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Nombre del proveedor seleccionado"
+                      value={formData.proveedor_selec || ""}
+                      onChange={(e) => setFormData({ ...formData, proveedor_selec: e.target.value })}
+                    />
+                  </div>
 
-            <label className="block mb-4">
-              <p className="text-black">Supervisor</p>
-              <select
-                
-                value={formData.superviso ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, superviso: e.target.value })
-                }
-              >
-                <option value="">Superviso;</option>
-                <option value="por; Victor B." className="bg-yellow-300 text-black">
-                  Victor B.
-                </option>
-                <option value="por; Jose" className="bg-green-400 text-white">
-                  Jose
-                </option>
-                
-              </select>
-            </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Número de OC:
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Número de orden de compra"
+                      value={formData.oc || ""}
+                      onChange={(e) => setFormData({ ...formData, oc: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <label className="block mb-4">
-            <p className="text-black">Prov uno</p>
-              <input
-                
-                type="text"
-                value={formData.prov_uno ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, prov_uno: e.target.value})
-                }
-              />
-
-            </label>
-             <label className="block mb-4">
-            <p className="text-black">Cost prov uno</p>
-                  <input
-                     type="text"
-                      name="cost_prov_uno"
-                      value={formData.cost_prov_uno ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*\.?\d*$/.test(val) || val === "") {
-                          setFormData({
-                            ...formData,
-                            cost_prov_uno: val,
-                          });
-                        }
-                      }}
-                     
+              {/* Sección de Comparativa de Proveedores */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                    <span className="mr-2">📊</span>
+                    Comparativa de Proveedores
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (formData.articulos && formData.articulos.length > 0 && comparativaForm) {
+                        // Recalcular totales de proveedores
+                        const nuevaComparativa = comparativaForm.map(prov => ({
+                          ...prov,
+                          articulos: prov.articulos.map(art => {
+                            // Obtener la cantidad del artículo original del pedido
+                            const articuloOriginal = formData.articulos!.find(a => a.articulo === art.articulo);
+                            const cantidad = articuloOriginal?.cant || 0;
+                            const subtotal = (art.precioUnitario ? art.precioUnitario * cantidad : 0);
+                            
+                            return {
+                              ...art,
+                              cant: cantidad, // Asegurar que tenga la cantidad correcta
+                              subtotal: subtotal
+                            };
+                          }),
+                          total: 0 // Se recalculará abajo
+                        }));
+                        
+                        // Recalcular totales de proveedores
+                        nuevaComparativa.forEach(prov => {
+                          prov.total = prov.articulos.reduce((sum: number, art: ArticuloComparativa) => sum + (art.subtotal || 0), 0);
+                        });
+                        
+                        setComparativaForm(nuevaComparativa);
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    🔄 Recalcular Totales
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {comparativaForm && comparativaForm.map((prov, provIndex) => (
+                    <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
+                      <label className="block mb-3 text-sm font-medium text-gray-700">
+                        Proveedor {provIndex + 1}:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Nombre del proveedor"
+                        value={prov.nombreProveedor}
+                        onChange={(e) => {
+                          if (comparativaForm) {
+                            const newComparativa = [...comparativaForm];
+                            newComparativa[provIndex].nombreProveedor = e.target.value;
+                            setComparativaForm(newComparativa);
+                          }
+                        }}
                       />
 
-            </label>
-           
+                      <table className="w-full text-gray-700 text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
+                            <th className="px-2 py-2 text-right font-medium">Precio Unit.</th>
+                            <th className="px-2 py-2 text-right font-medium">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {prov.articulos.map((art, artIndex) => (
+                            <tr key={artIndex} className="border-b border-gray-100">
+                              <td className="px-2 py-2 text-sm">{art.articulo}</td>
+                              <td className="px-2 py-2 text-right">
+                                <input
+                                  type="number"
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  value={art.precioUnitario || ''}
+                                  onChange={(e) => {
+                                    if (!comparativaForm) return;
+                                    
+                                    const newComparativa = [...comparativaForm];
+                                    const newPrecio = parseFloat(e.target.value) || 0;
+                                    
+                                    // Obtener la cantidad del artículo original del pedido
+                                    const articuloOriginal = formData.articulos?.find(a => a.articulo === art.articulo);
+                                    const cantidad = articuloOriginal?.cant || 0;
+                                    
+                                    newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * cantidad;
+                                    
+                                    // Recalcular total del proveedor
+                                    newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
+                                      (sum: number, articulo: ArticuloComparativa) => sum + (articulo.subtotal || 0), 0
+                                    );
 
-             <label className="block mb-4">
-               <p className="text-black">Prov dos</p>
-              <input
-                
-                type="text"
-                value={formData.prov_dos ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, prov_dos: e.target.value})
-                }
-              />
-            </label>
-             <label className="block mb-4">
-            <p className="text-black">Cost prov dos</p>
-               <input
-                     type="text"
-                      name="cost_prov_dos"
-                      value={formData.cost_prov_dos ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*\.?\d*$/.test(val) || val === "") {
-                          setFormData({
-                            ...formData,
-                            cost_prov_dos: val,
-                          });
-                        }
-                      }}
-                     
-                      />
-            </label>
-            
+                                    setComparativaForm(newComparativa);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-right text-sm font-medium">
+                                ${(art.subtotal || 0).toFixed(0)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
+                        Total: ${(prov.total || 0).toFixed(0)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            <label className="block mb-4">
-             <p className="text-black">Prov tres</p>
-              <input
-                
-                type="text"
-                value={formData.prov_tres ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, prov_tres: e.target.value})
-                }
-              />
-            </label>
-             <label className="block mb-4">
-               <p className="text-black">Cost prov tres</p>
-             <input
-                     type="text"
-                      name="cost_prov_tres"
-                      value={formData.cost_prov_tres ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (/^\d*\.?\d*$/.test(val) || val === "") {
-                          setFormData({
-                            ...formData,
-                            cost_prov_tres: val,
-                          });
-                        }
-                      }}
-                    
-                      />
-            </label>
-             
+              {/* Campos adicionales para pedidos generales */}
+              <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Información Financiera
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total USD:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.usd || ""}
+                      onChange={(e) => setFormData({ ...formData, usd: Number(e.target.value) })}
+                    />
+                  </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total EUR:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.eur || ""}
+                      onChange={(e) => setFormData({ ...formData, eur: Number(e.target.value) })}
+                    />
+                  </div>
 
-           <label className="block mb-4">
-              <p className="text-black">Estado</p>
-              <select
-                
-                value={formData.estado ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, estado: e.target.value })
-                }
-              >
-                <option value="">Seleccionar estado</option>
-                 <option value="Visto/recibido" className="bg-yellow-300 text-black">
-                  Visto/recibido
-                </option>
-                <option value="cotizado" className="bg-yellow-300 text-black">
-                  Cotizado
-                </option>
-                <option value="aprobado" className="bg-green-400 text-white">
-                  Aprobado
-                </option>
-                 <option value="confirmado" className="bg-green-400 text-white">
-                  Confirmado
-                </option>
-                <option value="stand by" className="bg-orange-300 text-black">
-                  Stand By
-                </option>
-                <option value="anulado" className="bg-red-500 text-white">
-                  Anulado
-                </option>
-                <option value="cumplido" className="bg-green-600 text-white">
-                  Cumplido
-                </option>
-              </select>
-                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total ARS:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.ars || ""}
+                      onChange={(e) => setFormData({ ...formData, ars: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
 
-            <label className="block mb-4">
-              <p className="text-black">Aprueba</p>
-              <select
-               
-                value={formData.aprueba ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, aprueba: e.target.value })
-                }
-              >
-                <option value="">Selec. responsable de area</option>
-                <option value="Juan S." >
-                  Juan S.
-                </option>
-                <option value="Julio A." >
-                  Julio A.
-                </option>
-                <option value="Luciana L." >
-                  Luciana L.
-                </option>
-                <option value="Eduardo S." >
-                  Eduardo S.
-                </option>
-                <option value="Pedro S.">
-                  Pedro S.
-                </option>
-                <option value="Sofia S." >
-                  Sofia S.
-                </option>
-                <option value=" Carolina S." >
-                  Carolina S.
-                </option>
-              </select>
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha Confirmación:
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.fecha_conf || ""}
+                      onChange={(e) => setFormData({ ...formData, fecha_conf: e.target.value })}
+                    />
+                  </div>
 
-             <label className="block mb-4">
-               <p className="text-black">OC</p>
-              <input
-                
-                type="text"
-                value={formData.oc ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, oc: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-                 <p className="text-black">Proveedor selecc</p>
-              <input
-                
-                type="text"
-                value={formData.proveedor_selec ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, proveedor_selec: e.target.value})
-                }
-              />
-            </label>
-            <label className="block mb-4">
-             <p className="text-black">Usd</p>
-              <input
-               
-                type="text"
-                value={formData.usd ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, usd: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-             <p className="text-black">Eur</p>
-              <input
-               
-                type="text"
-                value={formData.eur ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, eur: Number(e.target.value)  })
-                }
-              />
-            </label>
-            <label className="block mb-4">
-            <p className="text-black">TC</p>
-              <input
-               
-                type="text"
-                value={formData.tc ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, tc: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-             <p className="text-black">Ars</p>
-              <input
-                
-                type="text"
-                value={formData.ars ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, ars: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-             <p className="text-black">% desc</p>
-              <input
-               
-                type="text"
-                value={formData.porcent ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, porcent: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-               <p className="text-black">Ars con desc</p>
-              <input
-               
-                type="text"
-                value={formData.ars_desc ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, ars_desc: Number(e.target.value)  })
-                }
-              />
-            </label>
-            
-            <label className="block mb-2">
-               <p className="text-black">Fecha confirm</p>
-              <input
-                
-                type="date"
-                value={formData.fecha_conf ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_conf: e.target.value })
-                }
-              />
-            </label>
-             <label className="block mb-2">
-              <p className="text-black">Fecha prom</p>
-              <input
-                
-                type="date"
-                value={formData.fecha_prom ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_prom: e.target.value })
-                }
-              />
-            </label>
-             <label className="block mb-2">
-               <p className="text-black">Fecha entrega</p>
-              <input
-                
-                type="date"
-                value={formData.fecha_ent ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_ent: e.target.value })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-                 <p className="text-black">Rto</p>
-              <input
-               
-                type="text"
-                value={formData.rto ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, rto: Number(e.target.value)  })
-                }
-              />
-            </label>
-             <label className="block mb-4">
-               <p className="text-black">Fac</p>
-              <input
-                
-                type="text"
-                value={formData.fac ?? 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, fac: Number(e.target.value)  })
-                }
-              />
-            </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha Prometida:
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.fecha_prom || ""}
+                      onChange={(e) => setFormData({ ...formData, fecha_prom: e.target.value })}
+                    />
+                  </div>
 
-            <label className="block mb-4">
-              <p className="text-black">Mod de pago</p>
-              <select
-               
-                value={formData.mod_pago ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, mod_pago: e.target.value })
-                }
-              >
-                <option value="">Mod de pago</option>
-                <option value="Cta A" className="bg-yellow-300 text-black">
-                  Cta A
-                </option>
-                <option value="Cta B" className="bg-green-400 text-white">
-                  Cta B
-                </option>
-                <option value="Mercado libre" className="bg-orange-300 text-black">
-                  Mercado libre
-                </option>
-               
-              </select>
-                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Entrega:
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.fecha_ent || ""}
+                      onChange={(e) => setFormData({ ...formData, fecha_ent: e.target.value })}
+                    />
+                  </div>
+                </div>
 
-              <label className="block mb-4">
-              <p className="text-black">Proceso</p>
-              <select
-             
-                value={formData.proceso ?? ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, proceso: e.target.value })
-                }
-              >
-                <option value="">Proceso</option>
-                <option value="Bajo proceso" className="bg-yellow-300 text-black">
-                  Bajo Proceso
-                </option>
-                <option value="Fuera de proceso" className="bg-green-400 text-white">
-                  Fuera de proceso
-                </option>
-               </select>
-                  </label>
-            </div>
-            
-            <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => setEditingPedido(null)}
-                className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
-              >
-                ❌ Cancelar
-              </button>
-             <button
-                  onClick={async () => {
-                    /* Normalizá los números que vas a usar */
-                    const cantNum        = 0; // Campo eliminado
-                    const costProvUnoNum = Number(
-                      formData.cost_prov_uno ?? editingPedido.cost_prov_uno ?? 0
-                    );
-                    const costProvDosNum = Number(
-                      formData.cost_prov_dos ?? editingPedido.cost_prov_dos ?? 0
-                    );
-                    const costProvTresNum = Number(
-                      formData.cost_prov_tres ?? editingPedido.cost_prov_tres ?? 0
-                    );
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Número de Factura:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Número de factura"
+                      value={formData.fac || ""}
+                      onChange={(e) => setFormData({ ...formData, fac: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
 
-                    const costProvSelecNum = Number(
-                      formData.ars ?? editingPedido.ars ?? 0
-                    );
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Número de RTO:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Número de RTO"
+                      value={formData.rto || ""}
+                      onChange={(e) => setFormData({ ...formData, rto: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+              </div>
 
-                    /* Calculá el subtotal (o poné null si algo falta) */
-                    const subtProv1 =
-                      cantNum && costProvUnoNum ? cantNum * costProvUnoNum : null;
-                    
-                    const subtProv2 =
-                      cantNum && costProvDosNum ? cantNum * costProvDosNum : null;
-
-                    const subtProv3 =
-                      cantNum && costProvTresNum ? cantNum * costProvTresNum : null;
-
-                     const subtProvSelec =
-                      cantNum && costProvSelecNum ? cantNum * costProvSelecNum : null;
-
-                    /* Armá el objeto de actualización */
-                    const updateData = {
-                      ...formData,          // ➜ todo lo que ya cambiaste en el modal
-                      subt_prov1: subtProv1, // ➜ sobrescribe/añade el subtotal
-                      subt_prov2: subtProv2,
-                      subt_prov3: subtProv3,
-                      total_simp: subtProvSelec,
-                    };
-
-                    /* 4️⃣ Enviá a Supabase */
-                    const { error } = await supabase
-                      .from("pic")
-                      .update(updateData)
-                      .eq("id", editingPedido.id);
-
-                    if (error) {
-                      alert("Error actualizando");
-                      console.error(error);
-                    } else {
-                      alert("Actualizado correctamente");
-                      setEditingPedido(null);
-                      setFormData({});
-                      const { data } = await supabase.from("pic").select("*");
-                      if (data) setPedidos(data);
-                    }
-                  }}
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setEditingPedido(null)}
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
+                >
+                  ❌ Cancelar
+                </button>
+                <button
+                  onClick={handleUpdatePedido}
                   className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
                 >
                   💾 Guardar
                 </button>
-            </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1319,40 +1289,86 @@ export default function ListAdmin() {
                 </div>
               )}
                  <br/>
-                  <div className="mb-4 flex gap-4">
-                          <div className="flex-col gap-2">
-                            <span className="text-black">Proveedor 1: </span>
-                             <br/>
-                            <span className="text-black"> {verInfo.prov_uno}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(verInfo.cost_prov_uno).toLocaleString("es-AR")}</span>
-                            <br/>
-                            <span className="text-black">subt. ${Number(verInfo.subt_prov1).toLocaleString("es-AR")}</span>
-                            
-                          </div>
-                          
-                          <div>
-                            <span className="text-black">Proveedor 2:</span>
-                            <br/>
-                            <span className="text-black">{verInfo.prov_dos}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(verInfo.cost_prov_dos).toLocaleString("es-AR")}</span>
-                            <br/>
-                            <span className="text-black">subt. ${Number(verInfo.subt_prov2).toLocaleString("es-AR")}</span>
-                          </div>
-
-                          <div>
-                             <span className="text-black">Proveedor 3:</span>
-                            <br/>
-                            <span className="text-black">{verInfo.prov_tres}</span>
-                               <br/>
-                            <span className="text-black">c/u ${Number(verInfo.cost_prov_tres).toLocaleString("es-AR")}</span>
-                              <br/>
-                            <span className="text-black">subt. ${Number(verInfo.subt_prov3).toLocaleString("es-AR")}</span>
-                          </div>
-                      
+                 
+                 {/* Comparativa de Proveedores */}
+                 {verInfo.comparativa_prov && Array.isArray(verInfo.comparativa_prov) && verInfo.comparativa_prov.length > 0 && (
+                   <div className="mb-6">
+                     <h4 className="text-lg font-semibold text-gray-800 mb-4">📊 Comparativa de Proveedores</h4>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       {verInfo.comparativa_prov.map((prov, provIndex) => (
+                         <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                           <h5 className="font-semibold text-gray-800 mb-3 text-center">
+                             {prov.nombreProveedor || `Proveedor ${provIndex + 1}`}
+                           </h5>
+                           
+                           {prov.articulos && prov.articulos.length > 0 && (
+                             <table className="w-full text-sm">
+                               <thead>
+                                 <tr className="border-b border-gray-200">
+                                   <th className="px-2 py-1 text-left text-gray-600 font-medium">Artículo</th>
+                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Precio Unit.</th>
+                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Subtotal</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {prov.articulos.map((art, artIndex) => (
+                                   <tr key={artIndex} className="border-b border-gray-100 last:border-b-0">
+                                     <td className="px-2 py-1 text-sm font-medium">{art.articulo}</td>
+                                     <td className="px-2 py-1 text-right text-gray-700">
+                                       ${(art.precioUnitario || 0).toLocaleString("es-AR")}
+                                     </td>
+                                     <td className="px-2 py-1 text-right font-medium text-gray-800">
+                                       ${(art.subtotal || 0).toLocaleString("es-AR")}
+                                     </td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                             </table>
+                           )}
+                           
+                           <div className="mt-3 text-center font-bold text-gray-800 bg-white p-2 rounded border">
+                             Total: ${(prov.total || 0).toLocaleString("es-AR")}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+                 
+                 {/* Mostrar proveedores antiguos si no hay comparativa nueva */}
+                 {(!verInfo.comparativa_prov || !Array.isArray(verInfo.comparativa_prov) || verInfo.comparativa_prov.length === 0) && (
+                   <div className="mb-4 flex gap-4">
+                     <div className="flex-col gap-2">
+                       <span className="text-black">Proveedor 1: </span>
+                       <br/>
+                       <span className="text-black"> {verInfo.prov_uno}</span>
+                       <br/>
+                       <span className="text-black">c/u ${Number(verInfo.cost_prov_uno).toLocaleString("es-AR")}</span>
+                       <br/>
+                       <span className="text-black">subt. ${Number(verInfo.subt_prov1).toLocaleString("es-AR")}</span>
+                     </div>
                      
-                       </div>
+                     <div>
+                       <span className="text-black">Proveedor 2:</span>
+                       <br/>
+                       <span className="text-black">{verInfo.prov_dos}</span>
+                       <br/>
+                       <span className="text-black">c/u ${Number(verInfo.cost_prov_dos).toLocaleString("es-AR")}</span>
+                       <br/>
+                       <span className="text-black">subt. ${Number(verInfo.subt_prov2).toLocaleString("es-AR")}</span>
+                     </div>
+
+                     <div>
+                       <span className="text-black">Proveedor 3:</span>
+                       <br/>
+                       <span className="text-black">{verInfo.prov_tres}</span>
+                       <br/>
+                       <span className="text-black">c/u ${Number(verInfo.cost_prov_tres).toLocaleString("es-AR")}</span>
+                       <br/>
+                       <span className="text-black">subt. ${Number(verInfo.subt_prov3).toLocaleString("es-AR")}</span>
+                     </div>
+                   </div>
+                 )}
                         <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
                         <button
                           onClick={imprimirInfoPedido}

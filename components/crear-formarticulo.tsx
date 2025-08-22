@@ -155,7 +155,7 @@ export default function CrearFormArticulo() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto bg-white shadow rounded text-black">
-      <h2 className="text-2xl font-bold mb-4">Crear Pedido No Productivo</h2>
+      <h2 className="text-2xl font-bold mb-4">Crear Artículo</h2>
       {message && <div className="mb-4 text-center">{message}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
