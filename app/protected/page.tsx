@@ -5,7 +5,8 @@ import ListUs from "@/components/listus";
 import ListConsultas from "@/components/listconsultas";
 import ListBiComponentAdmin from "@/components/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/listbicomponenteaprob";
-import ListBiComponentePanol from "@/components/listbicomponentepanol";
+
+import ListBiComponentePanol from "@/components/listabicomponentepanol";
 import ListBiComponenteSupervisor from "@/components/listabicomponentesupervisor";
 
 export const revalidate = 0; // 🔄 Forzar siempre dinámico (server fetch en cada request)
@@ -26,13 +27,16 @@ export default async function ProtectedPage() {
   const adminEmails = [
     "asistentecompras@perfilesyservicios.com.ar",
     "victor@perfilesyservicios.com.ar",
-    
+    "elifredmason@gmail.com",
+   
   ];
+
+
 
   const panolesEmails = [
     "paniol@perfilesyservicios.com.ar",
     "panolgascon@perfilesyservicios.com.ar",
-    "elifred21@hotmail.com",
+   
   ];
 
   const aprobEmails = [
@@ -43,7 +47,7 @@ export default async function ProtectedPage() {
     "eduardo@perfilesyservicios.com.ar",
     "pedro@perfilesyservicios.com.ar",
     "Sofia sofiastok@perfilesyservicios.com.ar",
-    "elifredmason@gmail.com",
+    "elifred21@hotmail.com",
     
   ];
 
@@ -51,8 +55,8 @@ export default async function ProtectedPage() {
 
   const consultasEmails = [
    // "gestioncalidad@perfilesyservicios.com.ar",
-    "bianca@perfilesyservicios.com.ar",
-    "Agustina@perfilesyservicios.com.ar",
+    "biancaccc@perfilesyservicios.com.ar",
+    "Agustina33333@perfilesyservicios.com.ar",
   ];
 
   // ✅ Selección de componente según rol

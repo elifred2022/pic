@@ -115,97 +115,11 @@ function ListBiComponentAdmin() {
         </div>
 
         {/* Controles de visualización con diseño mejorado */}
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <span className="mr-2">🎛️</span>
-            Controles de Visualización
-          </h3>
-          <div className="flex flex-wrap gap-6 items-center">
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={showListAdminStock}
-                  onChange={() => setShowListAdminStock(!showListAdminStock)}
-                  className="sr-only"
-                />
-                <div className={`w-6 h-6 border-2 rounded-lg transition-all duration-200 ${
-                  showListAdminStock 
-                    ? 'bg-green-500 border-green-500' 
-                    : 'bg-white border-gray-300'
-                }`}>
-                  {showListAdminStock && (
-                    <svg className="w-4 h-4 text-white mx-auto mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              <span className="text-gray-700 font-medium group-hover:text-green-600 transition-colors duration-200">
-                Mostrar Pedidos Productivos
-              </span>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={showListAdmin}
-                  onChange={() => setShowListAdmin(!showListAdmin)}
-                  className="sr-only"
-                />
-                <div className={`w-6 h-6 border-2 rounded-lg transition-all duration-200 ${
-                  showListAdmin 
-                    ? 'bg-blue-500 border-blue-500' 
-                    : 'bg-white border-gray-300'
-                }`}>
-                  {showListAdmin && (
-                    <svg className="w-4 h-4 text-white mx-auto mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              <span className="text-gray-700 font-medium group-hover:text-blue-600 transition-colors duration-200">
-                Mostrar Pedidos Generales
-              </span>
-            </label>
-          </div>
-        </div>
+       
       </div>
 
       {/* Contenido dinámico con transiciones suaves */}
-      <div className="space-y-6">
-        {showListAdminStock && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fadeIn">
-            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
-              <h2 className="text-2xl font-bold flex items-center">
-                <span className="mr-3">⚙️</span>
-                Pedidos Productivos
-              </h2>
-              <p className="text-green-100 mt-2">Vista de administración de pedidos productivos</p>
-            </div>
-            <div className="p-6">
-              <ListaPedidosProductivosAprobVista />
-            </div>
-          </div>
-        )}
-
-        {showListAdmin && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fadeIn">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
-              <h2 className="text-2xl font-bold flex items-center">
-                <span className="mr-3">📋</span>
-                Pedidos Generales
-              </h2>
-              <p className="text-blue-100 mt-2">Vista de administración de pedidos generales</p>
-            </div>
-            <div className="p-6">
-              <ListAdminVer />
-            </div>
-          </div>
-        )}
-      </div>
+     
 
       {/* Estilos CSS personalizados para animaciones */}
       <style jsx>{`

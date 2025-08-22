@@ -52,7 +52,7 @@ function ListBiComponentAprob() {
             📋 Panel de Aprobación
           </h1>
           <p className="text-gray-600 text-lg">
-            Gestiona y aprueba pedidos desde un solo lugar centralizado
+            Gestiona y aprueba pedidos internos de compras
           </p>
         </div>
 
@@ -88,56 +88,9 @@ function ListBiComponentAprob() {
         </div>
       </div>
 
-      {/* Controles de visualización */}
-      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
-          🎛️ Controles de Visualización
-        </h3>
-        <div className="flex flex-wrap gap-6 items-center justify-center">
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors duration-200">
-            <input
-              type="checkbox"
-              checked={showListAdminStock}
-              onChange={() => setShowListAdminStock(!showListAdminStock)}
-              className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
-            />
-            <span className="text-gray-700 font-medium">Mostrar pedidos productivos</span>
-          </label>
+     
 
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors duration-200">
-            <input
-              type="checkbox"
-              checked={showListAdmin}
-              onChange={() => setShowListAdmin(!showListAdmin)}
-              className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
-            />
-            <span className="text-gray-700 font-medium">Mostrar pedidos generales</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Contenido dinámico */}
-      <div className="space-y-8">
-        {showListAdminStock && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-            <h3 className="text-2xl font-bold text-purple-600 mb-4 flex items-center">
-              <span className="mr-2">⚙️</span>
-              Pedidos Productivos
-            </h3>
-            <ListaPedidosProductivosAprobVista />
-          </div>
-        )}
-        
-        {showListAdmin && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-            <h3 className="text-2xl font-bold text-orange-600 mb-4 flex items-center">
-              <span className="mr-2">📋</span>
-              Pedidos Generales
-            </h3>
-            <ListAdminVer />
-          </div>
-        )}
-      </div>
+     
     </div>
   );
 }
