@@ -230,7 +230,7 @@ function renderValue(value: unknown): string {
         
      <div className="flex flex-wrap gap-4 items-center">
        <Link
-            href="/auth/crear-formarticulo"
+            href="/auth/crear-formus"
             className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
       >
             ➕ Crear Nuevo Pedido

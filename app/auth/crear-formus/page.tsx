@@ -1,6 +1,6 @@
 
 
-import { CrearFormUs } from "@/components/crear-formus";
+import CrearFormUs from "@/components/crear-formus";
 
 export default function Page() {
   return (
