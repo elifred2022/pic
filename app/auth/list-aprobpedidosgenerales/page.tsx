@@ -1,5 +1,5 @@
 
-import ListAprob from "@/components/listaprob";
+import ListAprob from "@/components/lists/approval/listaprob";
 
 export default function Page() {
   return (

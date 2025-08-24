@@ -1,5 +1,5 @@
 
-import ListArticulos from "@/components/listarticulos";
+import ListArticulos from "@/components/lists/listarticulos";
 
 export default function Page() {
   return (

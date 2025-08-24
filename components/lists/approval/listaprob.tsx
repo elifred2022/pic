@@ -178,12 +178,21 @@ export default function ListAprob() {
       {/* Header con navegación */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
-          <Link
-            href="/protected"
-            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
-          >
-            ← Home
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/protected"
+              className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+            >
+              ← Home
+            </Link>
+            
+            <Link
+              href="/auth/crear-formus"
+              className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+            >
+              ➕ Crear Pedido General
+            </Link>
+          </div>
           
           <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos Generales Aprobación</h1>
         </div>

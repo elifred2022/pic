@@ -1,5 +1,5 @@
 
-import { CrearFormAdmin } from "@/components/crear-formadmin";
+import { CrearFormAdmin } from "@/components/forms/crear-formadmin";
 
 
 export default function Page() {

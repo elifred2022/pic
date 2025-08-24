@@ -1,4 +1,4 @@
-import ListProveedores from "@/components/listaproveedores";
+import ListProveedores from "@/components/lists/listaproveedores";
 
 export default function Page() {
   return (

@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import ListPanolProductosGeneralesVer from "./listpanolproductosgeneralesver";
-import PicRealtimeListener from "./picrealtimelistener/picrealtimelistener";
-import PicRealtimeListenerStock from "./picrealtimelistener/picrealtimelistenerproductivo";
-import ListaPedidosProductivosVista from "./productivos/listapedidosproductivospanolvista";
+import ListPanolProductosGeneralesVer from "../lists/panol/listpanolproductosgeneralesver";
+import PicRealtimeListener from "../realtime/picrealtimelistener";
+import PicRealtimeListenerStock from "../realtime/picrealtimelistenerproductivo";
+import ListaPedidosProductivosVista from "../productivos/listapedidosproductivospanolvista";
 
 function ListBiComponentePanol() {
   const [showListAdmin, setShowListAdmin] = useState(true);
@@ -122,7 +122,9 @@ function ListBiComponentePanol() {
         </div>
 
        
+       
 
+     
        
       </div>
     </div>

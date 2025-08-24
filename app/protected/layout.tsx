@@ -1,8 +1,8 @@
 
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
+import { EnvVarWarning } from "@/components/shared/env-var-warning";
+import { AuthButton } from "@/components/auth/auth-button";
 import { hasEnvVars } from "@/lib/utils";
-import PicRealtimeListener from "@/components/picrealtimelistener/picrealtimelistener";
+import PicRealtimeListener from "@/components/realtime/picrealtimelistener";
 
 
 

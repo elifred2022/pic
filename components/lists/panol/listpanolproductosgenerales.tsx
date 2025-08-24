@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import PicRealtimeListener from "./picrealtimelistener/picrealtimelistener";
+import PicRealtimeListener from "../../realtime/picrealtimelistener";
 
 type Pedido = {
   id: string;

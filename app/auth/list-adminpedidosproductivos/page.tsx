@@ -1,6 +1,6 @@
 
 
-import ListAdminStock from "@/components/listadminstock";
+import ListAdminStock from "@/components/lists/admin/listadminstock";
 
 export default function Page() {
   return (

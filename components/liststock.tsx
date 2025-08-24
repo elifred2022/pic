@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import PicRealtimeListenerStock from "./picrealtimelistener/picrealtimelistenerproductivo";
+import PicRealtimeListenerStock from "./realtime/picrealtimelistenerproductivo";
 
 
 type Pedido = {

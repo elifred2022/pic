@@ -1,6 +1,6 @@
 
 
-import { CrearFormStock } from "@/components/crear-formstock";
+import { CrearFormStock } from "@/components/forms/crear-formstock";
 
 
 export default function Page() {

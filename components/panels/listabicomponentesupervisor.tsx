@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
-import ListStock from "./liststock";
-import ListPanolProductosGenerales from "./listpanolproductosgenerales";
+import ListStock from "../liststock";
+import ListPanolProductosGenerales from "../lists/panol/listpanolproductosgenerales";
 
 function ListBiComponenteSupervisor() {
   const [showListAdmin, setShowListAdmin] = useState(true);

@@ -1,5 +1,5 @@
 
-import ListEgresoArticulos from "@/components/listaegresoart";
+import ListEgresoArticulos from "@/components/lists/listaegresoart";
 
 export default function Page() {
   return (

@@ -1,4 +1,4 @@
-import FormularioCrearArticulo from "@/components/formulario-creararticulo";
+import FormularioCrearArticulo from "@/components/forms/formulario-creararticulo";
 
 export default function CrearFormArticuloPage() {
   return (

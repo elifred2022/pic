@@ -1,4 +1,4 @@
-import { CrearFormProveedor } from "@/components/crear-formproveedor";
+import { CrearFormProveedor } from "@/components/forms/crear-formproveedor";
 
 
 export default function Page() {

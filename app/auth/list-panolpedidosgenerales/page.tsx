@@ -1,5 +1,5 @@
 
-import ListPanolProductosGenerales from "@/components/listpanolproductosgenerales";
+import ListPanolProductosGenerales from "@/components/lists/panol/listpanolproductosgenerales";
 
 
 

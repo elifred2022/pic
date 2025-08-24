@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-import ListUs from "@/components/listus";
-import ListConsultas from "@/components/listconsultas";
-import ListBiComponentAdmin from "@/components/listbicomponentadmin";
-import ListBiComponentAprob from "@/components/listbicomponenteaprob";
+import ListUs from "@/components/lists/listus";
+import ListConsultas from "@/components/lists/listconsultas";
+import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
+import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
 
-import ListBiComponentePanol from "@/components/listabicomponentepanol";
-import ListBiComponenteSupervisor from "@/components/listabicomponentesupervisor";
+import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
+import ListBiComponenteSupervisor from "@/components/panels/listabicomponentesupervisor";
 
 export const revalidate = 0; // 🔄 Forzar siempre dinámico (server fetch en cada request)
 
@@ -27,7 +27,7 @@ export default async function ProtectedPage() {
   const adminEmails = [
     "asistentecompras@perfilesyservicios.com.ar",
     "victor@perfilesyservicios.com.ar",
-    "elifredmason@gmail.com",
+   
    
   ];
 
@@ -36,7 +36,7 @@ export default async function ProtectedPage() {
   const panolesEmails = [
     "paniol@perfilesyservicios.com.ar",
     "panolgascon@perfilesyservicios.com.ar",
-   
+   "elifred21@hotmail.com",
   ];
 
   const aprobEmails = [
@@ -47,7 +47,8 @@ export default async function ProtectedPage() {
     "eduardo@perfilesyservicios.com.ar",
     "pedro@perfilesyservicios.com.ar",
     "Sofia sofiastok@perfilesyservicios.com.ar",
-    "elifred21@hotmail.com",
+    
+    "elifredmason@gmail.com",
     
   ];
 

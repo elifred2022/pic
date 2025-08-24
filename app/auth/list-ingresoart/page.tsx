@@ -1,7 +1,7 @@
 
 
 
-import ListIngresoArticulos from "@/components/listaingresoart";
+import ListIngresoArticulos from "@/components/lists/listaingresoart";
 
 
 export default function Page() {

@@ -1,6 +1,6 @@
 
 
-import ListAdmin from "@/components/listadmin";
+import ListAdmin from "@/components/lists/admin/listadmin";
 
 export default function Page() {
   return (

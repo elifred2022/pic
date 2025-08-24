@@ -1,7 +1,7 @@
 
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
+import { EnvVarWarning } from "@/components/shared/env-var-warning";
+import { AuthButton } from "@/components/auth/auth-button";
+import { Hero } from "@/components/shared/hero";
 import { hasEnvVars } from "@/lib/utils";
 
 
