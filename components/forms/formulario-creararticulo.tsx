@@ -434,9 +434,8 @@ export default function FormularioCrearArticulo() {
                    if (pendingArticulo) {
                      setShowConfirmDialog(false);
                      setLoading(true);
-                     await crearArticulo(pendingArticulo);
+                                          await crearArticulo(pendingArticulo);    
                      setPendingArticulo(null);
-                     setPendingUser(null);
                    }
                  }}
                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
