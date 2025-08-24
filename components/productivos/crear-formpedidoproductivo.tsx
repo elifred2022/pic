@@ -46,6 +46,46 @@ export default function CrearFormPedidoProductivo() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadingNombre, setLoadingNombre] = useState(true);
+
+  // 🔄 Cargar nombre del usuario automáticamente
+  useEffect(() => {
+    const cargarNombreUsuario = async () => {
+      try {
+        setLoadingNombre(true);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error("Error al obtener usuario:", userError);
+          setLoadingNombre(false);
+          return;
+        }
+
+        // Obtener nombre del usuario desde la tabla usuarios
+        const { data: userProfile, error: profileError } = await supabase
+          .from("usuarios")
+          .select("nombre")
+          .eq("uuid", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error al obtener perfil:", profileError);
+          setLoadingNombre(false);
+          return;
+        }
+
+        if (userProfile?.nombre) {
+          setSolicita(userProfile.nombre);
+        }
+      } catch (error) {
+        console.error("Error al cargar nombre del usuario:", error);
+      } finally {
+        setLoadingNombre(false);
+      }
+    };
+
+    cargarNombreUsuario();
+  }, [supabase]);
 
   // 🔍 Buscar artículo por código interno
   useEffect(() => {
@@ -110,6 +150,18 @@ export default function CrearFormPedidoProductivo() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+
+    if (loadingNombre) {
+      setMessage("❌ Espere a que se cargue el nombre del usuario");
+      setLoading(false);
+      return;
+    }
+
+    if (!solicita.trim()) {
+      setMessage("❌ El nombre del solicitante es obligatorio");
+      setLoading(false);
+      return;
+    }
 
     if (articulosSeleccionados.length === 0) {
       setMessage("❌ Debes agregar al menos un artículo al pedido");
@@ -212,20 +264,28 @@ export default function CrearFormPedidoProductivo() {
 
            <div className="grid gap-2">
                             <Label htmlFor="solicita">Solicita</Label>
-                            <select
-                              id="solicita"
-                              required
-                              value={solicita}
-                              onChange={(e) => setSolicita(e.target.value)}
-                              className="border p-2 w-full rounded text-black bg-white"
-                            >
-                              <option value="">Seleccione</option>
-                              <option value="Adrian">Adrian</option>
-                              <option value="Sergio">Sergio</option>
-                             <option value="Victor">Victor</option>
-                             <option value="Agustin">Agustin</option>
-                             <option value="Eliezer">Eliezer</option>
-                            </select>
+                            <div className="relative">
+                              <input
+                                id="solicita"
+                                type="text"
+                                value={solicita}
+                                readOnly
+                                className={`border p-2 w-full rounded text-black ${
+                                  loadingNombre 
+                                    ? 'bg-gray-50 cursor-wait' 
+                                    : 'bg-gray-100 cursor-not-allowed'
+                                }`}
+                                placeholder={loadingNombre ? "Cargando nombre..." : "Nombre del usuario"}
+                              />
+                              {loadingNombre && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              💡 El nombre se carga automáticamente desde tu perfil de usuario
+                            </p>
             </div>
                   <div className="grid gap-2">
                     <Label htmlFor="sector">Sector</Label>
@@ -267,6 +327,39 @@ export default function CrearFormPedidoProductivo() {
                       <option value="Carolina S.">Carolina S.</option>
                      
                     </select>
+              </div>
+
+              <div>
+                <label className="text-black">Observación General</label>
+                <input
+                  type="text"
+                  value={observ}
+                  onChange={(e) => setObserv(e.target.value)}
+                  className="border p-2 w-full rounded text-black bg-white"
+                  placeholder="Observación general del pedido"
+                />
+              </div>
+
+              <div>
+                <label className="text-black">Número de OC</label>
+                <input
+                  type="text"
+                  value={numeroOc}
+                  onChange={(e) => setNumeroOc(e.target.value)}
+                  className="border p-2 w-full rounded text-black bg-white"
+                  placeholder="Número de orden de compra (opcional)"
+                />
+              </div>
+
+              <div>
+                <label className="text-black">Proveedor Seleccionado</label>
+                <input
+                  type="text"
+                  value={proveedorSeleccionado}
+                  onChange={(e) => setProveedorSeleccionado(e.target.value)}
+                  className="border p-2 w-full rounded text-black bg-white"
+                  placeholder="Proveedor seleccionado (opcional)"
+                />
               </div>
 
           

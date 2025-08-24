@@ -33,13 +33,33 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+
+      // Verificar si el usuario ya tiene un perfil completo
+      if (data.user) {
+        const { data: userProfile, error: profileError } = await supabase
+          .from("usuarios")
+          .select("id")
+          .eq("uuid", data.user.id)
+          .single();
+
+        if (profileError && profileError.code !== "PGRST116") {
+          console.error("Error checking user profile:", profileError);
+        }
+
+        if (userProfile) {
+          // Usuario ya tiene perfil completo, redirigir al dashboard
+          router.push("/protected");
+        } else {
+          // Usuario nuevo, redirigir a completar perfil
+          router.push("/auth/complete-profile");
+        }
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

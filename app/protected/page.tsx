@@ -23,6 +23,22 @@ export default async function ProtectedPage() {
 
   const email = authData.user.email;
 
+  // ✅ Verificar si el usuario tiene un perfil completo
+  const { data: userProfile, error: profileError } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("uuid", authData.user.id)
+    .single();
+
+  if (profileError && profileError.code !== "PGRST116") {
+    console.error("Error checking user profile:", profileError);
+  }
+
+  // Si el usuario no tiene perfil completo, redirigir a completarlo
+  if (!userProfile) {
+    redirect("/auth/complete-profile");
+  }
+
   // ✅ Listas de emails por roles
   const adminEmails = [
     "asistentecompras@perfilesyservicios.com.ar",

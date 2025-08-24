@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,46 @@ export default function CrearFormUs() {
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<ArticuloManual[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadingNombre, setLoadingNombre] = useState(true);
+
+  // 🔄 Cargar nombre del usuario automáticamente
+  useEffect(() => {
+    const cargarNombreUsuario = async () => {
+      try {
+        setLoadingNombre(true);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error("Error al obtener usuario:", userError);
+          setLoadingNombre(false);
+          return;
+        }
+
+        // Obtener nombre del usuario desde la tabla usuarios
+        const { data: userProfile, error: profileError } = await supabase
+          .from("usuarios")
+          .select("nombre")
+          .eq("uuid", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error al obtener perfil:", profileError);
+          setLoadingNombre(false);
+          return;
+        }
+
+        if (userProfile?.nombre) {
+          setSolicita(userProfile.nombre);
+        }
+      } catch (error) {
+        console.error("Error al cargar nombre del usuario:", error);
+      } finally {
+        setLoadingNombre(false);
+      }
+    };
+
+    cargarNombreUsuario();
+  }, [supabase]);
 
   // ➕ Agregar artículo a la lista temporal
   const handleAgregarArticulo = () => {
@@ -85,6 +125,18 @@ export default function CrearFormUs() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+
+    if (loadingNombre) {
+      setMessage("❌ Espere a que se cargue el nombre del usuario");
+      setLoading(false);
+      return;
+    }
+
+    if (!solicita.trim()) {
+      setMessage("❌ El nombre del solicitante es obligatorio");
+      setLoading(false);
+      return;
+    }
 
     if (articulosSeleccionados.length === 0) {
       setMessage("❌ Debe agregar al menos un artículo");
@@ -202,34 +254,28 @@ export default function CrearFormUs() {
 
           <div className="grid gap-2">
             <Label htmlFor="solicita">Solicita</Label>
-                         <select
-               id="solicita"
-               required
-               value={solicita}
-               onChange={(e) => setSolicita(e.target.value)}
-               className="border p-2 w-full rounded text-black bg-white"
-             >
-               <option value="">Seleccione</option>
-               <option value="Adrian">Adrian</option>
-               <option value="Sergio">Sergio</option>
-               <option value="Victor">Victor</option>
-               <option value="Agustin">Agustin</option>
-               <option value="Eliezer">Eliezer</option>
-               <option value="Tamara">Tamara</option>
-               <option value="Luciana T">Luciana T</option>
-               <option value="Damian">Damian</option>
-               <option value="Carla D">Carla D</option>
-               <option value="Valentina">Valentina</option>
-               <option value="Roberto M">Roberto M</option>
-               <option value="Coria">Coria</option>
-               <option value="Aaron">Aaron</option>
-               <option value="Lucas">Lucas</option>
-               <option value="Carlos M">Carlos M</option>
-               <option value="Matias F">Matias F</option>
-               <option value="Braina">Braina</option>
-               <option value="Bianca">Bianca</option>
-               <option value="Agustina">Agustina</option>
-             </select>
+            <div className="relative">
+              <input
+                id="solicita"
+                type="text"
+                value={solicita}
+                readOnly
+                className={`border p-2 w-full rounded text-black ${
+                  loadingNombre 
+                    ? 'bg-gray-50 cursor-wait' 
+                    : 'bg-gray-100 cursor-not-allowed'
+                }`}
+                placeholder={loadingNombre ? "Cargando nombre..." : "Nombre del usuario"}
+              />
+              {loadingNombre && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              💡 El nombre se carga automáticamente desde tu perfil de usuario
+            </p>
           </div>
 
           <div className="grid gap-2">
