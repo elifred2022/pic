@@ -31,7 +31,7 @@ export function UserProfileSetup() {
 
   useEffect(() => {
     checkUserProfile();
-  }, []);
+  }, [supabase]);
 
   const checkUserProfile = async () => {
     try {

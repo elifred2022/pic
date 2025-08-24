@@ -3,10 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
-import ListAdminVer from "../lists/admin/listadminver";
 import PicRealtimeListenerAdmin from "../realtime/picrealtimelisteneradmin";
-
-import ListaPedidosProductivosAprobVista from "../productivos/listapedidosproductivosaprobvista";
 
 function ListBiComponentAdmin() {
   const [showListAdmin, setShowListAdmin] = useState(true);

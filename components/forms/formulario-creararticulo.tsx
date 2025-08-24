@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Label } from "@/components/ui/label";
@@ -25,12 +25,12 @@ export default function FormularioCrearArticulo() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingArticulo, setPendingArticulo] = useState<any>(null);
-  const [pendingUser, setPendingUser] = useState<any>(null);
+  const [pendingArticulo, setPendingArticulo] = useState<Record<string, unknown> | null>(null);
+  const [pendingUser, setPendingUser] = useState<{ id: string; email?: string } | null>(null);
 
   // El código interno se ingresa manualmente
 
-  const crearArticulo = async (nuevoArticulo: any, user: any) => {
+  const crearArticulo = async (nuevoArticulo: Record<string, unknown>) => {
     try {
       const { error } = await supabase
         .from("articulos")
@@ -159,7 +159,7 @@ export default function FormularioCrearArticulo() {
         // ID y fecha de creación se generan automáticamente en Supabase
       };
 
-      await crearArticulo(nuevoArticulo, user);
+      await crearArticulo(nuevoArticulo);
     } catch (error) {
       console.error('Error inesperado:', error);
       setMessage("❌ Error inesperado al crear el artículo");

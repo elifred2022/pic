@@ -156,7 +156,7 @@ export default function CrearFormUs() {
       }
 
       // Crear pedido principal con artículos incluidos
-      const { data: pedidoData, error: pedidoError } = await supabase
+      const { error: pedidoError } = await supabase
         .from("pic")
         .insert([
           {
@@ -177,9 +177,7 @@ export default function CrearFormUs() {
               provsug: art.provsug || null,
             })),
           },
-        ])
-        .select()
-        .single();
+        ]);
 
              if (pedidoError) {
          console.error("Error al crear pedido:", pedidoError);

@@ -143,7 +143,7 @@ export default function ListaPedidosProductivosAdmin() {
           ]);
         }
       }
-    }, [editingPedido, formData.articulos]); // Removí comparativaForm de las dependencias
+    }, [editingPedido, formData.articulos, comparativaForm]);
    
    
    // Cargar datos

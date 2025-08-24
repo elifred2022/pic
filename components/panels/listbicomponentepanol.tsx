@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import ListPanolProductosGeneralesVer from "../lists/panol/listpanolproductosgeneralesver";
 import PicRealtimeListener from "../realtime/picrealtimelistener";
 import PicRealtimeListenerStock from "../realtime/picrealtimelistenerproductivo";
-import ListaPedidosProductivosVista from "../productivos/listapedidosproductivospanolvista";
 
 function ListBiComponentePanol() {
   const [showListAdmin, setShowListAdmin] = useState(true);

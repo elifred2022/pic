@@ -21,7 +21,7 @@ export default function ListaBiComponenteObservacion() {
 
   useEffect(() => {
     fetchPedidos();
-  }, []);
+  }, [supabase]);
 
   const fetchPedidos = async () => {
     try {

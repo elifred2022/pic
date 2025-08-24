@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
-import ListAdminVer from "../lists/admin/listadminver";
-import ListaPedidosProductivosAprobVista from "../productivos/listapedidosproductivosaprobvista";
+
 
 function ListBiComponentAprob() {
   const [showListAdmin, setShowListAdmin] = useState(true);

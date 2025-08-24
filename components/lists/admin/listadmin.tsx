@@ -140,7 +140,7 @@ export default function ListAdmin() {
         ]);
       }
     }
-  }, [editingPedido, formData.articulos]); // Removí comparativaForm de las dependencias
+  }, [editingPedido, formData.articulos, comparativaForm]);
 
   // función para formatear las fechas
   function formatDate(dateString: string | null): string {
