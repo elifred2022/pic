@@ -25,8 +25,20 @@ export default function FormularioCrearArticulo() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingArticulo, setPendingArticulo] = useState<Record<string, unknown> | null>(null);
-  const [pendingUser, setPendingUser] = useState<{ id: string; email?: string } | null>(null);
+  const [pendingArticulo, setPendingArticulo] = useState<{
+    codint: string;
+    articulo: string;
+    descripcion: string;
+    existencia: number;
+    provsug: string | null;
+    codprovsug: string | null;
+    familia: string | null;
+    situacion: string;
+    cc: number;
+    costunit: number;
+    divisa: string | null;
+  } | null>(null);
+
 
   // El código interno se ingresa manualmente
 
@@ -137,7 +149,7 @@ export default function FormularioCrearArticulo() {
           costunit: costunit || 0,
           divisa: divisa.trim() || null,
         });
-        setPendingUser(user);
+
         setShowConfirmDialog(true);
         setLoading(false);
         return;
@@ -410,7 +422,6 @@ export default function FormularioCrearArticulo() {
                  onClick={() => {
                    setShowConfirmDialog(false);
                    setPendingArticulo(null);
-                   setPendingUser(null);
                  }}
                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
                >
@@ -420,10 +431,10 @@ export default function FormularioCrearArticulo() {
                <Button
                  type="button"
                  onClick={async () => {
-                   if (pendingArticulo && pendingUser) {
+                   if (pendingArticulo) {
                      setShowConfirmDialog(false);
                      setLoading(true);
-                     await crearArticulo(pendingArticulo, pendingUser);
+                     await crearArticulo(pendingArticulo);
                      setPendingArticulo(null);
                      setPendingUser(null);
                    }
