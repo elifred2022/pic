@@ -53,6 +53,7 @@ export default async function ProtectedPage() {
     "paniol@perfilesyservicios.com.ar",
     "panolgascon@perfilesyservicios.com.ar",
    "elifred21@hotmail.com",
+   "asist.controlstock@perfilesyservicios.com.ar"
   ];
 
   const aprobEmails = [
