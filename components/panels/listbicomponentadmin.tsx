@@ -61,7 +61,7 @@ function ListBiComponentAdmin() {
         </div>
 
         {/* Navegación principal con diseño mejorado */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           <Link
             href="/auth/listaproveedores"
             className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-blue-600 hover:to-blue-700"
@@ -107,6 +107,18 @@ function ListBiComponentAdmin() {
               <div className="text-3xl mb-3">⚙️</div>
               <h3 className="text-lg font-bold mb-2">Pedidos Productivos</h3>
               <p className="text-orange-100 text-sm">Administra pedidos productivos</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/auth/ordenes-compra"
+            className="group relative overflow-hidden bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-red-600 hover:to-red-700"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="text-3xl mb-3">📋</div>
+              <h3 className="text-lg font-bold mb-2">Órdenes de Compra</h3>
+              <p className="text-red-100 text-sm">Gestiona órdenes de compra</p>
             </div>
           </Link>
         </div>

@@ -21,6 +21,7 @@ type Pedido = {
     cant: number;
     cant_exist?: number;
     observacion?: string;
+    link?: string;
   }>; // Array de artículos
   descripcion: string;
    controlado: string;
@@ -411,6 +412,7 @@ function renderValue(value: unknown): string {
                                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
                                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
                                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                                         <th className="px-2 py-1 text-left text-gray-600 font-semibold">Link de Ref</th>
                                        </tr>
                                      </thead>
                                      <tbody>
@@ -421,6 +423,20 @@ function renderValue(value: unknown): string {
                                            <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                                            <td className="px-2 py-1 text-center">{a.cant_exist}</td>
                                            <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
+                                           <td className="px-2 py-1">
+                                             {a.link ? (
+                                               <a
+                                                 href={a.link}
+                                                 target="_blank"
+                                                 rel="noopener noreferrer"
+                                                 className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                               >
+                                                 🌐 Ver
+                                               </a>
+                                             ) : (
+                                               <span className="text-gray-400 text-xs">-</span>
+                                             )}
+                                           </td>
                                          </tr>
                                        ))}
                                      </tbody>
@@ -484,7 +500,7 @@ function renderValue(value: unknown): string {
                              {/* Mostrar artículos del pedido */}
                {Array.isArray(editingPedido.articulos) && editingPedido.articulos.length > 0 && (
                  <div className="mb-6">
-                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos del Pedido</h3>
+                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📦 Artículos del Pedido (Editable)</h3>
                    <div className="bg-gray-50 rounded-lg p-4">
                      <table className="w-full text-sm">
                        <thead>
@@ -493,22 +509,75 @@ function renderValue(value: unknown): string {
                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cantidad</th>
                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observación</th>
+                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Link de Ref</th>
                          </tr>
                        </thead>
                        <tbody>
                          {editingPedido.articulos.map((a, idx: number) => (
                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
                              <td className="px-2 py-1 font-medium">{a.articulo}</td>
-                             <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
+                             <td className="px-2 py-1 text-gray-700">
+                               <input
+                                 type="text"
+                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white"
+                                 value={a.descripcion || ""}
+                                 onChange={(e) => {
+                                   const newArticulos = [...editingPedido.articulos];
+                                   newArticulos[idx].descripcion = e.target.value;
+                                   setEditingPedido({ ...editingPedido, articulos: newArticulos });
+                                   setFormData({ ...formData, articulos: newArticulos });
+                                 }}
+                                 placeholder="Descripción del artículo"
+                               />
+                             </td>
                              <td className="px-2 py-1 text-center">{a.cant}</td>
-                             <td className="px-2 py-1 text-gray-600">{a.observacion || "-"}</td>
-    </tr>
-  ))}
-</tbody>
-      </table>
-                  </div>
-                </div>
-              )}
+                             <td className="px-2 py-1 text-gray-600">
+                               <input
+                                 type="text"
+                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white"
+                                 value={a.observacion || ""}
+                                 onChange={(e) => {
+                                   const newArticulos = [...editingPedido.articulos];
+                                   newArticulos[idx].observacion = e.target.value;
+                                   setEditingPedido({ ...editingPedido, articulos: newArticulos });
+                                   setFormData({ ...formData, articulos: newArticulos });
+                                 }}
+                                 placeholder="Observación del artículo"
+                               />
+                             </td>
+                             <td className="px-2 py-1">
+                               <input
+                                 type="url"
+                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white"
+                                 value={a.link || ""}
+                                 onChange={(e) => {
+                                   const newArticulos = [...editingPedido.articulos];
+                                   newArticulos[idx].link = e.target.value;
+                                   setEditingPedido({ ...editingPedido, articulos: newArticulos });
+                                   setFormData({ ...formData, articulos: newArticulos });
+                                 }}
+                                 placeholder="https://ejemplo.com/articulo"
+                               />
+                               {a.link && (
+                                 <div className="mt-1">
+                                   <a
+                                     href={a.link}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                   >
+                                     🌐 Ver Link
+                                   </a>
+                                 </div>
+                               )}
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
 
               <hr className="my-6" />
 
@@ -561,6 +630,18 @@ function renderValue(value: unknown): string {
                 }
               />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Editar Artículos:</label>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-700 mb-2">
+                      💡 Para editar los links de referencia, modifica los artículos en la tabla de arriba
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Los cambios se guardarán automáticamente al hacer clic en "Guardar Cambios"
+                    </p>
+                  </div>
+                </div>
               </div>
           
               {/* Botones de acción */}
@@ -573,25 +654,47 @@ function renderValue(value: unknown): string {
               </button>
               <button
                 onClick={async () => {
-                  const { error } = await supabase
-                    .from("pic")
-                    .update(formData)
-                    .eq("id", editingPedido.id);
+                  try {
+                    const { error } = await supabase
+                      .from("pic")
+                      .update(formData)
+                      .eq("id", editingPedido.id);
 
-                  if (error) {
-                    alert("Error actualizando");
-                    console.error(error);
-                  } else {
-                    alert("Actualizado correctamente");
-                    setEditingPedido(null);
-                    setFormData({});
-                    const { data } = await supabase.from("pic").select("*");
-                    if (data) setPedidos(data);
+                    if (error) {
+                      alert("Error actualizando: " + error.message);
+                      console.error(error);
+                    } else {
+                      // Mensaje personalizado según los campos actualizados
+                      let mensaje = "Pedido actualizado correctamente";
+                      if (formData.descripcion) {
+                        mensaje += `\n✅ Descripción actualizada`;
+                      }
+                      if (formData.fecha_ent) {
+                        mensaje += `\n✅ Fecha de entrega actualizada`;
+                      }
+                      if (formData.rto || formData.fac) {
+                        mensaje += `\n✅ Datos financieros actualizados`;
+                      }
+                      if (formData.articulos) {
+                        mensaje += `\n✅ Artículos actualizados (incluyendo links de referencia)`;
+                      }
+                      
+                      alert(mensaje);
+                      setEditingPedido(null);
+                      setFormData({});
+                      
+                      // Recargar la lista de pedidos
+                      const { data } = await supabase.from("pic").select("*");
+                      if (data) setPedidos(data);
+                    }
+                  } catch (err) {
+                    alert("Error inesperado: " + (err as Error).message);
+                    console.error(err);
                   }
                 }}
                   className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
               >
-                  💾 Guardar
+                  💾 Guardar Cambios
               </button>
               </div>
             </div>

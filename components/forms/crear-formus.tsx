@@ -15,6 +15,7 @@ type ArticuloManual = {
   cc: string;
   existencia: number;
   provsug: string;
+  link: string;
 };
 
 export default function CrearFormUs() {
@@ -37,6 +38,7 @@ export default function CrearFormUs() {
   const [cc, setCc] = useState("");
   const [existencia, setExistencia] = useState<number>(0);
   const [provsug, setProvsug] = useState("");
+  const [link, setLink] = useState("");
 
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<ArticuloManual[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +100,7 @@ export default function CrearFormUs() {
       cc: cc.trim(),
       existencia,
       provsug: provsug.trim(),
+      link: link.trim(),
     };
 
     setArticulosSeleccionados((prev) => [...prev, nuevoArticulo]);
@@ -110,6 +113,7 @@ export default function CrearFormUs() {
     setCc("");
     setExistencia(0);
     setProvsug("");
+    setLink("");
     setMessage("✅ Artículo agregado correctamente");
   };
 
@@ -175,6 +179,7 @@ export default function CrearFormUs() {
               cc: art.cc || null,
               existencia: art.existencia || 0,
               provsug: art.provsug || null,
+              link: art.link || null,
             })),
           },
         ]);
@@ -420,6 +425,20 @@ export default function CrearFormUs() {
               />
             </div>
 
+            <div>
+              <label className="text-black">Link de Ref</label>
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                className="border p-2 w-full rounded text-black bg-white"
+                placeholder="https://ejemplo.com"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 URL completa de la página web del artículo
+              </p>
+            </div>
+
             <div className="flex items-end">
               <button
                 type="button"
@@ -446,6 +465,7 @@ export default function CrearFormUs() {
                   <th className="border p-2">Código Cuenta</th>
                   <th className="border p-2">Existencia</th>
                   <th className="border p-2">Proveedor</th>
+                  <th className="border p-2">Link Web</th>
                   <th className="border p-2">Acciones</th>
                 </tr>
               </thead>
@@ -459,6 +479,20 @@ export default function CrearFormUs() {
                     <td className="border p-2">{art.cc}</td>
                     <td className="border p-2">{art.existencia}</td>
                     <td className="border p-2">{art.provsug}</td>
+                    <td className="border p-2">
+                      {art.link ? (
+                        <a
+                          href={art.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline break-all"
+                        >
+                          🌐 Ver Web
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">Sin link</span>
+                      )}
+                    </td>
                     <td className="border p-2 text-center">
                       <button
                         type="button"

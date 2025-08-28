@@ -20,6 +20,7 @@ type Pedido = {
     cant: number;
     cant_exist?: number;
     observacion?: string;
+    link?: string;
   }>; // Array de artículos
   descripcion: string;
   controlado: string;
@@ -375,6 +376,7 @@ export default function ListAprob() {
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
                               <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                              <th className="px-2 py-1 text-left text-gray-600 font-semibold">Link Ref</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -388,6 +390,20 @@ export default function ListAprob() {
                                 </td>
                                 <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                                 <td className="px-2 py-1 text-center">{a.cant_exist}</td>
+                                <td className="px-2 py-1">
+                                  {a.link ? (
+                                    <a
+                                      href={a.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                    >
+                                      🌐 Ver
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">-</span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -467,6 +483,7 @@ export default function ListAprob() {
                            <th className="px-3 py-2 text-left text-gray-600 font-semibold">Descripción</th>
                            <th className="px-3 py-2 text-center text-gray-600 font-semibold">Cantidad</th>
                            <th className="px-3 py-2 text-center text-gray-600 font-semibold">Stock</th>
+                           <th className="px-3 py-2 text-left text-gray-600 font-semibold">Link Ref</th>
                          </tr>
                        </thead>
                        <tbody>
@@ -480,6 +497,20 @@ export default function ListAprob() {
                              </td>
                              <td className="px-3 py-2 text-center font-semibold text-gray-800">{a.cant}</td>
                              <td className="px-3 py-2 text-center text-gray-700">{a.cant_exist}</td>
+                             <td className="px-3 py-2">
+                               {a.link ? (
+                                 <a
+                                   href={a.link}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                 >
+                                   🌐 Ver
+                                 </a>
+                               ) : (
+                                 <span className="text-gray-400 text-xs">-</span>
+                               )}
+                             </td>
                            </tr>
                          ))}
                        </tbody>

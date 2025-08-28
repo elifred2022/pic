@@ -31,6 +31,7 @@ type Pedido = {
     cant: number;
     cant_exist?: number;
     observacion?: string;
+    link?: string;
   }>; // Array de artículos
   descripcion: string;
   controlado: string;
@@ -817,6 +818,7 @@ export default function ListAdmin() {
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Link Ref</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -834,6 +836,20 @@ export default function ListAdmin() {
                                {a.observacion && a.observacion.length > 20 
                                  ? `${a.observacion.substring(0, 20)}...` 
                                  : a.observacion || "-"}
+                             </td>
+                             <td className="px-2 py-1">
+                               {a.link ? (
+                                 <a
+                                   href={a.link}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                 >
+                                   🌐 Ver
+                                 </a>
+                               ) : (
+                                 <span className="text-gray-400 text-xs">-</span>
+                               )}
                              </td>
                            </tr>
                         ))}
@@ -1267,6 +1283,7 @@ export default function ListAdmin() {
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cantidad</th>
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
                           <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observación</th>
+                          <th className="px-2 py-1 text-left text-gray-600 font-semibold">Link Web</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1281,6 +1298,20 @@ export default function ListAdmin() {
                             <td className="px-2 py-1 text-center">{Number(a.cant) || 0}</td>
                             <td className="px-2 py-1 text-center">{Number(a.cant_exist) || 0}</td>
                             <td className="px-2 py-1 text-gray-600">{a.observacion || "-"}</td>
+                            <td className="px-2 py-1">
+                              {a.link ? (
+                                <a
+                                  href={a.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline text-xs break-all"
+                                >
+                                  🌐 Ver
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
