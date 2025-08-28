@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export function UserProfileSetup() {
     checkUserProfile();
   }, [supabase]);
 
-  const checkUserProfile = async () => {
+  const checkUserProfile = useCallback(async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
@@ -64,7 +64,7 @@ export function UserProfileSetup() {
     } finally {
       setIsChecking(false);
     }
-  };
+  }, [supabase, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

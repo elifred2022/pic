@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,13 @@ interface OrdenCompra {
   estado: string;
   total: number;
   observaciones?: string;
-  items: any[];
+  items: Array<{
+    articulo_id: string;
+    articulo_nombre: string;
+    cantidad: number;
+    precio_unitario: number;
+    total: number;
+  }>;
 }
 
 export default function VerOrdenCompraPage() {
@@ -35,7 +41,7 @@ export default function VerOrdenCompraPage() {
     }
   }, [params.id]);
 
-  const fetchOrden = async (id: number) => {
+  const fetchOrden = useCallback(async (id: number) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -52,7 +58,7 @@ export default function VerOrdenCompraPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   const getEstadoBadge = (estado: string) => {
     const estados = {

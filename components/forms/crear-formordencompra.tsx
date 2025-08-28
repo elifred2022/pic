@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+
 
 interface Proveedor {
   id: number;
@@ -41,7 +41,19 @@ interface ItemOrden {
   total: number;
 }
 
-export function CrearFormOrdenCompra({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+interface ArticuloOrden {
+  articulo_id: string;
+}
+
+interface ArticuloPedido {
+  articulo: string;
+  descripcion: string;
+  cant: number;
+  cant_exist: number;
+  observacion: string;
+}
+
+export function CrearFormOrdenCompra() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -119,7 +131,7 @@ export function CrearFormOrdenCompra({ className, ...props }: React.ComponentPro
       const articulosUsados = new Set<string>();
       ordenesData?.forEach(orden => {
         if (orden.articulos) {
-          orden.articulos.forEach((item: any) => {
+          orden.articulos.forEach((item: ArticuloOrden) => {
             articulosUsados.add(item.articulo_id);
           });
         }
@@ -129,7 +141,7 @@ export function CrearFormOrdenCompra({ className, ...props }: React.ComponentPro
       
       // Procesar los datos para extraer los artículos individuales
       const articulosProcesados = articulosData?.flatMap(pedido => 
-        pedido.articulos?.map((articulo: any) => ({
+        pedido.articulos?.map((articulo: ArticuloPedido) => ({
           id: `${pedido.id}-${articulo.articulo}`, // ID único
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
@@ -238,7 +250,7 @@ export function CrearFormOrdenCompra({ className, ...props }: React.ComponentPro
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("ordenes_compra")
         .insert({
           cuit: proveedorSeleccionado.cuitprov.toString(),

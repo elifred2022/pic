@@ -638,7 +638,7 @@ function renderValue(value: unknown): string {
                       💡 Para editar los links de referencia, modifica los artículos en la tabla de arriba
                     </p>
                     <p className="text-xs text-blue-600">
-                      Los cambios se guardarán automáticamente al hacer clic en "Guardar Cambios"
+                      Los cambios se guardarán automáticamente al hacer clic en &quot;Guardar Cambios&quot;
                     </p>
                   </div>
                 </div>

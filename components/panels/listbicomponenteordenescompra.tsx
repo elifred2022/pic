@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function ListBiComponenteOrdenesCompra() {
     }
   }, [activeTab]);
 
-  const fetchOrdenes = async () => {
+  const fetchOrdenes = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -49,7 +49,7 @@ export default function ListBiComponenteOrdenesCompra() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   const handleCrearOrden = () => {
     router.push("/auth/ordenes-compra/crear-orden");
