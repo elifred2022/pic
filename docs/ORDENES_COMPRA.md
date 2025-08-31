@@ -183,3 +183,4 @@ Pendiente → Aprobada → Completada
 🔒 **Mantener consistencia** con el sistema de autenticación existente
 🎨 **Seguir patrones de diseño** establecidos en la aplicación
 
+

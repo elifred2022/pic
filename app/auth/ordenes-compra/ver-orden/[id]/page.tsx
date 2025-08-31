@@ -9,22 +9,23 @@ import { Badge } from "@/components/ui/badge";
 
 interface OrdenCompra {
   id: number;
-  fecha_creacion: string;
-  cuit_proveedor: string;
-  nombre_proveedor: string;
-  direccion_proveedor: string;
-  telefono_proveedor: string;
-  email_proveedor: string;
+  fecha: string;
+  cuit: string;
+  proveedor: string;
+  direccion: string;
+  telefono: string;
+  email: string;
   estado: string;
   total: number;
   observaciones?: string;
-  items: Array<{
+  articulos: Array<{
     articulo_id: string;
     articulo_nombre: string;
     cantidad: number;
     precio_unitario: number;
     total: number;
   }>;
+  lugar_entrega: string;
 }
 
 export default function VerOrdenCompraPage() {
@@ -117,7 +118,7 @@ export default function VerOrdenCompraPage() {
               <div>
                 <p className="text-sm text-gray-600">Fecha de Creación</p>
                 <p className="font-medium">
-                  {new Date(orden.fecha_creacion).toLocaleDateString('es-AR', {
+                  {new Date(orden.fecha).toLocaleDateString('es-AR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -138,6 +139,13 @@ export default function VerOrdenCompraPage() {
                   {orden.observaciones || "Sin observaciones"}
                 </p>
               </div>
+              <div>
+                <p className="text-sm text-gray-600">Dirección de Entrega</p>
+                <p className="font-medium">{orden.lugar_entrega}</p>
+              </div>
+              
+              
+
             </div>
           </CardContent>
         </Card>
@@ -151,24 +159,25 @@ export default function VerOrdenCompraPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-sm text-gray-600">CUIT</p>
-                <p className="font-medium">{orden.cuit_proveedor}</p>
+                <p className="font-medium">{orden.cuit}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Nombre</p>
-                <p className="font-medium">{orden.nombre_proveedor}</p>
+                <p className="font-medium">{orden.proveedor}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Dirección</p>
-                <p className="font-medium">{orden.direccion_proveedor}</p>
+                <p className="font-medium">{orden.direccion}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Teléfono</p>
-                <p className="font-medium">{orden.telefono_proveedor}</p>
+                <p className="font-medium">{orden.telefono}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{orden.email_proveedor}</p>
+                <p className="font-medium">{orden.email}</p>
               </div>
+             
             </div>
           </CardContent>
         </Card>
@@ -179,9 +188,9 @@ export default function VerOrdenCompraPage() {
             <CardTitle className="text-xl">Artículos de la Orden</CardTitle>
           </CardHeader>
           <CardContent>
-            {orden.items && orden.items.length > 0 ? (
+            {orden.articulos && orden.articulos.length > 0 ? (
               <div className="space-y-4">
-                {orden.items.map((item, index) => (
+                {orden.articulos.map((item, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex-1">
                       <h4 className="font-medium">{item.articulo_nombre}</h4>
