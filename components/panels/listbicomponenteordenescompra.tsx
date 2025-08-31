@@ -98,7 +98,16 @@ export default function ListBiComponenteOrdenesCompra() {
   const renderOrdenesTab = () => (
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
+          <Button 
+            onClick={() => router.push("/protected")} 
+            variant="outline" 
+            className="border-gray-500 text-gray-600 hover:bg-gray-50"
+          >
+            🏠 Ir a Home
+          </Button>
+        </div>
         <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
           ➕ Crear Nueva Orden
         </Button>
