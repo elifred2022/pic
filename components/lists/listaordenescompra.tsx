@@ -50,11 +50,7 @@ export default function ListaOrdenesCompra() {
         .order("fecha_creacion", { ascending: false });
 
       if (error) throw error;
-      console.log("🔍 Datos obtenidos:", data); // Debug para verificar que incluye artículos
-      if (data && data.length > 0) {
-        console.log("📋 Ejemplo de orden:", data[0]); // Debug estructura completa
-        console.log("🎯 Artículos en primera orden:", data[0].articulos); // Debug específico artículos
-      }
+      console.log("🔍 Datos obtenidos:", data);
       setOrdenes(data || []);
     } catch (err) {
       console.error("Error fetching ordenes:", err);
@@ -111,7 +107,10 @@ export default function ListaOrdenesCompra() {
   const renderOrdenesTab = () => (
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
+          <p className="text-sm text-gray-500 mt-1">Total de órdenes: {ordenes.length}</p>
+        </div>
         <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
           ➕ Crear Nueva Orden
         </Button>
@@ -173,12 +172,7 @@ export default function ListaOrdenesCompra() {
                   <div>
                     <span className="font-medium text-gray-700">Artículos:</span>
                     <div className="text-gray-600">
-                      {/* Debug temporal - mostrar todos los campos de la orden */}
-                      <div className="text-xs text-gray-500 mb-2">
-                        Debug campos: {Object.keys(orden).join(', ')}
-                      </div>
-                      
-                      {orden.articulos && orden.articulos.length > 0 ? (
+                      {Array.isArray(orden.articulos) && orden.articulos.length > 0 ? (
                         <div className="space-y-1">
                           {orden.articulos.slice(0, 3).map((articulo, index) => (
                             <p key={index} className="text-xs">
@@ -192,18 +186,9 @@ export default function ListaOrdenesCompra() {
                           )}
                         </div>
                       ) : (
-                        <div>
-                          <p className="text-xs">Sin artículos</p>
-                          <p className="text-xs text-red-500 mt-1">
-                            Debug: {orden.articulos ? `Array vacío (${orden.articulos.length})` : 'Campo undefined'}
-                          </p>
-                          {/* Intentar con el campo 'items' por si acaso */}
-                          {(orden as any).items && (
-                            <p className="text-xs text-blue-500 mt-1">
-                              Encontrado campo 'items': {JSON.stringify((orden as any).items).substring(0, 100)}...
-                            </p>
-                          )}
-                        </div>
+                        <p className="text-xs text-gray-500">
+                          {!orden.articulos ? 'No hay artículos' : `Artículos: ${orden.articulos.length || 0}`}
+                        </p>
                       )}
                     </div>
                   </div>
