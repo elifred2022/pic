@@ -173,6 +173,11 @@ export default function ListaOrdenesCompra() {
                   <div>
                     <span className="font-medium text-gray-700">Artículos:</span>
                     <div className="text-gray-600">
+                      {/* Debug temporal - mostrar todos los campos de la orden */}
+                      <div className="text-xs text-gray-500 mb-2">
+                        Debug campos: {Object.keys(orden).join(', ')}
+                      </div>
+                      
                       {orden.articulos && orden.articulos.length > 0 ? (
                         <div className="space-y-1">
                           {orden.articulos.slice(0, 3).map((articulo, index) => (
@@ -192,6 +197,12 @@ export default function ListaOrdenesCompra() {
                           <p className="text-xs text-red-500 mt-1">
                             Debug: {orden.articulos ? `Array vacío (${orden.articulos.length})` : 'Campo undefined'}
                           </p>
+                          {/* Intentar con el campo 'items' por si acaso */}
+                          {(orden as any).items && (
+                            <p className="text-xs text-blue-500 mt-1">
+                              Encontrado campo 'items': {JSON.stringify((orden as any).items).substring(0, 100)}...
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
