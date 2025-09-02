@@ -9,7 +9,8 @@ import { useRouter } from "next/navigation";
 
 interface OrdenCompra {
   id: number;
-  fecha: string;
+  fecha_creacion?: string;
+  fecha?: string;
   cuit: string;
   proveedor: string;
   direccion: string;
@@ -46,10 +47,14 @@ export default function ListaOrdenesCompra() {
       const { data, error } = await supabase
         .from("ordenes_compra")
         .select("*")
-        .order("fecha", { ascending: false });
+        .order("fecha_creacion", { ascending: false });
 
       if (error) throw error;
       console.log("🔍 Datos obtenidos:", data); // Debug para verificar que incluye artículos
+      if (data && data.length > 0) {
+        console.log("📋 Ejemplo de orden:", data[0]); // Debug estructura completa
+        console.log("🎯 Artículos en primera orden:", data[0].articulos); // Debug específico artículos
+      }
       setOrdenes(data || []);
     } catch (err) {
       console.error("Error fetching ordenes:", err);
@@ -140,7 +145,7 @@ export default function ListaOrdenesCompra() {
                       Orden #{orden.id} - {orden.proveedor}
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
-                      CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha).toLocaleDateString('es-AR')}
+                      CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha_creacion || orden.fecha || '').toLocaleDateString('es-AR')}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -182,7 +187,12 @@ export default function ListaOrdenesCompra() {
                           )}
                         </div>
                       ) : (
-                        <p className="text-xs">Sin artículos</p>
+                        <div>
+                          <p className="text-xs">Sin artículos</p>
+                          <p className="text-xs text-red-500 mt-1">
+                            Debug: {orden.articulos ? `Array vacío (${orden.articulos.length})` : 'Campo undefined'}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
