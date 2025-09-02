@@ -17,6 +17,13 @@ interface OrdenCompra {
   estado: string;
   total: number;
   observaciones?: string;
+  articulos?: Array<{
+    articulo_id: string;
+    articulo_nombre: string;
+    cantidad: number;
+    precio_unitario: number;
+    total: number;
+  }>;
 }
 
 export default function ListaOrdenesCompra() {
@@ -42,6 +49,7 @@ export default function ListaOrdenesCompra() {
         .order("fecha", { ascending: false });
 
       if (error) throw error;
+      console.log("🔍 Datos obtenidos:", data); // Debug para verificar que incluye artículos
       setOrdenes(data || []);
     } catch (err) {
       console.error("Error fetching ordenes:", err);
@@ -144,7 +152,7 @@ export default function ListaOrdenesCompra() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-700">Dirección:</span>
                     <p className="text-gray-600">{orden.direccion}</p>
@@ -156,6 +164,27 @@ export default function ListaOrdenesCompra() {
                   <div>
                     <span className="font-medium text-gray-700">Observaciones:</span>
                     <p className="text-gray-600">{orden.observaciones || "Sin observaciones"}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Artículos:</span>
+                    <div className="text-gray-600">
+                      {orden.articulos && orden.articulos.length > 0 ? (
+                        <div className="space-y-1">
+                          {orden.articulos.slice(0, 3).map((articulo, index) => (
+                            <p key={index} className="text-xs">
+                              • {articulo.articulo_nombre} (x{articulo.cantidad})
+                            </p>
+                          ))}
+                          {orden.articulos.length > 3 && (
+                            <p className="text-xs text-blue-600 font-medium">
+                              +{orden.articulos.length - 3} más...
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs">Sin artículos</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-end mt-4 gap-2">
