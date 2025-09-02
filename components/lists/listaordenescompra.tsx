@@ -7,6 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 
+interface ArticuloOrden {
+  id: number;
+  articulo: string;
+  cantidad: number;
+  precio: number;
+  subtotal: number;
+}
+
 interface OrdenCompra {
   id: number;
   fecha: string;
@@ -17,6 +25,7 @@ interface OrdenCompra {
   estado: string;
   total: number;
   observaciones?: string;
+  items?: ArticuloOrden[];
 }
 
 export default function ListaOrdenesCompra() {
@@ -24,6 +33,7 @@ export default function ListaOrdenesCompra() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ordenes' | 'otros'>('ordenes');
+  const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const router = useRouter();
   const supabase = createClient();
 
@@ -50,6 +60,16 @@ export default function ListaOrdenesCompra() {
       setLoading(false);
     }
   }, [supabase]);
+
+  const toggleExpandOrder = (orderId: number) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(orderId)) {
+      newExpanded.delete(orderId);
+    } else {
+      newExpanded.add(orderId);
+    }
+    setExpandedOrders(newExpanded);
+  };
 
   const handleCrearOrden = () => {
     router.push("/auth/ordenes-compra/crear-orden");
@@ -137,6 +157,11 @@ export default function ListaOrdenesCompra() {
                   </div>
                   <div className="flex items-center gap-3">
                     {getEstadoBadge(orden.estado)}
+                    {orden.items && orden.items.length > 0 && (
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                        📦 {orden.items.length} artículo{orden.items.length !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
                     <span className="text-lg font-semibold text-green-600">
                       ${orden.total?.toLocaleString('es-AR') || '0'}
                     </span>
@@ -158,6 +183,53 @@ export default function ListaOrdenesCompra() {
                     <p className="text-gray-600">{orden.observaciones || "Sin observaciones"}</p>
                   </div>
                 </div>
+
+                {/* Sección de Artículos */}
+                {orden.items && orden.items.length > 0 && (
+                  <div className="mt-4 border-t pt-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-medium text-gray-700">
+                        📦 Artículos ({orden.items.length})
+                      </span>
+                      <Button
+                        onClick={() => toggleExpandOrder(orden.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        {expandedOrders.has(orden.id) ? "🔼 Contraer" : "🔽 Expandir"}
+                      </Button>
+                    </div>
+                    
+                    {expandedOrders.has(orden.id) && (
+                      <div className="space-y-2">
+                        {orden.items.map((item, index) => (
+                          <div key={index} className="bg-gray-50 p-3 rounded-md">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-700">Artículo:</span>
+                                <p className="text-gray-600">{item.articulo}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Cantidad:</span>
+                                <p className="text-gray-600">{item.cantidad}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Precio Unit.:</span>
+                                <p className="text-gray-600">${item.precio?.toLocaleString('es-AR') || '0'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Subtotal:</span>
+                                <p className="text-green-600 font-medium">${item.subtotal?.toLocaleString('es-AR') || '0'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-end mt-4 gap-2">
                   <Button 
                     onClick={() => handleVerOrden(orden.id)}
