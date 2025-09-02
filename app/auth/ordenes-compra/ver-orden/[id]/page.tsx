@@ -7,8 +7,63 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// Estilos para impresión A4
+const printStyles = `
+  @media print {
+    @page {
+      size: A4;
+      margin: 1cm;
+    }
+    
+    body {
+      font-size: 12px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .print-container {
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .print-header {
+      margin-bottom: 15px !important;
+      border-bottom: 2px solid #000 !important;
+      padding-bottom: 10px !important;
+    }
+    
+    .print-section {
+      margin-bottom: 10px !important;
+      page-break-inside: avoid;
+    }
+    
+    .print-grid {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 10px !important;
+      margin-bottom: 10px !important;
+    }
+    
+    .print-items {
+      font-size: 11px !important;
+    }
+    
+    .print-total {
+      border-top: 2px solid #000 !important;
+      padding-top: 10px !important;
+      margin-top: 10px !important;
+      font-weight: bold !important;
+    }
+    
+    .print-hidden {
+      display: none !important;
+    }
+  }
+`;
+
 interface OrdenCompra {
   id: number;
+  noc: number;
   fecha: string;
   cuit: string;
   proveedor: string;
@@ -73,6 +128,32 @@ export default function VerOrdenCompraPage() {
     return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
   };
 
+  const handleImprimir = () => {
+    try {
+      // Pequeño delay para asegurar que el DOM esté listo
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    } catch (error) {
+      console.error("Error al imprimir:", error);
+      // Fallback: abrir en nueva ventana
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head><title>Orden de Compra #${orden?.noc}</title></head>
+            <body>
+              <h1>Orden de Compra #${orden?.noc}</h1>
+              <p>Use Ctrl+P para imprimir esta página</p>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -90,34 +171,78 @@ export default function VerOrdenCompraPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          📋 Orden de Compra #{orden.id}
-        </h1>
-        <Button
-          onClick={() => router.push("/auth/ordenes-compra")}
-          variant="outline"
-        >
-          🔙 Volver a la Lista
-        </Button>
-      </div>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
+      <div className="w-full max-w-6xl mx-auto p-6 print-container">
+        {/* Encabezado de la empresa */}
+        <div className="text-center mb-6 print-header">
+          <h1 className="text-2xl font-bold text-gray-800 print:text-xl">
+            Perfiles y Servicios SRL
+          </h1>
+        </div>
+        
+        <div className="flex justify-between items-center mb-6 print-header">
+          <h2 className="text-3xl font-bold text-gray-900 print:text-2xl">
+            📋 Orden de Compra #{orden.noc}
+          </h2>
+          <Button
+            onClick={() => router.push("/auth/ordenes-compra")}
+            variant="outline"
+            className="print-hidden"
+          >
+            🔙 Volver a la Lista
+          </Button>
+        </div>
 
-      <div className="grid gap-6">
-        {/* Información Principal */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Información General</CardTitle>
+      <div className="grid gap-4 print:gap-2">
+
+          {/* Información del Proveedor */}
+          <Card className="print-section">
+          <CardHeader className="print:py-2">
+            <CardTitle className="text-xl print:text-lg">Proveedor</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="print:py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 print-grid">
+              
               <div>
-                <p className="text-sm text-gray-600">Estado</p>
-                <div className="mt-1">{getEstadoBadge(orden.estado)}</div>
+                <p className="text-sm text-gray-600 print:text-xs">Nombre</p>
+                <p className="font-medium print:text-sm">{orden.proveedor}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Fecha de Creación</p>
-                <p className="font-medium">
+                <p className="text-sm text-gray-600 print:text-xs">CUIT</p>
+                <p className="font-medium print:text-sm">{orden.cuit}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Dirección</p>
+                <p className="font-medium print:text-sm">{orden.direccion}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Teléfono</p>
+                <p className="font-medium print:text-sm">{orden.telefono}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Email</p>
+                <p className="font-medium print:text-sm">{orden.email}</p>
+              </div>
+             
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Información Principal */}
+        <Card className="print-section">
+          <CardHeader className="print:py-2">
+            <CardTitle className="text-xl print:text-lg">Información General</CardTitle>
+          </CardHeader>
+          <CardContent className="print:py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 print-grid">
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Estado</p>
+                <div className="mt-1 print:text-sm">{getEstadoBadge(orden.estado)}</div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Fecha de Creación</p>
+                <p className="font-medium print:text-sm">
                   {new Date(orden.fecha).toLocaleDateString('es-AR', {
                     year: 'numeric',
                     month: 'long',
@@ -128,20 +253,20 @@ export default function VerOrdenCompraPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total de la Orden</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-600 print:text-xs">Total de la Orden</p>
+                <p className="text-2xl font-bold text-green-600 print:text-lg">
                   ${orden.total?.toLocaleString('es-AR') || '0'}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Observaciones</p>
-                <p className="font-medium">
+                <p className="text-sm text-gray-600 print:text-xs">Observaciones</p>
+                <p className="font-medium print:text-sm">
                   {orden.observaciones || "Sin observaciones"}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Dirección de Entrega</p>
-                <p className="font-medium">{orden.lugar_entrega}</p>
+                <p className="text-sm text-gray-600 print:text-xs">Dirección de Entrega</p>
+                <p className="font-medium print:text-sm">{orden.lugar_entrega}</p>
               </div>
               
               
@@ -150,70 +275,49 @@ export default function VerOrdenCompraPage() {
           </CardContent>
         </Card>
 
-        {/* Información del Proveedor */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Información del Proveedor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-600">CUIT</p>
-                <p className="font-medium">{orden.cuit}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Nombre</p>
-                <p className="font-medium">{orden.proveedor}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Dirección</p>
-                <p className="font-medium">{orden.direccion}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Teléfono</p>
-                <p className="font-medium">{orden.telefono}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{orden.email}</p>
-              </div>
-             
-            </div>
-          </CardContent>
-        </Card>
+      
 
         {/* Artículos de la Orden */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Artículos de la Orden</CardTitle>
+        <Card className="print-section">
+          <CardHeader className="print:py-2">
+            <CardTitle className="text-xl print:text-lg">Artículos de la Orden</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="print:py-2">
             {orden.articulos && orden.articulos.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-2 print:space-y-1">
                 {orden.articulos.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg print:bg-white print:border print:border-gray-300 print:p-1">
                     <div className="flex-1">
-                      <h4 className="font-medium">{item.articulo_nombre}</h4>
+                      <h4 className="font-medium print:text-sm">{item.articulo_nombre}</h4>
                     </div>
-                    <div className="flex items-center gap-6 text-right">
+                    <div className="flex items-center gap-4 text-right print:gap-2">
                       <div>
-                        <p className="text-sm text-gray-600">Cantidad</p>
-                        <p className="font-medium">{item.cantidad}</p>
+                        <p className="text-sm text-gray-600 print:text-xs">Cant.</p>
+                        <p className="font-medium print:text-sm">{item.cantidad}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Precio Unit.</p>
-                        <p className="font-medium">${item.precio_unitario?.toLocaleString('es-AR')}</p>
+                        <p className="text-sm text-gray-600 print:text-xs">Precio</p>
+                        <p className="font-medium print:text-sm">${item.precio_unitario?.toLocaleString('es-AR')}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Total</p>
-                        <p className="font-semibold text-lg">${item.total?.toLocaleString('es-AR')}</p>
+                        <p className="text-sm text-gray-600 print:text-xs">Total</p>
+                        <p className="font-semibold text-lg print:text-sm">${item.total?.toLocaleString('es-AR')}</p>
                       </div>
                     </div>
                   </div>
                 ))}
+                <div className="print-total">
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <p className="text-lg font-bold print:text-base">
+                        TOTAL: ${orden.total?.toLocaleString('es-AR') || '0'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 print:py-2">
                 No hay artículos en esta orden
               </div>
             )}
@@ -221,7 +325,13 @@ export default function VerOrdenCompraPage() {
         </Card>
 
         {/* Acciones */}
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 print-hidden">
+          <Button
+            onClick={handleImprimir}
+            className="px-8 bg-blue-600 hover:bg-blue-700"
+          >
+            🖨️ Imprimir
+          </Button>
           <Button
             onClick={() => router.push("/auth/ordenes-compra")}
             variant="outline"
@@ -231,7 +341,8 @@ export default function VerOrdenCompraPage() {
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

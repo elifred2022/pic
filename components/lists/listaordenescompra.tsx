@@ -9,11 +9,19 @@ import { useRouter } from "next/navigation";
 
 interface OrdenCompra {
   id: number;
+  noc: number;
   fecha: string;
   cuit: string;
   proveedor: string;
   direccion: string;
   telefono: string;
+  articulos: Array<{
+    articulo_id: string;
+    articulo_nombre: string;
+    cantidad: number;
+    precio_unitario: number;
+    total: number;
+  }>;
   estado: string;
   total: number;
   observaciones?: string;
@@ -129,7 +137,7 @@ export default function ListaOrdenesCompra() {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-lg">
-                      Orden #{orden.id} - {orden.proveedor}
+                      Orden #{orden.noc} - {orden.proveedor} 
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
                       CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha).toLocaleDateString('es-AR')}
@@ -137,14 +145,12 @@ export default function ListaOrdenesCompra() {
                   </div>
                   <div className="flex items-center gap-3">
                     {getEstadoBadge(orden.estado)}
-                    <span className="text-lg font-semibold text-green-600">
-                      ${orden.total?.toLocaleString('es-AR') || '0'}
-                    </span>
+                   
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
                   <div>
                     <span className="font-medium text-gray-700">Dirección:</span>
                     <p className="text-gray-600">{orden.direccion}</p>
@@ -158,6 +164,31 @@ export default function ListaOrdenesCompra() {
                     <p className="text-gray-600">{orden.observaciones || "Sin observaciones"}</p>
                   </div>
                 </div>
+
+                {/* Artículos de la Orden */}
+                {orden.articulos && orden.articulos.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">📦 Artículos de la Orden:</h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {orden.articulos.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                          <div className="flex-1">
+                            <h5 className="font-medium text-gray-800">{item.articulo_nombre}</h5>
+                          </div>
+                          <div className="flex items-center gap-4 text-right">
+                            <div>
+                              <p className="text-xs text-gray-600">Cant.</p>
+                              <p className="font-medium">{item.cantidad}</p>
+                            </div>
+                           
+                            
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end mt-4 gap-2">
                   <Button 
                     onClick={() => handleVerOrden(orden.id)}
@@ -208,6 +239,14 @@ export default function ListaOrdenesCompra() {
             <div className="text-4xl mb-4">📋</div>
             <h3 className="text-lg font-semibold">Pedidos Productivos</h3>
             <p className="text-gray-600 text-sm">Gestionar pedidos</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/auth/articulos-ordenes-compra")}>
+          <CardContent className="p-6 text-center">
+            <div className="text-4xl mb-4">📦</div>
+            <h3 className="text-lg font-semibold">Artículos de Órdenes</h3>
+            <p className="text-gray-600 text-sm">Ver artículos de órdenes de compra</p>
           </CardContent>
         </Card>
       </div>

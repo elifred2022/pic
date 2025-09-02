@@ -20,6 +20,7 @@ interface Proveedor {
 
 interface ArticuloAprobado {
   id: string; // Cambiado a string para IDs únicos
+  pedido_id: string; // ID del pedido original
   articulo: string;
   descripcion: string;
   cantidad: number;
@@ -31,6 +32,7 @@ interface ArticuloAprobado {
   aprueba: string;
   necesidad: string;
   estado: string;
+  origen: 'productivo' | 'general'; // Nuevo campo para identificar el origen
 }
 
 interface ItemOrden {
@@ -66,7 +68,9 @@ export function CrearFormOrdenCompra() {
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
     observaciones: "",
-    estado: "pendiente"
+    estado: "pendiente",
+    lugar_entrega: "",
+    noc: ""
   });
 
   const router = useRouter();
@@ -106,15 +110,26 @@ export function CrearFormOrdenCompra() {
     try {
       console.log("🔍 Intentando obtener artículos aprobados...");
       
-      // Obtener artículos aprobados
-      const { data: articulosData, error: articulosError } = await supabase
+      // Obtener artículos aprobados de pedidos productivos
+      const { data: articulosProductivosData, error: articulosProductivosError } = await supabase
         .from("pedidos_productivos")
         .select("*")
         .eq("estado", "aprobado");
 
-      if (articulosError) {
-        console.error("❌ Error obteniendo artículos:", articulosError);
-        throw articulosError;
+      if (articulosProductivosError) {
+        console.error("❌ Error obteniendo artículos productivos:", articulosProductivosError);
+        throw articulosProductivosError;
+      }
+
+      // Obtener artículos aprobados de pedidos generales (tabla pic)
+      const { data: articulosGeneralesData, error: articulosGeneralesError } = await supabase
+        .from("pic")
+        .select("*")
+        .eq("estado", "aprobado");
+
+      if (articulosGeneralesError) {
+        console.error("❌ Error obteniendo artículos generales:", articulosGeneralesError);
+        throw articulosGeneralesError;
       }
 
       // Obtener órdenes de compra existentes
@@ -139,10 +154,11 @@ export function CrearFormOrdenCompra() {
 
       console.log("📋 Artículos ya usados:", Array.from(articulosUsados));
       
-      // Procesar los datos para extraer los artículos individuales
-      const articulosProcesados = articulosData?.flatMap(pedido => 
+      // Procesar artículos de pedidos productivos
+      const articulosProductivosProcesados = articulosProductivosData?.flatMap(pedido => 
         pedido.articulos?.map((articulo: ArticuloPedido) => ({
-          id: `${pedido.id}-${articulo.articulo}`, // ID único
+          id: `productivo-${pedido.id}-${articulo.articulo}`, // ID único con prefijo
+          pedido_id: pedido.id, // ID del pedido original
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
           cantidad: articulo.cant,
@@ -153,16 +169,41 @@ export function CrearFormOrdenCompra() {
           solicita: pedido.solicita,
           aprueba: pedido.aprueba,
           necesidad: pedido.necesidad,
-          estado: pedido.estado
+          estado: pedido.estado,
+          origen: 'productivo' as const
+        })) || []
+      ) || [];
+
+      // Procesar artículos de pedidos generales (tabla pic)
+      const articulosGeneralesProcesados = articulosGeneralesData?.flatMap(pedido => 
+        pedido.articulos?.map((articulo: ArticuloPedido) => ({
+          id: `general-${pedido.id}-${articulo.articulo}`, // ID único con prefijo
+          pedido_id: pedido.id, // ID del pedido original
+          articulo: articulo.articulo,
+          descripcion: articulo.descripcion,
+          cantidad: articulo.cant,
+          cant_exist: articulo.cant_exist,
+          observacion: articulo.observacion || '',
+          categoria: pedido.categoria,
+          sector: pedido.sector,
+          solicita: pedido.solicita,
+          aprueba: pedido.aprueba,
+          necesidad: pedido.necesidad,
+          estado: pedido.estado,
+          origen: 'general' as const
         })) || []
       ) || [];
       
+      // Combinar ambos tipos de artículos
+      const todosLosArticulos = [...articulosProductivosProcesados, ...articulosGeneralesProcesados];
+      
       // Filtrar artículos que ya están en órdenes
-      const articulosDisponibles = articulosProcesados.filter(
+      const articulosDisponibles = todosLosArticulos.filter(
         articulo => !articulosUsados.has(articulo.id)
       );
       
-      console.log("✅ Artículos procesados:", articulosProcesados);
+      console.log("✅ Artículos productivos procesados:", articulosProductivosProcesados);
+      console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
       console.log("✅ Artículos disponibles (filtrados):", articulosDisponibles);
       
       setArticulosAprobados(articulosDisponibles);
@@ -241,6 +282,16 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.lugar_entrega) {
+      setError("Debe seleccionar un lugar de entrega");
+      return;
+    }
+
+    if (!formData.noc || formData.noc.trim() === "") {
+      setError("Debe ingresar un número de orden de compra");
+      return;
+    }
+
     if (itemsOrden.length === 0) {
       setError("Debe agregar al menos un artículo a la orden");
       return;
@@ -257,8 +308,8 @@ export function CrearFormOrdenCompra() {
           proveedor: proveedorSeleccionado.nombreprov,
           direccion: proveedorSeleccionado.direccionprov,
           telefono: proveedorSeleccionado.telefonoprov.toString(),
-         
-        
+          lugar_entrega: formData.lugar_entrega,
+          noc: parseInt(formData.noc),
           total: totalOrden,
           observaciones: formData.observaciones,
           articulos: itemsOrden
@@ -334,6 +385,41 @@ export function CrearFormOrdenCompra() {
                )}
             </div>
 
+            {/* Lugar de Entrega */}
+            <div>
+              <Label htmlFor="lugar_entrega">Lugar de Entrega *</Label>
+              <select
+                id="lugar_entrega"
+                value={formData.lugar_entrega}
+                onChange={(e) => setFormData({ ...formData, lugar_entrega: e.target.value })}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">Seleccione el lugar de entrega</option>
+                <option value="Gascon 74 Boulogne horario 8 a 16 hrs">
+                  Gascon 74 Boulogne horario 8 a 16 hrs
+                </option>
+                <option value="Parque industrial ruta 6, lote 26, Los Cardales">
+                  Parque industrial ruta 6, lote 26, Los Cardales
+                </option>
+              </select>
+            </div>
+
+            {/* Número de Orden de Compra */}
+            <div>
+              <Label htmlFor="noc">Número de Orden de Compra *</Label>
+              <Input
+                id="noc"
+                type="number"
+                value={formData.noc}
+                onChange={(e) => setFormData({ ...formData, noc: e.target.value })}
+                placeholder="Ingrese el número de orden de compra"
+                required
+                min="1"
+                className="w-full"
+              />
+            </div>
+
             {/* Artículos Aprobados */}
             <div>
               <Label className="text-lg font-semibold">Artículos Aprobados Disponibles</Label>
@@ -341,7 +427,19 @@ export function CrearFormOrdenCompra() {
                                  {articulosAprobados.map((articulo) => (
                    <div key={articulo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                      <div className="flex-1">
-                       <h4 className="font-medium">{articulo.articulo}</h4>
+                       <div className="flex items-center gap-2 mb-1">
+                         <h4 className="font-medium">{articulo.articulo}</h4>
+                         <span className={`px-2 py-1 text-xs rounded-full ${
+                           articulo.origen === 'productivo' 
+                             ? 'bg-blue-100 text-blue-800' 
+                             : 'bg-green-100 text-green-800'
+                         }`}>
+                           {articulo.origen === 'productivo' ? '🏭 Productivo' : '📋 General'}
+                         </span>
+                         <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
+                           ID: {articulo.pedido_id}
+                         </span>
+                       </div>
                        <p className="text-sm text-gray-600">
                          Cantidad: {articulo.cantidad} | Categoría: {articulo.categoria} | 
                          Sector: {articulo.sector} | Solicita: {articulo.solicita}
@@ -349,6 +447,11 @@ export function CrearFormOrdenCompra() {
                        {articulo.descripcion && (
                          <p className="text-xs text-gray-500 mt-1">
                            Descripción: {articulo.descripcion}
+                         </p>
+                       )}
+                       {articulo.observacion && (
+                         <p className="text-xs text-gray-500 mt-1">
+                           Observación: {articulo.observacion}
                          </p>
                        )}
                      </div>

@@ -184,3 +184,4 @@ Pendiente → Aprobada → Completada
 🎨 **Seguir patrones de diseño** establecidos en la aplicación
 
 
+
