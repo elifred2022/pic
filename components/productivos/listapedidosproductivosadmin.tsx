@@ -887,6 +887,42 @@ const handleUpdatePedido = async () => {
                  </div>
                </div>
 
+                    {/* Campos de edición del supervisor */}
+                    <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <span className="mr-2">⚙️</span>
+                        Control del Pedido
+                      </h3>
+
+                      <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Estado Actual: <span className="font-bold text-blue-600">{formData.controlado || 'No definido'}</span>
+                     </label>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.controlado || ""}
+                       onChange={(e) => setFormData({ ...formData, controlado: e.target.value })}
+                     >
+                       <option value="">Seleccionar controlado</option>
+                       <option value="autoriza">🟢 Autoriza</option>
+                       <option value="no autoriza">🔴 No autoriza</option>
+                       <option value="stand by">🟠 Stand By</option>
+                     </select>
+                   </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Supervisor:
+                      </label>
+                      <input
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        value={formData.supervisor || ""}
+                        onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
+                      />
+                    </div>
+                    </div>
+                    
+
                {/* Campos de edición del estado */}
                <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -914,6 +950,8 @@ const handleUpdatePedido = async () => {
                        <option value="anulado">🔴 Anulado</option>
                      </select>
                    </div>
+
+                   
 
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-2">

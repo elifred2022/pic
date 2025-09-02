@@ -166,13 +166,14 @@ export default function ListAdmin() {
     "fecha_ent",
   ];
 
-  //Filtro que también contempla las fechas
+  //Filtro que también contempla las fechas y busca dentro del array de artículos
   const filteredPedidos = pedidos
     .filter((pedido) => {
       const s = search.trim().toLowerCase();   // la búsqueda, ya normalizada
       if (!s) return true;                     // si el input está vacío, no filtra nada
 
-      return Object.entries(pedido).some(([key, value]) => {
+      // Buscar en campos directos del pedido
+      const foundInDirectFields = Object.entries(pedido).some(([key, value]) => {
         if (value === null || value === undefined) return false;
 
         // A) Comparar contra la versión texto "tal cual viene"
@@ -190,6 +191,22 @@ export default function ListAdmin() {
         }
         return false;
       });
+
+      // Si ya encontró en campos directos, retornar true
+      if (foundInDirectFields) return true;
+
+      // Buscar dentro del array de artículos
+      if (Array.isArray(pedido.articulos)) {
+        const foundInArticles = pedido.articulos.some((articulo) => {
+          return Object.values(articulo).some((value) => {
+            if (value === null || value === undefined) return false;
+            return String(value).toLowerCase().includes(s);
+          });
+        });
+        return foundInArticles;
+      }
+
+      return false;
     })
    .filter((pedido) => {
     if (ocultarCumplidos && pedido.estado === "cumplido") return false;
@@ -634,7 +651,7 @@ export default function ListAdmin() {
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicita</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
-
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado/Revisado</th>
                   
                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
@@ -776,7 +793,7 @@ export default function ListAdmin() {
                 </div>
               </td>
              
-                              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+            <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                 <span
                     className={
                     pedido.estado === "anulado"
@@ -861,10 +878,15 @@ export default function ListAdmin() {
                 </div>
                              </td>
 
-                
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-700">{renderValue(pedido.controlado)}</span>
+                      <span className="text-sm text-gray-600">{pedido.superviso}</span>
+                    </div>
+                  </td>
                
              
-               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center"> {renderValue(pedido.aprueba)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{pedido.oc}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{renderValue(pedido.proveedor_selec)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.usd}</td>
@@ -932,6 +954,41 @@ export default function ListAdmin() {
                   )}
                 </div>
               </div>
+
+                {/* Campos de edición del supervisor */}
+                <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <span className="mr-2">⚙️</span>
+                        Control del Pedido
+                      </h3>
+
+                      <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Estado Actual: <span className="font-bold text-blue-600">{formData.controlado || 'No definido'}</span>
+                     </label>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.controlado || ""}
+                       onChange={(e) => setFormData({ ...formData, controlado: e.target.value })}
+                     >
+                       <option value="">Seleccionar controlado</option>
+                       <option value="autoriza">🟢 Autoriza</option>
+                       <option value="no autoriza">🔴 No autoriza</option>
+                       <option value="stand by">🟠 Stand By</option>
+                     </select>
+                   </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Supervisor:
+                      </label>
+                      <input
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        value={formData.superviso || ""}
+                        onChange={(e) => setFormData({ ...formData, superviso: e.target.value })}
+                      />
+                    </div>
+                    </div>
 
               {/* Campos de edición del estado */}
               <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
