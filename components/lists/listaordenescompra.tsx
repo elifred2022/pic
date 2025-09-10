@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 
 interface OrdenCompra {
@@ -29,6 +31,8 @@ interface OrdenCompra {
 
 export default function ListaOrdenesCompra() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
+  const [ordenesFiltradas, setOrdenesFiltradas] = useState<OrdenCompra[]>([]);
+  const [filtroBusqueda, setFiltroBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ordenes' | 'otros'>('ordenes');
@@ -40,6 +44,11 @@ export default function ListaOrdenesCompra() {
       fetchOrdenes();
     }
   }, [activeTab]);
+
+  // Efecto para filtrar órdenes cuando cambia el filtro de búsqueda
+  useEffect(() => {
+    filtrarOrdenes();
+  }, [filtroBusqueda, ordenes]);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -58,6 +67,105 @@ export default function ListaOrdenesCompra() {
       setLoading(false);
     }
   }, [supabase]);
+
+  // Función para filtrar órdenes por número, palabra o fecha
+  const filtrarOrdenes = () => {
+    if (!filtroBusqueda.trim()) {
+      setOrdenesFiltradas(ordenes);
+      return;
+    }
+
+    const terminoBusqueda = filtroBusqueda.toLowerCase().trim();
+    
+    // Debug: mostrar estados disponibles
+    if (terminoBusqueda === 'debug') {
+      console.log('Estados disponibles:', ordenes.map(o => o.estado));
+      return;
+    }
+    
+    const ordenesFiltradas = ordenes.filter(orden => {
+      // Buscar por número de orden (NOC)
+      if (orden.noc.toString().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por CUIT (convertir a string)
+      if (orden.cuit.toString().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por nombre del proveedor
+      if (orden.proveedor && orden.proveedor.toLowerCase().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por dirección
+      if (orden.direccion && orden.direccion.toLowerCase().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por teléfono (convertir a string)
+      if (orden.telefono && orden.telefono.toString().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por estado
+      if (orden.estado) {
+        const estadoLower = orden.estado.toLowerCase().trim();
+        
+        // Búsqueda directa en el estado
+        if (estadoLower.includes(terminoBusqueda)) {
+          return true;
+        }
+        
+        // Búsqueda con mapeo de términos comunes
+        const estadoMap: { [key: string]: string[] } = {
+          'pendiente': ['pendiente', 'pending', 'p', 'pen'],
+          'aprobada': ['aprobada', 'approved', 'a', 'apr'],
+          'rechazada': ['rechazada', 'rejected', 'r', 'rech'],
+          'completada': ['completada', 'completed', 'c', 'comp']
+        };
+        
+        // Buscar si el término de búsqueda coincide con algún alias del estado actual
+        for (const [estadoKey, terminos] of Object.entries(estadoMap)) {
+          if (estadoLower === estadoKey) {
+            if (terminos.some(termino => termino.includes(terminoBusqueda))) {
+              return true;
+            }
+          }
+        }
+      }
+      
+      // Buscar por observaciones
+      if (orden.observaciones && orden.observaciones.toLowerCase().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar por fecha (formato DD/MM/YYYY o YYYY-MM-DD)
+      if (orden.fecha) {
+        const fechaFormateada = new Date(orden.fecha).toLocaleDateString('es-AR');
+        if (fechaFormateada.includes(terminoBusqueda)) {
+          return true;
+        }
+      }
+      
+      // Buscar por total
+      if (orden.total && orden.total.toString().includes(terminoBusqueda)) {
+        return true;
+      }
+      
+      // Buscar en artículos de la orden
+      if (orden.articulos && orden.articulos.some(articulo => 
+        articulo.articulo_nombre && articulo.articulo_nombre.toLowerCase().includes(terminoBusqueda)
+      )) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    setOrdenesFiltradas(ordenesFiltradas);
+  };
 
   const handleCrearOrden = () => {
     router.push("/auth/ordenes-compra/crear-orden");
@@ -103,6 +211,18 @@ export default function ListaOrdenesCompra() {
     return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
   };
 
+  // Función para extraer solo el número del ID
+  const extractIdNumber = (articuloId: string) => {
+    // Si el ID tiene formato "productivo-123-articulo" o "general-456-articulo"
+    // extraer solo el número del medio
+    const match = articuloId.match(/(?:productivo|general)-(\d+)-/);
+    if (match) {
+      return match[1];
+    }
+    // Si no coincide con el patrón, devolver el ID original
+    return articuloId;
+  };
+
   const renderOrdenesTab = () => (
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
@@ -110,6 +230,26 @@ export default function ListaOrdenesCompra() {
         <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
           ➕ Crear Nueva Orden
         </Button>
+      </div>
+
+      {/* Campo de búsqueda */}
+      <div className="mb-6">
+        <Label htmlFor="filtro-busqueda" className="text-sm text-gray-600">
+          🔍 Buscar por número, palabra o fecha
+        </Label>
+        <Input
+          id="filtro-busqueda"
+          type="text"
+          value={filtroBusqueda}
+          onChange={(e) => setFiltroBusqueda(e.target.value)}
+          placeholder="Buscar por NOC, proveedor, CUIT, fecha, estado, artículos..."
+          className="w-full"
+        />
+        {filtroBusqueda && (
+          <p className="text-sm text-gray-500 mt-1">
+            Mostrando {ordenesFiltradas.length} de {ordenes.length} órdenes
+          </p>
+        )}
       </div>
 
       {loading ? (
@@ -120,18 +260,25 @@ export default function ListaOrdenesCompra() {
         <div className="flex justify-center items-center h-64">
           <div className="text-red-600 text-lg">{error}</div>
         </div>
-      ) : ordenes.length === 0 ? (
+      ) : ordenesFiltradas.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-gray-500 text-lg">No hay órdenes de compra registradas</p>
-            <Button onClick={handleCrearOrden} className="mt-4 bg-blue-600 hover:bg-blue-700">
-              Crear la primera orden
-            </Button>
+            <p className="text-gray-500 text-lg">
+              {filtroBusqueda 
+                ? `No se encontraron órdenes que coincidan con "${filtroBusqueda}"`
+                : "No hay órdenes de compra registradas"
+              }
+            </p>
+            {!filtroBusqueda && (
+              <Button onClick={handleCrearOrden} className="mt-4 bg-blue-600 hover:bg-blue-700">
+                Crear la primera orden
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {ordenes.map((orden) => (
+          {ordenesFiltradas.map((orden) => (
             <Card key={orden.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
@@ -173,6 +320,11 @@ export default function ListaOrdenesCompra() {
                       {orden.articulos.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
                           <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                                ID: {extractIdNumber(item.articulo_id)}
+                              </span>
+                            </div>
                             <h5 className="font-medium text-gray-800">{item.articulo_nombre}</h5>
                           </div>
                           <div className="flex items-center gap-4 text-right">
@@ -180,8 +332,14 @@ export default function ListaOrdenesCompra() {
                               <p className="text-xs text-gray-600">Cant.</p>
                               <p className="font-medium">{item.cantidad}</p>
                             </div>
-                           
-                            
+                            <div>
+                              <p className="text-xs text-gray-600">Precio</p>
+                              <p className="font-medium">${item.precio_unitario?.toLocaleString('es-AR')}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Total</p>
+                              <p className="font-semibold text-green-600">${item.total?.toLocaleString('es-AR')}</p>
+                            </div>
                           </div>
                         </div>
                       ))}

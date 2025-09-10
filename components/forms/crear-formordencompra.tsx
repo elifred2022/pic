@@ -213,11 +213,15 @@ export function CrearFormOrdenCompra() {
     }
   };
 
-  const handleCuitChange = (cuit: string) => {
-    setFormData({ ...formData, cuit_proveedor: cuit });
+  const handleCuitChange = (valor: string) => {
+    setFormData({ ...formData, cuit_proveedor: valor });
     
-    // Buscar proveedor por CUIT
-    const proveedor = proveedores.find(p => p.cuitprov.toString() === cuit);
+    // Buscar proveedor por CUIT o por nombre
+    const proveedor = proveedores.find(p => 
+      p.cuitprov.toString() === valor || 
+      p.nombreprov.toLowerCase().includes(valor.toLowerCase())
+    );
+    
     if (proveedor) {
       setProveedorSeleccionado(proveedor);
     } else {
@@ -349,18 +353,25 @@ export function CrearFormOrdenCompra() {
                   type="text"
                   value={formData.cuit_proveedor}
                   onChange={(e) => handleCuitChange(e.target.value)}
-                  placeholder="Ingrese el CUIT del proveedor"
+                  placeholder="Ingrese CUIT o nombre del proveedor"
                   required
                 />
                 {proveedores.length > 0 && (
                   <div className="mt-2">
                     <Label className="text-sm text-gray-600">Proveedores disponibles:</Label>
                     <div className="mt-1 space-y-1">
-                                             {proveedores.map((prov) => (
+                      {proveedores
+                        .filter(prov => 
+                          !formData.cuit_proveedor || 
+                          prov.cuitprov.toString().includes(formData.cuit_proveedor) ||
+                          prov.nombreprov.toLowerCase().includes(formData.cuit_proveedor.toLowerCase())
+                        )
+                        .map((prov) => (
                          <div
                            key={prov.id}
                            className={`p-2 rounded cursor-pointer text-sm ${
-                             formData.cuit_proveedor === prov.cuitprov.toString()
+                             formData.cuit_proveedor === prov.cuitprov.toString() || 
+                             formData.cuit_proveedor === prov.nombreprov
                                ? "bg-blue-100 border border-blue-300"
                                : "bg-gray-50 hover:bg-gray-100"
                            }`}
@@ -416,7 +427,7 @@ export function CrearFormOrdenCompra() {
                 placeholder="Ingrese el número de orden de compra"
                 required
                 min="1"
-                className="w-full"
+                className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
 
@@ -437,7 +448,10 @@ export function CrearFormOrdenCompra() {
                            {articulo.origen === 'productivo' ? '🏭 Productivo' : '📋 General'}
                          </span>
                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
-                           ID: {articulo.pedido_id}
+                           ID Artículo: {articulo.id}
+                         </span>
+                         <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                           ID Pedido: {articulo.pedido_id}
                          </span>
                        </div>
                        <p className="text-sm text-gray-600">
