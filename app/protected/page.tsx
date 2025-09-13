@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
 import ListUs from "@/components/lists/listus";
 import ListConsultas from "@/components/lists/listconsultas";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
-
 import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
 import ListBiComponenteSupervisor from "@/components/panels/listabicomponentesupervisor";
 
@@ -44,7 +42,7 @@ export default async function ProtectedPage() {
     "asistentecompras@perfilesyservicios.com.ar",
     "victor@perfilesyservicios.com.ar",
    
-   
+    "recepcion@perfilesyservicios.com.ar", // usuario de fatima
   ];
 
 

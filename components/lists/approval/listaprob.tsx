@@ -4,6 +4,19 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+type ArticuloComparativa = {
+  articulo: string;
+  cant: number;
+  precioUnitario: number | null;
+  subtotal: number;
+};
+
+type ProveedorComparativa = {
+  nombreProveedor: string;
+  articulos: ArticuloComparativa[];
+  total: number;
+};
+
 type Pedido = {
   id: string;
   created_at: string;
@@ -22,7 +35,7 @@ type Pedido = {
     observacion?: string;
     link?: string;
   }>; // Array de artículos
-  descripcion: string;
+ 
   controlado: string;
   superviso: string;
   prov_uno: string;
@@ -36,6 +49,7 @@ type Pedido = {
   subt_prov3: number;
   estado: string;
   aprueba: string;
+  notas: string;
   oc: number;
   proveedor_selec: string;
   fecha_conf: string;
@@ -43,6 +57,7 @@ type Pedido = {
   fecha_ent: string;
   rto: number;
   fac: number;
+  comparativa_prov?: ProveedorComparativa[] | null;
 };
 
 export default function ListAprob() {
@@ -283,10 +298,9 @@ export default function ListAprob() {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 1</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 2</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. 3</th>
+                
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
@@ -316,10 +330,11 @@ export default function ListAprob() {
                             cant: pedido.cant,
                             existencia: pedido.existencia,
                             articulos: pedido.articulos,
-                            descripcion: pedido.descripcion,
+                            notas: pedido.notas,
                             controlado: pedido.controlado,
                             superviso: pedido.superviso,
                             estado: pedido.estado,
+                            aprueba: pedido.aprueba,
                             oc: pedido.oc,
                             proveedor_selec: pedido.proveedor_selec,
                             fecha_conf: pedido.fecha_conf,
@@ -413,6 +428,7 @@ export default function ListAprob() {
                       )}
                     </div>
                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-red-600">{renderValue(pedido.notas)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-gray-700">{pedido.controlado}</span>
@@ -463,7 +479,7 @@ export default function ListAprob() {
                    <div className="space-y-2 text-sm">
                      <p><span className="font-medium">Cantidad Total:</span> {editingPedido.cant}</p>
                      <p><span className="font-medium">Cantidad de Artículos:</span> {Array.isArray(editingPedido.articulos) ? editingPedido.articulos.length : 0}</p>
-                     <p><span className="font-medium">Descripción General:</span> {editingPedido.descripcion}</p>
+                    
                    </div>
                  </div>
               </div>
@@ -525,34 +541,65 @@ export default function ListAprob() {
                   <span className="mr-2">💰</span>
                   Comparativa de Proveedores
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 1</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_uno}</p>
-                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_uno).toLocaleString("es-AR")}</p>
-                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov1).toLocaleString("es-AR")}</p>
-                    </div>
+                
+                {/* Mostrar comparativa nueva si existe */}
+                {editingPedido.comparativa_prov && Array.isArray(editingPedido.comparativa_prov) && editingPedido.comparativa_prov.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {editingPedido.comparativa_prov.map((prov, provIndex) => (
+                      <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-700 mb-3 text-center">
+                          {prov.nombreProveedor || `Proveedor ${provIndex + 1}`}
+                        </h4>
+                        
+                        {prov.articulos && prov.articulos.length > 0 && (
+                          <div className="space-y-2 text-sm">
+                            {prov.articulos.map((art, artIndex) => (
+                              <div key={artIndex} className="bg-white p-2 rounded border">
+                                <div className="font-medium text-gray-800 text-xs">{art.articulo}</div>
+                                <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
+                                <div className="text-gray-600 text-xs">Precio: ${(art.precioUnitario || 0).toLocaleString("es-AR")}</div>
+                                <div className="text-gray-600 text-xs font-semibold">Subtotal: ${(art.subtotal || 0).toLocaleString("es-AR")}</div>
+                              </div>
+                            ))}
+                            <div className="mt-3 text-center font-bold text-gray-800 bg-white p-2 rounded border">
+                              Total: ${(prov.total || 0).toLocaleString("es-AR")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  /* Mostrar proveedores antiguos si no hay comparativa nueva */
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-700 mb-3">Proveedor 1</h4>
+                      <div className="space-y-2 text-sm">
+                        <p><span className="font-medium">Nombre:</span> {editingPedido.prov_uno}</p>
+                        <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_uno).toLocaleString("es-AR")}</p>
+                        <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov1).toLocaleString("es-AR")}</p>
+                      </div>
+                    </div>
 
-                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 2</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_dos}</p>
-                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_dos).toLocaleString("es-AR")}</p>
-                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov2).toLocaleString("es-AR")}</p>
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-700 mb-3">Proveedor 2</h4>
+                      <div className="space-y-2 text-sm">
+                        <p><span className="font-medium">Nombre:</span> {editingPedido.prov_dos}</p>
+                        <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_dos).toLocaleString("es-AR")}</p>
+                        <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov2).toLocaleString("es-AR")}</p>
+                      </div>
+                    </div>
+                     
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-700 mb-3">Proveedor 3</h4>
+                      <div className="space-y-2 text-sm">
+                        <p><span className="font-medium">Nombre:</span> {editingPedido.prov_tres}</p>
+                        <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_tres).toLocaleString("es-AR")}</p>
+                        <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov3).toLocaleString("es-AR")}</p>
+                      </div>
                     </div>
                   </div>
-                   
-                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-700 mb-3">Proveedor 3</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="font-medium">Nombre:</span> {editingPedido.prov_tres}</p>
-                      <p><span className="font-medium">Costo unitario:</span> ${Number(editingPedido.cost_prov_tres).toLocaleString("es-AR")}</p>
-                      <p><span className="font-medium">Subtotal:</span> ${Number(editingPedido.subt_prov3).toLocaleString("es-AR")}</p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               <hr className="my-6" />
@@ -589,13 +636,13 @@ export default function ListAprob() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Observación:</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Observación/notas:</label>
                   <input
                     type="text"
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    value={formData.descripcion ?? ""}
+                    value={formData.notas ?? ""}
                     onChange={(e) =>
-                      setFormData({ ...formData, descripcion: e.target.value})
+                      setFormData({ ...formData, notas: e.target.value})
                     }
                   />
                 </div>

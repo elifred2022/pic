@@ -219,7 +219,8 @@ export default function VerOrdenCompraPage() {
       pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
       aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
       rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
-      completada: { color: "bg-blue-100 text-blue-800", text: "Completada" }
+      cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
+      entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" }
     };
     
     const estadoInfo = estados[estado as keyof typeof estados] || estados.pendiente;
@@ -664,7 +665,8 @@ export default function VerOrdenCompraPage() {
                       <option value="pendiente">Pendiente</option>
                       <option value="aprobada">Aprobada</option>
                       <option value="rechazada">Rechazada</option>
-                      <option value="completada">Completada</option>
+                      <option value="cumplida">Cumplida</option>
+                      <option value="entrego_parcial">Entregó Parcial</option>
                     </select>
                   </div>
                 </div>

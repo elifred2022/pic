@@ -27,7 +27,7 @@ interface OrdenCompra {
   estado: string;
   total: number;
   observaciones?: string;
-}
+} 
 
 export default function ListaOrdenesCompra() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
@@ -36,8 +36,47 @@ export default function ListaOrdenesCompra() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ordenes' | 'otros'>('ordenes');
+  
+  // Estados para filtros de checkbox
+  const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
+  const [ocultarPendientes, setOcultarPendientes] = useState(false);
+  const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  
   const router = useRouter();
   const supabase = createClient();
+
+  // Para que no desactive checkbox al reset página - Al montar, leé localStorage
+  useEffect(() => {
+    setHasMounted(true);
+    
+    const savedCumplidos = localStorage.getItem("ocultarCumplidosOrdenes");
+    const savedPendientes = localStorage.getItem("ocultarPendientesOrdenes");
+    const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcialOrdenes");
+
+    if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
+    if (savedPendientes !== null) setOcultarPendientes(savedPendientes === "true");
+    if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
+  }, []);
+
+  // Cada vez que cambia, actualizá localStorage
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem("ocultarCumplidosOrdenes", String(ocultarCumplidos));
+    }
+  }, [ocultarCumplidos, hasMounted]);
+
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem("ocultarPendientesOrdenes", String(ocultarPendientes));
+    }
+  }, [ocultarPendientes, hasMounted]);
+
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem("ocultarEntregoParcialOrdenes", String(ocultarEntregoParcial));
+    }
+  }, [ocultarEntregoParcial, hasMounted]);
 
   useEffect(() => {
     if (activeTab === 'ordenes') {
@@ -45,10 +84,10 @@ export default function ListaOrdenesCompra() {
     }
   }, [activeTab]);
 
-  // Efecto para filtrar órdenes cuando cambia el filtro de búsqueda
+  // Efecto para filtrar órdenes cuando cambia el filtro de búsqueda o los checkboxes
   useEffect(() => {
     filtrarOrdenes();
-  }, [filtroBusqueda, ordenes]);
+  }, [filtroBusqueda, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -68,10 +107,38 @@ export default function ListaOrdenesCompra() {
     }
   }, [supabase]);
 
-  // Función para filtrar órdenes por número, palabra o fecha
+  // Función para filtrar órdenes por número, palabra, fecha y checkboxes
   const filtrarOrdenes = () => {
+    let ordenesFiltradas = [...ordenes];
+    
+    // Debug: mostrar estados y filtros
+    console.log('Estados de las órdenes:', ordenes.map(o => o.estado));
+    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial });
+    
+    // Aplicar filtros de checkbox primero
+    ordenesFiltradas = ordenesFiltradas.filter(orden => {
+      console.log(`Evaluando orden ${orden.noc} con estado: "${orden.estado}"`);
+      
+      if (ocultarCumplidos && orden.estado === 'cumplida') {
+        console.log('Ocultando cumplida');
+        return false;
+      }
+      if (ocultarPendientes && orden.estado === 'pendiente') {
+        console.log('Ocultando pendiente');
+        return false;
+      }
+      if (ocultarEntregoParcial && orden.estado === 'entrego_parcial') {
+        console.log('Ocultando entregó parcial');
+        return false;
+      }
+      return true;
+    });
+    
+    console.log('Órdenes después del filtro:', ordenesFiltradas.length);
+    
+    // Si no hay filtro de búsqueda, devolver las órdenes filtradas por checkbox
     if (!filtroBusqueda.trim()) {
-      setOrdenesFiltradas(ordenes);
+      setOrdenesFiltradas(ordenesFiltradas);
       return;
     }
 
@@ -79,11 +146,12 @@ export default function ListaOrdenesCompra() {
     
     // Debug: mostrar estados disponibles
     if (terminoBusqueda === 'debug') {
-      console.log('Estados disponibles:', ordenes.map(o => o.estado));
+      console.log('Estados disponibles:', ordenesFiltradas.map(o => o.estado));
       return;
     }
     
-    const ordenesFiltradas = ordenes.filter(orden => {
+    // Aplicar filtro de búsqueda sobre las órdenes ya filtradas por checkbox
+    ordenesFiltradas = ordenesFiltradas.filter(orden => {
       // Buscar por número de orden (NOC)
       if (orden.noc.toString().includes(terminoBusqueda)) {
         return true;
@@ -123,7 +191,8 @@ export default function ListaOrdenesCompra() {
           'pendiente': ['pendiente', 'pending', 'p', 'pen'],
           'aprobada': ['aprobada', 'approved', 'a', 'apr'],
           'rechazada': ['rechazada', 'rejected', 'r', 'rech'],
-          'completada': ['completada', 'completed', 'c', 'comp']
+          'cumplida': ['cumplida', 'completed', 'c', 'comp'],
+          'entrego_parcial': ['entrego_parcial', 'entrego parcial', 'parcial', 'ep']
         };
         
         // Buscar si el término de búsqueda coincide con algún alias del estado actual
@@ -204,7 +273,8 @@ export default function ListaOrdenesCompra() {
       pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
       aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
       rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
-      completada: { color: "bg-blue-100 text-blue-800", text: "Completada" }
+      cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
+      entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" }
     };
     
     const estadoInfo = estados[estado as keyof typeof estados] || estados.pendiente;
@@ -250,6 +320,42 @@ export default function ListaOrdenesCompra() {
             Mostrando {ordenesFiltradas.length} de {ordenes.length} órdenes
           </p>
         )}
+      </div>
+
+      {/* Filtros de estado con checkboxes */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarCumplidos}
+              onChange={() => setOcultarCumplidos((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar cumplidas</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarPendientes}
+              onChange={() => setOcultarPendientes((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar pendientes</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarEntregoParcial}
+              onChange={() => setOcultarEntregoParcial((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar entregó parcial</span>
+          </label>
+        </div>
       </div>
 
       {loading ? (
@@ -410,6 +516,9 @@ export default function ListaOrdenesCompra() {
       </div>
     </div>
   );
+
+  // Mientras no esté montado, no renderizar nada
+  if (!hasMounted) return null;
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6">

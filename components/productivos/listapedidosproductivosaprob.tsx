@@ -548,17 +548,17 @@ const handleUpdatePedido = async () => {
                               </td>
                               <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
                               <td className="px-2 py-2 text-center text-sm">
-                                ${art.precioUnitario.toFixed(0)}
+                                ${(art.precioUnitario || 0).toFixed(0)}
                               </td>
                               <td className="px-2 py-2 text-center text-sm">
-                                ${art.subtotal.toFixed(0)}
+                                ${(art.subtotal || 0).toFixed(0)}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                       <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
-                        Total: ${prov.total.toFixed(0)}
+                        Total: ${(prov.total || 0).toFixed(0)}
                       </div>
                     </div>
                   ))}

@@ -28,8 +28,8 @@ export default function CrearFormUs() {
   const [sector, setSector] = useState("");
   const [estado, setEstado] = useState("iniciado");
   const [aprueba, setAprueba] = useState("");
-  const [observ, setObserv] = useState("");
-
+  
+  const [notas, setNotas] = useState("");
   // Campos para agregar artículo manualmente
   const [articulo, setArticulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -170,6 +170,8 @@ export default function CrearFormUs() {
             sector,
             estado,
             aprueba,
+            notas,
+           
             uuid: user.id,
             articulos: articulosSeleccionados.map((art) => ({
               articulo: art.articulo,
@@ -207,7 +209,7 @@ export default function CrearFormUs() {
       setSector("");
       setEstado("iniciado");
       setArticulosSeleccionados([]);
-      setObserv("");
+   
       setAprueba("");
 
       setTimeout(() => {
@@ -306,6 +308,7 @@ export default function CrearFormUs() {
               <option value="Maestranza">Maestranza</option>
               <option value="Compras">Compras</option>
               <option value="Calidad">Calidad</option>
+              <option value="Flota">Flota</option>
             </select>
           </div>
 
@@ -330,15 +333,17 @@ export default function CrearFormUs() {
           </div>
 
           <div>
-            <label className="text-black">Observación General</label>
+            <label className="text-black">Notas</label>
             <input
               type="text"
-              value={observ}
-              onChange={(e) => setObserv(e.target.value)}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
               className="border p-2 w-full rounded text-black bg-white"
               placeholder="Observación general del pedido"
             />
           </div>
+
+         
         </div>
 
         {/* 🔍 Agregar Artículo Manualmente */}

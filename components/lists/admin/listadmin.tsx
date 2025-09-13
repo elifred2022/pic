@@ -33,7 +33,7 @@ type Pedido = {
     observacion?: string;
     link?: string;
   }>; // Array de artículos
-  descripcion: string;
+  notas?: string;
   controlado: string;
   superviso: string;
   estado: string;
@@ -652,7 +652,7 @@ export default function ListAdmin() {
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado/Revisado</th>
-                  
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Notas</th>
                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Proveedor Selec.</th>
@@ -689,7 +689,7 @@ export default function ListAdmin() {
                         solicita: pedido.solicita,
                         sector: pedido.sector,
                         articulos: pedido.articulos,
-                        descripcion: pedido.descripcion,
+                        notas: pedido.notas,
                         controlado: pedido.controlado,
                         superviso: pedido.superviso,
                         estado: pedido.estado,
@@ -734,7 +734,7 @@ export default function ListAdmin() {
                         solicita: pedido.solicita,
                         sector: pedido.sector,
                         articulos: pedido.articulos,
-                        descripcion: pedido.descripcion,
+                        notas: pedido.notas,
                         controlado: pedido.controlado,
                         superviso: pedido.superviso,
                         estado: pedido.estado,
@@ -878,14 +878,14 @@ export default function ListAdmin() {
                 </div>
                              </td>
 
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                 <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-gray-700">{renderValue(pedido.controlado)}</span>
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                     </div>
                   </td>
                
-             
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-red-600 text-xs max-w-32 break-words">{renderValue(pedido.notas)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center"> {renderValue(pedido.aprueba)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{pedido.oc}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{renderValue(pedido.proveedor_selec)}</td>
@@ -942,10 +942,59 @@ export default function ListAdmin() {
                     <div className="space-y-3">
                       {formData.articulos.map((art, index) => (
                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
-                          <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
-                          <div className="text-gray-600 text-xs">Stock: {art.cant_exist}</div>
-                          <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
+                          <div className="font-medium text-gray-800 text-sm mb-2">{art.articulo}</div>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
+                            <div className="text-gray-600 text-xs">Stock: {art.cant_exist}</div>
+                          </div>
+                          <div className="mb-2">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Descripción:
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                              value={art.descripcion || ""}
+                              onChange={(e) => {
+                                const newArticulos = [...(formData.articulos || [])];
+                                newArticulos[index] = { ...newArticulos[index], descripcion: e.target.value };
+                                setFormData({ ...formData, articulos: newArticulos });
+                              }}
+                              placeholder="Descripción del artículo"
+                            />
+                          </div>
+                          <div className="mb-2">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Observación:
+                            </label>
+                            <textarea
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                              rows={2}
+                              value={art.observacion || ""}
+                              onChange={(e) => {
+                                const newArticulos = [...(formData.articulos || [])];
+                                newArticulos[index] = { ...newArticulos[index], observacion: e.target.value };
+                                setFormData({ ...formData, articulos: newArticulos });
+                              }}
+                              placeholder="Observaciones del artículo"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Link de Referencia:
+                            </label>
+                            <input
+                              type="url"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                              value={art.link || ""}
+                              onChange={(e) => {
+                                const newArticulos = [...(formData.articulos || [])];
+                                newArticulos[index] = { ...newArticulos[index], link: e.target.value };
+                                setFormData({ ...formData, articulos: newArticulos });
+                              }}
+                              placeholder="https://ejemplo.com"
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -959,7 +1008,7 @@ export default function ListAdmin() {
                 <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                         <span className="mr-2">⚙️</span>
-                        Control del Pedido
+                        Control del Supervisor
                       </h3>
 
                       <div>
@@ -1012,6 +1061,7 @@ export default function ListAdmin() {
                       <option value="cotizado">🟡 Cotizado</option>
                       <option value="aprobado">🟢 Aprobado</option>
                       <option value="confirmado">🟢 Confirmado</option>
+                      <option value="confirmado">🟢 Entrego parcial</option>
                       <option value="cumplido">⚪ Cumplido</option>
                       <option value="stand by">🟠 Stand By</option>
                       <option value="anulado">🔴 Anulado</option>
@@ -1020,14 +1070,14 @@ export default function ListAdmin() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Observaciones:
+                      Agrar notas:
                     </label>
                     <textarea
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       rows={3}
                       placeholder="Agregar observaciones sobre el cambio de estado..."
-                      value={formData.descripcion || ""}
-                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                      value={formData.notas || ""}
+                      onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
                     />
                   </div>
                 </div>

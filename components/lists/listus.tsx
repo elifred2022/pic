@@ -28,6 +28,7 @@ type Pedido = {
   superviso: string;
   estado: string;
   aprueba: string;
+  notas: string;
   oc: number;
   proveedor_selec: string;
  
@@ -320,7 +321,8 @@ function renderValue(value: unknown): string {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
-                                            <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
@@ -446,6 +448,7 @@ function renderValue(value: unknown): string {
                                 )}
                               </div>
                             </td>
+                <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-red-600">{renderValue(pedido.notas)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-gray-700">{pedido.controlado}</span>

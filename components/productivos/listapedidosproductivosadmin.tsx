@@ -891,7 +891,7 @@ const handleUpdatePedido = async () => {
                     <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                         <span className="mr-2">⚙️</span>
-                        Control del Pedido
+                        Control del Supervisor
                       </h3>
 
                       <div>
@@ -921,108 +921,6 @@ const handleUpdatePedido = async () => {
                       />
                     </div>
                     </div>
-                    
-
-               {/* Campos de edición del estado */}
-               <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
-                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                   <span className="mr-2">⚙️</span>
-                   Cambiar Estado del Pedido
-                 </h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Estado Actual: <span className="font-bold text-blue-600">{formData.estado || 'No definido'}</span>
-                     </label>
-                     <select
-                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       value={formData.estado || ""}
-                       onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                     >
-                       <option value="">Seleccionar nuevo estado</option>
-                       <option value="iniciado">🟡 Iniciado</option>
-                       <option value="visto/recibido">🟠 Visto/Recibido</option>
-                       <option value="cotizado">🟡 Cotizado</option>
-                       <option value="aprobado">🟢 Aprobado</option>
-                       <option value="confirmado">🟢 Confirmado</option>
-                       <option value="cumplido">⚪ Cumplido</option>
-                       <option value="stand by">🟠 Stand By</option>
-                       <option value="anulado">🔴 Anulado</option>
-                     </select>
-                   </div>
-
-                   
-
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Observaciones:
-                     </label>
-                     <textarea
-                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       rows={3}
-                       placeholder="Agregar observaciones sobre el cambio de estado..."
-                       value={formData.observ || ""}
-                       onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
-                     />
-                   </div>
-                 </div>
-
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Proveedor Seleccionado:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        placeholder="Nombre del proveedor seleccionado"
-                        value={formData.proveedor_seleccionado || ""}
-                        onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Número de OC:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        placeholder="Número de orden de compra"
-                        value={formData.numero_oc || ""}
-                        onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Número de Factura:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        placeholder="Número de factura"
-                        value={formData.fac || ""}
-                        onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Número de RTO:
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        placeholder="Número de RTO"
-                        value={formData.rto || ""}
-                        onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
-                      />
-                    </div>
-                  </div>
-               </div>
 
                              {/* Sección de Comparativa de Proveedores */}
                <div className="mb-6">
@@ -1135,6 +1033,152 @@ const handleUpdatePedido = async () => {
                         ))}
                     </div>
                   </div>
+
+               {/* Campos de edición del estado */}
+               <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                   <span className="mr-2">⚙️</span>
+                   Cambiar Estado del Pedido
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Estado Actual: <span className="font-bold text-blue-600">{formData.estado || 'No definido'}</span>
+                     </label>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.estado || ""}
+                       onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+                     >
+                       <option value="">Seleccionar nuevo estado</option>
+                       <option value="iniciado">🟡 Iniciado</option>
+                       <option value="visto/recibido">🟠 Visto/Recibido</option>
+                       <option value="cotizado">🟡 Cotizado</option>
+                       <option value="aprobado">🟢 Aprobado</option>
+                       <option value="confirmado">🟢 Confirmado</option>
+                       <option value="cumplido">⚪ Cumplido</option>
+                       <option value="stand by">🟠 Stand By</option>
+                       <option value="anulado">🔴 Anulado</option>
+                     </select>
+                   </div>
+
+                   
+
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Observaciones:
+                     </label>
+                     <textarea
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       rows={3}
+                       placeholder="Agregar observaciones sobre el cambio de estado..."
+                       value={formData.observ || ""}
+                       onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
+                     />
+                   </div>
+                 </div>
+
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Proveedor Seleccionado:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Nombre del proveedor seleccionado"
+                        value={formData.proveedor_seleccionado || ""}
+                        onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de OC:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de orden de compra"
+                        value={formData.numero_oc || ""}
+                        onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de Factura:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de factura"
+                        value={formData.fac || ""}
+                        onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de RTO:
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="Número de RTO"
+                        value={formData.rto || ""}
+                        onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
+                      />
+                    </div>
+                  </div>
+               </div>
+
+               {/* Sección de Fechas */}
+               <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                   <span className="mr-2">📅</span>
+                   Fechas del Pedido
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Fecha de Confirmado:
+                     </label>
+                     <input
+                       type="date"
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.fecha_conf || ""}
+                       onChange={(e) => setFormData({ ...formData, fecha_conf: e.target.value })}
+                     />
+                   </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Fecha Prometida:
+                     </label>
+                     <input
+                       type="date"
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.fecha_prom || ""}
+                       onChange={(e) => setFormData({ ...formData, fecha_prom: e.target.value })}
+                     />
+                   </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Fecha de Ingreso:
+                     </label>
+                     <input
+                       type="date"
+                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       value={formData.fecha_ent || ""}
+                       onChange={(e) => setFormData({ ...formData, fecha_ent: e.target.value })}
+                     />
+                   </div>
+                 </div>
+               </div>
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
