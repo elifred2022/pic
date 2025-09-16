@@ -12,7 +12,7 @@ type Pedido = {
   solicita: string;
   sector: string;
   controlado: string;
-  superviso: string;
+  supervisor: string;
   aprueba: string;
   estado: string;
   observ: string;
@@ -317,6 +317,8 @@ export default function ListaPedidosProductivos() {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Observaciones</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Seleccionado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Confirmación</th>
@@ -393,6 +395,13 @@ export default function ListaPedidosProductivos() {
                       <span className="text-sm text-gray-700 bg-orange-50 px-2 py-1 rounded">{p.observ || "-"}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="flex flex-col gap-1">
+                       <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
+                       <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
+                     </div>
+                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.numero_oc || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.proveedor_seleccionado || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
