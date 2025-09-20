@@ -33,12 +33,14 @@ type Pedido = {
   observ: string;
   numero_oc: string | null;
   proveedor_seleccionado: string | null;
+  usd: number;
+  eur: number;
+  ars: number;
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
   rto: string | null;
   fac: string | null;
-  
   
   articulos: {
     codint: string;
@@ -273,6 +275,9 @@ const handleUpdatePedido = async () => {
         observ: formData.observ,
         numero_oc: formData.numero_oc,
         proveedor_seleccionado: formData.proveedor_seleccionado,
+        usd: formData.usd,
+        eur: formData.eur,
+        ars: formData.ars,
         supervisor: formData.supervisor,
         controlado: formData.controlado,
         fecha_conf: formData.fecha_conf,
@@ -546,15 +551,15 @@ const handleUpdatePedido = async () => {
                       <tr>
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
-                        <td>$${(art.precioUnitario || 0).toFixed(0)}</td>
-                        <td>$${(art.subtotal || 0).toFixed(0)}</td>
+                        <td>$${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>$${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     `).join('')}
                   </tbody>
                 </table>
                 
                 <div class="total-proveedor">
-                  Total: $${(prov.total || 0).toFixed(0)}
+                  Total: $${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
             `).join('')
@@ -689,6 +694,9 @@ const handleUpdatePedido = async () => {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Prov. Selecc.</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">USD</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">EUR</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">ARS sin imp</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Confirmado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Promesa</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Entrego</th>
@@ -834,6 +842,9 @@ const handleUpdatePedido = async () => {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.numero_oc)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.proveedor_seleccionado)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">${(Number(p.usd) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">€{(Number(p.eur) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">${(Number(p.ars) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_prom)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_ent)}</td>
@@ -1022,14 +1033,14 @@ const handleUpdatePedido = async () => {
                                       />
                                     </td>
                               <td className="px-2 py-2 text-right text-sm font-medium">
-                                ${(art.subtotal || 0).toFixed(0)}
+                                ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                       <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
-                        Total: ${(prov.total || 0).toFixed(0)}
+                        Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
                         ))}
@@ -1108,6 +1119,53 @@ const handleUpdatePedido = async () => {
                       />
                     </div>
                   </div>
+
+                   {/* Campos adicionales para pedidos generales */}
+              
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Información Financiera
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total USD:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.usd || ""}
+                      onChange={(e) => setFormData({ ...formData, usd: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total EUR:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.eur || ""}
+                      onChange={(e) => setFormData({ ...formData, eur: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total ARS:
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="0.00"
+                      value={formData.ars || ""}
+                      onChange={(e) => setFormData({ ...formData, ars: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                     <div>
@@ -1287,17 +1345,17 @@ const handleUpdatePedido = async () => {
                                  })()}
                                </td>
                                <td className="px-2 py-2 text-center text-sm">
-                                 ${(art.precioUnitario || 0).toFixed(0)}
+                                 ${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                </td>
                                <td className="px-2 py-2 text-center text-sm">
-                                 ${(art.subtotal || 0).toFixed(0)}
+                                 ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                </td>
                                              </tr>
                                          ))}
                                      </tbody>
                                  </table>
                       <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
-                        Total: ${(prov.total || 0).toFixed(0)}
+                        Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                             </div>
                         ))}

@@ -316,7 +316,8 @@ export function CrearFormOrdenCompra() {
           noc: parseInt(formData.noc),
           total: totalOrden,
           observaciones: formData.observaciones,
-          articulos: itemsOrden
+          articulos: itemsOrden,
+          estado: formData.estado,
         })
         .select()
         .single();

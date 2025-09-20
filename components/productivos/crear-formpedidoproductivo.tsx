@@ -297,8 +297,8 @@ export default function CrearFormPedidoProductivo() {
                       className="border p-2 w-full rounded text-black bg-white"
                     >
                       <option value="">Seleccione un sector</option>
-                      <option value="Pañol Cardales">Pañol Cardales</option>
-                      <option value="Pañol Gascon">Pañol Gascon</option>
+                      <option value="Panol Cardales">Panol Cardales</option>
+                      <option value="Panol Gascon">Panol Gascon</option>
                       <option value="Vidrio">Vidrio</option>
                       <option value="Pvc">Pvc</option>
                       <option value="Perf. Aluminio">Perf. Aluminio</option>

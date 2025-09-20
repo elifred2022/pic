@@ -207,8 +207,8 @@ function parseDate(value: string) {
                       className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
                     >
                       <option value="">Seleccione un sector</option>
-                      <option value="Pañol Cardales">Pañol Cardales</option>
-                      <option value="Pañol Gascon">Pañol Gascon</option>
+                      <option value="Panol Cardales">Panol Cardales</option>
+                      <option value="Panol Gascon">Panol Gascon</option>
                       <option value="Mantenimiento">Mantenimiento</option>
                       <option value="RRHH">RRHH</option>
                       <option value="Seguridad e Higiene">Seguridad e Higiene</option>

@@ -293,8 +293,8 @@ export default function CrearFormUs() {
               className="border p-2 w-full rounded text-black bg-white"
             >
               <option value="">Seleccione un sector</option>
-              <option value="Pañol Cardales">Pañol Cardales</option>
-              <option value="Pañol Gascon">Pañol Gascon</option>
+              <option value="Panol Cardales">Panol Cardales</option>
+              <option value="Panol Gascon">Panol Gascon</option>
               <option value="Mantenimiento">Mantenimiento</option>
               <option value="RRHH">RRHH</option>
               <option value="Seguridad e Higiene">Seguridad e Higiene</option>

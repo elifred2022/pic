@@ -173,8 +173,8 @@ const handleCodintChange = async (value: string) => {
                       className="border border-input bg-background px-3 py-2 rounded-md text-sm shadow-sm"
                     >
                       <option value="">Seleccione un sector</option>
-                      <option value="Pañol Cardales">Pañol Cardales</option>
-                      <option value="Pañol Gascon">Pañol Gascon</option>
+                      <option value="Panol Cardales">Panol Cardales</option>
+                      <option value="Panol Gascon">Panol Gascon</option>
                       <option value="Vidrio">Vidrio</option>
                       <option value="Pvc">Pvc</option>
                       <option value="Perf. Aluminio">Perf. Aluminio</option>
