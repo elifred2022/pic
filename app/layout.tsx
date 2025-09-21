@@ -10,8 +10,12 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Pic P&S",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Pic",
+  description: "Aplicacion de pedidos internos de compras",
+  icons: {
+    icon: '/faviconpic.png?v=2',
+    shortcut: '/faviconpic.png?v=2',
+  },
 };
 
 const geistSans = Geist({
@@ -27,6 +31,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/faviconpic.png?v=2" />
+        <link rel="shortcut icon" href="/faviconpic.png?v=2" />
+      </head>
       <body className={`${geistSans.className} antialiased`}>
         <ThemeProvider
           attribute="class"
