@@ -29,10 +29,6 @@ export function UserProfileSetup() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkUserProfile();
-  }, [supabase]);
-
   const checkUserProfile = useCallback(async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -65,6 +61,10 @@ export function UserProfileSetup() {
       setIsChecking(false);
     }
   }, [supabase, router]);
+
+  useEffect(() => {
+    checkUserProfile();
+  }, [checkUserProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
