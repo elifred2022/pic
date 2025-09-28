@@ -31,13 +31,27 @@ export function ForgotPasswordForm({
     setError(null);
 
     try {
-      // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
+      console.log("🔍 Sending password reset email to:", email);
+      
+      // Usar URL absoluta para evitar redirecciones incorrectas
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                     (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+      const redirectUrl = `${baseUrl}/auth/reset-password`;
+      
+      console.log("🔍 Using redirect URL:", redirectUrl);
+      console.log("🔍 Current origin:", typeof window !== 'undefined' ? window.location.origin : 'server-side');
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: redirectUrl,
       });
+      
+      console.log("🔍 Password reset result:", { error: error?.message });
+      
       if (error) throw error;
       setSuccess(true);
+      console.log("✅ Password reset email sent successfully");
     } catch (error: unknown) {
+      console.error("❌ Password reset error:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsLoading(false);

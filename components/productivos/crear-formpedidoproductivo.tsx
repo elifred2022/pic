@@ -35,6 +35,7 @@ export default function CrearFormPedidoProductivo() {
   const [codigoArticulo, setCodigoArticulo] = useState("");
   const [articuloEncontrado, setArticuloEncontrado] = useState<Articulo | null>(null);
   const [cant, setCant] = useState<number>(1);
+  const [existenciaEditada, setExistenciaEditada] = useState<number>(0);
    const [observacion, setObservacion] = useState("");
   const [observ, setObserv] = useState("");
 
@@ -103,8 +104,10 @@ export default function CrearFormPedidoProductivo() {
 
       if (!error && data) {
         setArticuloEncontrado(data as Articulo);
+        setExistenciaEditada(data.existencia);
       } else {
         setArticuloEncontrado(null);
+        setExistenciaEditada(0);
       }
     };
 
@@ -121,20 +124,21 @@ export default function CrearFormPedidoProductivo() {
         setArticulosSeleccionados((prev) =>
           prev.map((a) =>
             a.codint === articuloEncontrado.codint
-              ? { ...a, cant: a.cant + cant }
+              ? { ...a, cant: a.cant + cant, existencia: existenciaEditada }
               : a
           )
         );
       } else {
         setArticulosSeleccionados((prev) => [
           ...prev,
-          { ...articuloEncontrado, cant, observacion },
+          { ...articuloEncontrado, cant, observacion, existencia: existenciaEditada },
         ]);
       }
       // Reset inputs para cargar otro artículo
       setCodigoArticulo("");
       setArticuloEncontrado(null);
       setCant(1);
+      setExistenciaEditada(0);
     }
   };
 
@@ -202,7 +206,27 @@ export default function CrearFormPedidoProductivo() {
       console.error(error);
       setMessage("❌ Error al crear el pedido");
     } else {
-      setMessage("✅ Pedido creado con éxito");
+      // Actualizar existencia en la tabla articulos
+      try {
+        for (const articulo of articulosSeleccionados) {
+          const { error: updateError } = await supabase
+            .from("articulos")
+            .update({ existencia: articulo.existencia })
+            .eq("codint", articulo.codint);
+
+          if (updateError) {
+            console.error("Error al actualizar existencia:", updateError);
+            setMessage("⚠️ Pedido creado pero error al actualizar existencia");
+            setLoading(false);
+            return;
+          }
+        }
+        setMessage("✅ Pedido creado con éxito y existencia actualizada");
+      } catch (updateError) {
+        console.error("Error al actualizar existencia:", updateError);
+        setMessage("⚠️ Pedido creado pero error al actualizar existencia");
+      }
+
       // Reset form
       setNecesidad("");
       setCategoria("");
@@ -214,6 +238,7 @@ export default function CrearFormPedidoProductivo() {
       setCodigoArticulo("");
       setArticuloEncontrado(null);
       setCant(1);
+      setExistenciaEditada(0);
       setObservacion("")
       setArticulosSeleccionados([]);
       setObserv("");
@@ -380,10 +405,21 @@ export default function CrearFormPedidoProductivo() {
               <p><strong>Código:</strong> {articuloEncontrado.codint}</p>
               <p><strong>Artículo:</strong> {articuloEncontrado.articulo}</p>
               <p><strong>Descripción:</strong> {articuloEncontrado.descripcion}</p>
-              <p><strong>Existencia:</strong> {articuloEncontrado.existencia}</p>
               <p><strong>Proveedor sugerido:</strong> {articuloEncontrado.provsug}</p>
 
             <div className="mt-2 flex flex-col gap-2">
+  {/* Existencia */}
+  <div className="flex flex-col">
+    <label className="text-black mb-1">Existencia:</label>
+    <input
+      type="number"
+      min={0}
+      value={existenciaEditada}
+      onChange={(e) => setExistenciaEditada(parseInt(e.target.value) || 0)}
+      className="border p-2 rounded text-black bg-white"
+    />
+  </div>
+
   {/* Cantidad */}
   <div className="flex flex-col">
     <label className="text-black mb-1">Cantidad:</label>
@@ -432,6 +468,7 @@ export default function CrearFormPedidoProductivo() {
                 <tr className="bg-gray-100">
                   <th className="border p-2">Código</th>
                   <th className="border p-2">Artículo</th>
+                  <th className="border p-2">Existencia</th>
                   <th className="border p-2">Observ</th>
                   <th className="border p-2">Cantidad</th>
                   <th className="border p-2">Acciones</th>
@@ -442,6 +479,7 @@ export default function CrearFormPedidoProductivo() {
                   <tr key={a.codint}>
                     <td className="border p-2">{a.codint}</td>
                     <td className="border p-2">{a.articulo}</td>
+                    <td className="border p-2">{a.existencia}</td>
                     <td className="border p-2">{a.observacion}</td>
                     <td className="border p-2">{a.cant}</td>
                     <td className="border p-2 text-center">

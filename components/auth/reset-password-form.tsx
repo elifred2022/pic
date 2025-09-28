@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
-export function UpdatePasswordForm({
+export function ResetPasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
@@ -25,6 +25,7 @@ export function UpdatePasswordForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
 
   // Verificar sesión al cargar el componente
@@ -33,15 +34,16 @@ export function UpdatePasswordForm({
       const supabase = createClient();
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
-        console.log("🔍 Checking session for password update:", { user: !!user, error: error?.message });
+        console.log("🔍 Checking session for password reset:", { user: !!user, error: error?.message });
         
         if (error) {
           console.error("❌ Session check error:", error);
           setError("Sesión inválida. Por favor, solicita un nuevo enlace de recuperación.");
           setIsValidSession(false);
         } else if (user) {
-          console.log("✅ Valid session found");
+          console.log("✅ Valid session found for user:", user.email);
           setIsValidSession(true);
+          setUserEmail(user.email || null);
         } else {
           console.log("❌ No user session found");
           setError("Sesión inválida. Por favor, solicita un nuevo enlace de recuperación.");
@@ -59,7 +61,7 @@ export function UpdatePasswordForm({
     checkSession();
   }, []);
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
@@ -77,18 +79,19 @@ export function UpdatePasswordForm({
     setError(null);
 
     try {
-      console.log("🔍 Updating password...");
+      console.log("🔍 Resetting password...");
       const { error } = await supabase.auth.updateUser({ password });
       
-      console.log("🔍 Password update result:", { error: error?.message });
+      console.log("🔍 Password reset result:", { error: error?.message });
       
       if (error) throw error;
       
-      console.log("✅ Password updated successfully");
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      console.log("✅ Password reset successfully");
+      // Cerrar sesión y redirigir al login
+      await supabase.auth.signOut();
+      router.push("/auth/login?message=password-reset-success");
     } catch (error: unknown) {
-      console.error("❌ Password update error:", error);
+      console.error("❌ Password reset error:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsLoading(false);
@@ -135,13 +138,15 @@ export function UpdatePasswordForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Actualizar Contraseña</CardTitle>
+          <CardTitle className="text-2xl">Restablecer Contraseña</CardTitle>
           <CardDescription>
-            Ingresa tu nueva contraseña a continuación para actualizarla.
+            {userEmail && `Para: ${userEmail}`}
+            <br />
+            Ingresa tu nueva contraseña a continuación.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleUpdatePassword}>
+          <form onSubmit={handleResetPassword}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="password">Nueva Contraseña</Label>
@@ -169,7 +174,7 @@ export function UpdatePasswordForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Actualizando..." : "Actualizar contraseña"}
+                {isLoading ? "Restableciendo..." : "Restablecer contraseña"}
               </Button>
             </div>
           </form>

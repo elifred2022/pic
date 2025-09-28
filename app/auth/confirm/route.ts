@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/";
 
+  console.log("🔍 Confirm route - Params:", { token_hash, type, next });
+
   if (token_hash && type) {
     const supabase = await createClient();
 
@@ -16,15 +18,27 @@ export async function GET(request: NextRequest) {
       type,
       token_hash,
     });
+    
+    console.log("🔍 OTP verification result:", { error: error?.message });
+    
     if (!error) {
-      // redirect user to specified redirect URL or root of app
-      redirect(next);
+      // Para recuperación de contraseña, asegurar que el usuario esté autenticado
+      if (type === "recovery") {
+        console.log("✅ Password recovery verified, redirecting to update password page");
+        redirect("/auth/update-password");
+      } else {
+        // redirect user to specified redirect URL or root of app
+        console.log("✅ OTP verified successfully, redirecting to:", next);
+        redirect(next);
+      }
     } else {
       // redirect the user to an error page with some instructions
-      redirect(`/auth/error?error=${error?.message}`);
+      console.error("❌ OTP verification failed:", error.message);
+      redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
     }
   }
 
   // redirect the user to an error page with some instructions
-  redirect(`/auth/error?error=No token hash or type`);
+  console.error("❌ Missing token_hash or type");
+  redirect(`/auth/error?error=${encodeURIComponent("No token hash or type")}`);
 }

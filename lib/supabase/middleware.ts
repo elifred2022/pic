@@ -57,6 +57,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Permitir acceso a las páginas de recuperación de contraseña sin sesión válida
+  // ya que el usuario puede estar llegando desde un enlace de recuperación
+  if (request.nextUrl.pathname === "/auth/update-password" || 
+      request.nextUrl.pathname === "/auth/reset-password") {
+    return supabaseResponse;
+  }
+
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:
