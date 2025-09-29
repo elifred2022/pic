@@ -98,6 +98,7 @@ interface OrdenCompra {
   estado: string;
   total: number;
   observaciones?: string;
+  condicion_pago?: string;
   articulos: Array<{
     articulo_id: string;
     articulo_nombre: string;
@@ -131,6 +132,7 @@ export default function VerOrdenCompraPage() {
     email: '',
     estado: '',
     observaciones: '',
+    condicion_pago: '',
     lugar_entrega: '',
     articulos: [] as Array<{
       articulo_id: string;
@@ -250,6 +252,7 @@ export default function VerOrdenCompraPage() {
         email: orden.email || '',
         estado: orden.estado,
         observaciones: orden.observaciones || '',
+        condicion_pago: orden.condicion_pago || '',
         lugar_entrega: orden.lugar_entrega,
         articulos: orden.articulos || []
       });
@@ -269,6 +272,7 @@ export default function VerOrdenCompraPage() {
       email: '',
       estado: '',
       observaciones: '',
+      condicion_pago: '',
       lugar_entrega: '',
       articulos: []
     });
@@ -306,6 +310,7 @@ export default function VerOrdenCompraPage() {
           telefono: editData.telefono,
           estado: editData.estado,
           observaciones: editData.observaciones,
+          condicion_pago: editData.condicion_pago,
           lugar_entrega: editData.lugar_entrega,
           articulos: editData.articulos,
           total: totalOrden
@@ -324,6 +329,7 @@ export default function VerOrdenCompraPage() {
         telefono: editData.telefono,
         estado: editData.estado,
         observaciones: editData.observaciones,
+        condicion_pago: editData.condicion_pago,
         lugar_entrega: editData.lugar_entrega,
         articulos: editData.articulos,
         total: totalOrden
@@ -529,6 +535,12 @@ export default function VerOrdenCompraPage() {
                 <p className="text-sm text-gray-600 print:text-xs">Observaciones</p>
                 <p className="font-medium print:text-sm">
                   {orden.observaciones || "Sin observaciones"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 print:text-xs">Condición de Pago</p>
+                <p className="font-medium print:text-sm">
+                  {orden.condicion_pago || "No especificada"}
                 </p>
               </div>
               <div>
@@ -758,6 +770,28 @@ export default function VerOrdenCompraPage() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={3}
                     />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="edit-condicion-pago">Condición de Pago</Label>
+                    <select
+                      id="edit-condicion-pago"
+                      value={editData.condicion_pago || ''}
+                      onChange={(e) => setEditData({ ...editData, condicion_pago: e.target.value })}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccione la condición de pago</option>
+                      <option value="CC 30/60/90 DIAS FF">CC 30/60/90 DIAS FF</option>
+                      <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
+                      <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
+                      <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
+                      <option value="CC 15 DIAS FF">CC 15 DIAS FF</option>
+                      <option value="CC 7 DIAS FF">CC 7 DIAS FF</option>
+                      <option value="ECHEQ 30 DIAS FF">ECHEQ 30 DIAS FF</option>
+                      <option value="ECHEQ 15 DIAS FF">ECHEQ 15 DIAS FF</option>
+                      <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>
+                      <option value="PAGO CONTRA ENTREGA">PAGO CONTRA ENTREGA</option>
+                    </select>
                   </div>
                 </div>
               </div>

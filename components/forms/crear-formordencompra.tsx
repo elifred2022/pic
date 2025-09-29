@@ -75,7 +75,8 @@ export function CrearFormOrdenCompra() {
     noc: "",
     sector: "",
     cod_cta: "",
-    importe_competencia: ""
+    importe_competencia: "",
+    condicion_pago: ""
   });
 
   const router = useRouter();
@@ -366,6 +367,11 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.condicion_pago) {
+      setError("Debe seleccionar una condición de pago");
+      return;
+    }
+
     if (!formData.noc || formData.noc.trim() === "") {
       setError("Error: No se pudo generar el número de orden de compra");
       return;
@@ -392,9 +398,10 @@ export function CrearFormOrdenCompra() {
           cod_cta: formData.cod_cta,
           importe_competencia: parseFloat(formData.importe_competencia),
           ahorro: ahorro,
+          condicion_pago: formData.condicion_pago,
           noc: formData.noc,
           total: totalOrden,
-          observaciones: formData.observaciones,
+          observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
           articulos: itemsOrden,
           estado: formData.estado,
         })
@@ -551,6 +558,33 @@ export function CrearFormOrdenCompra() {
               />
               <p className="text-sm text-gray-500 mt-1">
                 💰 Importe de la competencia para calcular el ahorro
+              </p>
+            </div>
+
+            {/* Condición de Pago */}
+            <div>
+              <Label htmlFor="condicion_pago">Condición de Pago *</Label>
+              <select
+                id="condicion_pago"
+                value={formData.condicion_pago}
+                onChange={(e) => setFormData({ ...formData, condicion_pago: e.target.value })}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">Seleccione la condición de pago</option>
+                <option value="CC 30/60/90 DIAS FF">CC 30/60/90 DIAS FF</option>
+                <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
+                <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
+                <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
+                <option value="CC 15 DIAS FF">CC 15 DIAS FF</option>
+                <option value="CC 7 DIAS FF">CC 7 DIAS FF</option>
+                <option value="ECHEQ 30 DIAS FF">ECHEQ 30 DIAS FF</option>
+                <option value="ECHEQ 15 DIAS FF">ECHEQ 15 DIAS FF</option>
+                <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>
+                <option value="PAGO CONTRA ENTREGA">PAGO CONTRA ENTREGA</option>
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                💳 Seleccione la forma de pago para la orden de compra
               </p>
             </div>
 
@@ -719,7 +753,7 @@ export function CrearFormOrdenCompra() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.importe_competencia}
+                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.importe_competencia || !formData.condicion_pago}
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
               >
                 {loading ? "Creando..." : "✅ Crear Orden de Compra"}
