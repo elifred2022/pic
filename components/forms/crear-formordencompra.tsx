@@ -64,13 +64,18 @@ export function CrearFormOrdenCompra() {
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<Proveedor | null>(null);
   const [itemsOrden, setItemsOrden] = useState<ItemOrden[]>([]);
   const [totalOrden, setTotalOrden] = useState(0);
+  const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
+  const [ahorro, setAhorro] = useState(0);
   
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
     observaciones: "",
     estado: "pendiente",
     lugar_entrega: "",
-    noc: ""
+    noc: "",
+    sector: "",
+    cod_cta: "",
+    importe_competencia: ""
   });
 
   const router = useRouter();
@@ -79,6 +84,7 @@ export function CrearFormOrdenCompra() {
   useEffect(() => {
     fetchProveedores();
     fetchArticulosAprobados();
+    fetchUltimoNOC();
   }, []);
 
   useEffect(() => {
@@ -86,6 +92,13 @@ export function CrearFormOrdenCompra() {
     const total = itemsOrden.reduce((sum, item) => sum + item.total, 0);
     setTotalOrden(total);
   }, [itemsOrden]);
+
+  useEffect(() => {
+    // Calcular ahorro cuando cambie el importe de competencia o el total de la orden
+    const importeCompetencia = parseFloat(formData.importe_competencia) || 0;
+    const ahorroCalculado = importeCompetencia - totalOrden;
+    setAhorro(ahorroCalculado);
+  }, [formData.importe_competencia, totalOrden]);
 
   const fetchProveedores = async () => {
     try {
@@ -103,6 +116,41 @@ export function CrearFormOrdenCompra() {
     } catch (err) {
       console.error("💥 Error en proveedores:", err);
       setError("Error al cargar los proveedores");
+    }
+  };
+
+  const fetchUltimoNOC = async () => {
+    try {
+      console.log("🔍 Obteniendo último NOC...");
+      
+      const { data, error } = await supabase
+        .from("ordenes_compra")
+        .select("noc")
+        .order("noc", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error("❌ Error obteniendo último NOC:", error);
+        // Si hay error, empezar desde 2000
+        setFormData(prev => ({ ...prev, noc: "2000" }));
+        return;
+      }
+
+      let siguienteNOC = 2000; // Valor por defecto
+      
+      if (data && data.length > 0) {
+        const ultimoNOC = parseInt(data[0].noc);
+        siguienteNOC = ultimoNOC + 1;
+        console.log("✅ Último NOC encontrado:", ultimoNOC, "Siguiente:", siguienteNOC);
+      } else {
+        console.log("✅ No hay órdenes existentes, empezando desde 2000");
+      }
+
+      setFormData(prev => ({ ...prev, noc: siguienteNOC.toString() }));
+    } catch (err) {
+      console.error("💥 Error obteniendo último NOC:", err);
+      // En caso de error, usar 2000 como fallback
+      setFormData(prev => ({ ...prev, noc: "2000" }));
     }
   };
 
@@ -206,6 +254,11 @@ export function CrearFormOrdenCompra() {
       console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
       console.log("✅ Artículos disponibles (filtrados):", articulosDisponibles);
       
+      // Extraer sectores únicos de los artículos disponibles
+      const sectoresUnicos = [...new Set(articulosDisponibles.map(articulo => articulo.sector))].filter(sector => sector && sector.trim() !== '');
+      setSectoresDisponibles(sectoresUnicos);
+      console.log("✅ Sectores disponibles:", sectoresUnicos);
+      
       setArticulosAprobados(articulosDisponibles);
     } catch (err) {
       console.error("💥 Error completo:", err);
@@ -291,8 +344,30 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.sector) {
+      setError("Debe seleccionar un sector");
+      return;
+    }
+
+    if (!formData.cod_cta || formData.cod_cta.trim() === "") {
+      setError("Debe ingresar un código de cuenta");
+      return;
+    }
+
+    if (!formData.importe_competencia || formData.importe_competencia.trim() === "") {
+      setError("Debe ingresar un importe de competencia");
+      return;
+    }
+
+    // Validar que el importe de competencia sea un número válido
+    const importeCompetencia = parseFloat(formData.importe_competencia);
+    if (isNaN(importeCompetencia) || importeCompetencia < 0) {
+      setError("El importe de competencia debe ser un número válido mayor o igual a 0");
+      return;
+    }
+
     if (!formData.noc || formData.noc.trim() === "") {
-      setError("Debe ingresar un número de orden de compra");
+      setError("Error: No se pudo generar el número de orden de compra");
       return;
     }
 
@@ -313,7 +388,11 @@ export function CrearFormOrdenCompra() {
           direccion: proveedorSeleccionado.direccionprov,
           telefono: proveedorSeleccionado.telefonoprov.toString(),
           lugar_entrega: formData.lugar_entrega,
-          noc: parseInt(formData.noc),
+          sector: formData.sector,
+          cod_cta: formData.cod_cta,
+          importe_competencia: parseFloat(formData.importe_competencia),
+          ahorro: ahorro,
+          noc: formData.noc,
           total: totalOrden,
           observaciones: formData.observaciones,
           articulos: itemsOrden,
@@ -417,6 +496,64 @@ export function CrearFormOrdenCompra() {
               </select>
             </div>
 
+            {/* Sector */}
+            <div>
+              <Label htmlFor="sector">Sector *</Label>
+              <select
+                id="sector"
+                value={formData.sector}
+                onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">Seleccione el sector</option>
+                {sectoresDisponibles.map((sector) => (
+                  <option key={sector} value={sector}>
+                    {sector}
+                  </option>
+                ))}
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                🏭 Sectores disponibles de los artículos aprobados
+              </p>
+            </div>
+
+            {/* Código de Cuenta */}
+            <div>
+              <Label htmlFor="cod_cta">Código de Cuenta *</Label>
+              <Input
+                id="cod_cta"
+                type="text"
+                value={formData.cod_cta}
+                onChange={(e) => setFormData({ ...formData, cod_cta: e.target.value })}
+                placeholder="Ingrese el código de cuenta"
+                required
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                💳 Código de cuenta para la orden de compra
+              </p>
+            </div>
+
+            {/* Importe de Competencia */}
+            <div>
+              <Label htmlFor="importe_competencia">Importe de Competencia *</Label>
+              <Input
+                id="importe_competencia"
+                type="number"
+                value={formData.importe_competencia}
+                onChange={(e) => setFormData({ ...formData, importe_competencia: e.target.value })}
+                placeholder="Ingrese el importe de competencia"
+                required
+                min="0"
+                step="0.01"
+                className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                💰 Importe de la competencia para calcular el ahorro
+              </p>
+            </div>
+
             {/* Número de Orden de Compra */}
             <div>
               <Label htmlFor="noc">Número de Orden de Compra *</Label>
@@ -424,12 +561,11 @@ export function CrearFormOrdenCompra() {
                 id="noc"
                 type="number"
                 value={formData.noc}
-                onChange={(e) => setFormData({ ...formData, noc: e.target.value })}
-                placeholder="Ingrese el número de orden de compra"
-                required
-                min="1"
-                className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                readOnly
+                placeholder="Se genera automáticamente"
+                className="w-full bg-gray-100 cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
+             
             </div>
 
             {/* Artículos Aprobados */}
@@ -552,6 +688,17 @@ export function CrearFormOrdenCompra() {
                 <h4 className="font-semibold text-lg mb-2">Resumen de la Orden</h4>
                 <p><strong>Total de Artículos:</strong> {itemsOrden.length}</p>
                 <p><strong>Total de la Orden:</strong> <span className="text-2xl font-bold text-green-600">${totalOrden.toLocaleString('es-AR')}</span></p>
+                {formData.importe_competencia && (
+                  <>
+                    <p><strong>Importe de Competencia:</strong> <span className="text-lg font-semibold text-blue-600">${parseFloat(formData.importe_competencia).toLocaleString('es-AR')}</span></p>
+                    <p><strong>Ahorro:</strong> <span className={`text-lg font-bold ${ahorro >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {ahorro >= 0 ? '+' : ''}${ahorro.toLocaleString('es-AR')}
+                    </span></p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      {ahorro >= 0 ? '💰 Ahorro obtenido' : '⚠️ Costo adicional'}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -572,7 +719,7 @@ export function CrearFormOrdenCompra() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0}
+                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.importe_competencia}
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
               >
                 {loading ? "Creando..." : "✅ Crear Orden de Compra"}
