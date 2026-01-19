@@ -22,10 +22,6 @@ export default function ListaBiComponente() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPedidos();
-  }, [fetchPedidos]);
-
   const fetchPedidos = useCallback(async () => {
     try {
       setLoading(true);
@@ -46,6 +42,10 @@ export default function ListaBiComponente() {
       setLoading(false);
     }
   }, [supabase]);
+
+  useEffect(() => {
+    fetchPedidos();
+  }, [fetchPedidos]);
 
   const getEstadoColor = (estado: string) => {
     switch (estado.toLowerCase()) {
