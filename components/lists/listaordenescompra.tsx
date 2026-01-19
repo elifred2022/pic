@@ -22,6 +22,8 @@ interface OrdenCompra {
     articulo_nombre: string;
     cantidad: number;
     precio_unitario: number;
+    descuento: number;
+    costunitcdesc: number;
     total: number;
   }>;
   estado: string;
@@ -443,9 +445,17 @@ export default function ListaOrdenesCompra() {
                               <p className="font-medium">${item.precio_unitario?.toLocaleString('es-AR')}</p>
                             </div>
                             <div>
+                              <p className="text-xs text-gray-600">% Desc</p>
+                              <p className="font-medium">{item.descuento}%</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Precio c/ desc.</p>
+                              <p className="font-medium">${item.costunitcdesc?.toLocaleString('es-AR')}</p>
+                            </div>
+                            <div>
                               <p className="text-xs text-gray-600">Total</p>
                               <p className="font-semibold text-green-600">${item.total?.toLocaleString('es-AR')}</p>
-                            </div>
+                            </div>  
                           </div>
                         </div>
                       ))}

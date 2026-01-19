@@ -104,6 +104,9 @@ interface OrdenCompra {
     articulo_nombre: string;
     cantidad: number;
     precio_unitario: number;
+    descuento?: number;
+    divisa?: "USD" | "EUR" | "ARS";
+    costunitcdesc?: number;
     total: number;
   }>;
   lugar_entrega: string;
@@ -139,6 +142,9 @@ export default function VerOrdenCompraPage() {
       articulo_nombre: string;
       cantidad: number;
       precio_unitario: number;
+      descuento?: number;
+      divisa?: "USD" | "EUR" | "ARS";
+      costunitcdesc?: number;
       total: number;
     }>
   });
@@ -150,7 +156,9 @@ export default function VerOrdenCompraPage() {
   const [nuevoArticulo, setNuevoArticulo] = useState({
     articulo_nombre: '',
     cantidad: 1,
-    precio_unitario: 0
+    precio_unitario: 0,
+    descuento: 0,
+    divisa: "USD" as "USD" | "EUR" | "ARS"
   });
   const params = useParams();
   const router = useRouter();
@@ -241,6 +249,21 @@ export default function VerOrdenCompraPage() {
     return articuloId;
   };
 
+  const calcularPrecioConDescuento = (precio: number, descuento?: number) => {
+    const descuentoNormalizado = Math.min(Math.max(descuento ?? 0, 0), 100);
+    return precio - (precio * descuentoNormalizado) / 100;
+  };
+
+  const getRowTotal = (item: OrdenCompra["articulos"][number]) => {
+    const precioConDescuento = calcularPrecioConDescuento(
+      item.precio_unitario,
+      item.descuento
+    );
+    return typeof item.total === "number" && !Number.isNaN(item.total)
+      ? item.total
+      : item.cantidad * precioConDescuento;
+  };
+
   const handleOpenEditModal = () => {
     if (orden) {
       setEditData({
@@ -254,7 +277,13 @@ export default function VerOrdenCompraPage() {
         observaciones: orden.observaciones || '',
         condicion_pago: orden.condicion_pago || '',
         lugar_entrega: orden.lugar_entrega,
-        articulos: orden.articulos || []
+        articulos: (orden.articulos || []).map((item) => ({
+          ...item,
+          divisa: item.divisa ?? "USD",
+          costunitcdesc:
+            item.costunitcdesc ??
+            calcularPrecioConDescuento(item.precio_unitario, item.descuento),
+        }))
       });
       setBusquedaProveedor('');
       setShowEditModal(true);
@@ -291,14 +320,65 @@ export default function VerOrdenCompraPage() {
     setBusquedaProveedor(proveedor.nombreprov);
   };
 
+  const actualizarUltimoProveedorArticulos = async (
+    articulos: typeof editData.articulos,
+    proveedor: string
+  ) => {
+    const payload = {
+      ultimo_prov: proveedor || null,
+      updated_at: new Date().toISOString(),
+    };
+    const resultados = await Promise.all(
+      articulos.map(async (item) => {
+        const nombreArticulo = item.articulo_nombre?.trim();
+        if (!nombreArticulo) {
+          return { error: null };
+        }
+        const { data, error } = await supabase
+          .from("articulos")
+          .update(payload)
+          .eq("articulo", nombreArticulo)
+          .select("id");
+
+        if (error) {
+          return { error };
+        }
+
+        if (data && data.length > 0) {
+          return { error: null };
+        }
+
+        const fallback = await supabase
+          .from("articulos")
+          .update(payload)
+          .ilike("articulo", nombreArticulo)
+          .select("id");
+
+        if (fallback.error) {
+          return { error: fallback.error };
+        }
+
+        return { error: null };
+      })
+    );
+
+    const errorActualizacion = resultados.find((res) => res.error)?.error;
+    if (errorActualizacion) {
+      throw errorActualizacion;
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!orden) return;
 
     try {
       setSaving(true);
-      
-      // Calcular el total de la orden
-      const totalOrden = editData.articulos.reduce((sum, item) => sum + item.total, 0);
+      const articulosActualizados = editData.articulos.map((item) => ({
+        ...item,
+        costunitcdesc: calcularPrecioConDescuento(item.precio_unitario, item.descuento),
+        total: getRowTotal(item),
+      }));
+      const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
       
       const { error } = await supabase
         .from("ordenes_compra")
@@ -312,12 +392,20 @@ export default function VerOrdenCompraPage() {
           observaciones: editData.observaciones,
           condicion_pago: editData.condicion_pago,
           lugar_entrega: editData.lugar_entrega,
-          articulos: editData.articulos,
+          articulos: articulosActualizados,
           total: totalOrden
         })
         .eq("id", orden.id);
 
       if (error) throw error;
+
+      try {
+        await actualizarUltimoProveedorArticulos(articulosActualizados, editData.proveedor);
+      } catch (updateError) {
+        console.error("Error actualizando artículos:", updateError);
+        setError("Orden actualizada, pero no se pudo actualizar el proveedor en artículos");
+        return;
+      }
 
       // Actualizar el estado local
       setOrden({
@@ -331,7 +419,7 @@ export default function VerOrdenCompraPage() {
         observaciones: editData.observaciones,
         condicion_pago: editData.condicion_pago,
         lugar_entrega: editData.lugar_entrega,
-        articulos: editData.articulos,
+        articulos: articulosActualizados,
         total: totalOrden
       });
 
@@ -348,12 +436,19 @@ export default function VerOrdenCompraPage() {
   const handleAgregarArticulo = () => {
     if (!nuevoArticulo.articulo_nombre.trim()) return;
     
+    const precioConDescuento = calcularPrecioConDescuento(
+      nuevoArticulo.precio_unitario,
+      nuevoArticulo.descuento
+    );
     const articulo = {
       articulo_id: `temp-${Date.now()}`,
       articulo_nombre: nuevoArticulo.articulo_nombre,
       cantidad: nuevoArticulo.cantidad,
       precio_unitario: nuevoArticulo.precio_unitario,
-      total: nuevoArticulo.cantidad * nuevoArticulo.precio_unitario
+      descuento: nuevoArticulo.descuento,
+      divisa: nuevoArticulo.divisa,
+      costunitcdesc: precioConDescuento,
+      total: nuevoArticulo.cantidad * precioConDescuento
     };
     
     setEditData({
@@ -364,7 +459,9 @@ export default function VerOrdenCompraPage() {
     setNuevoArticulo({
       articulo_nombre: '',
       cantidad: 1,
-      precio_unitario: 0
+      precio_unitario: 0,
+      descuento: 0,
+      divisa: "USD"
     });
     setShowArticuloModal(false);
   };
@@ -378,14 +475,25 @@ export default function VerOrdenCompraPage() {
 
   const handleEditarArticulo = (index: number, campo: string, valor: string | number) => {
     const articulosActualizados = [...editData.articulos];
+    const valorNumero = typeof valor === "string" ? parseFloat(valor) || 0 : valor;
     articulosActualizados[index] = {
       ...articulosActualizados[index],
       [campo]: valor,
-      total: campo === 'cantidad' || campo === 'precio_unitario' 
-        ? (campo === 'cantidad' ? valor as number : articulosActualizados[index].cantidad) * 
-          (campo === 'precio_unitario' ? valor as number : articulosActualizados[index].precio_unitario)
+      total: campo === 'cantidad' || campo === 'precio_unitario' || campo === 'descuento'
+        ? (() => {
+            const cantidad = campo === 'cantidad' ? (valorNumero as number) : articulosActualizados[index].cantidad;
+            const precio = campo === 'precio_unitario' ? (valorNumero as number) : articulosActualizados[index].precio_unitario;
+            const descuento = campo === 'descuento' ? (valorNumero as number) : (articulosActualizados[index].descuento ?? 0);
+            const precioConDescuento = calcularPrecioConDescuento(precio, descuento);
+            return cantidad * precioConDescuento;
+          })()
         : articulosActualizados[index].total
     };
+    if (campo === "cantidad" || campo === "precio_unitario" || campo === "descuento") {
+      const precio = articulosActualizados[index].precio_unitario;
+      const descuento = articulosActualizados[index].descuento ?? 0;
+      articulosActualizados[index].costunitcdesc = calcularPrecioConDescuento(precio, descuento);
+    }
     
     setEditData({
       ...editData,
@@ -434,6 +542,11 @@ export default function VerOrdenCompraPage() {
       </div>
     );
   }
+
+  const totalOrdenCalculado = orden.articulos?.reduce(
+    (sum, item) => sum + getRowTotal(item),
+    0
+  ) || 0;
 
   return (
     <>
@@ -528,7 +641,7 @@ export default function VerOrdenCompraPage() {
               <div>
                 <p className="text-sm text-gray-600 print:text-xs">Total de la Orden</p>
                 <p className="text-2xl font-bold text-green-600 print:text-lg">
-                  ${orden.total?.toLocaleString('es-AR') || '0'}
+                  ${totalOrdenCalculado.toLocaleString('es-AR')}
                 </p>
               </div>
               <div>
@@ -568,7 +681,7 @@ export default function VerOrdenCompraPage() {
                   <thead className="bg-gray-100 print:bg-gray-200">
                     <tr>
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                        ID
+                        PIC
                       </th>
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                         Artículo
@@ -580,12 +693,25 @@ export default function VerOrdenCompraPage() {
                         Precio Unitario
                       </th>
                       <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        Descuento %
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        Precio Unit. c/ desc.
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                         Total
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {orden.articulos.map((item, index) => (
+                      (() => {
+                        const precioConDescuento = calcularPrecioConDescuento(
+                          item.precio_unitario,
+                          item.descuento
+                        );
+                        const totalFila = getRowTotal(item);
+                        return (
                       <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
                         <td className="border border-gray-300 px-3 py-2 text-sm text-gray-600 print:px-2 print:py-1 print:text-xs">
                           {extractIdNumber(item.articulo_id)}
@@ -599,19 +725,27 @@ export default function VerOrdenCompraPage() {
                         <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
                           ${item.precio_unitario?.toLocaleString('es-AR')}
                         </td>
+                        <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                          {(item.descuento ?? 0).toLocaleString('es-AR')}
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                          ${precioConDescuento.toLocaleString('es-AR')}
+                        </td>
                         <td className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-900 print:px-2 print:py-1 print:text-xs">
-                          ${item.total?.toLocaleString('es-AR')}
+                          ${totalFila.toLocaleString('es-AR')}
                         </td>
                       </tr>
+                        );
+                      })()
                     ))}
                   </tbody>
                   <tfoot className="bg-gray-50 print:bg-gray-100">
                     <tr>
-                      <td colSpan={4} className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                         TOTAL:
                       </td>
                       <td className="border border-gray-300 px-3 py-2 text-right text-lg font-bold text-gray-900 print:px-2 print:py-1 print:text-sm">
-                        ${orden.total?.toLocaleString('es-AR') || '0'}
+                        ${totalOrdenCalculado.toLocaleString('es-AR')}
                       </td>
                     </tr>
                   </tfoot>
@@ -812,7 +946,7 @@ export default function VerOrdenCompraPage() {
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {editData.articulos.map((articulo, index) => (
                       <div key={index} className="bg-white p-3 rounded-lg border border-purple-200">
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                        <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center">
                           <div className="md:col-span-2">
                             <Input
                               value={articulo.articulo_nombre}
@@ -842,9 +976,35 @@ export default function VerOrdenCompraPage() {
                               step="0.01"
                             />
                           </div>
+                          <div>
+                            <Input
+                              type="number"
+                              value={articulo.descuento ?? 0}
+                              onChange={(e) => handleEditarArticulo(index, 'descuento', parseFloat(e.target.value) || 0)}
+                              placeholder="Desc. %"
+                              className="text-sm"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                            />
+                          </div>
+                          <div>
+                            <select
+                              value={articulo.divisa ?? "USD"}
+                              onChange={(e) => handleEditarArticulo(index, 'divisa', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            >
+                              <option value="USD">USD</option>
+                              <option value="EUR">EUR</option>
+                              <option value="ARS">ARS</option>
+                            </select>
+                          </div>
+                          <div className="text-sm text-right">
+                            ${calcularPrecioConDescuento(articulo.precio_unitario, articulo.descuento).toLocaleString('es-AR')}
+                          </div>
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-sm">
-                              ${articulo.total.toLocaleString('es-AR')}
+                              ${getRowTotal(articulo).toLocaleString('es-AR')}
                             </span>
                             <Button
                               onClick={() => handleEliminarArticulo(index)}
@@ -864,7 +1024,7 @@ export default function VerOrdenCompraPage() {
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-lg">Total de la Orden:</span>
                         <span className="font-bold text-xl text-purple-800">
-                          ${editData.articulos.reduce((sum, item) => sum + item.total, 0).toLocaleString('es-AR')}
+                          ${editData.articulos.reduce((sum, item) => sum + getRowTotal(item), 0).toLocaleString('es-AR')}
                         </span>
                       </div>
                     </div>
@@ -921,7 +1081,7 @@ export default function VerOrdenCompraPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="nuevo-articulo-cantidad">Cantidad</Label>
                   <Input
@@ -944,13 +1104,38 @@ export default function VerOrdenCompraPage() {
                     step="0.01"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="nuevo-articulo-descuento">Descuento %</Label>
+                  <Input
+                    id="nuevo-articulo-descuento"
+                    type="number"
+                    value={nuevoArticulo.descuento}
+                    onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, descuento: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nuevo-articulo-divisa">Divisa</Label>
+                  <select
+                    id="nuevo-articulo-divisa"
+                    value={nuevoArticulo.divisa}
+                    onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, divisa: e.target.value as "USD" | "EUR" | "ARS" })}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="ARS">ARS</option>
+                  </select>
+                </div>
               </div>
               
               <div className="bg-gray-50 p-3 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Total:</span>
                   <span className="font-bold text-lg">
-                    ${(nuevoArticulo.cantidad * nuevoArticulo.precio_unitario).toLocaleString('es-AR')}
+                    ${(nuevoArticulo.cantidad * calcularPrecioConDescuento(nuevoArticulo.precio_unitario, nuevoArticulo.descuento)).toLocaleString('es-AR')}
                   </span>
                 </div>
               </div>
@@ -963,7 +1148,9 @@ export default function VerOrdenCompraPage() {
                   setNuevoArticulo({
                     articulo_nombre: '',
                     cantidad: 1,
-                    precio_unitario: 0
+                    precio_unitario: 0,
+                    descuento: 0,
+                    divisa: "USD"
                   });
                 }}
                 variant="outline"

@@ -41,7 +41,7 @@ export default async function ProtectedPage() {
   const adminEmails = [
     "asistentecompras@perfilesyservicios.com.ar",
     "victor@perfilesyservicios.com.ar",
-   
+    "joseluis@perfilesyservicios.com.ar", //usuiario jose luis
     "recepcion@perfilesyservicios.com.ar", // usuario de fatima
   ];
 

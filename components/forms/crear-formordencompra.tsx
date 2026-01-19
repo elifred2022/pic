@@ -40,6 +40,9 @@ interface ItemOrden {
   articulo_nombre: string;
   cantidad: number;
   precio_unitario: number;
+  descuento: number; // porcentaje 0-100
+  costunitcdesc: number;
+  divisa: "USD" | "EUR" | "ARS";
   total: number;
 }
 
@@ -65,7 +68,6 @@ export function CrearFormOrdenCompra() {
   const [itemsOrden, setItemsOrden] = useState<ItemOrden[]>([]);
   const [totalOrden, setTotalOrden] = useState(0);
   const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
-  const [ahorro, setAhorro] = useState(0);
   
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
@@ -75,12 +77,22 @@ export function CrearFormOrdenCompra() {
     noc: "",
     sector: "",
     cod_cta: "",
-    importe_competencia: "",
     condicion_pago: ""
   });
 
   const router = useRouter();
   const supabase = createClient();
+
+  const parseNumero = (valor: string) => {
+    const normalizado = valor.replace(",", ".");
+    const numero = parseFloat(normalizado);
+    return isNaN(numero) ? 0 : numero;
+  };
+
+  const calcularPrecioConDescuento = (precio: number, descuento: number) => {
+    const descuentoNormalizado = Math.min(Math.max(descuento, 0), 100);
+    return precio - (precio * descuentoNormalizado) / 100;
+  };
 
   useEffect(() => {
     fetchProveedores();
@@ -93,13 +105,6 @@ export function CrearFormOrdenCompra() {
     const total = itemsOrden.reduce((sum, item) => sum + item.total, 0);
     setTotalOrden(total);
   }, [itemsOrden]);
-
-  useEffect(() => {
-    // Calcular ahorro cuando cambie el importe de competencia o el total de la orden
-    const importeCompetencia = parseFloat(formData.importe_competencia) || 0;
-    const ahorroCalculado = importeCompetencia - totalOrden;
-    setAhorro(ahorroCalculado);
-  }, [formData.importe_competencia, totalOrden]);
 
   const fetchProveedores = async () => {
     try {
@@ -295,7 +300,10 @@ export function CrearFormOrdenCompra() {
       articulo_nombre: articulo.articulo,
       cantidad: articulo.cantidad,
       precio_unitario: 0, // Precio por defecto, se puede editar después
-      total: articulo.cantidad * 0
+      descuento: 0,
+      costunitcdesc: 0,
+      divisa: "USD",
+      total: 0
     };
 
     setItemsOrden([...itemsOrden, nuevoItem]);
@@ -309,10 +317,12 @@ export function CrearFormOrdenCompra() {
   const handleCantidadChange = (articuloId: string, nuevaCantidad: number) => {
     setItemsOrden(itemsOrden.map(item => {
       if (item.articulo_id === articuloId) {
+        const precioConDescuento = calcularPrecioConDescuento(item.precio_unitario, item.descuento);
         return {
           ...item,
           cantidad: nuevaCantidad,
-          total: nuevaCantidad * item.precio_unitario
+          costunitcdesc: precioConDescuento,
+          total: nuevaCantidad * precioConDescuento
         };
       }
       return item;
@@ -322,14 +332,58 @@ export function CrearFormOrdenCompra() {
   const handlePrecioChange = (articuloId: string, nuevoPrecio: number) => {
     setItemsOrden(itemsOrden.map(item => {
       if (item.articulo_id === articuloId) {
+        const precioConDescuento = calcularPrecioConDescuento(nuevoPrecio, item.descuento);
         return {
           ...item,
           precio_unitario: nuevoPrecio,
-          total: item.cantidad * nuevoPrecio
+          costunitcdesc: precioConDescuento,
+          total: item.cantidad * precioConDescuento
         };
       }
       return item;
     }));
+  };
+
+  const handleDescuentoChange = (articuloId: string, nuevoDescuento: number) => {
+    setItemsOrden(itemsOrden.map(item => {
+      if (item.articulo_id === articuloId) {
+        const precioConDescuento = calcularPrecioConDescuento(item.precio_unitario, nuevoDescuento);
+        return {
+          ...item,
+          descuento: nuevoDescuento,
+          costunitcdesc: precioConDescuento,
+          total: item.cantidad * precioConDescuento
+        };
+      }
+      return item;
+    }));
+  };
+
+  const actualizarArticulos = async () => {
+    const resultados = await Promise.all(
+      itemsOrden.map((item) => {
+        const precioConDescuento = calcularPrecioConDescuento(
+          item.precio_unitario,
+          item.descuento
+        );
+        return supabase
+          .from("articulos")
+          .update({
+            costunit: item.precio_unitario,
+            descuento: item.descuento,
+            divisa: item.divisa,
+            costunitcdesc: precioConDescuento,
+            updated_at: new Date().toISOString(),
+            ultimo_prov: proveedorSeleccionado?.nombreprov ?? null,
+          })
+          .eq("articulo", item.articulo_nombre);
+      })
+    );
+
+    const errorActualizacion = resultados.find((res) => res.error)?.error;
+    if (errorActualizacion) {
+      throw errorActualizacion;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -352,18 +406,6 @@ export function CrearFormOrdenCompra() {
 
     if (!formData.cod_cta || formData.cod_cta.trim() === "") {
       setError("Debe ingresar un código de cuenta");
-      return;
-    }
-
-    if (!formData.importe_competencia || formData.importe_competencia.trim() === "") {
-      setError("Debe ingresar un importe de competencia");
-      return;
-    }
-
-    // Validar que el importe de competencia sea un número válido
-    const importeCompetencia = parseFloat(formData.importe_competencia);
-    if (isNaN(importeCompetencia) || importeCompetencia < 0) {
-      setError("El importe de competencia debe ser un número válido mayor o igual a 0");
       return;
     }
 
@@ -396,8 +438,6 @@ export function CrearFormOrdenCompra() {
           lugar_entrega: formData.lugar_entrega,
           sector: formData.sector,
           cod_cta: formData.cod_cta,
-          importe_competencia: parseFloat(formData.importe_competencia),
-          ahorro: ahorro,
           condicion_pago: formData.condicion_pago,
           noc: formData.noc,
           total: totalOrden,
@@ -409,6 +449,14 @@ export function CrearFormOrdenCompra() {
         .single();
 
       if (error) throw error;
+
+      try {
+        await actualizarArticulos();
+      } catch (updateError) {
+        console.error("Error actualizando artículos:", updateError);
+        setError("Orden creada, pero no se pudieron actualizar los artículos");
+        return;
+      }
 
       setSuccess("Orden de compra creada exitosamente");
       setTimeout(() => {
@@ -542,25 +590,6 @@ export function CrearFormOrdenCompra() {
               </p>
             </div>
 
-            {/* Importe de Competencia */}
-            <div>
-              <Label htmlFor="importe_competencia">Importe de Competencia *</Label>
-              <Input
-                id="importe_competencia"
-                type="number"
-                value={formData.importe_competencia}
-                onChange={(e) => setFormData({ ...formData, importe_competencia: e.target.value })}
-                placeholder="Ingrese el importe de competencia"
-                required
-                min="0"
-                step="0.01"
-                className="w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                💰 Importe de la competencia para calcular el ahorro
-              </p>
-            </div>
-
             {/* Condición de Pago */}
             <div>
               <Label htmlFor="condicion_pago">Condición de Pago *</Label>
@@ -679,11 +708,47 @@ export function CrearFormOrdenCompra() {
                           <Input
                             type="number"
                             value={item.precio_unitario}
-                            onChange={(e) => handlePrecioChange(item.articulo_id, parseFloat(e.target.value))}
+                            onChange={(e) => handlePrecioChange(item.articulo_id, parseNumero(e.target.value))}
                             min="0"
                             step="0.01"
                             className="w-24"
                           />
+                        </div>
+                        <div>
+                          <Label className="text-sm">Descuento %</Label>
+                          <Input
+                            type="number"
+                            value={item.descuento}
+                            onChange={(e) => handleDescuentoChange(item.articulo_id, parseNumero(e.target.value))}
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            className="w-24"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm">Divisa</Label>
+                          <select
+                            value={item.divisa}
+                            onChange={(e) =>
+                              setItemsOrden(itemsOrden.map(current =>
+                                current.articulo_id === item.articulo_id
+                                  ? { ...current, divisa: e.target.value as ItemOrden["divisa"] }
+                                  : current
+                              ))
+                            }
+                            className="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="ARS">ARS</option>
+                          </select>
+                        </div>
+                        <div className="text-right">
+                          <Label className="text-sm">Unit. c/ desc.</Label>
+                          <p className="font-semibold">
+                            ${calcularPrecioConDescuento(item.precio_unitario, item.descuento).toLocaleString('es-AR')}
+                          </p>
                         </div>
                         <div className="text-right">
                           <Label className="text-sm">Total</Label>
@@ -722,17 +787,6 @@ export function CrearFormOrdenCompra() {
                 <h4 className="font-semibold text-lg mb-2">Resumen de la Orden</h4>
                 <p><strong>Total de Artículos:</strong> {itemsOrden.length}</p>
                 <p><strong>Total de la Orden:</strong> <span className="text-2xl font-bold text-green-600">${totalOrden.toLocaleString('es-AR')}</span></p>
-                {formData.importe_competencia && (
-                  <>
-                    <p><strong>Importe de Competencia:</strong> <span className="text-lg font-semibold text-blue-600">${parseFloat(formData.importe_competencia).toLocaleString('es-AR')}</span></p>
-                    <p><strong>Ahorro:</strong> <span className={`text-lg font-bold ${ahorro >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {ahorro >= 0 ? '+' : ''}${ahorro.toLocaleString('es-AR')}
-                    </span></p>
-                    <p className="text-sm text-gray-600 mt-2">
-                      {ahorro >= 0 ? '💰 Ahorro obtenido' : '⚠️ Costo adicional'}
-                    </p>
-                  </>
-                )}
               </div>
             </div>
 
@@ -753,7 +807,7 @@ export function CrearFormOrdenCompra() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.importe_competencia || !formData.condicion_pago}
+                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.condicion_pago}
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
               >
                 {loading ? "Creando..." : "✅ Crear Orden de Compra"}

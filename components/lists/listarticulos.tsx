@@ -8,11 +8,15 @@ import Link from "next/link";
 type Articulo = {
   id: string;
   created_at: string;
+  updated_at: string;
+  ultimo_prov: string;
   codint: string;
   cc: string;
   articulo: string;
   descripcion: string;
   costunit: string;
+  descuento: string;
+  costunitcdesc: string;
   divisa: string;
   existencia: string;
   provsug: string;
@@ -27,6 +31,8 @@ type Articulo = {
 export default function ListArticulos() {
   const [search, setSearch] = useState("");
   const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [updatedDesde, setUpdatedDesde] = useState("");
+  const [updatedHasta, setUpdatedHasta] = useState("");
   const [editingArticulo, setEditingArticulo] = useState<Articulo | null>(null);
   const [ingresarArticulo, setIngresarArticulo] = useState<Articulo | null>(null);
   const [descontarArticulo, setDescontarArticulo] = useState<Articulo | null>(null);
@@ -49,6 +55,13 @@ export default function ListArticulos() {
   const [formData, setFormData] = useState<Partial<Articulo>>({});
   const supabase = createClient();
 
+  const parseNumero = (valor?: string) => {
+    if (!valor) return 0;
+    const normalizado = valor.replace(",", ".");
+    const numero = parseFloat(normalizado);
+    return Number.isNaN(numero) ? 0 : numero;
+  };
+
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
     useEffect(() => {
      const savedInactivo = localStorage.getItem("ocultarArticuloInactivo");
@@ -70,13 +83,51 @@ export default function ListArticulos() {
   // Cargar datos
   useEffect(() => {
     const fetchArticulos = async () => {
-      const { data, error } = await supabase.from("articulos").select("*")
-  
+      const { data, error } = await supabase.from("articulos").select("*");
       if (error) console.error("Error cargando articulos:", error);
       else setArticulos(data);
     };
     fetchArticulos();
   }, [supabase]);
+
+  const fetchArticulosPorUpdatedAt = async () => {
+    let query = supabase.from("articulos").select("*");
+
+    if (updatedDesde) {
+      query = query.gte("updated_at", `${updatedDesde}T00:00:00`);
+    }
+    if (updatedHasta) {
+      query = query.lte("updated_at", `${updatedHasta}T23:59:59.999`);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("Error filtrando por updated_at:", error);
+      return;
+    }
+    setArticulos(data || []);
+  };
+
+  const limpiarFiltroUpdatedAt = async () => {
+    setUpdatedDesde("");
+    setUpdatedHasta("");
+    const { data, error } = await supabase.from("articulos").select("*");
+    if (error) {
+      console.error("Error cargando articulos:", error);
+      return;
+    }
+    setArticulos(data || []);
+  };
+
+  const handleImprimirReporte = () => {
+    try {
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    } catch (error) {
+      console.error("Error al imprimir:", error);
+    }
+  };
 
   // funcion para formatear las fechas
  function formatDate(dateString: string | null): string {
@@ -149,6 +200,32 @@ const cellClass =
 
   return (
     <div className="flex-2 w-full overflow-auto p-2">
+        <style>{`
+          @media print {
+            .print-hidden {
+              display: none !important;
+            }
+            table thead th,
+            table tbody td {
+              display: none !important;
+            }
+            .print-report {
+              display: table-cell !important;
+            }
+            table {
+              font-size: 10px !important;
+            }
+            th.print-report,
+            td.print-report {
+              padding: 2px 4px !important;
+              white-space: nowrap !important;
+            }
+            th.print-report.wrap,
+            td.print-report.wrap {
+              white-space: normal !important;
+            }
+          }
+        `}</style>
         <div className="flex flex-wrap gap-4 items-center" >
              <Link
               href="/protected"
@@ -161,7 +238,7 @@ const cellClass =
            
     <h1 className="text-xl font-bold mb-4">Modulo Articulos</h1>
 
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-center print-hidden">
              <Link
             href="/auth/crear-formarticulo"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
@@ -175,6 +252,47 @@ const cellClass =
             onChange={(e) => setSearch(e.target.value)}
             className="mb-4 px-4 py-2 border rounded w-full max-w-md"
           />
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-600">Updated desde</label>
+              <input
+                type="date"
+                value={updatedDesde}
+                onChange={(e) => setUpdatedDesde(e.target.value)}
+                className="px-2 py-1 border rounded"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-600">Updated hasta</label>
+              <input
+                type="date"
+                value={updatedHasta}
+                onChange={(e) => setUpdatedHasta(e.target.value)}
+                className="px-2 py-1 border rounded"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={fetchArticulosPorUpdatedAt}
+              className="px-3 py-2 bg-blue-600 text-white rounded"
+            >
+              Filtrar
+            </button>
+            <button
+              type="button"
+              onClick={limpiarFiltroUpdatedAt}
+              className="px-3 py-2 bg-gray-200 text-black rounded"
+            >
+              Limpiar
+            </button>
+            <button
+              type="button"
+              onClick={handleImprimirReporte}
+              className="px-3 py-2 bg-green-600 text-white rounded"
+            >
+              Imprimir reporte
+            </button>
+          </div>
 
            <Link
               href="/auth/list-egresoart"
@@ -207,20 +325,29 @@ const cellClass =
       <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
         <thead className="bg-gray-100 text-gray-700">
           <tr className="bg-gray-100">
+            <th  className={headerClass}>Accion</th>
+            <th  className={headerClass}>Id</th>
+             <th  className={headerClass}>Fecha de alta</th>
+            <th className={`${headerClass} print-report`}>Articulo</th>
+            <th  className={headerClass}>Descripcion</th>
+            <th className={`${headerClass} print-report`}>Cod int</th>
+            <th className={`${headerClass} print-report`}>Cost. unit.</th>
+            <th className={`${headerClass} print-report`}>% Desc</th>
+            <th className={`${headerClass} print-report`}>Cost. unit. c/ desc.</th>
+             <th  className={headerClass}>Divisa</th>
+            <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
+            <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
+            <th  className={headerClass}>Cod cta</th>
+            
 
            
-            <th  className={headerClass}>Accion</th>
-             <th  className={headerClass}>Id</th>
-             <th  className={headerClass}>Fecha de alta</th>
-            <th  className={headerClass}>Cod int</th>
-            <th  className={headerClass}>Cod cta</th>
-            <th  className={headerClass}>Articulo</th>
-            <th  className={headerClass}>Descripcion</th>
-             <th  className={headerClass}>Cost. unit.</th>
-             <th  className={headerClass}>Divisa</th>
+             
+          
+            
+            
             <th  className={headerClass}>Exsitencia</th>
             <th  className={headerClass}>Prov. sug.</th>
-            <th  className={headerClass}>Cod. porv. sug.</th>
+            <th  className={headerClass}>Cod. prov. sug.</th>
             <th  className={headerClass}>Familia</th>
             <th  className={headerClass}>Situacion</th>
        
@@ -231,7 +358,7 @@ const cellClass =
         <tbody>
           {filteredArticulos.map((articulo) => (
             <tr key={articulo.id}>
-              <td className={cellClass}>
+               <td className={cellClass}>
                 <div className="flex gap-2">
                     
                   <button
@@ -241,6 +368,8 @@ const cellClass =
                         setIngresarArticulo(articulo);
                         setFormData({
                         created_at: articulo.created_at,
+                        updated_at: articulo.updated_at,
+                        ultimo_prov: articulo.ultimo_prov,
                         id: articulo.id,
                         codint: articulo.codint,
                         articulo: articulo.articulo,
@@ -252,6 +381,8 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        descuento: articulo.descuento,
+                        costunitcdesc: articulo.costunitcdesc,
                         divisa: articulo.divisa,
 
                       });
@@ -268,6 +399,8 @@ const cellClass =
                       setDescontarArticulo(articulo);
                       setFormData({
                         created_at: articulo.created_at,
+                        updated_at: articulo.updated_at,
+                        ultimo_prov: articulo.ultimo_prov,
                         id: articulo.id,
                         codint: articulo.codint,
                         articulo: articulo.articulo,
@@ -279,6 +412,8 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        descuento: articulo.descuento,
+                        costunitcdesc: articulo.costunitcdesc,
                         divisa: articulo.divisa,
                       });
                     }}
@@ -292,6 +427,8 @@ const cellClass =
                       setEditingArticulo(articulo);
                       setFormData({
                         created_at: articulo.created_at,
+                        updated_at: articulo.updated_at,
+                        ultimo_prov: articulo.ultimo_prov,
                         id: articulo.id,
                         codint: articulo.codint,
                         articulo: articulo.articulo,
@@ -303,6 +440,8 @@ const cellClass =
                         situacion: articulo.situacion,
                         cc: articulo.cc,
                         costunit: articulo.costunit,
+                        descuento: articulo.descuento,
+                        costunitcdesc: articulo.costunitcdesc,
                         divisa: articulo.divisa,
                       });
                     }}
@@ -335,15 +474,20 @@ const cellClass =
 
                   
                 </div></td>
-
                 <td className={cellClass}>{articulo.id}</td>
-              <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
-                <td className={cellClass}>{renderValue(articulo.codint)}</td>
-                <td className={cellClass}>{renderValue(articulo.cc)}</td>
-                <td className={cellClass}>{articulo.articulo}</td>
+                <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
+                <td className={`${cellClass} print-report`}>{articulo.articulo}</td>
                 <td className={cellClass}>{articulo.descripcion}</td>
-                <td className={cellClass}>{articulo.costunit}</td>
+                <td className={`${cellClass} print-report`}>{articulo.codint}</td>
+                <td className={`${cellClass} print-report`}>{articulo.costunit}</td>
+                <td className={`${cellClass} print-report`}>{articulo.descuento}</td>
+                <td className={`${cellClass} print-report`}>
+                  {parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
+                </td>
                 <td className={cellClass}>{articulo.divisa}</td>
+                <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
+                <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
+                <td className={cellClass}>{renderValue(articulo.cc)}</td>
                 <td className={cellClass}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
                 <td className={cellClass}>{articulo.codprovsug}</td>
@@ -395,6 +539,17 @@ const cellClass =
                             }
                         />
                 </label>
+                <label className="block mb-4">
+                    <p className="text-black">Ultimo proveedor</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.ultimo_prov ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, ultimo_prov: e.target.value})
+                            }
+                        />
+                </label>
 
                 <label className="block mb-4">
                     <p className="text-black">Descripcion</p>
@@ -417,6 +572,40 @@ const cellClass =
                             value={formData.costunit ?? ""}
                             onChange={(e) =>
                             setFormData({ ...formData, costunit: e.target.value})
+                            }
+                        />
+                </label>
+                <label className="block mb-4">
+                    <p className="text-black">% Desc</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="numeric"
+                            value={formData.descuento ?? ""}
+                            onChange={(e) => {
+                              const descuento = e.target.value;
+                              const costunit = parseNumero(formData.costunit?.toString());
+                              const porcentaje = parseNumero(descuento);
+                              const costunitcdesc =
+                                costunit && descuento !== ""
+                                  ? (costunit - (costunit * porcentaje) / 100).toFixed(2)
+                                  : "";
+                              setFormData({
+                                ...formData,
+                                descuento,
+                                costunitcdesc,
+                              });
+                            }}
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Cost. unit. c/ desc.</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="numeric"
+                            value={formData.costunitcdesc ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, costunitcdesc: e.target.value})
                             }
                         />
                 </label>
@@ -531,7 +720,10 @@ const cellClass =
 
     const { error } = await supabase
       .from("articulos")
-      .update(formData)
+      .update({
+        ...formData,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", editingArticulo.id);
 
     if (error) {
