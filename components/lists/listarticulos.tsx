@@ -129,6 +129,44 @@ export default function ListArticulos() {
     }
   };
 
+  const handleExportarExcel = () => {
+    const headers = [
+      "Articulo",
+      "Cod int",
+      "Cost. unit.",
+      "% Desc",
+      "Cost. unit. c/ desc.",
+      "Divisa",
+      "Fecha de actualizacion",
+      "Ultimo proveedor",
+    ];
+
+    const rows = filteredArticulos.map((articulo) => [
+      articulo.articulo ?? "",
+      articulo.codint ?? "",
+      articulo.costunit ?? "",
+      articulo.descuento ?? "",
+      parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2),
+      articulo.divisa ?? "",
+      formatDate(articulo.updated_at) || "",
+      articulo.ultimo_prov ?? "",
+    ]);
+
+    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const csv = [
+      headers.map(escapeCsv).join(","),
+      ...rows.map((row) => row.map((cell) => escapeCsv(String(cell))).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "reporte_articulos.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // funcion para formatear las fechas
  function formatDate(dateString: string | null): string {
   if (!dateString) return "-";
@@ -292,6 +330,13 @@ const cellClass =
             >
               Imprimir reporte
             </button>
+            <button
+              type="button"
+              onClick={handleExportarExcel}
+              className="px-3 py-2 bg-emerald-600 text-white rounded"
+            >
+              Exportar Excel
+            </button>
           </div>
 
            <Link
@@ -334,7 +379,7 @@ const cellClass =
             <th className={`${headerClass} print-report`}>Cost. unit.</th>
             <th className={`${headerClass} print-report`}>% Desc</th>
             <th className={`${headerClass} print-report`}>Cost. unit. c/ desc.</th>
-             <th  className={headerClass}>Divisa</th>
+            <th className={`${headerClass} print-report`}>Divisa</th>
             <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
             <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
             <th  className={headerClass}>Cod cta</th>
@@ -484,7 +529,7 @@ const cellClass =
                 <td className={`${cellClass} print-report`}>
                   {parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
                 </td>
-                <td className={cellClass}>{articulo.divisa}</td>
+                <td className={`${cellClass} print-report`}>{articulo.divisa}</td>
                 <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
                 <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
                 <td className={cellClass}>{renderValue(articulo.cc)}</td>
