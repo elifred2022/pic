@@ -24,7 +24,7 @@ export default function ListaBiComponente() {
 
   useEffect(() => {
     fetchPedidos();
-  }, [supabase]);
+  }, [fetchPedidos]);
 
   const fetchPedidos = useCallback(async () => {
     try {

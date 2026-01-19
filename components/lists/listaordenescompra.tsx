@@ -84,12 +84,12 @@ export default function ListaOrdenesCompra() {
     if (activeTab === 'ordenes') {
       fetchOrdenes();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchOrdenes]);
 
   // Efecto para filtrar órdenes cuando cambia el filtro de búsqueda o los checkboxes
   useEffect(() => {
     filtrarOrdenes();
-  }, [filtroBusqueda, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
+  }, [filtrarOrdenes]);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -110,7 +110,7 @@ export default function ListaOrdenesCompra() {
   }, [supabase]);
 
   // Función para filtrar órdenes por número, palabra, fecha y checkboxes
-  const filtrarOrdenes = () => {
+  const filtrarOrdenes = useCallback(() => {
     let ordenesFiltradas = [...ordenes];
     
     // Debug: mostrar estados y filtros
@@ -236,7 +236,7 @@ export default function ListaOrdenesCompra() {
     });
     
     setOrdenesFiltradas(ordenesFiltradas);
-  };
+  }, [filtroBusqueda, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
 
   const handleCrearOrden = () => {
     router.push("/auth/ordenes-compra/crear-orden");

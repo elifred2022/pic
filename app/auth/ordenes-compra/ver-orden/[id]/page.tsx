@@ -164,18 +164,6 @@ export default function VerOrdenCompraPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    if (params.id) {
-      fetchOrden(Number(params.id));
-    }
-    fetchProveedores();
-  }, [params.id]);
-
-  // Efecto para filtrar proveedores cuando cambia la búsqueda
-  useEffect(() => {
-    filtrarProveedores();
-  }, [busquedaProveedor, proveedores]);
-
   const fetchOrden = useCallback(async (id: number) => {
     try {
       setLoading(true);
@@ -208,7 +196,7 @@ export default function VerOrdenCompraPage() {
     }
   }, [supabase]);
 
-  const filtrarProveedores = () => {
+  const filtrarProveedores = useCallback(() => {
     if (!busquedaProveedor.trim()) {
       setProveedoresFiltrados(proveedores);
       return;
@@ -222,7 +210,19 @@ export default function VerOrdenCompraPage() {
     );
     
     setProveedoresFiltrados(proveedoresFiltrados);
-  };
+  }, [busquedaProveedor, proveedores]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchOrden(Number(params.id));
+    }
+    fetchProveedores();
+  }, [params.id, fetchOrden, fetchProveedores]);
+
+  // Efecto para filtrar proveedores cuando cambia la búsqueda
+  useEffect(() => {
+    filtrarProveedores();
+  }, [filtrarProveedores]);
 
   const getEstadoBadge = (estado: string) => {
     const estados = {

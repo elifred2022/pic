@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -95,18 +95,12 @@ export function CrearFormOrdenCompra() {
   };
 
   useEffect(() => {
-    fetchProveedores();
-    fetchArticulosAprobados();
-    fetchUltimoNOC();
-  }, []);
-
-  useEffect(() => {
     // Calcular total de la orden
     const total = itemsOrden.reduce((sum, item) => sum + item.total, 0);
     setTotalOrden(total);
   }, [itemsOrden]);
 
-  const fetchProveedores = async () => {
+  const fetchProveedores = useCallback(async () => {
     try {
       console.log("🔍 Intentando obtener proveedores...");
       
@@ -123,9 +117,9 @@ export function CrearFormOrdenCompra() {
       console.error("💥 Error en proveedores:", err);
       setError("Error al cargar los proveedores");
     }
-  };
+  }, [supabase]);
 
-  const fetchUltimoNOC = async () => {
+  const fetchUltimoNOC = useCallback(async () => {
     try {
       console.log("🔍 Obteniendo último NOC...");
       
@@ -158,9 +152,9 @@ export function CrearFormOrdenCompra() {
       // En caso de error, usar 2000 como fallback
       setFormData(prev => ({ ...prev, noc: "2000" }));
     }
-  };
+  }, [supabase]);
 
-  const fetchArticulosAprobados = async () => {
+  const fetchArticulosAprobados = useCallback(async () => {
     try {
       console.log("🔍 Intentando obtener artículos aprobados...");
       
@@ -270,7 +264,13 @@ export function CrearFormOrdenCompra() {
       console.error("💥 Error completo:", err);
       setError("Error al cargar los artículos aprobados: " + (err as Error).message);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchProveedores();
+    fetchArticulosAprobados();
+    fetchUltimoNOC();
+  }, [fetchProveedores, fetchArticulosAprobados, fetchUltimoNOC]);
 
   const handleCuitChange = (valor: string) => {
     setFormData({ ...formData, cuit_proveedor: valor });
