@@ -320,20 +320,26 @@ export default function VerOrdenCompraPage() {
     setBusquedaProveedor(proveedor.nombreprov);
   };
 
-  const actualizarUltimoProveedorArticulos = async (
+  const actualizarArticulosSupabase = async (
     articulos: typeof editData.articulos,
     proveedor: string
   ) => {
-    const payload = {
-      ultimo_prov: proveedor || null,
-      updated_at: new Date().toISOString(),
-    };
     const resultados = await Promise.all(
       articulos.map(async (item) => {
         const nombreArticulo = item.articulo_nombre?.trim();
         if (!nombreArticulo) {
           return { error: null };
         }
+        const payload = {
+          costunit: item.precio_unitario,
+          descuento: item.descuento ?? 0,
+          costunitcdesc: calcularPrecioConDescuento(
+            item.precio_unitario,
+            item.descuento ?? 0
+          ),
+          ultimo_prov: proveedor || null,
+          updated_at: new Date().toISOString(),
+        };
         const { data, error } = await supabase
           .from("articulos")
           .update(payload)
@@ -400,10 +406,10 @@ export default function VerOrdenCompraPage() {
       if (error) throw error;
 
       try {
-        await actualizarUltimoProveedorArticulos(articulosActualizados, editData.proveedor);
+        await actualizarArticulosSupabase(articulosActualizados, editData.proveedor);
       } catch (updateError) {
         console.error("Error actualizando artículos:", updateError);
-        setError("Orden actualizada, pero no se pudo actualizar el proveedor en artículos");
+        setError("Orden actualizada, pero no se pudieron actualizar los artículos");
         return;
       }
 
