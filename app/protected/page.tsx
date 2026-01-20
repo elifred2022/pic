@@ -67,12 +67,12 @@ export default async function ProtectedPage() {
     
   ];
 
-  const supervisorEmails = ["joseluis@perfilesyservicios.com.ar"];
+  const supervisorEmails = ["orlandojosemartinez1946@gmail.com"];
 
   const consultasEmails = [
    // "gestioncalidad@perfilesyservicios.com.ar",
     "biancaccc@perfilesyservicios.com.ar",
-    "Agustina33333@perfilesyservicios.com.ar",
+    
   ];
 
   // ✅ Selección de componente según rol
