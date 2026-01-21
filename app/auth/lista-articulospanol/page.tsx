@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPanolEmail } from "@/lib/panol-access";
-import ListArticulosPanol from "@/components/modarticulopanol/listarticulospanol";
 import ListArticulos from "@/components/lists/listarticulos";
+//import ListArticulosPanol from "@/components/modarticulopanol/listarticulospanol";
 
 export default async function Page() {
   const supabase = await createClient();

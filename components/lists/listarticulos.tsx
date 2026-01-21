@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { Plus, Minus, Pencil, Trash2 } from "lucide-react";
 
 
 type Articulo = {
@@ -10,6 +11,7 @@ type Articulo = {
   created_at: string;
   updated_at: string;
   ultimo_prov: string;
+  update_usuario: string;
   codint: string;
   cc: string;
   articulo: string;
@@ -53,6 +55,8 @@ export default function ListArticulos() {
       
   
   const [formData, setFormData] = useState<Partial<Articulo>>({});
+  const [currentUserNombre, setCurrentUserNombre] = useState("");
+  const [editCommaWarning, setEditCommaWarning] = useState("");
   const supabase = createClient();
 
   const parseNumero = (valor?: string) => {
@@ -88,6 +92,30 @@ export default function ListArticulos() {
       else setArticulos(data);
     };
     fetchArticulos();
+  }, [supabase]);
+
+  useEffect(() => {
+    const fetchUserNombre = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        console.error("Error obteniendo usuario:", userError);
+        return;
+      }
+
+      const { data: perfil, error: perfilError } = await supabase
+        .from("usuarios")
+        .select("nombre")
+        .eq("uuid", userData.user.id)
+        .single();
+
+      if (perfilError) {
+        console.error("Error obteniendo perfil:", perfilError);
+        return;
+      }
+
+      setCurrentUserNombre(perfil?.nombre || userData.user.email || "");
+    };
+    fetchUserNombre();
   }, [supabase]);
 
   const fetchArticulosPorUpdatedAt = async () => {
@@ -234,12 +262,12 @@ function renderValue(value: unknown): string {
 }
 
 const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
+  "px-2 py-1 border text-xs font-semibold bg-blue-600 text-white whitespace-normal break-words sticky top-0 z-10 text-left"; // ← evita saltos de línea
 const cellClass =
-  "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
+  "px-2 py-1 border align-top text-sm text-left whitespace-normal break-words";
 
   return (
-    <div className="flex-2 w-full overflow-auto p-2">
+    <div className="flex-2 w-full p-2">
         <style>{`
           @media print {
             .print-hidden {
@@ -254,16 +282,69 @@ const cellClass =
             }
             table {
               font-size: 10px !important;
+              table-layout: fixed !important;
+              page-break-inside: auto;
+            }
+            thead {
+              display: table-header-group !important;
+            }
+            tbody {
+              display: table-row-group !important;
+              max-height: none !important;
+              overflow: visible !important;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
             }
             th.print-report,
             td.print-report {
               padding: 2px 4px !important;
-              white-space: nowrap !important;
+              white-space: normal !important;
+              word-break: break-word !important;
+              overflow-wrap: anywhere !important;
             }
             th.print-report.wrap,
             td.print-report.wrap {
               white-space: normal !important;
             }
+          }
+          .articulos-table {
+            width: 100%;
+            border-collapse: collapse;
+            --scrollbar-w: 16px;
+          }
+          .articulos-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: table;
+            width: calc(100% - var(--scrollbar-w));
+            table-layout: fixed;
+            box-sizing: border-box;
+          }
+          .articulos-table thead tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+          }
+          .articulos-table .col-acciones {
+            width: 220px;
+          }
+          .articulos-table tbody td.col-acciones {
+            white-space: normal;
+          }
+          .articulos-table tbody {
+            display: block;
+            width: 100%;
+            max-height: 70vh;
+            overflow-y: scroll;
+            scrollbar-gutter: stable;
+          }
+          .articulos-table tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
           }
         `}</style>
         <div className="flex flex-wrap gap-4 items-center" >
@@ -369,10 +450,11 @@ const cellClass =
     </div>
 
      
-      <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr className="bg-gray-100">
-            <th  className={headerClass}>Accion</th>
+      <div className="overflow-hidden">
+        <table className="articulos-table min-w-full table-fixed border border-gray-300 shadow-md rounded-md overflow-hidden">
+          <thead>
+          <tr>
+            <th className={`${headerClass} col-acciones`}>Accion</th>
             <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
             <th className={`${headerClass} print-report`}>Articulo</th>
@@ -384,6 +466,7 @@ const cellClass =
             <th className={`${headerClass} print-report`}>Divisa</th>
             <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
             <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
+            <th  className={headerClass}>Ultimo usuario</th>
             <th className={`${headerClass} print-report`}>Cod. prov. sug.</th>
             <th  className={headerClass}>Cod cta</th>
             
@@ -406,11 +489,11 @@ const cellClass =
         <tbody>
           {filteredArticulos.map((articulo) => (
             <tr key={articulo.id}>
-               <td className={cellClass}>
-                <div className="flex gap-2">
+               <td className={`${cellClass} col-acciones`}>
+                <div className="flex flex-wrap gap-2">
                     
                   <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                     onClick={() => {
                         setIngresArt(""); // limpiar antes de abrir
                         setIngresarArticulo(articulo);
@@ -435,13 +518,14 @@ const cellClass =
 
                       });
                     }}
+                    title="Ingreso"
                   >
-                    Ingreso
+                    <Plus size={16} />
                   </button>
 
                   
                   <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                     onClick={() => {
                       setDescontArt(""); // limpiar antes de abrir
                       setDescontarArticulo(articulo);
@@ -465,12 +549,13 @@ const cellClass =
                         divisa: articulo.divisa,
                       });
                     }}
+                    title="Egreso"
                   >
-                    Egreso
+                    <Minus size={16} />
                   </button>
 
                   <button
-                    className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                     onClick={() => {
                       setEditingArticulo(articulo);
                       setFormData({
@@ -493,13 +578,14 @@ const cellClass =
                         divisa: articulo.divisa,
                       });
                     }}
+                    title="Editar"
                   >
-                    Edit
+                    <Pencil size={16} />
                   </button>
 
 
                   <button
-                    className="px-4 py-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
+                    className="p-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
                     onClick={async () => {
                       const confirm = window.confirm(
                         `¿Estás seguro de que querés eliminar el articulo ${articulo.id} ${articulo.articulo} ?`
@@ -516,8 +602,9 @@ const cellClass =
                         if (data) setArticulos(data);
                       }
                     }}
+                    title="Eliminar"
                   >
-                    Elim
+                    <Trash2 size={16} />
                   </button>
 
                   
@@ -535,6 +622,7 @@ const cellClass =
                 <td className={`${cellClass} print-report`}>{articulo.divisa}</td>
                 <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
                 <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
+                <td className={cellClass}>{articulo.update_usuario || "-"}</td>
                 <td className={`${cellClass} print-report`}>{articulo.codprovsug}</td>
                 <td className={cellClass}>{renderValue(articulo.cc)}</td>
                 <td className={cellClass}>{articulo.existencia}</td>
@@ -547,6 +635,7 @@ const cellClass =
           ))}
         </tbody>
       </table>
+      </div>
 
       
 
@@ -583,10 +672,20 @@ const cellClass =
                             className="w-full border p-2 rounded mt-1"
                             type="text"
                             value={formData.articulo ?? ""}
-                            onChange={(e) =>
-                            setFormData({ ...formData, articulo: e.target.value})
-                            }
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.includes(",")) {
+                                setEditCommaWarning("No se permite , use .");
+                                setFormData({ ...formData, articulo: value.replace(/,/g, "") });
+                                return;
+                              }
+                              setEditCommaWarning("");
+                              setFormData({ ...formData, articulo: value });
+                            }}
                         />
+                    {editCommaWarning && (
+                      <p className="text-xs text-red-600 mt-1">{editCommaWarning}</p>
+                    )}
                 </label>
                 <label className="block mb-4">
                     <p className="text-black">Ultimo proveedor</p>
@@ -619,9 +718,16 @@ const cellClass =
                             type="numeric"
                          
                             value={formData.costunit ?? ""}
-                            onChange={(e) =>
-                            setFormData({ ...formData, costunit: e.target.value})
-                            }
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.includes(",")) {
+                                setEditCommaWarning("No se permite , use .");
+                                setFormData({ ...formData, costunit: value.replace(/,/g, "") });
+                                return;
+                              }
+                              setEditCommaWarning("");
+                              setFormData({ ...formData, costunit: value });
+                            }}
                         />
                 </label>
                 <label className="block mb-4">
@@ -632,6 +738,22 @@ const cellClass =
                             value={formData.descuento ?? ""}
                             onChange={(e) => {
                               const descuento = e.target.value;
+                              if (descuento.includes(",")) {
+                                setEditCommaWarning("No se permite , use .");
+                                const sanitized = descuento.replace(/,/g, "");
+                                const costunit = parseNumero(formData.costunit?.toString());
+                                const porcentaje = parseNumero(sanitized);
+                                const costunitcdesc =
+                                  costunit && sanitized !== ""
+                                    ? (costunit - (costunit * porcentaje) / 100).toFixed(2)
+                                    : "";
+                                setFormData({
+                                  ...formData,
+                                  descuento: sanitized,
+                                  costunitcdesc,
+                                });
+                                return;
+                              }
                               const costunit = parseNumero(formData.costunit?.toString());
                               const porcentaje = parseNumero(descuento);
                               const costunitcdesc =
@@ -653,11 +775,21 @@ const cellClass =
                             className="w-full border p-2 rounded mt-1"
                             type="numeric"
                             value={formData.costunitcdesc ?? ""}
-                            onChange={(e) =>
-                            setFormData({ ...formData, costunitcdesc: e.target.value})
-                            }
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.includes(",")) {
+                                setEditCommaWarning("No se permite , use .");
+                                setFormData({ ...formData, costunitcdesc: value.replace(/,/g, "") });
+                                return;
+                              }
+                              setEditCommaWarning("");
+                              setFormData({ ...formData, costunitcdesc: value });
+                            }}
                         />
                 </label>
+                {editCommaWarning && (
+                  <p className="text-xs text-red-600 -mt-2 mb-4">{editCommaWarning}</p>
+                )}
 
                    <label className="block mb-4">
                     <p className="text-black">Divisa</p>
@@ -771,6 +903,7 @@ const cellClass =
       .from("articulos")
       .update({
         ...formData,
+        update_usuario: currentUserNombre || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editingArticulo.id);
