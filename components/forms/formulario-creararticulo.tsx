@@ -21,6 +21,8 @@ export default function FormularioCrearArticulo() {
   const [cc, setCc] = useState<number>(0);
   const [costunit, setCostunit] = useState<number>(0);
   const [divisa, setDivisa] = useState("");
+  const [articuloCommaWarning, setArticuloCommaWarning] = useState("");
+  const [descripcionCommaWarning, setDescripcionCommaWarning] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -222,11 +224,23 @@ export default function FormularioCrearArticulo() {
               type="text"
               id="articulo"
               value={articulo}
-              onChange={(e) => setArticulo(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.includes(",")) {
+                  setArticuloCommaWarning("No se permiten comas, use punto.");
+                  setArticulo(value.replace(/,/g, ""));
+                  return;
+                }
+                setArticuloCommaWarning("");
+                setArticulo(value);
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Ej: Tornillos M8x20"
               required
             />
+            {articuloCommaWarning && (
+              <p className="text-xs text-red-600 mt-1">{articuloCommaWarning}</p>
+            )}
           </div>
 
                      <div>
@@ -237,10 +251,22 @@ export default function FormularioCrearArticulo() {
                type="text"
                id="descripcion"
                value={descripcion}
-               onChange={(e) => setDescripcion(e.target.value)}
+               onChange={(e) => {
+                 const value = e.target.value;
+                 if (value.includes(",")) {
+                   setDescripcionCommaWarning("No se permiten comas, use punto.");
+                   setDescripcion(value.replace(/,/g, ""));
+                   return;
+                 }
+                 setDescripcionCommaWarning("");
+                 setDescripcion(value);
+               }}
                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                placeholder="Descripción detallada del artículo (opcional)"
              />
+             {descripcionCommaWarning && (
+               <p className="text-xs text-red-600 mt-1">{descripcionCommaWarning}</p>
+             )}
            </div>
         </div>
 

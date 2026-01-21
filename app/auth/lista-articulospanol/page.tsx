@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPanolEmail } from "@/lib/panol-access";
 import ListArticulosPanol from "@/components/modarticulopanol/listarticulospanol";
+import ListArticulos from "@/components/lists/listarticulos";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -18,7 +19,7 @@ export default async function Page() {
   return (
     <div className="p-4">
       
-      <ListArticulosPanol />
+      <ListArticulos />
     </div>
   );
 }
