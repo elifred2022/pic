@@ -324,6 +324,25 @@ export default function VerOrdenCompraPage() {
     articulos: typeof editData.articulos,
     proveedor: string
   ) => {
+    let updateUsuario: string | null = null;
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!userError && userData.user) {
+        const { data: perfil, error: perfilError } = await supabase
+          .from("usuarios")
+          .select("nombre")
+          .eq("uuid", userData.user.id)
+          .single();
+        if (!perfilError && perfil?.nombre) {
+          updateUsuario = perfil.nombre;
+        } else {
+          updateUsuario = userData.user.email || null;
+        }
+      }
+    } catch (err) {
+      console.error("Error obteniendo usuario para update_usuario:", err);
+    }
+
     const resultados = await Promise.all(
       articulos.map(async (item) => {
         const nombreArticulo = item.articulo_nombre?.trim();
@@ -338,6 +357,7 @@ export default function VerOrdenCompraPage() {
             item.descuento ?? 0
           ),
           ultimo_prov: proveedor || null,
+          update_usuario: updateUsuario,
           updated_at: new Date().toISOString(),
         };
         const { data, error } = await supabase

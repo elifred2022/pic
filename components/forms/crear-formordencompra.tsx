@@ -360,6 +360,25 @@ export function CrearFormOrdenCompra() {
   };
 
   const actualizarArticulos = async () => {
+    let updateUsuario: string | null = null;
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!userError && userData.user) {
+        const { data: perfil, error: perfilError } = await supabase
+          .from("usuarios")
+          .select("nombre")
+          .eq("uuid", userData.user.id)
+          .single();
+        if (!perfilError && perfil?.nombre) {
+          updateUsuario = perfil.nombre;
+        } else {
+          updateUsuario = userData.user.email || null;
+        }
+      }
+    } catch (err) {
+      console.error("Error obteniendo usuario para update_usuario:", err);
+    }
+
     const resultados = await Promise.all(
       itemsOrden.map((item) => {
         const precioConDescuento = calcularPrecioConDescuento(
@@ -375,6 +394,7 @@ export function CrearFormOrdenCompra() {
             costunitcdesc: precioConDescuento,
             updated_at: new Date().toISOString(),
             ultimo_prov: proveedorSeleccionado?.nombreprov ?? null,
+            update_usuario: updateUsuario,
           })
           .eq("articulo", item.articulo_nombre);
       })
