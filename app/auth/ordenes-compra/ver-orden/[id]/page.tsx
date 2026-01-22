@@ -356,32 +356,52 @@ export default function VerOrdenCompraPage() {
             item.precio_unitario,
             item.descuento ?? 0
           ),
+          divisa: item.divisa ?? "ARS",
           ultimo_prov: proveedor || null,
           update_usuario: updateUsuario,
           updated_at: new Date().toISOString(),
         };
-        const { data, error } = await supabase
+        const { data: exactMatch, error: exactError } = await supabase
           .from("articulos")
-          .update(payload)
-          .eq("articulo", nombreArticulo)
-          .select("id");
+          .select("id")
+          .or(`codint.eq.${nombreArticulo},articulo.eq.${nombreArticulo}`)
+          .limit(1)
+          .maybeSingle();
 
-        if (error) {
-          return { error };
+        if (exactError) {
+          return { error: exactError };
         }
 
-        if (data && data.length > 0) {
+        if (exactMatch?.id) {
+          const { error: updateError } = await supabase
+            .from("articulos")
+            .update(payload)
+            .eq("id", exactMatch.id);
+          if (updateError) {
+            return { error: updateError };
+          }
           return { error: null };
         }
 
-        const fallback = await supabase
+        const { data: ilikeMatch, error: ilikeError } = await supabase
           .from("articulos")
-          .update(payload)
+          .select("id")
           .ilike("articulo", nombreArticulo)
-          .select("id");
+          .limit(1)
+          .maybeSingle();
 
-        if (fallback.error) {
-          return { error: fallback.error };
+        if (ilikeError) {
+          return { error: ilikeError };
+        }
+
+        if (ilikeMatch?.id) {
+          const { error: updateError } = await supabase
+            .from("articulos")
+            .update(payload)
+            .eq("id", ilikeMatch.id);
+          if (updateError) {
+            return { error: updateError };
+          }
         }
 
         return { error: null };
@@ -945,9 +965,11 @@ export default function VerOrdenCompraPage() {
                       <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
                       <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
                       <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
+                      <option value="CC 20 DIAS FF">CC 20 DIAS FF</option>
                       <option value="CC 15 DIAS FF">CC 15 DIAS FF</option>
                       <option value="CC 7 DIAS FF">CC 7 DIAS FF</option>
                       <option value="ECHEQ 30 DIAS FF">ECHEQ 30 DIAS FF</option>
+                      <option value="ECHEQ 20 DIAS FF">ECHEQ 20 DIAS FF</option>
                       <option value="ECHEQ 15 DIAS FF">ECHEQ 15 DIAS FF</option>
                       <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>
                       <option value="PAGO CONTRA ENTREGA">PAGO CONTRA ENTREGA</option>
@@ -966,6 +988,32 @@ export default function VerOrdenCompraPage() {
                   >
                     ➕ Agregar Artículo
                   </Button>
+                </div>
+
+                <div className="bg-gray-100 print:bg-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center">
+                    <div className="md:col-span-2 border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Artículo
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Cantidad
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Costo unit.
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Descuento %
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Divisa
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Costo unit. c/ desc.
+                    </div>
+                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      Total
+                    </div>
+                  </div>
                 </div>
                 
                 {editData.articulos.length > 0 ? (
@@ -1197,4 +1245,3 @@ export default function VerOrdenCompraPage() {
     </>
   );
 }
-

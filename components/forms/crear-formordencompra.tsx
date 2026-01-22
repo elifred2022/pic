@@ -623,8 +623,9 @@ export function CrearFormOrdenCompra() {
                 <option value="">Seleccione la condición de pago</option>
                 <option value="CC 30/60/90 DIAS FF">CC 30/60/90 DIAS FF</option>
                 <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
-                <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
-                <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
+                  <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
+                  <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
+                  <option value="CC 20 DIAS FF">CC 20 DIAS FF</option>
                 <option value="CC 15 DIAS FF">CC 15 DIAS FF</option>
                 <option value="CC 7 DIAS FF">CC 7 DIAS FF</option>
                 <option value="ECHEQ 30 DIAS FF">ECHEQ 30 DIAS FF</option>
@@ -848,4 +849,3 @@ export function CrearFormOrdenCompra() {
     </div>
   );
 }
-
