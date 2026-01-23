@@ -168,6 +168,7 @@ export default function ListArticulos() {
       "Fecha de actualizacion",
       "Ultimo proveedor",
       "Cod. prov. sug.",
+      "existencia",
     ];
 
     const rows = filteredArticulos.map((articulo) => [
@@ -180,6 +181,7 @@ export default function ListArticulos() {
       formatDate(articulo.updated_at) || "",
       articulo.ultimo_prov ?? "",
       articulo.codprovsug ?? "",
+      articulo.existencia ?? "",
     ]);
 
     const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -468,6 +470,7 @@ const cellClass =
             <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
             <th  className={headerClass}>Ultimo usuario</th>
             <th className={`${headerClass} print-report`}>Cod. prov. sug.</th>
+            <th className={`${headerClass} print-report`}>Existencia</th>
             <th  className={headerClass}>Cod cta</th>
             
 
@@ -624,6 +627,7 @@ const cellClass =
                 <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
                 <td className={cellClass}>{articulo.update_usuario || "-"}</td>
                 <td className={`${cellClass} print-report`}>{articulo.codprovsug}</td>
+                <td className={`${cellClass} print-report`}>{articulo.existencia}</td>
                 <td className={cellClass}>{renderValue(articulo.cc)}</td>
                 <td className={cellClass}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
