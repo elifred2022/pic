@@ -469,19 +469,11 @@ const cellClass =
             <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
             <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
             <th  className={headerClass}>Ultimo usuario</th>
-            <th className={`${headerClass} print-report`}>Cod. prov. sug.</th>
-            <th className={`${headerClass} print-report`}>Existencia</th>
+            
             <th  className={headerClass}>Cod cta</th>
-            
-
-           
-             
-          
-            
-            
-            <th  className={headerClass}>Exsitencia</th>
+            <th className={`${headerClass} print-report`}>Existencia</th>
             <th  className={headerClass}>Prov. sug.</th>
-            <th  className={headerClass}>Cod. prov. sug.</th>
+            <th className={`${headerClass} print-report`}>Cod. prov. sug.</th>
             <th  className={headerClass}>Familia</th>
             <th  className={headerClass}>Situacion</th>
        
@@ -619,19 +611,17 @@ const cellClass =
                 <td className={`${cellClass} print-report`}>{articulo.codint}</td>
                 <td className={`${cellClass} print-report`}>{articulo.costunit}</td>
                 <td className={`${cellClass} print-report`}>{articulo.descuento}</td>
-                <td className={`${cellClass} print-report`}>
-                  {parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
+                <td className={`${cellClass} print-report`}>{parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
                 </td>
                 <td className={`${cellClass} print-report`}>{articulo.divisa}</td>
                 <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
                 <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
                 <td className={cellClass}>{articulo.update_usuario || "-"}</td>
-                <td className={`${cellClass} print-report`}>{articulo.codprovsug}</td>
-                <td className={`${cellClass} print-report`}>{articulo.existencia}</td>
+                
                 <td className={cellClass}>{renderValue(articulo.cc)}</td>
-                <td className={cellClass}>{articulo.existencia}</td>
+                <td className={`${cellClass} print-report`}>{articulo.existencia}</td>
                 <td className={cellClass}>{articulo.provsug}</td>
-                <td className={cellClass}>{articulo.codprovsug}</td>
+                <td className={`${cellClass} print-report`}>{articulo.codprovsug}</td>
                 <td className={cellClass}>{articulo.familia}</td>
                 <td className={cellClass}>{articulo.situacion}</td>
 
