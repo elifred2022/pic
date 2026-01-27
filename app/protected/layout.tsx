@@ -3,6 +3,7 @@ import { EnvVarWarning } from "@/components/shared/env-var-warning";
 import { AuthButton } from "@/components/auth/auth-button";
 import { hasEnvVars } from "@/lib/utils";
 import PicRealtimeListener from "@/components/realtime/picrealtimelistener";
+import PedidosProductivosRealtimeListener from "@/components/realtime/pedidosproductivosrealtimelistener";
 
 
 
@@ -30,7 +31,8 @@ export default function ProtectedLayout({
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-20 w-full p-5">
-         <PicRealtimeListener/>
+         <PicRealtimeListener />
+         <PedidosProductivosRealtimeListener />
           {children}
         </div>
 

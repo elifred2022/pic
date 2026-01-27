@@ -4,16 +4,14 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-type Pic = {
+type PedidoProductivo = {
   id: string;
   sector: string;
-  articulo: string;
-  descripcion: string;
   estado: string;
-  uuid: string; // Columna que almacena el auth.uid()
+  solicita: string;
 };
 
-export default function PicRealtimeListener() {
+export default function PedidosProductivosRealtimeListener() {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,48 +20,53 @@ export default function PicRealtimeListener() {
     let channel: ReturnType<typeof supabase.channel>;
 
     const listenRealtime = async () => {
-      // Obtener usuario autenticado
       const { data: userData } = await supabase.auth.getUser();
       const currentUser = userData?.user;
 
-      if (!currentUser) return; // Si no hay usuario logueado, salir.
+      if (!currentUser) return;
 
-      // Suscribirse a cambios en la tabla PIC
+      const { data: userProfile, error: profileError } = await supabase
+        .from("usuarios")
+        .select("nombre")
+        .eq("uuid", currentUser.id)
+        .single();
+
+      if (profileError || !userProfile?.nombre) return;
+
+      const nombreUsuario = userProfile.nombre;
+
       channel = supabase
-        .channel(`realtime:pic:${currentUser.id}`) // Nombre único por usuario
+        .channel(`realtime:pedidos_productivos:${currentUser.id}`)
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "pic" },
+          { event: "*", schema: "public", table: "pedidos_productivos" },
           (payload) => {
-            const newItem = payload.new as Pic;
-            const oldItem = payload.old as Pic;
+            const newItem = payload.new as PedidoProductivo;
+            const oldItem = payload.old as PedidoProductivo;
 
-            // Determinar dueño del pedido
-            const ownerId = newItem?.uuid || oldItem?.uuid;
-            if (ownerId !== currentUser.id) return; // Ignorar si no le pertenece
+            const ownerName = newItem?.solicita || oldItem?.solicita;
+            if (!ownerName || ownerName !== nombreUsuario) return;
 
             const id = newItem?.id || oldItem?.id;
-            const sector = newItem?.sector || oldItem?.sector;
+            const sector = newItem?.sector || oldItem?.sector || "—";
             const estadoNuevo = newItem?.estado || "";
             const estadoAnterior = oldItem?.estado || "";
             const evento = payload.eventType;
 
-            // Mostrar alertas según el tipo de evento
             if (evento === "INSERT") {
-              alert(`✅ Se creó tu PIC #${id} del sector ${sector || "—"}.`);
+              alert(`✅ Se creó tu PIC productivo #${id} del sector ${sector}.`);
             } else if (evento === "UPDATE") {
               if (estadoNuevo === estadoAnterior) return;
               alert(
-                `🔔 Tu PIC #${id} del sector ${sector || "—"} cambió de estado: ${estadoAnterior || "—"} → ${estadoNuevo || "—"}.`
+                `🔔 Tu PIC productivo #${id} del sector ${sector} cambió de estado: ${estadoAnterior || "—"} → ${estadoNuevo || "—"}.`
               );
             } else if (evento === "DELETE") {
-              alert(`🗑️ Tu PIC #${id} del sector ${sector || "—"} fue eliminado.`);
+              alert(`🗑️ Tu PIC productivo #${id} del sector ${sector} fue eliminado.`);
             }
 
-             // Refrescar después de mostrar el mensaje
             setTimeout(() => {
               window.location.reload();
-            }, 500); // Espera 0.5s para que el usuario vea el mensaje
+            }, 500);
           }
         )
         .subscribe();

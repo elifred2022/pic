@@ -4,14 +4,9 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-type Pedido = {
+type PedidoBasico = {
   id: string;
-  sector: string;
-  cant: string;
-  articulo: string;
-  descripcion?: string;
-  estado: string;
-  uuid: string;
+  sector?: string;
 };
 
 export default function PicRealtimeListenerAdmin() {
@@ -26,24 +21,50 @@ export default function PicRealtimeListenerAdmin() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "pic" },
         (payload) => {
-          const pedido = payload.new as Pedido;
+          const pedido = payload.new as PedidoBasico;
           console.log("🚨 Nuevo pedido en PIC:", pedido);
-          setTimeout(() =>
-            alert(
-              `🚨 Nuevo pedido general: #${pedido.id}, sector: ${pedido.sector}, Cant: ${pedido.cant}, ${pedido.articulo}`
-            ), 100);
+          setTimeout(
+            () =>
+              alert(
+                `🚨 Nuevo pedido general: PIC #${pedido.id} del sector ${pedido.sector || "—"} creado.`
+              ),
+            100
+          );
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "picstock" },
         (payload) => {
-          const pedido = payload.new as Pedido;
-          console.log("🚨 Nuevo pedido en PICSTORE:", pedido);
-          setTimeout(() =>
-            alert(
-              `🚨 Nuevo pedido productivo: #${pedido.id}, sector: ${pedido.sector}, Cant: ${pedido.cant}, ${pedido.articulo}`
-            ), 100);
+          const pedido = payload.new as PedidoBasico;
+          console.log("🚨 Nuevo pedido en PICSTOCK:", pedido);
+          setTimeout(
+            () =>
+              alert(
+                `🚨 Nuevo pedido productivo: PIC #${pedido.id} del sector ${pedido.sector || "—"} creado.`
+              ),
+            100
+          );
+
+          // Refrescar datos del admin sin recargar toda la app
+          setTimeout(() => {
+            router.refresh();
+          }, 500);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "pedidos_productivos" },
+        (payload) => {
+          const pedido = payload.new as PedidoBasico;
+          console.log("🚨 Nuevo pedido en pedidos_productivos:", pedido);
+          setTimeout(
+            () =>
+              alert(
+                `🚨 Nuevo pedido productivo: PIC #${pedido.id} del sector ${pedido.sector || "—"} creado.`
+              ),
+            100
+          );
 
           // Refrescar datos del admin sin recargar toda la app
           setTimeout(() => {
