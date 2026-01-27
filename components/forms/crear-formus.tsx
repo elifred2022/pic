@@ -160,7 +160,7 @@ export default function CrearFormUs() {
       }
 
       // Crear pedido principal con artículos incluidos
-      const { error: pedidoError } = await supabase
+      const { data: pedidoCreado, error: pedidoError } = await supabase
         .from("pic")
         .insert([
           {
@@ -171,7 +171,6 @@ export default function CrearFormUs() {
             estado,
             aprueba,
             notas,
-           
             uuid: user.id,
             articulos: articulosSeleccionados.map((art) => ({
               articulo: art.articulo,
@@ -184,7 +183,9 @@ export default function CrearFormUs() {
               link: art.link || null,
             })),
           },
-        ]);
+        ])
+        .select("id, sector")
+        .single();
 
              if (pedidoError) {
          console.error("Error al crear pedido:", pedidoError);
@@ -201,7 +202,34 @@ export default function CrearFormUs() {
 
       
 
-      setMessage("✅ Pedido creado con éxito");
+      let idCreado = pedidoCreado?.id;
+      let sectorCreado = pedidoCreado?.sector;
+
+      if (!idCreado) {
+        const { data: ultimoPedido, error: ultimoError } = await supabase
+          .from("pic")
+          .select("id, sector")
+          .eq("uuid", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!ultimoError && ultimoPedido?.id) {
+          idCreado = ultimoPedido.id;
+          sectorCreado = ultimoPedido.sector;
+        }
+      }
+
+      if (idCreado) {
+        setMessage(
+          `✅ Pedido creado con éxito. PIC #${idCreado} del sector ${sectorCreado || "—"}.`
+        );
+        alert(
+          `✅ Se creó tu PIC #${idCreado} del sector ${sectorCreado || "—"}.`
+        );
+      } else {
+        setMessage("✅ Pedido creado con éxito.");
+      }
       // Reset form
       setNecesidad("");
       setCategoria("");

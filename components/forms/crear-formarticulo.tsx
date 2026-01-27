@@ -119,15 +119,22 @@ export default function CrearFormArticulo() {
       })),
     };
 
-    const { error } = await supabase
+    const { data: pedidoCreado, error } = await supabase
       .from("pic")
-      .insert([nuevoPedido]);
+      .insert([nuevoPedido])
+      .select("id, sector")
+      .single();
 
     if (error) {
       console.error(error);
       setMessage("❌ Error al crear el pedido: " + error.message);
     } else {
       setMessage("✅ Pedido creado con éxito");
+      if (pedidoCreado?.id) {
+        alert(
+          `✅ Se creó tu PIC #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.`
+        );
+      }
       // Reset form
       setNecesidad("");
       setCategoria("");

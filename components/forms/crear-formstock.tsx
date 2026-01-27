@@ -85,11 +85,10 @@ const handleCodintChange = async (value: string) => {
   data: { user },
 } = await supabase.auth.getUser();
 
-    const { error } = await supabase
+    const { data: pedidoCreado, error } = await supabase
       .from("picstock") // nombre de la tabla en supabase
       .insert([
         {
-         
           necesidad: necesidad,
           categoria,
           solicita,
@@ -102,9 +101,10 @@ const handleCodintChange = async (value: string) => {
           descripcion,
           aprueba,
           uuid: user?.id,
-  
         },
-      ]);
+      ])
+      .select("id, sector")
+      .single();
 
     setIsLoading(false);
 
@@ -112,6 +112,11 @@ const handleCodintChange = async (value: string) => {
       console.error("Error al insertar:", error);
   setError(`Error: ${error.message} - ${error.details || ""}`);
     } else {
+      if (pedidoCreado?.id) {
+        alert(
+          `✅ Se creó tu PIC productivo #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.`
+        );
+      }
       // redirecciona o resetea formulario
       router.push("/protected"); // 🔁 O la ruta que prefieras después de crear
     }

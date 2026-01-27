@@ -198,9 +198,11 @@ export default function CrearFormPedidoProductivo() {
       
     };
 
-    const { error } = await supabase
+    const { data: pedidoCreado, error } = await supabase
       .from("pedidos_productivos")
-      .insert([nuevoPedido]);
+      .insert([nuevoPedido])
+      .select("id, sector")
+      .single();
 
     if (error) {
       console.error(error);
@@ -222,6 +224,11 @@ export default function CrearFormPedidoProductivo() {
           }
         }
         setMessage("✅ Pedido creado con éxito y existencia actualizada");
+        if (pedidoCreado?.id) {
+          alert(
+            `✅ Se creó tu PIC productivo #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.`
+          );
+        }
       } catch (updateError) {
         console.error("Error al actualizar existencia:", updateError);
         setMessage("⚠️ Pedido creado pero error al actualizar existencia");

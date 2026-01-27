@@ -94,11 +94,10 @@ function parseDate(value: string) {
       : null;
 
 
-    const { error } = await supabase
+    const { data: pedidoCreado, error } = await supabase
       .from("pic") // 🔁 CAMBIA ESTO con el nombre real de tu tabla
       .insert([
         {
-         
           necesidad: necesidad,
           categoria,
           solicita,
@@ -135,10 +134,10 @@ function parseDate(value: string) {
           fac: parseNumber(fac),
           mod_pago,
           proceso,
-
-
         },
-      ]);
+      ])
+      .select("id, sector")
+      .single();
 
     setIsLoading(false);
 
@@ -146,6 +145,11 @@ function parseDate(value: string) {
       console.error("Error al insertar:", error);
       setError("Hubo un error al crear el pedido.");
     } else {
+      if (pedidoCreado?.id) {
+        alert(
+          `✅ Se creó tu PIC #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.`
+        );
+      }
       // redirecciona o resetea formulario
       router.push("/protected"); // 🔁 O la ruta que prefieras después de crear
     }
