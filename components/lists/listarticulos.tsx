@@ -264,13 +264,39 @@ function renderValue(value: unknown): string {
 }
 
 const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-blue-600 text-white whitespace-normal break-words sticky top-0 z-10 text-left"; // ← evita saltos de línea
+  "px-2 py-1 border text-xs font-semibold bg-blue-600 text-white whitespace-normal break-words sticky top-0 z-10 text-left";
 const cellClass =
-  "px-2 py-1 border align-top text-sm text-left whitespace-normal break-words";
+  "px-2 py-1 border align-top text-xs text-left break-words overflow-hidden";
+
+/* En móvil solo mostramos: articulo, codint, costunit, descuento, costcondescuento, divisa, ultimo proveedor, fecha actualizacion, existencia */
+const mobileHidden = "hidden md:table-cell";
 
   return (
     <div className="flex-2 w-full p-2">
         <style>{`
+          /* Responsive móvil: columnas más compactas y texto vertical */
+          @media (max-width: 767px) {
+            .articulos-table {
+              table-layout: auto;
+              min-width: 100%;
+              font-size: 0.75rem;
+            }
+            .articulos-table th,
+            .articulos-table td {
+              padding: 0.25rem 0.375rem;
+              white-space: nowrap;
+            }
+            .articulos-table th.print-report.wrap,
+            .articulos-table td.print-report.wrap {
+              white-space: normal;
+              max-width: 80px;
+            }
+            .articulos-table tbody td {
+              writing-mode: vertical-lr;
+              text-orientation: mixed;
+              transform: rotate(180deg);
+            }
+          }
           @media print {
             .print-hidden {
               display: none !important;
@@ -342,6 +368,13 @@ const cellClass =
             max-height: 70vh;
             overflow-y: scroll;
             scrollbar-gutter: stable;
+            font-size: 0.7rem;
+          }
+          .articulos-table tbody td {
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            white-space: normal;
+            line-height: 1.2;
           }
           .articulos-table tbody tr {
             display: table;
@@ -452,15 +485,15 @@ const cellClass =
     </div>
 
      
-      <div className="overflow-hidden">
+      <div className="overflow-x-auto">
         <table className="articulos-table min-w-full table-fixed border border-gray-300 shadow-md rounded-md overflow-hidden">
           <thead>
           <tr>
-            <th className={`${headerClass} col-acciones`}>Accion</th>
-            <th  className={headerClass}>Id</th>
-             <th  className={headerClass}>Fecha de alta</th>
+            <th className={`${headerClass} col-acciones ${mobileHidden}`}>Accion</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Id</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Fecha de alta</th>
             <th className={`${headerClass} print-report`}>Articulo</th>
-            <th  className={headerClass}>Descripcion</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Descripcion</th>
             <th className={`${headerClass} print-report`}>Cod int</th>
             <th className={`${headerClass} print-report`}>Cost. unit.</th>
             <th className={`${headerClass} print-report`}>% Desc</th>
@@ -468,23 +501,19 @@ const cellClass =
             <th className={`${headerClass} print-report`}>Divisa</th>
             <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
             <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
-            <th  className={headerClass}>Ultimo usuario</th>
-            
-            <th  className={headerClass}>Cod cta</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Ultimo usuario</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Cod cta</th>
             <th className={`${headerClass} print-report`}>Existencia</th>
-            <th  className={headerClass}>Prov. sug.</th>
-            <th className={`${headerClass} print-report`}>Cod. prov. sug.</th>
-            <th  className={headerClass}>Familia</th>
-            <th  className={headerClass}>Situacion</th>
-       
-           
-            
+            <th className={`${headerClass} ${mobileHidden}`}>Prov. sug.</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Cod. prov. sug.</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Familia</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Situacion</th>
           </tr>
         </thead>
         <tbody>
           {filteredArticulos.map((articulo) => (
             <tr key={articulo.id}>
-               <td className={`${cellClass} col-acciones`}>
+               <td className={`${cellClass} col-acciones ${mobileHidden}`}>
                 <div className="flex flex-wrap gap-2">
                     
                   <button
@@ -604,10 +633,10 @@ const cellClass =
 
                   
                 </div></td>
-                <td className={cellClass}>{articulo.id}</td>
-                <td className={cellClass}>{formatDate(articulo.created_at) || "-"}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.id}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{formatDate(articulo.created_at) || "-"}</td>
                 <td className={`${cellClass} print-report`}>{articulo.articulo}</td>
-                <td className={cellClass}>{articulo.descripcion}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.descripcion}</td>
                 <td className={`${cellClass} print-report`}>{articulo.codint}</td>
                 <td className={`${cellClass} print-report`}>{articulo.costunit}</td>
                 <td className={`${cellClass} print-report`}>{articulo.descuento}</td>
@@ -616,14 +645,13 @@ const cellClass =
                 <td className={`${cellClass} print-report`}>{articulo.divisa}</td>
                 <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
                 <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
-                <td className={cellClass}>{articulo.update_usuario || "-"}</td>
-                
-                <td className={cellClass}>{renderValue(articulo.cc)}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.update_usuario || "-"}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{renderValue(articulo.cc)}</td>
                 <td className={`${cellClass} print-report`}>{articulo.existencia}</td>
-                <td className={cellClass}>{articulo.provsug}</td>
-                <td className={`${cellClass} print-report`}>{articulo.codprovsug}</td>
-                <td className={cellClass}>{articulo.familia}</td>
-                <td className={cellClass}>{articulo.situacion}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.provsug}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.codprovsug}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.familia}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{articulo.situacion}</td>
 
             </tr>
           ))}
