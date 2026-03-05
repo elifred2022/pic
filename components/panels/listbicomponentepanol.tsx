@@ -66,7 +66,7 @@ function ListBiComponentePanol() {
         </div>
 
         {/* Navegación principal con tarjetas interactivas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Link
             href="/auth/lista-articulospanol"
             className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-100 overflow-hidden"
@@ -114,6 +114,23 @@ function ListBiComponentePanol() {
               </h3>
               <p className="text-gray-600 text-sm">
                 Gestionar pedidos del área productiva
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/auth/ordenes-produccion"
+            className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-100 overflow-hidden"
+          >
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                <span className="text-2xl text-white">🏭</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-amber-600 transition-colors duration-300">
+                Órdenes de Producción
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Administrar órdenes de producción
               </p>
             </div>
           </Link>

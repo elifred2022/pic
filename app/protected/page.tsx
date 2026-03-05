@@ -51,7 +51,9 @@ export default async function ProtectedPage() {
     "paniol@perfilesyservicios.com.ar",
     "panolgascon@perfilesyservicios.com.ar",
    "elifred21@hotmail.com",
-   "asist.controlstock@perfilesyservicios.com.ar"
+   "asist.controlstock@perfilesyservicios.com.ar",
+   "controldeCalidad@perfilesyservicios.com.ar",
+   "asistordenes@perfilesyservicios.com.ar"
   ];
 
   const aprobEmails = [
