@@ -52,7 +52,7 @@ export default async function ProtectedPage() {
     "panolgascon@perfilesyservicios.com.ar",
    "elifred21@hotmail.com",
    "asist.controlstock@perfilesyservicios.com.ar",
-   "controldeCalidad@perfilesyservicios.com.ar",
+   "controldecalidad@perfilesyservicios.com.ar",
    "asistordenes@perfilesyservicios.com.ar"
   ];
 
