@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PicRealtimeListener from "../../realtime/picrealtimelistener";
+import { isPanolEmail } from "@/lib/panol-access";
 
 type Pedido = {
   id: string;
@@ -104,10 +105,11 @@ export default function ListPanolProductosGenerales() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("pic")
-      .select("*")
-        .eq("uuid", user.id);
+    let query = supabase.from("pic").select("*");
+    if (!isPanolEmail(user.email)) {
+      query = query.eq("uuid", user.id);
+    }
+    const { data, error } = await query;
 
     if (error) console.error("Error cargando pedidos:", error);
     else setPedidos(data);
@@ -562,11 +564,11 @@ function renderValue(value: unknown): string {
                         } = await supabase.auth.getUser();
 
                         if (user) {
-                          const { data } = await supabase
-                            .from("pic")
-                            .select("*")
-                            .eq("uuid", user.id);
-
+                          let q = supabase.from("pic").select("*");
+                          if (!isPanolEmail(user.email)) {
+                            q = q.eq("uuid", user.id);
+                          }
+                          const { data } = await q;
                           if (data) setPedidos(data);
                         }
 

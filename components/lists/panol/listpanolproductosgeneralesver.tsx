@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isPanolEmail } from "@/lib/panol-access";
 
 
 type Pedido = {
@@ -102,10 +103,11 @@ export default function ListPanolProductosGeneralesVer() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("pic")
-      .select("*")
-      .eq("uuid", user.id); // 👈 Filtra por usuario logueado
+    let query = supabase.from("pic").select("*");
+    if (!isPanolEmail(user.email)) {
+      query = query.eq("uuid", user.id);
+    }
+    const { data, error } = await query;
 
     if (error) console.error("Error cargando pedidos:", error);
     else setPedidos(data);

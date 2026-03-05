@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { isPanolEmail } from "@/lib/panol-access";
 
 type OrdenProduccion = {
   id: string;
@@ -58,11 +59,14 @@ export default function ListOrdenesProduccion() {
       return;
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("ordenes_produccion")
       .select("*")
-      .eq("usuario_id", user.id)
       .order("created_at", { ascending: false });
+    if (!isPanolEmail(user.email)) {
+      query = query.eq("usuario_id", user.id);
+    }
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error cargando órdenes de producción:", error);

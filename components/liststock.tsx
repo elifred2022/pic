@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PicRealtimeListenerStock from "./realtime/picrealtimelistenerproductivo";
+import { isPanolEmail } from "@/lib/panol-access";
 
 
 type Pedido = {
@@ -104,10 +105,11 @@ export default function ListStock() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("picstock")
-      .select("*")
-      .eq("uuid", user.id); // 👈 Filtra por usuario logueado
+    let query = supabase.from("picstock").select("*");
+    if (!isPanolEmail(user.email)) {
+      query = query.eq("uuid", user.id);
+    }
+    const { data, error } = await query;
 
     if (error) console.error("Error cargando pedidos:", error);
     else setPedidos(data);
@@ -486,11 +488,11 @@ function renderValue(value: unknown): string {
                         } = await supabase.auth.getUser();
 
                         if (user) {
-                          const { data } = await supabase
-                            .from("picstock")
-                            .select("*")
-                            .eq("uuid", user.id);
-
+                          let q = supabase.from("picstock").select("*");
+                          if (!isPanolEmail(user.email)) {
+                            q = q.eq("uuid", user.id);
+                          }
+                          const { data } = await q;
                           if (data) setPedidos(data);
                         }
 
