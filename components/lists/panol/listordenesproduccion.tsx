@@ -5,27 +5,119 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { canAccessOrdenesProduccion, isTabletEmail } from "@/lib/panol-access";
 import JSZip from "jszip";
+import * as XLSX from "xlsx";
 
-const ESTADOS_OBRA = ["V1", "V2", "V3", "V4"] as const;
+const ESTADO_OBRA_KEY_SEP = "::";
 
-function parseEstadoObra(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((v) => typeof v === "string");
-  if (typeof val === "string") {
-    const s = val.trim();
-    if (!s) return [];
-    try {
-      const parsed = JSON.parse(s) as unknown;
-      if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === "string");
-    } catch {
-      // Formato PostgreSQL: "{V1,V2,V3}" o "{\"V1\",\"V2\"}"
-      if (s.startsWith("{") && s.endsWith("}")) {
-        const inner = s.slice(1, -1).replace(/"/g, "");
-        return inner ? inner.split(",").map((x) => x.trim()).filter(Boolean) : [];
+const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
+  CORTE: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
+  MECANIZADO: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
+  SOLDADURA: ["Marco", "Hojas", "Guia Mosquitero"],
+  ARMADO: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
+  JUNQUILLOS: ["Marco", "Hoja", "Hoja Mq"],
+} as const;
+
+// proceso -> item -> fecha (ISO string). Si está vacío = sin fecha (datos antiguos)
+type EstadoObraData = Record<string, Record<string, string>>;
+
+type TipologiaItem = {
+  nombre: string;
+  estados: EstadoObraData;
+  descripcion?: string | null;
+  ancho?: number | null;
+  alto?: number | null;
+  comentarios?: string | null;
+};
+
+type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
+
+function toFechaString(val: unknown): string {
+  if (typeof val === "string" && val.trim()) return val;
+  if (typeof val === "number" && !Number.isNaN(val)) return new Date(val).toISOString();
+  return "";
+}
+
+function parseEstadoObraData(obj: Record<string, unknown>): EstadoObraData {
+  const result: EstadoObraData = {};
+  for (const [proceso, val] of Object.entries(obj)) {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      const items = val as Record<string, unknown>;
+      const map: Record<string, string> = {};
+      for (const [item, fecha] of Object.entries(items)) {
+        if (typeof item === "string") {
+          const fechaStr = toFechaString(fecha);
+          map[item] = fechaStr;
+        }
       }
-      return [s];
+      if (Object.keys(map).length > 0) result[proceso] = map;
+    } else if (Array.isArray(val)) {
+      // Formato antiguo: array de strings → migrar a objeto con fecha vacía
+      const map: Record<string, string> = {};
+      for (const v of val) {
+        if (typeof v === "string") map[v] = "";
+      }
+      if (Object.keys(map).length > 0) result[proceso] = map;
     }
   }
-  return [];
+  return result;
+}
+
+function formatFechaISO(iso: string): string {
+  if (!iso || !iso.trim()) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+function parseEstadoObra(val: unknown): EstadoObraConTipologias {
+  if (val && typeof val === "object" && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.tipologias)) {
+      const tipologias: TipologiaItem[] = obj.tipologias
+        .filter((t): t is Record<string, unknown> => t && typeof t === "object")
+        .map((t) => ({
+          nombre: typeof t.nombre === "string" ? t.nombre : "Tipología",
+          estados: parseEstadoObraData((t.estados as Record<string, unknown>) ?? {}),
+          descripcion: typeof t.descripcion === "string" ? t.descripcion : null,
+          ancho: typeof t.ancho === "number" ? t.ancho : null,
+          alto: typeof t.alto === "number" ? t.alto : null,
+          comentarios: typeof t.comentarios === "string" ? t.comentarios : null,
+        }));
+      return { tipologias };
+    }
+    // Formato antiguo: objeto plano con CORTE, MECANIZADO, etc. → migrar a una tipología "General"
+    const estados = parseEstadoObraData(obj);
+    if (Object.keys(estados).length > 0 || Object.keys(obj).some((k) => k !== "tipologias")) {
+      return { tipologias: [{ nombre: "General", estados }] };
+    }
+  }
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val) as unknown;
+      if (parsed && typeof parsed === "object") return parseEstadoObra(parsed);
+    } catch {
+      // ignore
+    }
+  }
+  return { tipologias: [] };
+}
+
+function formatEstadoObraSummary(data: EstadoObraConTipologias): string {
+  const parts: string[] = [];
+  for (const t of data.tipologias) {
+    const subParts: string[] = [];
+    for (const [proceso, items] of Object.entries(t.estados)) {
+      const itemStrs = Object.entries(items)
+        .map(([item, fecha]) => (fecha ? `${item} (${formatFechaISO(fecha)})` : item))
+        .filter(Boolean);
+      if (itemStrs.length > 0) subParts.push(`${proceso}: ${itemStrs.join(", ")}`);
+    }
+    if (subParts.length > 0) parts.push(`${t.nombre} (${subParts.join("; ")})`);
+  }
+  return parts.join(" | ");
 }
 
 type OrdenProduccion = {
@@ -37,7 +129,7 @@ type OrdenProduccion = {
   semana: string | null;
   url_imagen: string | null;
   usuario_id: string | null;
-  estado_obra?: string[] | null;
+  estado_obra?: unknown;
 };
 
 const MESES = [
@@ -69,8 +161,13 @@ export default function ListOrdenesProduccion() {
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
   const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
   const [estadoObraOrden, setEstadoObraOrden] = useState<OrdenProduccion | null>(null);
-  const [estadoObraCheckboxes, setEstadoObraCheckboxes] = useState<Record<string, boolean>>({ V1: false, V2: false, V3: false, V4: false });
+  const [estadoObraTipologias, setEstadoObraTipologias] = useState<TipologiaItem[]>([]);
+  const [estadoObraFechas, setEstadoObraFechas] = useState<Record<string, string>>({});
+  const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
+  const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
+  const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
+  const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -137,16 +234,137 @@ export default function ListOrdenesProduccion() {
     setShowModal(true);
   };
 
-  const handleOpenEstadoObra = (orden: OrdenProduccion) => {
-    const completed = parseEstadoObra(orden.estado_obra);
-    setEstadoObraCheckboxes({
-      V1: completed.includes("V1"),
-      V2: completed.includes("V2"),
-      V3: completed.includes("V3"),
-      V4: completed.includes("V4"),
-    });
+  const handleOpenEstadoObra = async (orden: OrdenProduccion) => {
     setEstadoObraOrden(orden);
     setShowEstadoObraModal(true);
+    // Obtener datos frescos de la DB para asegurar que estado_obra esté actualizado
+    const { data: fresh } = await supabase
+      .from("ordenes_produccion")
+      .select("estado_obra")
+      .eq("id", orden.id)
+      .single();
+    const rawEstado = fresh?.estado_obra ?? orden.estado_obra;
+    const { tipologias } = parseEstadoObra(rawEstado);
+    const fechas: Record<string, string> = {};
+    tipologias.forEach((t, idx) => {
+      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+        const itemData = t.estados[proceso];
+        for (const item of items) {
+          if (itemData && item in itemData) {
+            const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+            fechas[key] = itemData[item] ?? "";
+          }
+        }
+      }
+    });
+    setEstadoObraTipologias(tipologias);
+    setEstadoObraFechas(fechas);
+    setNuevaTipologiaNombre("");
+    setMostrarAgregarTipologia(false);
+  };
+
+  const handleAgregarTipologia = () => {
+    const nombre = nuevaTipologiaNombre.trim() || `Tipología ${estadoObraTipologias.length + 1}`;
+    setEstadoObraTipologias((prev) => [...prev, { nombre, estados: {} }]);
+    setNuevaTipologiaNombre("");
+    setMostrarAgregarTipologia(false);
+  };
+
+  const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number): unknown => {
+    if (colIdx !== undefined && colIdx >= 0) {
+      const val = row[String(colIdx)] ?? row["ABCDEFGHIJ"[colIdx]];
+      if (val !== undefined && val !== null && String(val).trim() !== "") return val;
+    }
+    const norm = (s: string) => String(s).toLowerCase().trim().replace(/\s+/g, " ").replace(/[íìîï]/g, "i").replace(/[áàâä]/g, "a").replace(/[óòôö]/g, "o");
+    for (const [excelKey, val] of Object.entries(row)) {
+      const excelNorm = norm(excelKey);
+      for (const k of keys) {
+        if (!k) continue;
+        const kn = norm(k);
+        const match = excelNorm === kn || excelNorm.includes(kn) || kn.includes(excelNorm) ||
+          (keys.some((x) => x.toLowerCase().includes("tipolog")) && excelNorm.includes("tipolog"));
+        if (match && val !== undefined && val !== null && String(val).trim() !== "") return val;
+      }
+    }
+    return undefined;
+  };
+
+  const handleImportEstadoObraExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportandoEstadoObra(true);
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+      const firstSheet = wb.Sheets[wb.SheetNames[0]];
+      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: false });
+      if (rows.length > 0) {
+        const firstRow = rows[0];
+        const firstKeys = Object.keys(firstRow);
+        const hasHeader = firstKeys.some((k) =>
+          /tipolog|descripcion|ancho|alto|comentario/i.test(String(k))
+        );
+        if (!hasHeader) {
+          rows = rows.map((r) => ({
+            ...r,
+            A: r["0"] ?? r["A"] ?? r[firstKeys[0]],
+            B: r["1"] ?? r["B"] ?? r[firstKeys[1]],
+            C: r["2"] ?? r["C"] ?? r[firstKeys[2]],
+            D: r["3"] ?? r["D"] ?? r[firstKeys[3]],
+            E: r["4"] ?? r["E"] ?? r[firstKeys[4]],
+          }));
+        }
+      }
+      const nuevas: TipologiaItem[] = [];
+      const headerWords = ["tipologias", "tipologia", "descripcion", "ancho", "alto", "comentarios"];
+      for (let ri = 0; ri < rows.length; ri++) {
+        const row = rows[ri];
+        let nombreRaw = getExcelVal(row, ["tipologias", "tipologia", "Tipologías", "Tipología", "A"]) ?? getExcelVal(row, [], 0);
+        if (nombreRaw === undefined) {
+          const firstCol = row[Object.keys(row)[0]] ?? row["0"] ?? row["A"];
+          if (firstCol !== undefined && firstCol !== null && String(firstCol).trim()) nombreRaw = firstCol;
+        }
+        const nombre = String(nombreRaw ?? "").trim();
+        if (!nombre) continue;
+        if (ri === 0 && headerWords.includes(nombre.toLowerCase())) continue;
+        const descripcionRaw = getExcelVal(row, ["descripcion", "Descripción", "B"]) ?? getExcelVal(row, [], 1);
+        const descripcion = String(descripcionRaw ?? "").trim() || null;
+        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "C"]) ?? getExcelVal(row, [], 2);
+        const ancho = anchoRaw !== undefined && anchoRaw !== null && String(anchoRaw).trim() !== "" ? Number(anchoRaw) : null;
+        const altoRaw = getExcelVal(row, ["alto", "Alto", "D"]) ?? getExcelVal(row, [], 3);
+        const alto = altoRaw !== undefined && altoRaw !== null && String(altoRaw).trim() !== "" ? Number(altoRaw) : null;
+        const comentariosRaw = getExcelVal(row, ["comentarios", "Comentarios", "E"]) ?? getExcelVal(row, [], 4);
+        const comentarios = String(comentariosRaw ?? "").trim() || null;
+        nuevas.push({ nombre, descripcion, ancho, alto, comentarios, estados: {} });
+      }
+      setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
+      if (nuevas.length > 0) {
+        alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
+      } else {
+        alert("No se encontraron filas con datos en la columna de tipología. Revisa que la primera fila tenga los encabezados y que haya al menos una fila con datos.");
+      }
+    } catch (ex) {
+      console.error("Error al importar:", ex);
+      alert("Error al leer el archivo Excel. Verifica el formato del archivo.");
+    } finally {
+      setImportandoEstadoObra(false);
+    }
+  };
+
+  const handleEliminarTipologia = (idx: number) => {
+    setEstadoObraTipologias((prev) => prev.filter((_, i) => i !== idx));
+    setEstadoObraFechas((prev) => {
+      const next: Record<string, string> = {};
+      const sep = ESTADO_OBRA_KEY_SEP;
+      for (const [key, val] of Object.entries(prev)) {
+        const parts = key.split(sep);
+        const keyIdx = parseInt(parts[0], 10);
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[`${keyIdx - 1}${sep}${parts.slice(1).join(sep)}`] = val;
+      }
+      return next;
+    });
   };
 
   const handleUpdateEstadoObra = async () => {
@@ -157,10 +375,28 @@ export default function ListOrdenesProduccion() {
       setUpdatingEstadoObra(false);
       return;
     }
-    const completed = ESTADOS_OBRA.filter((v) => estadoObraCheckboxes[v]);
+    const tipologias: TipologiaItem[] = estadoObraTipologias.map((t, idx) => {
+      const estados: EstadoObraData = {};
+      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+        const map: Record<string, string> = {};
+        for (const item of items) {
+          const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+          if (key in estadoObraFechas) map[item] = estadoObraFechas[key] ?? "";
+        }
+        if (Object.keys(map).length > 0) estados[proceso] = map;
+      }
+      return {
+        nombre: t.nombre,
+        estados,
+        descripcion: t.descripcion ?? null,
+        ancho: t.ancho ?? null,
+        alto: t.alto ?? null,
+        comentarios: t.comentarios ?? null,
+      };
+    });
     let updateQuery = supabase
       .from("ordenes_produccion")
-      .update({ estado_obra: completed })
+      .update({ estado_obra: { tipologias } })
       .eq("id", estadoObraOrden.id);
     if (!canAccessOrdenesProduccion(user.email)) {
       updateQuery = updateQuery.eq("usuario_id", user.id);
@@ -451,30 +687,174 @@ export default function ListOrdenesProduccion() {
       </div>
 
       {showEstadoObraModal && estadoObraOrden && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
-              Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">Marca las versiones culminadas:</p>
-            <ul className="space-y-3 mb-6">
-              {ESTADOS_OBRA.map((v) => (
-                <li key={v} className="flex items-center gap-3">
-                  <span className="font-medium w-8">{v}</span>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={estadoObraCheckboxes[v] ?? false}
-                      onChange={(e) =>
-                        setEstadoObraCheckboxes((prev) => ({ ...prev, [v]: e.target.checked }))
-                      }
-                      className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                    />
-                    <span className="text-sm">Culminado</span>
-                  </label>
-                </li>
+        <div
+          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); }}
+          role="presentation"
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10 -mt-1 pt-1">
+              <h3 className="text-lg font-bold text-gray-800">
+                Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleUpdateEstadoObra}
+                  disabled={updatingEstadoObra}
+                  className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); }}
+                  disabled={updatingEstadoObra}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              {isReadOnly ? "Marca los ítems culminados por proceso:" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+            </p>
+            {!isReadOnly && (
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => estadoObraFileInputRef.current?.click()}
+                  disabled={importandoEstadoObra}
+                  className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
+                </button>
+                <input
+                  ref={estadoObraFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportEstadoObraExcel}
+                  className="hidden"
+                />
+              </div>
+            )}
+            <div className="space-y-6 mb-6">
+              {estadoObraTipologias.map((tipologia, idx) => (
+                <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-800 text-base">{tipologia.nombre}</h4>
+                      {(tipologia.descripcion || tipologia.ancho != null || tipologia.alto != null || tipologia.comentarios) && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {[tipologia.descripcion, tipologia.ancho != null && `Ancho: ${tipologia.ancho}`, tipologia.alto != null && `Alto: ${tipologia.alto}`, tipologia.comentarios]
+                            .filter(Boolean)
+                            .join(" | ")}
+                        </p>
+                      )}
+                    </div>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleEliminarTipologia(idx)}
+                        className="text-red-500 hover:text-red-700 text-sm px-2 py-1"
+                        title="Eliminar tipología"
+                      >
+                        ✕ Eliminar
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {Object.entries(ESTADOS_OBRA_STRUCTURE).map(([proceso, items]) => (
+                      <div key={proceso} className="border border-gray-200 rounded p-2 bg-white">
+                        <h5 className="font-medium text-gray-700 text-sm mb-1">{proceso}</h5>
+                        <ul className="flex flex-wrap gap-x-6 gap-y-3">
+                          {items.map((item) => {
+                            const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                            const fecha = estadoObraFechas[key] ?? "";
+                            const checked = key in estadoObraFechas;
+                            return (
+                              <li key={key} className="flex flex-col">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setEstadoObraFechas((prev) => ({
+                                          ...prev,
+                                          [key]: new Date().toISOString(),
+                                        }));
+                                      } else {
+                                        setEstadoObraFechas((prev) => {
+                                          const next = { ...prev };
+                                          delete next[key];
+                                          return next;
+                                        });
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                  />
+                                  <span className="text-xs">{item}</span>
+                                </label>
+                                <span
+                                  className="text-xs text-gray-500 mt-0.5 ml-5 min-h-[1rem]"
+                                  title={fecha}
+                                >
+                                  {checked ? formatFechaISO(fecha) : ""}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </ul>
+              {!isReadOnly && (mostrarAgregarTipologia ? (
+                <div className="border-2 border-dashed border-amber-400 rounded-lg p-3 bg-amber-50/50">
+                  <input
+                    type="text"
+                    value={nuevaTipologiaNombre}
+                    onChange={(e) => setNuevaTipologiaNombre(e.target.value)}
+                    placeholder="Nombre de la tipología"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAgregarTipologia();
+                      if (e.key === "Escape") setMostrarAgregarTipologia(false);
+                    }}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAgregarTipologia}
+                      className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600"
+                    >
+                      Agregar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMostrarAgregarTipologia(false);
+                        setNuevaTipologiaNombre("");
+                      }}
+                      className="px-3 py-1.5 border border-gray-300 text-sm rounded-lg hover:bg-gray-50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMostrarAgregarTipologia(true)}
+                  className="w-full py-3 border-2 border-dashed border-amber-400 text-amber-600 rounded-lg hover:bg-amber-50 font-medium"
+                >
+                  ➕ Agregar tipología
+                </button>
+              ))}
+            </div>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -501,8 +881,12 @@ export default function ListOrdenesProduccion() {
       )}
 
       {showArchivosModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowArchivosModal(false)}
+          role="presentation"
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">Archivos</h3>
               <button
@@ -536,8 +920,12 @@ export default function ListOrdenesProduccion() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={handleCloseModal}
+          role="presentation"
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">
                 {editingOrden ? "Editar obra" : "Crear nueva obra"}
@@ -737,10 +1125,11 @@ export default function ListOrdenesProduccion() {
                       📋 Estado
                     </button>
                     {(() => {
-                      const arr = parseEstadoObra(orden.estado_obra);
-                      return arr.length > 0 ? (
-                        <span className="ml-1 text-xs text-gray-500">
-                          ({arr.join(", ")})
+                      const data = parseEstadoObra(orden.estado_obra);
+                      const summary = formatEstadoObraSummary(data);
+                      return summary ? (
+                        <span className="ml-1 text-xs text-gray-500 block mt-1" title={summary}>
+                          {summary.length > 50 ? `${summary.slice(0, 47)}...` : summary}
                         </span>
                       ) : null;
                     })()}
