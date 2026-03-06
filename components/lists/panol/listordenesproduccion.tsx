@@ -6,6 +6,28 @@ import Link from "next/link";
 import { canAccessOrdenesProduccion, isTabletEmail } from "@/lib/panol-access";
 import JSZip from "jszip";
 
+const ESTADOS_OBRA = ["V1", "V2", "V3", "V4"] as const;
+
+function parseEstadoObra(val: unknown): string[] {
+  if (Array.isArray(val)) return val.filter((v) => typeof v === "string");
+  if (typeof val === "string") {
+    const s = val.trim();
+    if (!s) return [];
+    try {
+      const parsed = JSON.parse(s) as unknown;
+      if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === "string");
+    } catch {
+      // Formato PostgreSQL: "{V1,V2,V3}" o "{\"V1\",\"V2\"}"
+      if (s.startsWith("{") && s.endsWith("}")) {
+        const inner = s.slice(1, -1).replace(/"/g, "");
+        return inner ? inner.split(",").map((x) => x.trim()).filter(Boolean) : [];
+      }
+      return [s];
+    }
+  }
+  return [];
+}
+
 type OrdenProduccion = {
   id: string;
   created_at: string;
@@ -15,6 +37,7 @@ type OrdenProduccion = {
   semana: string | null;
   url_imagen: string | null;
   usuario_id: string | null;
+  estado_obra?: string[] | null;
 };
 
 const MESES = [
@@ -44,6 +67,10 @@ export default function ListOrdenesProduccion() {
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
+  const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
+  const [estadoObraOrden, setEstadoObraOrden] = useState<OrdenProduccion | null>(null);
+  const [estadoObraCheckboxes, setEstadoObraCheckboxes] = useState<Record<string, boolean>>({ V1: false, V2: false, V3: false, V4: false });
+  const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -108,6 +135,45 @@ export default function ListOrdenesProduccion() {
     setFormError("");
     setFormSuccess("");
     setShowModal(true);
+  };
+
+  const handleOpenEstadoObra = (orden: OrdenProduccion) => {
+    const completed = parseEstadoObra(orden.estado_obra);
+    setEstadoObraCheckboxes({
+      V1: completed.includes("V1"),
+      V2: completed.includes("V2"),
+      V3: completed.includes("V3"),
+      V4: completed.includes("V4"),
+    });
+    setEstadoObraOrden(orden);
+    setShowEstadoObraModal(true);
+  };
+
+  const handleUpdateEstadoObra = async () => {
+    if (!estadoObraOrden) return;
+    setUpdatingEstadoObra(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setUpdatingEstadoObra(false);
+      return;
+    }
+    const completed = ESTADOS_OBRA.filter((v) => estadoObraCheckboxes[v]);
+    let updateQuery = supabase
+      .from("ordenes_produccion")
+      .update({ estado_obra: completed })
+      .eq("id", estadoObraOrden.id);
+    if (!canAccessOrdenesProduccion(user.email)) {
+      updateQuery = updateQuery.eq("usuario_id", user.id);
+    }
+    const { error } = await updateQuery;
+    if (error) {
+      alert(`Error al actualizar: ${error.message}`);
+    } else {
+      await fetchOrdenes();
+      setShowEstadoObraModal(false);
+      setEstadoObraOrden(null);
+    }
+    setUpdatingEstadoObra(false);
   };
 
   const handleDelete = async (orden: OrdenProduccion) => {
@@ -384,6 +450,56 @@ export default function ListOrdenesProduccion() {
         </div>
       </div>
 
+      {showEstadoObraModal && estadoObraOrden && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">
+              Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">Marca las versiones culminadas:</p>
+            <ul className="space-y-3 mb-6">
+              {ESTADOS_OBRA.map((v) => (
+                <li key={v} className="flex items-center gap-3">
+                  <span className="font-medium w-8">{v}</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={estadoObraCheckboxes[v] ?? false}
+                      onChange={(e) =>
+                        setEstadoObraCheckboxes((prev) => ({ ...prev, [v]: e.target.checked }))
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-sm">Culminado</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleUpdateEstadoObra}
+                disabled={updatingEstadoObra}
+                className="flex-1 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEstadoObraModal(false);
+                  setEstadoObraOrden(null);
+                }}
+                disabled={updatingEstadoObra}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showArchivosModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
@@ -567,6 +683,7 @@ export default function ListOrdenesProduccion() {
               <th className={headerClass}>Obra</th>
               <th className={headerClass}>Mes</th>
               <th className={headerClass}>Semana</th>
+              <th className={headerClass}>Estado de obra</th>
               <th className={headerClass}>Imagen</th>
             </tr>
           </thead>
@@ -574,7 +691,7 @@ export default function ListOrdenesProduccion() {
             {filteredOrdenes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={isReadOnly ? 6 : 7}
+                  colSpan={isReadOnly ? 7 : 8}
                   className="px-4 py-8 text-center text-gray-500"
                 >
                   No hay órdenes de producción registradas.
@@ -610,6 +727,24 @@ export default function ListOrdenesProduccion() {
                   <td className={cellClass}>{renderValue(orden.obra)}</td>
                   <td className={cellClass}>{renderValue(orden.mes)}</td>
                   <td className={cellClass}>{renderValue(orden.semana)}</td>
+                  <td className={cellClass}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEstadoObra(orden)}
+                      className="inline-block px-3 py-2 bg-amber-500 text-white font-medium rounded-lg shadow-md hover:bg-amber-600 transition-all duration-200 text-sm"
+                      title="Estado de obra"
+                    >
+                      📋 Estado
+                    </button>
+                    {(() => {
+                      const arr = parseEstadoObra(orden.estado_obra);
+                      return arr.length > 0 ? (
+                        <span className="ml-1 text-xs text-gray-500">
+                          ({arr.join(", ")})
+                        </span>
+                      ) : null;
+                    })()}
+                  </td>
                   <td className={cellClass}>
                     {(() => {
                       const items = parseImageItems(orden.url_imagen);
