@@ -6,6 +6,7 @@ export const panolesEmails = [
   "controldecalidad@perfilesyservicios.com.ar",
   "asistordenes@perfilesyservicios.com.ar",
   "pvcordenes@perfilesyservicios.com.ar",
+  "recepcioncardales@perfilesyservicios.com.ar",
 ];
 
 export const adminEmails = [
