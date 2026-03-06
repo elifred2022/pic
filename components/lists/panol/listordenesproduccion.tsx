@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { canAccessOrdenesProduccion, isTabletEmail } from "@/lib/panol-access";
+import JSZip from "jszip";
 
 type OrdenProduccion = {
   id: string;
@@ -42,6 +43,7 @@ export default function ListOrdenesProduccion() {
   const [showArchivosModal, setShowArchivosModal] = useState(false);
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -122,6 +124,47 @@ export default function ListOrdenesProduccion() {
       return;
     }
     await fetchOrdenes();
+  };
+
+  const sanitizeFileName = (name: string): string => {
+    return name.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, "_").trim() || "archivo";
+  };
+
+  const handleDownloadCarpeta = async (orden: OrdenProduccion) => {
+    const items = parseImageItems(orden.url_imagen);
+    if (items.length === 0) {
+      alert("No hay archivos para descargar en esta obra.");
+      return;
+    }
+    setDownloadingOrdenId(orden.id);
+    try {
+      const zip = new JSZip();
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const res = await fetch(item.url);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const baseName = item.name.split("/").pop() || `imagen_${i + 1}`;
+        zip.file(baseName, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const obra = sanitizeFileName(orden.obra ?? "obra");
+      const numCarpeta = sanitizeFileName(orden.num_carpeta ?? "");
+      const zipName = numCarpeta ? `${obra}-${numCarpeta}.zip` : `${obra}.zip`;
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = zipName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar carpeta:", err);
+      alert("Error al descargar la carpeta. Intenta de nuevo.");
+    } finally {
+      setDownloadingOrdenId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -572,16 +615,26 @@ export default function ListOrdenesProduccion() {
                       const items = parseImageItems(orden.url_imagen);
                       if (items.length === 0) return "-";
                       return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setArchivosModalItems(items);
-                            setShowArchivosModal(true);
-                          }}
-                          className="inline-block px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
-                        >
-                          Ver
-                        </button>
+                        <div className="flex flex-col gap-2 items-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setArchivosModalItems(items);
+                              setShowArchivosModal(true);
+                            }}
+                            className="inline-block px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
+                          >
+                            Ver
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadCarpeta(orden)}
+                            disabled={downloadingOrdenId === orden.id}
+                            className="inline-block px-3 py-2 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+                          >
+                            {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
+                          </button>
+                        </div>
                       );
                     })()}
                   </td>
