@@ -5,6 +5,7 @@ export const panolesEmails = [
   "asist.controlstock@perfilesyservicios.com.ar",
   "controldecalidad@perfilesyservicios.com.ar",
   "asistordenes@perfilesyservicios.com.ar",
+  "pvcordenes@perfilesyservicios.com.ar",
 ];
 
 export const adminEmails = [
@@ -25,8 +26,16 @@ export const aprobEmails = [
   "elifredmason@gmail.com",
 ];
 
+export const tabletEmails = [
+  "tabletpys331@gmail.com",
+ 
+];
+
 export const isPanolEmail = (email?: string | null) =>
   !!email && panolesEmails.includes(email);
 
+export const isTabletEmail = (email?: string | null) =>
+  !!email && tabletEmails.includes(email);
+
 export const canAccessOrdenesProduccion = (email?: string | null) =>
-  !!email && (panolesEmails.includes(email) || adminEmails.includes(email) || aprobEmails.includes(email));
+  !!email && (panolesEmails.includes(email) || adminEmails.includes(email) || aprobEmails.includes(email) || tabletEmails.includes(email));

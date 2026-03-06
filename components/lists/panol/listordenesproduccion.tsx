@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { canAccessOrdenesProduccion } from "@/lib/panol-access";
+import { canAccessOrdenesProduccion, isTabletEmail } from "@/lib/panol-access";
 
 type OrdenProduccion = {
   id: string;
@@ -41,6 +41,7 @@ export default function ListOrdenesProduccion() {
   const [imagenFiles, setImagenFiles] = useState<File[]>([]);
   const [showArchivosModal, setShowArchivosModal] = useState(false);
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -60,6 +61,8 @@ export default function ListOrdenesProduccion() {
       setLoading(false);
       return;
     }
+
+    setIsReadOnly(isTabletEmail(user.email));
 
     let query = supabase
       .from("ordenes_produccion")
@@ -140,18 +143,6 @@ export default function ListOrdenesProduccion() {
       return;
     }
 
-    const numCarpeta = formData.num_carpeta.trim();
-    const existeDuplicado = ordenes.some(
-      (o) =>
-        o.num_carpeta?.trim().toLowerCase() === numCarpeta.toLowerCase() &&
-        o.id !== editingOrden?.id
-    );
-    if (existeDuplicado) {
-      setFormError(`El número de carpeta "${numCarpeta}" ya existe. Usa un número único.`);
-      setSubmitting(false);
-      return;
-    }
-
     let urlImagen: string | null = editingOrden?.url_imagen ?? null;
 
     if (imagenFiles.length > 0) {
@@ -198,7 +189,7 @@ export default function ListOrdenesProduccion() {
       let updateQuery = supabase
         .from("ordenes_produccion")
         .update({
-          num_carpeta: numCarpeta,
+          num_carpeta: formData.num_carpeta.trim(),
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
@@ -220,7 +211,7 @@ export default function ListOrdenesProduccion() {
       const { error: insertError } = await supabase
         .from("ordenes_produccion")
         .insert({
-          num_carpeta: numCarpeta,
+          num_carpeta: formData.num_carpeta.trim(),
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
@@ -324,20 +315,22 @@ export default function ListOrdenesProduccion() {
           <h1 className="text-3xl font-bold text-gray-800">🏭 Órdenes de Producción</h1>
         </div>
         <div className="flex flex-wrap gap-4 items-center">
-          <button
-            type="button"
-            onClick={() => {
-              setEditingOrden(null);
-              setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
-              setImagenFiles([]);
-              setFormError("");
-              setFormSuccess("");
-              setShowModal(true);
-            }}
-            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
-          >
-            ➕ Nueva obra
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingOrden(null);
+                setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
+                setImagenFiles([]);
+                setFormError("");
+                setFormSuccess("");
+                setShowModal(true);
+              }}
+              className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+            >
+              ➕ Nueva obra
+            </button>
+          )}
           <input
             type="text"
             placeholder="🔍 Buscar por carpeta, obra, mes, semana..."
@@ -393,7 +386,7 @@ export default function ListOrdenesProduccion() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="num_carpeta" className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de carpeta * (único)
+                    Número de carpeta *
                   </label>
                   <input
                     id="num_carpeta"
@@ -525,7 +518,7 @@ export default function ListOrdenesProduccion() {
           <table className="min-w-full table-auto border-collapse">
             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <tr>
-              <th className={headerClass}>Acciones</th>
+              {!isReadOnly && <th className={headerClass}>Acciones</th>}
               <th className={headerClass}>Fecha</th>
               <th className={headerClass}>Nº Carpeta</th>
               <th className={headerClass}>Obra</th>
@@ -538,7 +531,7 @@ export default function ListOrdenesProduccion() {
             {filteredOrdenes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={isReadOnly ? 6 : 7}
                   className="px-4 py-8 text-center text-gray-500"
                 >
                   No hay órdenes de producción registradas.
@@ -547,24 +540,26 @@ export default function ListOrdenesProduccion() {
             ) : (
               filteredOrdenes.map((orden) => (
                 <tr key={orden.id} className="hover:bg-gray-50 transition-colors duration-200">
-                  <td className={cellClass}>
-                    <div className="flex flex-col gap-2 items-center">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(orden)}
-                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(orden)}
-                        className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                      >
-                        🗑️ Eliminar
-                      </button>
-                    </div>
-                  </td>
+                  {!isReadOnly && (
+                    <td className={cellClass}>
+                      <div className="flex flex-col gap-2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(orden)}
+                          className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(orden)}
+                          className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  )}
                   <td className={cellClass}>{formatDate(orden.created_at)}</td>
                   <td className={cellClass}>
                     {renderValue(orden.num_carpeta)}

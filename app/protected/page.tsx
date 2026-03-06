@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { adminEmails, aprobEmails, panolesEmails } from "@/lib/panol-access";
+import { adminEmails, aprobEmails, panolesEmails, tabletEmails } from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
 import ListConsultas from "@/components/lists/listconsultas";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
 import ListBiComponenteSupervisor from "@/components/panels/listabicomponentesupervisor";
+import ListBiComponenteTablet from "@/components/panels/listbicomponentetablet";
 
 export const revalidate = 0; // 🔄 Forzar siempre dinámico (server fetch en cada request)
 
@@ -61,6 +62,8 @@ export default async function ProtectedPage() {
     ComponentToRender = <ListBiComponenteSupervisor />;
   } else if (panolesEmails.includes(email)) {
     ComponentToRender = <ListBiComponentePanol />;
+  } else if (tabletEmails.includes(email)) {
+    ComponentToRender = <ListBiComponenteTablet />;
   }
 
   // ✅ Render dinámico basado en server fetch
