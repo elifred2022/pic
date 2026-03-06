@@ -38,7 +38,9 @@ export default function ListOrdenesProduccion() {
     mes: "",
     semana: "",
   });
-  const [imagenFile, setImagenFile] = useState<File | null>(null);
+  const [imagenFiles, setImagenFiles] = useState<File[]>([]);
+  const [showArchivosModal, setShowArchivosModal] = useState(false);
+  const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -84,7 +86,7 @@ export default function ListOrdenesProduccion() {
     setShowModal(false);
     setEditingOrden(null);
     setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
-    setImagenFile(null);
+    setImagenFiles([]);
     setFormError("");
     setFormSuccess("");
   };
@@ -97,7 +99,7 @@ export default function ListOrdenesProduccion() {
       mes: orden.mes ?? "",
       semana: orden.semana ?? "",
     });
-    setImagenFile(null);
+    setImagenFiles([]);
     setFormError("");
     setFormSuccess("");
     setShowModal(true);
@@ -107,11 +109,11 @@ export default function ListOrdenesProduccion() {
     if (!confirm("¿Estás seguro de que deseas eliminar esta obra?")) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase
-      .from("ordenes_produccion")
-      .delete()
-      .eq("id", orden.id)
-      .eq("usuario_id", user.id);
+    let query = supabase.from("ordenes_produccion").delete().eq("id", orden.id);
+    if (!isPanolEmail(user.email)) {
+      query = query.eq("usuario_id", user.id);
+    }
+    const { error } = await query;
     if (error) {
       alert(`Error al eliminar: ${error.message}`);
       return;
@@ -140,28 +142,48 @@ export default function ListOrdenesProduccion() {
 
     let urlImagen: string | null = editingOrden?.url_imagen ?? null;
 
-    if (imagenFile) {
-      const fileExt = imagenFile.name.split(".").pop() || "jpg";
-      const filePath = `${user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+    if (imagenFiles.length > 0) {
+      const uploadedItems: { url: string; name: string }[] = [];
+      const basePath = `${user.id}/${Date.now()}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("ordenes")
-        .upload(filePath, imagenFile, { upsert: false });
+      for (let i = 0; i < imagenFiles.length; i++) {
+        const file = imagenFiles[i];
+        const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const isImage = /^(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileExt);
+        if (!isImage) continue;
 
-      if (uploadError) {
-        setFormError(`Error al subir la imagen: ${uploadError.message}`);
+        const filePath = `${basePath}-${i}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("ordenes")
+          .upload(filePath, file, { upsert: false });
+
+        if (uploadError) {
+          setFormError(`Error al subir "${file.name}": ${uploadError.message}`);
+          setSubmitting(false);
+          return;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("ordenes")
+          .getPublicUrl(filePath);
+        const fileName = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        uploadedItems.push({ url: urlData.publicUrl, name: fileName });
+      }
+
+      if (uploadedItems.length === 0) {
+        setFormError("No se encontraron archivos de imagen válidos en la carpeta.");
         setSubmitting(false);
         return;
       }
 
-      const { data: urlData } = supabase.storage
-        .from("ordenes")
-        .getPublicUrl(filePath);
-      urlImagen = urlData.publicUrl;
+      urlImagen = uploadedItems.length === 1
+        ? JSON.stringify([{ url: uploadedItems[0].url, name: uploadedItems[0].name }])
+        : JSON.stringify(uploadedItems);
     }
 
     if (editingOrden) {
-      const { error: updateError } = await supabase
+      let updateQuery = supabase
         .from("ordenes_produccion")
         .update({
           num_carpeta: formData.num_carpeta.trim(),
@@ -170,8 +192,11 @@ export default function ListOrdenesProduccion() {
           semana: formData.semana,
           url_imagen: urlImagen,
         })
-        .eq("id", editingOrden.id)
-        .eq("usuario_id", user.id);
+        .eq("id", editingOrden.id);
+      if (!isPanolEmail(user.email)) {
+        updateQuery = updateQuery.eq("usuario_id", user.id);
+      }
+      const { error: updateError } = await updateQuery;
 
       if (updateError) {
         setFormError(`Error al actualizar: ${updateError.message}`);
@@ -211,6 +236,31 @@ export default function ListOrdenesProduccion() {
     const day = parseInt(parts[2]);
     const date = new Date(year, month, day);
     return date.toLocaleDateString("es-AR");
+  }
+
+  function parseImageItems(urlImagen: string | null): { url: string; name: string }[] {
+    if (!urlImagen || !urlImagen.trim()) return [];
+    const trimmed = urlImagen.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const arr = JSON.parse(trimmed) as unknown;
+        if (!Array.isArray(arr)) return [{ url: trimmed, name: "Imagen" }];
+        return arr.map((item, i) => {
+          if (typeof item === "object" && item !== null && "url" in item && "name" in item) {
+            return { url: String((item as { url: unknown }).url), name: String((item as { name: unknown }).name) };
+          }
+          if (typeof item === "string") {
+            const nameFromPath = item.split("/").pop()?.split("?")[0] || `Imagen ${i + 1}`;
+            return { url: item, name: nameFromPath };
+          }
+          return { url: "", name: `Imagen ${i + 1}` };
+        }).filter((x) => x.url);
+      } catch {
+        return [{ url: trimmed, name: trimmed.split("/").pop()?.split("?")[0] || "Imagen" }];
+      }
+    }
+    const nameFromPath = trimmed.split("/").pop()?.split("?")[0] || "Imagen";
+    return [{ url: trimmed, name: nameFromPath }];
   }
 
   function renderValue(value: unknown): string {
@@ -267,7 +317,7 @@ export default function ListOrdenesProduccion() {
             onClick={() => {
               setEditingOrden(null);
               setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
-              setImagenFile(null);
+              setImagenFiles([]);
               setFormError("");
               setFormSuccess("");
               setShowModal(true);
@@ -285,6 +335,41 @@ export default function ListOrdenesProduccion() {
           />
         </div>
       </div>
+
+      {showArchivosModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Archivos</h3>
+              <button
+                type="button"
+                onClick={() => setShowArchivosModal(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <ul className="space-y-2">
+                {archivosModalItems.map((item, i) => (
+                  <li key={i}>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-800 font-medium transition-colors break-words"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -353,18 +438,45 @@ export default function ListOrdenesProduccion() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="imagen" className="block text-sm font-medium text-gray-700 mb-1">
-                    Imagen {editingOrden && "(dejar vacío para mantener la actual)"}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Imágenes (carpeta o varios archivos) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
-                  <input
-                    id="imagen"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImagenFile(e.target.files?.[0] ?? null)}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800"
-                  />
-                  {imagenFile && (
-                    <p className="text-xs text-gray-500 mt-1">{imagenFile.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = e.target.files ? Array.from(e.target.files) : [];
+                          const imageFiles = files.filter((f) => /^image\//.test(f.type));
+                          setImagenFiles(imageFiles);
+                          e.target.value = "";
+                        }}
+                        className="hidden"
+                      />
+                      📁 Seleccionar archivos
+                    </label>
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                        onChange={(e) => {
+                          const files = e.target.files ? Array.from(e.target.files) : [];
+                          const imageFiles = files.filter((f) => /^image\//.test(f.type));
+                          setImagenFiles(imageFiles);
+                          e.target.value = "";
+                        }}
+                        className="hidden"
+                      />
+                      📂 Cargar carpeta completa
+                    </label>
+                  </div>
+                  {imagenFiles.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {imagenFiles.length} imagen{imagenFiles.length !== 1 ? "es" : ""} seleccionada{imagenFiles.length !== 1 ? "s" : ""}
+                    </p>
                   )}
                 </div>
                 {formError && (
@@ -449,18 +561,22 @@ export default function ListOrdenesProduccion() {
                   <td className={cellClass}>{renderValue(orden.mes)}</td>
                   <td className={cellClass}>{renderValue(orden.semana)}</td>
                   <td className={cellClass}>
-                    {orden.url_imagen ? (
-                      <a
-                        href={orden.url_imagen}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
-                      >
-                        Ver
-                      </a>
-                    ) : (
-                      "-"
-                    )}
+                    {(() => {
+                      const items = parseImageItems(orden.url_imagen);
+                      if (items.length === 0) return "-";
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setArchivosModalItems(items);
+                            setShowArchivosModal(true);
+                          }}
+                          className="inline-block px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
+                        >
+                          Ver
+                        </button>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))
