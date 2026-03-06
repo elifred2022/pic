@@ -7,5 +7,26 @@ export const panolesEmails = [
   "asistordenes@perfilesyservicios.com.ar",
 ];
 
+export const adminEmails = [
+  "asistentecompras@perfilesyservicios.com.ar",
+  "victor@perfilesyservicios.com.ar",
+  "joseluis@perfilesyservicios.com.ar",
+  "recepcion@perfilesyservicios.com.ar",
+];
+
+export const aprobEmails = [
+  "juanstok@perfilesyservicios.com.ar",
+  "julio@perfilesyservicios.com.ar",
+  "luciana.ledesma@perfilesyservicios.com.ar",
+  "carolina@perfilesyservicios.com.ar",
+  "eduardo@perfilesyservicios.com.ar",
+  "pedro@perfilesyservicios.com.ar",
+  "Sofia sofiastok@perfilesyservicios.com.ar",
+  "elifredmason@gmail.com",
+];
+
 export const isPanolEmail = (email?: string | null) =>
   !!email && panolesEmails.includes(email);
+
+export const canAccessOrdenesProduccion = (email?: string | null) =>
+  !!email && (panolesEmails.includes(email) || adminEmails.includes(email) || aprobEmails.includes(email));

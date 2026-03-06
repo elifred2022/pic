@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { adminEmails, aprobEmails, panolesEmails } from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
 import ListConsultas from "@/components/lists/listconsultas";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
@@ -37,37 +38,7 @@ export default async function ProtectedPage() {
     redirect("/auth/complete-profile");
   }
 
-  // ✅ Listas de emails por roles
-  const adminEmails = [
-    "asistentecompras@perfilesyservicios.com.ar",
-    "victor@perfilesyservicios.com.ar",
-    "joseluis@perfilesyservicios.com.ar", //usuiario jose luis
-    "recepcion@perfilesyservicios.com.ar", // usuario de fatima
-  ];
-
-
-
-  const panolesEmails = [
-    "paniol@perfilesyservicios.com.ar",
-    "panolgascon@perfilesyservicios.com.ar",
-   "elifred21@hotmail.com",
-   "asist.controlstock@perfilesyservicios.com.ar",
-   "controldecalidad@perfilesyservicios.com.ar",
-   "asistordenes@perfilesyservicios.com.ar"
-  ];
-
-  const aprobEmails = [
-    "juanstok@perfilesyservicios.com.ar",
-    "julio@perfilesyservicios.com.ar",
-    "luciana.ledesma@perfilesyservicios.com.ar",
-    "carolina@perfilesyservicios.com.ar",
-    "eduardo@perfilesyservicios.com.ar",
-    "pedro@perfilesyservicios.com.ar",
-    "Sofia sofiastok@perfilesyservicios.com.ar",
-    
-    "elifredmason@gmail.com",
-    
-  ];
+  // ✅ Listas de emails por roles (desde lib centralizada)
 
   const supervisorEmails = ["orlandojosemartinez1946@gmail.com"];
 

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { isPanolEmail } from "@/lib/panol-access";
+import { canAccessOrdenesProduccion } from "@/lib/panol-access";
 
 type OrdenProduccion = {
   id: string;
@@ -65,7 +65,7 @@ export default function ListOrdenesProduccion() {
       .from("ordenes_produccion")
       .select("*")
       .order("created_at", { ascending: false });
-    if (!isPanolEmail(user.email)) {
+    if (!canAccessOrdenesProduccion(user.email)) {
       query = query.eq("usuario_id", user.id);
     }
     const { data, error } = await query;
@@ -110,7 +110,7 @@ export default function ListOrdenesProduccion() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     let query = supabase.from("ordenes_produccion").delete().eq("id", orden.id);
-    if (!isPanolEmail(user.email)) {
+    if (!canAccessOrdenesProduccion(user.email)) {
       query = query.eq("usuario_id", user.id);
     }
     const { error } = await query;
@@ -136,6 +136,18 @@ export default function ListOrdenesProduccion() {
 
     if (!formData.num_carpeta.trim() || !formData.obra.trim() || !formData.mes || !formData.semana) {
       setFormError("Completa todos los campos obligatorios.");
+      setSubmitting(false);
+      return;
+    }
+
+    const numCarpeta = formData.num_carpeta.trim();
+    const existeDuplicado = ordenes.some(
+      (o) =>
+        o.num_carpeta?.trim().toLowerCase() === numCarpeta.toLowerCase() &&
+        o.id !== editingOrden?.id
+    );
+    if (existeDuplicado) {
+      setFormError(`El número de carpeta "${numCarpeta}" ya existe. Usa un número único.`);
       setSubmitting(false);
       return;
     }
@@ -186,14 +198,14 @@ export default function ListOrdenesProduccion() {
       let updateQuery = supabase
         .from("ordenes_produccion")
         .update({
-          num_carpeta: formData.num_carpeta.trim(),
+          num_carpeta: numCarpeta,
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
           url_imagen: urlImagen,
         })
         .eq("id", editingOrden.id);
-      if (!isPanolEmail(user.email)) {
+      if (!canAccessOrdenesProduccion(user.email)) {
         updateQuery = updateQuery.eq("usuario_id", user.id);
       }
       const { error: updateError } = await updateQuery;
@@ -208,7 +220,7 @@ export default function ListOrdenesProduccion() {
       const { error: insertError } = await supabase
         .from("ordenes_produccion")
         .insert({
-          num_carpeta: formData.num_carpeta.trim(),
+          num_carpeta: numCarpeta,
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
@@ -381,7 +393,7 @@ export default function ListOrdenesProduccion() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="num_carpeta" className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de carpeta *
+                    Número de carpeta * (único)
                   </label>
                   <input
                     id="num_carpeta"
