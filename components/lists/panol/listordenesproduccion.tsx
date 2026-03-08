@@ -24,12 +24,30 @@ type TipologiaItem = {
   nombre: string;
   estados: EstadoObraData;
   descripcion?: string | null;
+  hojas?: number | null;
+  guias?: number | null;
+  mosq?: string | null;
   ancho?: number | null;
   alto?: number | null;
-  comentarios?: string | null;
 };
 
 type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
+
+function parseNumExcel(val: unknown): number | null {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim();
+  if (str === "" || str === "-" || str === "—") return null;
+  if (typeof val === "number") return Number.isNaN(val) ? null : val;
+  const s = str.replace(/\s/g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+function parseNumFromDb(val: unknown): number | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "number") return Number.isNaN(val) ? null : val;
+  return parseNumExcel(val);
+}
 
 function toFechaString(val: unknown): string {
   if (typeof val === "string" && val.trim()) return val;
@@ -37,9 +55,12 @@ function toFechaString(val: unknown): string {
   return "";
 }
 
+const PROCESOS_VALIDOS = new Set(Object.keys(ESTADOS_OBRA_STRUCTURE));
+
 function parseEstadoObraData(obj: Record<string, unknown>): EstadoObraData {
   const result: EstadoObraData = {};
   for (const [proceso, val] of Object.entries(obj)) {
+    if (!PROCESOS_VALIDOS.has(proceso)) continue;
     if (val && typeof val === "object" && !Array.isArray(val)) {
       const items = val as Record<string, unknown>;
       const map: Record<string, string> = {};
@@ -51,7 +72,6 @@ function parseEstadoObraData(obj: Record<string, unknown>): EstadoObraData {
       }
       if (Object.keys(map).length > 0) result[proceso] = map;
     } else if (Array.isArray(val)) {
-      // Formato antiguo: array de strings → migrar a objeto con fecha vacía
       const map: Record<string, string> = {};
       for (const v of val) {
         if (typeof v === "string") map[v] = "";
@@ -72,7 +92,9 @@ function formatFechaISO(iso: string): string {
   }
 }
 
-function parseEstadoObra(val: unknown): EstadoObraConTipologias {
+type EstadoObraParsed = EstadoObraConTipologias & { _backup?: TipologiaItem[] };
+
+function parseEstadoObra(val: unknown): EstadoObraParsed {
   if (val && typeof val === "object" && !Array.isArray(val)) {
     const obj = val as Record<string, unknown>;
     if (Array.isArray(obj.tipologias)) {
@@ -82,15 +104,32 @@ function parseEstadoObra(val: unknown): EstadoObraConTipologias {
           nombre: typeof t.nombre === "string" ? t.nombre : "Tipología",
           estados: parseEstadoObraData((t.estados as Record<string, unknown>) ?? {}),
           descripcion: typeof t.descripcion === "string" ? t.descripcion : null,
-          ancho: typeof t.ancho === "number" ? t.ancho : null,
-          alto: typeof t.alto === "number" ? t.alto : null,
-          comentarios: typeof t.comentarios === "string" ? t.comentarios : null,
+          hojas: parseNumFromDb(t.hojas),
+          guias: parseNumFromDb(t.guias),
+          mosq: typeof t.mosq === "string" ? t.mosq.trim() || null : null,
+          ancho: parseNumFromDb(t.ancho),
+          alto: parseNumFromDb(t.alto),
         }));
-      return { tipologias };
+      const result: EstadoObraParsed = { tipologias };
+      if (Array.isArray(obj._backup)) {
+        result._backup = (obj._backup as Record<string, unknown>[])
+          .filter((t): t is Record<string, unknown> => t && typeof t === "object")
+          .map((t) => ({
+            nombre: typeof t.nombre === "string" ? t.nombre : "Tipología",
+            estados: parseEstadoObraData((t.estados as Record<string, unknown>) ?? {}),
+            descripcion: typeof t.descripcion === "string" ? t.descripcion : null,
+            hojas: parseNumFromDb(t.hojas),
+            guias: parseNumFromDb(t.guias),
+            mosq: typeof t.mosq === "string" ? t.mosq.trim() || null : null,
+            ancho: parseNumFromDb(t.ancho),
+            alto: parseNumFromDb(t.alto),
+          }));
+      }
+      return result;
     }
     // Formato antiguo: objeto plano con CORTE, MECANIZADO, etc. → migrar a una tipología "General"
     const estados = parseEstadoObraData(obj);
-    if (Object.keys(estados).length > 0 || Object.keys(obj).some((k) => k !== "tipologias")) {
+    if (Object.keys(estados).length > 0 || Object.keys(obj).some((k) => k !== "tipologias" && k !== "_backup")) {
       return { tipologias: [{ nombre: "General", estados }] };
     }
   }
@@ -141,6 +180,8 @@ const SEMANAS = ["1", "2", "3", "4", "5"];
 
 export default function ListOrdenesProduccion() {
   const [search, setSearch] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [ordenes, setOrdenes] = useState<OrdenProduccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -158,16 +199,38 @@ export default function ListOrdenesProduccion() {
   const [showArchivosModal, setShowArchivosModal] = useState(false);
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
+  const [descargandoTerminados, setDescargandoTerminados] = useState(false);
+  const [descargandoProcesosTerminados, setDescargandoProcesosTerminados] = useState(false);
   const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
   const [estadoObraOrden, setEstadoObraOrden] = useState<OrdenProduccion | null>(null);
   const [estadoObraTipologias, setEstadoObraTipologias] = useState<TipologiaItem[]>([]);
   const [estadoObraFechas, setEstadoObraFechas] = useState<Record<string, string>>({});
+  const [estadoObraTerminado, setEstadoObraTerminado] = useState<Record<string, boolean>>({});
+  const [estadoObraIniciales, setEstadoObraIniciales] = useState<Record<string, string>>({});
+  const [estadoObraArticuloTerminado, setEstadoObraArticuloTerminado] = useState<Record<string, boolean>>({});
+  const [estadoObraArticuloIniciales, setEstadoObraArticuloIniciales] = useState<Record<string, string>>({});
   const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
   const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
+  const estadoObraInicialRef = React.useRef<{ tipologias: TipologiaItem[]; fechas: Record<string, string> } | null>(null);
+  const estadoObraTipologiasRef = React.useRef(estadoObraTipologias);
+  const estadoObraFechasRef = React.useRef(estadoObraFechas);
+  const estadoObraTerminadoRef = React.useRef(estadoObraTerminado);
+  const estadoObraInicialesRef = React.useRef(estadoObraIniciales);
+  const estadoObraArticuloTerminadoRef = React.useRef(estadoObraArticuloTerminado);
+  const estadoObraArticuloInicialesRef = React.useRef(estadoObraArticuloIniciales);
+  estadoObraTipologiasRef.current = estadoObraTipologias;
+  estadoObraFechasRef.current = estadoObraFechas;
+  estadoObraTerminadoRef.current = estadoObraTerminado;
+  estadoObraInicialesRef.current = estadoObraIniciales;
+  estadoObraArticuloTerminadoRef.current = estadoObraArticuloTerminado;
+  estadoObraArticuloInicialesRef.current = estadoObraArticuloIniciales;
+  const canEditCheckboxes = !isReadOnly || isTabletEmail(userEmail);
+  const canEditArticuloTerminado = !isTabletEmail(userEmail);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -189,6 +252,7 @@ export default function ListOrdenesProduccion() {
     }
 
     setIsReadOnly(isTabletEmail(user.email));
+    setUserEmail(user.email ?? null);
 
     let query = supabase
       .from("ordenes_produccion")
@@ -244,8 +308,37 @@ export default function ListOrdenesProduccion() {
       .eq("id", orden.id)
       .single();
     const rawEstado = fresh?.estado_obra ?? orden.estado_obra;
-    const { tipologias } = parseEstadoObra(rawEstado);
+    const parsed = parseEstadoObra(rawEstado);
+    const { tipologias, _backup } = parsed;
     const fechas: Record<string, string> = {};
+    const terminado: Record<string, boolean> = {};
+    const iniciales: Record<string, string> = {};
+    const articuloTerminado: Record<string, boolean> = {};
+    const articuloIniciales: Record<string, string> = {};
+    const rawTerminado = rawEstado && typeof rawEstado === "object" && "procesoTerminado" in rawEstado
+      ? (rawEstado as Record<string, unknown>).procesoTerminado
+      : null;
+    if (rawTerminado && typeof rawTerminado === "object" && !Array.isArray(rawTerminado)) {
+      for (const [k, v] of Object.entries(rawTerminado)) {
+        if (v && typeof v === "object" && "terminado" in v) {
+          terminado[k] = !!(v as Record<string, unknown>).terminado;
+          const ini = (v as Record<string, unknown>).iniciales;
+          if (typeof ini === "string" && ini.length <= 2) iniciales[k] = ini.toUpperCase().slice(0, 2);
+        }
+      }
+    }
+    const rawArticulo = rawEstado && typeof rawEstado === "object" && "articuloTerminado" in rawEstado
+      ? (rawEstado as Record<string, unknown>).articuloTerminado
+      : null;
+    if (rawArticulo && typeof rawArticulo === "object" && !Array.isArray(rawArticulo)) {
+      for (const [k, v] of Object.entries(rawArticulo)) {
+        if (v && typeof v === "object" && "terminado" in v) {
+          articuloTerminado[k] = !!(v as Record<string, unknown>).terminado;
+          const ini = (v as Record<string, unknown>).iniciales;
+          if (typeof ini === "string" && ini.length <= 2) articuloIniciales[k] = ini.toUpperCase().slice(0, 2);
+        }
+      }
+    }
     tipologias.forEach((t, idx) => {
       for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
         const itemData = t.estados[proceso];
@@ -259,6 +352,38 @@ export default function ListOrdenesProduccion() {
     });
     setEstadoObraTipologias(tipologias);
     setEstadoObraFechas(fechas);
+    setEstadoObraTerminado(terminado);
+    setEstadoObraIniciales(iniciales);
+    setEstadoObraArticuloTerminado(articuloTerminado);
+    setEstadoObraArticuloIniciales(articuloIniciales);
+    const tipologiasParaRef = _backup !== undefined ? _backup : tipologias;
+    const fechasParaRef: Record<string, string> = {};
+    tipologiasParaRef.forEach((t, idx) => {
+      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+        const itemData = t.estados[proceso];
+        for (const item of items) {
+          if (itemData && item in itemData) {
+            const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+            fechasParaRef[key] = itemData[item] ?? "";
+          }
+        }
+      }
+    });
+    estadoObraInicialRef.current = {
+      tipologias: tipologiasParaRef.map((t) => ({
+        nombre: t.nombre,
+        estados: Object.fromEntries(
+          Object.entries(t.estados).map(([proceso, items]) => [proceso, { ...items }])
+        ),
+        descripcion: t.descripcion ?? null,
+        hojas: t.hojas ?? null,
+        guias: t.guias ?? null,
+        mosq: t.mosq ?? null,
+        ancho: t.ancho ?? null,
+        alto: t.alto ?? null,
+      })),
+      fechas: { ...fechasParaRef },
+    };
     setNuevaTipologiaNombre("");
     setMostrarAgregarTipologia(false);
   };
@@ -270,10 +395,14 @@ export default function ListOrdenesProduccion() {
     setMostrarAgregarTipologia(false);
   };
 
-  const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number): unknown => {
+  const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number, firstKeys?: string[]): unknown => {
     if (colIdx !== undefined && colIdx >= 0) {
-      const val = row[String(colIdx)] ?? row["ABCDEFGHIJ"[colIdx]];
-      if (val !== undefined && val !== null && String(val).trim() !== "") return val;
+      const colKeys: string[] = [String(colIdx), "ABCDEFGHIJ"[colIdx]];
+      if (firstKeys?.[colIdx]) colKeys.push(firstKeys[colIdx]);
+      for (const k of colKeys) {
+        const val = row[k];
+        if (val !== undefined && val !== null && String(val).trim() !== "") return val;
+      }
     }
     const norm = (s: string) => String(s).toLowerCase().trim().replace(/\s+/g, " ").replace(/[íìîï]/g, "i").replace(/[áàâä]/g, "a").replace(/[óòôö]/g, "o");
     for (const [excelKey, val] of Object.entries(row)) {
@@ -298,12 +427,13 @@ export default function ListOrdenesProduccion() {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: "array" });
       const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: false });
+      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: true });
+      const headerWords = ["tipologia", "tipología", "descripcion", "descripción", "hojas", "guias", "guías", "mosq", "ancho", "alto"];
+      let firstKeys: string[] = [];
       if (rows.length > 0) {
-        const firstRow = rows[0];
-        const firstKeys = Object.keys(firstRow);
+        firstKeys = Object.keys(rows[0]);
         const hasHeader = firstKeys.some((k) =>
-          /tipolog|descripcion|ancho|alto|comentario/i.test(String(k))
+          /tipolog|descripcion|hojas|guias|mosq|ancho|alto/i.test(String(k))
         );
         if (!hasHeader) {
           rows = rows.map((r) => ({
@@ -313,36 +443,41 @@ export default function ListOrdenesProduccion() {
             C: r["2"] ?? r["C"] ?? r[firstKeys[2]],
             D: r["3"] ?? r["D"] ?? r[firstKeys[3]],
             E: r["4"] ?? r["E"] ?? r[firstKeys[4]],
+            F: r["5"] ?? r["F"] ?? r[firstKeys[5]],
+            G: r["6"] ?? r["G"] ?? r[firstKeys[6]],
           }));
         }
       }
       const nuevas: TipologiaItem[] = [];
-      const headerWords = ["tipologias", "tipologia", "descripcion", "ancho", "alto", "comentarios"];
       for (let ri = 0; ri < rows.length; ri++) {
         const row = rows[ri];
-        let nombreRaw = getExcelVal(row, ["tipologias", "tipologia", "Tipologías", "Tipología", "A"]) ?? getExcelVal(row, [], 0);
+        let nombreRaw = getExcelVal(row, ["tipologia", "tipología", "Tipología", "A"], 0, firstKeys) ?? getExcelVal(row, [], 0, firstKeys);
         if (nombreRaw === undefined) {
-          const firstCol = row[Object.keys(row)[0]] ?? row["0"] ?? row["A"];
+          const firstCol = row[firstKeys[0]] ?? row["0"] ?? row["A"];
           if (firstCol !== undefined && firstCol !== null && String(firstCol).trim()) nombreRaw = firstCol;
         }
         const nombre = String(nombreRaw ?? "").trim();
         if (!nombre) continue;
         if (ri === 0 && headerWords.includes(nombre.toLowerCase())) continue;
-        const descripcionRaw = getExcelVal(row, ["descripcion", "Descripción", "B"]) ?? getExcelVal(row, [], 1);
+        const descripcionRaw = getExcelVal(row, ["descripcion", "Descripción", "B"], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
         const descripcion = String(descripcionRaw ?? "").trim() || null;
-        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "C"]) ?? getExcelVal(row, [], 2);
-        const ancho = anchoRaw !== undefined && anchoRaw !== null && String(anchoRaw).trim() !== "" ? Number(anchoRaw) : null;
-        const altoRaw = getExcelVal(row, ["alto", "Alto", "D"]) ?? getExcelVal(row, [], 3);
-        const alto = altoRaw !== undefined && altoRaw !== null && String(altoRaw).trim() !== "" ? Number(altoRaw) : null;
-        const comentariosRaw = getExcelVal(row, ["comentarios", "Comentarios", "E"]) ?? getExcelVal(row, [], 4);
-        const comentarios = String(comentariosRaw ?? "").trim() || null;
-        nuevas.push({ nombre, descripcion, ancho, alto, comentarios, estados: {} });
+        const hojasRaw = getExcelVal(row, ["hojas", "Hojas", "C"], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys);
+        const hojas = parseNumExcel(hojasRaw);
+        const guiasRaw = getExcelVal(row, ["guias", "guías", "Guías", "D"], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys);
+        const guias = parseNumExcel(guiasRaw);
+        const mosqRaw = getExcelVal(row, ["mosq", "Mosq", "E"], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys);
+        const mosq = mosqRaw !== undefined && mosqRaw !== null ? String(mosqRaw).trim() || null : null;
+        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "F"], 5, firstKeys) ?? getExcelVal(row, [], 5, firstKeys);
+        const ancho = parseNumExcel(anchoRaw);
+        const altoRaw = getExcelVal(row, ["alto", "Alto", "G"], 6, firstKeys) ?? getExcelVal(row, [], 6, firstKeys);
+        const alto = parseNumExcel(altoRaw);
+        nuevas.push({ nombre, descripcion, hojas, guias, mosq, ancho, alto, estados: {} });
       }
       setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
       if (nuevas.length > 0) {
         alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
       } else {
-        alert("No se encontraron filas con datos en la columna de tipología. Revisa que la primera fila tenga los encabezados y que haya al menos una fila con datos.");
+        alert("No se encontraron filas con datos. El Excel debe tener encabezados: Tipología, Descripción, Hojas, Guías, Mosq, Ancho, Alto");
       }
     } catch (ex) {
       console.error("Error al importar:", ex);
@@ -352,11 +487,23 @@ export default function ListOrdenesProduccion() {
     }
   };
 
+  const handleEliminarTodasTipologias = () => {
+    if (!confirm("¿Estás seguro de que deseas eliminar todas las tipologías?")) return;
+    setEstadoObraTipologias([]);
+    setEstadoObraFechas({});
+    setEstadoObraTerminado({});
+    setEstadoObraIniciales({});
+    setEstadoObraArticuloTerminado({});
+    setEstadoObraArticuloIniciales({});
+    setNuevaTipologiaNombre("");
+    setMostrarAgregarTipologia(false);
+  };
+
   const handleEliminarTipologia = (idx: number) => {
     setEstadoObraTipologias((prev) => prev.filter((_, i) => i !== idx));
+    const sep = ESTADO_OBRA_KEY_SEP;
     setEstadoObraFechas((prev) => {
       const next: Record<string, string> = {};
-      const sep = ESTADO_OBRA_KEY_SEP;
       for (const [key, val] of Object.entries(prev)) {
         const parts = key.split(sep);
         const keyIdx = parseInt(parts[0], 10);
@@ -365,9 +512,49 @@ export default function ListOrdenesProduccion() {
       }
       return next;
     });
+    setEstadoObraTerminado((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const parts = key.split(sep);
+        const keyIdx = parseInt(parts[0], 10);
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[`${keyIdx - 1}${sep}${parts.slice(1).join(sep)}`] = val;
+      }
+      return next;
+    });
+    setEstadoObraIniciales((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const parts = key.split(sep);
+        const keyIdx = parseInt(parts[0], 10);
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[`${keyIdx - 1}${sep}${parts.slice(1).join(sep)}`] = val;
+      }
+      return next;
+    });
+    setEstadoObraArticuloTerminado((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const keyIdx = parseInt(key, 10);
+        if (Number.isNaN(keyIdx)) continue;
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[String(keyIdx - 1)] = val;
+      }
+      return next;
+    });
+    setEstadoObraArticuloIniciales((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const keyIdx = parseInt(key, 10);
+        if (Number.isNaN(keyIdx)) continue;
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[String(keyIdx - 1)] = val;
+      }
+      return next;
+    });
   };
 
-  const handleUpdateEstadoObra = async () => {
+  const saveEstadoObraToSupabase = useCallback(async (closeModal = false) => {
     if (!estadoObraOrden) return;
     setUpdatingEstadoObra(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -375,13 +562,19 @@ export default function ListOrdenesProduccion() {
       setUpdatingEstadoObra(false);
       return;
     }
-    const tipologias: TipologiaItem[] = estadoObraTipologias.map((t, idx) => {
+    const tipologiasActuales = estadoObraTipologiasRef.current;
+    const fechasActuales = estadoObraFechasRef.current;
+    const terminadoActual = estadoObraTerminadoRef.current;
+    const inicialesActual = estadoObraInicialesRef.current;
+    const articuloTerminadoActual = estadoObraArticuloTerminadoRef.current;
+    const articuloInicialesActual = estadoObraArticuloInicialesRef.current;
+    const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
       const estados: EstadoObraData = {};
       for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
         const map: Record<string, string> = {};
         for (const item of items) {
           const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-          if (key in estadoObraFechas) map[item] = estadoObraFechas[key] ?? "";
+          if (key in fechasActuales) map[item] = fechasActuales[key] ?? "";
         }
         if (Object.keys(map).length > 0) estados[proceso] = map;
       }
@@ -389,28 +582,67 @@ export default function ListOrdenesProduccion() {
         nombre: t.nombre,
         estados,
         descripcion: t.descripcion ?? null,
+        hojas: t.hojas ?? null,
+        guias: t.guias ?? null,
+        mosq: t.mosq ?? null,
         ancho: t.ancho ?? null,
         alto: t.alto ?? null,
-        comentarios: t.comentarios ?? null,
       };
     });
-    let updateQuery = supabase
-      .from("ordenes_produccion")
-      .update({ estado_obra: { tipologias } })
-      .eq("id", estadoObraOrden.id);
-    if (!canAccessOrdenesProduccion(user.email)) {
-      updateQuery = updateQuery.eq("usuario_id", user.id);
+    const backupTipologias = estadoObraInicialRef.current?.tipologias.map((t) => ({
+      nombre: t.nombre,
+      estados: t.estados,
+      descripcion: t.descripcion ?? null,
+      hojas: t.hojas ?? null,
+      guias: t.guias ?? null,
+      mosq: t.mosq ?? null,
+      ancho: t.ancho ?? null,
+      alto: t.alto ?? null,
+    })) ?? tipologias;
+    const procesoTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
+    for (const [proceso] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+      tipologiasActuales.forEach((_, tipIdx) => {
+        const key = `${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+        const term = terminadoActual[key];
+        const ini = (inicialesActual[key] ?? "").slice(0, 2).toUpperCase();
+        if (term || ini) {
+          procesoTerminado[key] = { terminado: !!term, iniciales: ini };
+        }
+      });
     }
-    const { error } = await updateQuery;
+    const articuloTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
+    tipologiasActuales.forEach((_, tipIdx) => {
+      const key = String(tipIdx);
+      const term = articuloTerminadoActual[key];
+      const ini = (articuloInicialesActual[key] ?? "").slice(0, 2).toUpperCase();
+      if (term || ini) {
+        articuloTerminado[key] = { terminado: !!term, iniciales: ini };
+      }
+    });
+    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado };
+    const baseQuery = supabase
+      .from("ordenes_produccion")
+      .update({ estado_obra: estadoObraPayload })
+      .eq("id", estadoObraOrden.id);
+    const finalQuery = canAccessOrdenesProduccion(user.email)
+      ? baseQuery
+      : baseQuery.eq("usuario_id", user.id);
+    const { data, error } = await finalQuery.select("id, estado_obra").single();
     if (error) {
       alert(`Error al actualizar: ${error.message}`);
+    } else if (!data) {
+      alert("No se pudo actualizar. Verifica que tienes permisos para modificar esta obra.");
     } else {
       await fetchOrdenes();
-      setShowEstadoObraModal(false);
-      setEstadoObraOrden(null);
+      if (closeModal) {
+        setShowEstadoObraModal(false);
+        setEstadoObraOrden(null);
+      }
     }
     setUpdatingEstadoObra(false);
-  };
+  }, [estadoObraOrden, supabase]);
+
+  const handleUpdateEstadoObra = () => saveEstadoObraToSupabase(true);
 
   const handleDelete = async (orden: OrdenProduccion) => {
     if (!confirm("¿Estás seguro de que deseas eliminar esta obra?")) return;
@@ -466,6 +698,158 @@ export default function ListOrdenesProduccion() {
       alert("Error al descargar la carpeta. Intenta de nuevo.");
     } finally {
       setDownloadingOrdenId(null);
+    }
+  };
+
+  const handleDownloadTerminados = () => {
+    const rows: Array<{
+      Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
+      Tipologia: string; Desc: string; Hojas: string; Guias: string; Mosq: string; Ancho: string; Alto: string;
+      Iniciales: string;
+    }> = [];
+    for (const orden of filteredOrdenes) {
+      const raw = orden.estado_obra;
+      if (!raw || typeof raw !== "object") continue;
+      const obj = raw as Record<string, unknown>;
+      const articuloTerminado = obj.articuloTerminado;
+      if (!articuloTerminado || typeof articuloTerminado !== "object" || Array.isArray(articuloTerminado)) continue;
+      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
+      const fecha = orden.created_at ? formatFechaISO(orden.created_at) : "—";
+      for (const [key, val] of Object.entries(articuloTerminado)) {
+        if (!val || typeof val !== "object") continue;
+        const v = val as Record<string, unknown>;
+        if (!v.terminado) continue;
+        const tipIdx = parseInt(key, 10);
+        if (Number.isNaN(tipIdx) || tipIdx < 0 || tipIdx >= tipologias.length) continue;
+        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
+        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
+          ? String(tipologia.nombre ?? "")
+          : `Tipología ${tipIdx + 1}`;
+        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
+        const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
+        const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
+        const mosq = tipologia && typeof tipologia.mosq === "string" ? tipologia.mosq : "";
+        const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
+        const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
+        const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
+        rows.push({
+          Carpeta: orden.num_carpeta ?? "",
+          Obra: orden.obra ?? "",
+          Mes: orden.mes ?? "",
+          Semana: orden.semana ?? "",
+          Fecha: fecha,
+          Tipologia: tipologiaNombre,
+          Desc: desc,
+          Hojas: hojas,
+          Guias: guias,
+          Mosq: mosq,
+          Ancho: ancho,
+          Alto: alto,
+          Iniciales: iniciales,
+        });
+      }
+    }
+    if (rows.length === 0) {
+      alert("No hay artículos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
+      return;
+    }
+    setDescargandoTerminados(true);
+    try {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Artículos terminados");
+      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `articulos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar:", err);
+      alert("Error al generar el archivo Excel.");
+    } finally {
+      setDescargandoTerminados(false);
+    }
+  };
+
+  const handleDownloadProcesosTerminados = () => {
+    const rows: Array<{
+      Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
+      Tipologia: string; Desc: string; Hojas: string; Guias: string; Mosq: string; Ancho: string; Alto: string;
+      Proceso: string; Iniciales: string;
+    }> = [];
+    for (const orden of filteredOrdenes) {
+      const raw = orden.estado_obra;
+      if (!raw || typeof raw !== "object") continue;
+      const obj = raw as Record<string, unknown>;
+      const procesoTerminado = obj.procesoTerminado;
+      if (!procesoTerminado || typeof procesoTerminado !== "object" || Array.isArray(procesoTerminado)) continue;
+      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
+      const fecha = orden.created_at ? formatFechaISO(orden.created_at) : "—";
+      for (const [key, val] of Object.entries(procesoTerminado)) {
+        if (!val || typeof val !== "object") continue;
+        const v = val as Record<string, unknown>;
+        if (!v.terminado) continue;
+        const parts = String(key).split(ESTADO_OBRA_KEY_SEP);
+        const tipIdx = parseInt(parts[0] ?? "0", 10);
+        const proceso = parts[1] ?? "";
+        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
+        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
+          ? String(tipologia.nombre ?? "")
+          : `Tipología ${tipIdx + 1}`;
+        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
+        const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
+        const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
+        const mosq = tipologia && typeof tipologia.mosq === "string" ? tipologia.mosq : "";
+        const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
+        const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
+        const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
+        rows.push({
+          Carpeta: orden.num_carpeta ?? "",
+          Obra: orden.obra ?? "",
+          Mes: orden.mes ?? "",
+          Semana: orden.semana ?? "",
+          Fecha: fecha,
+          Tipologia: tipologiaNombre,
+          Desc: desc,
+          Hojas: hojas,
+          Guias: guias,
+          Mosq: mosq,
+          Ancho: ancho,
+          Alto: alto,
+          Proceso: proceso,
+          Iniciales: iniciales,
+        });
+      }
+    }
+    if (rows.length === 0) {
+      alert("No hay procesos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
+      return;
+    }
+    setDescargandoProcesosTerminados(true);
+    try {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Procesos terminados");
+      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `procesos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar:", err);
+      alert("Error al generar el archivo Excel.");
+    } finally {
+      setDescargandoProcesosTerminados(false);
     }
   };
 
@@ -625,12 +1009,22 @@ export default function ListOrdenesProduccion() {
 
   const filteredOrdenes = ordenes.filter((orden) => {
     const s = search.trim().toLowerCase();
-    if (!s) return true;
-    return Object.entries(orden).some(([key, value]) => {
-      if (key === "usuario_id") return false;
-      if (value === null || value === undefined) return false;
-      return String(value).toLowerCase().includes(s);
-    });
+    if (s) {
+      const matchSearch = Object.entries(orden).some(([key, value]) => {
+        if (key === "usuario_id") return false;
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(s);
+      });
+      if (!matchSearch) return false;
+    }
+    if (fechaDesde || fechaHasta) {
+      const created = orden.created_at ? new Date(orden.created_at) : null;
+      if (!created) return false;
+      const fecha = created.toISOString().slice(0, 10);
+      if (fechaDesde && fecha < fechaDesde) return false;
+      if (fechaHasta && fecha > fechaHasta) return false;
+    }
+    return true;
   });
 
   const headerClass =
@@ -683,6 +1077,53 @@ export default function ListOrdenesProduccion() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Desde:</label>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            <label className="text-sm font-medium text-gray-600">Hasta:</label>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            {(fechaDesde || fechaHasta) && (
+              <button
+                type="button"
+                onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Limpiar fechas
+              </button>
+            )}
+          </div>
+          {!isTabletEmail(userEmail) && (
+            <>
+          <button
+            type="button"
+            onClick={handleDownloadTerminados}
+            disabled={descargandoTerminados}
+            className="px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            title="Descargar Excel con todos los artículos marcados como terminados"
+          >
+            {descargandoTerminados ? "⏳ Generando..." : "📥 Descargar artículos terminados"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadProcesosTerminados}
+            disabled={descargandoProcesosTerminados}
+            className="px-4 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            title="Descargar Excel con todos los procesos marcados como terminados"
+          >
+            {descargandoProcesosTerminados ? "⏳ Generando..." : "📥 Descargar procesos terminados"}
+          </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -698,6 +1139,7 @@ export default function ListOrdenesProduccion() {
                 Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
               </h3>
               <div className="flex gap-2">
+                {canEditCheckboxes && (
                 <button
                   type="button"
                   onClick={handleUpdateEstadoObra}
@@ -706,6 +1148,7 @@ export default function ListOrdenesProduccion() {
                 >
                   {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); }}
@@ -717,10 +1160,10 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {isReadOnly ? "Marca los ítems culminados por proceso:" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {isReadOnly ? "Marca los ítems y proceso terminado con tus iniciales (artículo terminado no disponible):" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {!isReadOnly && (
-              <div className="flex gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => estadoObraFileInputRef.current?.click()}
@@ -729,6 +1172,17 @@ export default function ListOrdenesProduccion() {
                 >
                   {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
                 </button>
+                {estadoObraTipologias.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleEliminarTodasTipologias}
+                    disabled={updatingEstadoObra}
+                    className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+                    title="Eliminar todas las tipologías"
+                  >
+                    🗑️ Eliminar todas
+                  </button>
+                )}
                 <input
                   ref={estadoObraFileInputRef}
                   type="file"
@@ -741,22 +1195,42 @@ export default function ListOrdenesProduccion() {
             <div className="space-y-6 mb-6">
               {estadoObraTipologias.map((tipologia, idx) => (
                 <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 text-base">{tipologia.nombre}</h4>
-                      {(tipologia.descripcion || tipologia.ancho != null || tipologia.alto != null || tipologia.comentarios) && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {[tipologia.descripcion, tipologia.ancho != null && `Ancho: ${tipologia.ancho}`, tipologia.alto != null && `Alto: ${tipologia.alto}`, tipologia.comentarios]
-                            .filter(Boolean)
-                            .join(" | ")}
-                        </p>
-                      )}
+                  <div className="flex items-start justify-between gap-4 mb-3 overflow-x-auto">
+                    <div className="grid gap-x-4 gap-y-2 w-full min-w-[550px] shrink-0" style={{ gridTemplateColumns: "minmax(70px, 1fr) minmax(90px, 1.5fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr)" }}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Tipología">Tip</p>
+                        <p className="text-sm font-medium text-gray-800 truncate mt-0.5" title={tipologia.nombre}>{tipologia.nombre || "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Descripción">Desc</p>
+                        <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.descripcion ?? ""}>{tipologia.descripcion || "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Hojas</p>
+                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Guías</p>
+                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Mosq</p>
+                        <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.mosq ?? ""}>{tipologia.mosq || "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Ancho</p>
+                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : "—"}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Alto</p>
+                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : "—"}</p>
+                      </div>
                     </div>
                     {!isReadOnly && (
                       <button
                         type="button"
                         onClick={() => handleEliminarTipologia(idx)}
-                        className="text-red-500 hover:text-red-700 text-sm px-2 py-1"
+                        className="text-red-500 hover:text-red-700 text-sm px-2 py-1 shrink-0"
                         title="Eliminar tipología"
                       >
                         ✕ Eliminar
@@ -764,6 +1238,12 @@ export default function ListOrdenesProduccion() {
                     )}
                   </div>
                   <div className="space-y-3">
+                    {(() => {
+                      const articuloTerminadoParaTipologia = !!estadoObraArticuloTerminado[String(idx)];
+                      const tabletBloqueadoPorArticulo = isTabletEmail(userEmail) && articuloTerminadoParaTipologia;
+                      const canEditParaTipologia = canEditCheckboxes && !tabletBloqueadoPorArticulo;
+                      return (
+                    <>
                     {Object.entries(ESTADOS_OBRA_STRUCTURE).map(([proceso, items]) => (
                       <div key={proceso} className="border border-gray-200 rounded p-2 bg-white">
                         <h5 className="font-medium text-gray-700 text-sm mb-1">{proceso}</h5>
@@ -774,10 +1254,11 @@ export default function ListOrdenesProduccion() {
                             const checked = key in estadoObraFechas;
                             return (
                               <li key={key} className="flex flex-col">
-                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : undefined}>
                                   <input
                                     type="checkbox"
                                     checked={checked}
+                                    disabled={!canEditParaTipologia}
                                     onChange={(e) => {
                                       if (e.target.checked) {
                                         setEstadoObraFechas((prev) => ({
@@ -806,8 +1287,122 @@ export default function ListOrdenesProduccion() {
                             );
                           })}
                         </ul>
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
+                          {(() => {
+                            const itemsProceso = ESTADOS_OBRA_STRUCTURE[proceso];
+                            const todosMarcados = itemsProceso.every((item) => {
+                              const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                              return k in estadoObraFechas;
+                            });
+                            const terminadoDisabled = !canEditParaTipologia || !todosMarcados;
+                            return (
+                            <>
+                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque todos los pasos anteriores primero" : undefined) : undefined}>
+                            <input
+                              type="checkbox"
+                              checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
+                              disabled={terminadoDisabled}
+                              onChange={(e) => {
+                                const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+                                setEstadoObraTerminado((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.checked,
+                                }));
+                                if (!e.target.checked) {
+                                  setEstadoObraIniciales((prev) => {
+                                    const next = { ...prev };
+                                    delete next[key];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                            <span className="text-xs font-medium">Proceso terminado</span>
+                          </label>
+                          {estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] && (
+                            <input
+                              type="text"
+                              maxLength={2}
+                              disabled={!canEditParaTipologia}
+                              value={estadoObraIniciales[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
+                                setEstadoObraIniciales((prev) => ({
+                                  ...prev,
+                                  [`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]: val,
+                                }));
+                              }}
+                              placeholder="Iniciales"
+                              className="w-10 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-center uppercase"
+                              title="Iniciales del operador (2 caracteres)"
+                            />
+                          )}
+                            </>
+                            );
+                          })()}
+                        </div>
                       </div>
                     ))}
+                    </>
+                    );
+                    })()}
+                  </div>
+                  <div className="mt-3 pt-3 border-t-2 border-amber-200 bg-amber-50/50 rounded p-2">
+                    {(() => {
+                      const todosProcesosTerminados = Object.keys(ESTADOS_OBRA_STRUCTURE).every((proceso) =>
+                        !!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]
+                      );
+                      const articuloDisabled = !canEditArticuloTerminado || !todosProcesosTerminados;
+                      const articuloKey = String(idx);
+                      return (
+                        <div className="flex items-center gap-2">
+                          <label
+                            className={`flex items-center gap-1.5 ${!articuloDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                            title={articuloDisabled ? (canEditArticuloTerminado ? "Marque todos los procesos como terminados primero" : "Los usuarios tablet no pueden marcar artículo terminado") : undefined}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!estadoObraArticuloTerminado[articuloKey]}
+                              disabled={articuloDisabled}
+                              onChange={(e) => {
+                                setEstadoObraArticuloTerminado((prev) => ({
+                                  ...prev,
+                                  [articuloKey]: e.target.checked,
+                                }));
+                                if (!e.target.checked) {
+                                  setEstadoObraArticuloIniciales((prev) => {
+                                    const next = { ...prev };
+                                    delete next[articuloKey];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-xs font-semibold">Artículo terminado</span>
+                          </label>
+                          {estadoObraArticuloTerminado[articuloKey] && (
+                            <input
+                              type="text"
+                              maxLength={2}
+                              disabled={!canEditArticuloTerminado}
+                              value={estadoObraArticuloIniciales[articuloKey] ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
+                                setEstadoObraArticuloIniciales((prev) => ({
+                                  ...prev,
+                                  [articuloKey]: val,
+                                }));
+                              }}
+                              placeholder="Iniciales"
+                              className="w-10 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-center uppercase"
+                              title="Iniciales del operador (2 caracteres)"
+                            />
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
