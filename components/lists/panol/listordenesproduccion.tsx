@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { canAccessOrdenesProduccion, isTabletEmail } from "@/lib/panol-access";
+import { canAccessOrdenesProduccion, isAdminEmail, isAprobEmail, isPanolEmail, isProduccionEmail, isTabletEmail } from "@/lib/panol-access";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
@@ -232,8 +232,10 @@ export default function ListOrdenesProduccion() {
   estadoObraInicialesRef.current = estadoObraIniciales;
   estadoObraArticuloTerminadoRef.current = estadoObraArticuloTerminado;
   estadoObraArticuloInicialesRef.current = estadoObraArticuloIniciales;
-  const canEditCheckboxes = !isReadOnly || isTabletEmail(userEmail);
-  const canEditArticuloTerminado = !isTabletEmail(userEmail);
+  const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
+  const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
+  const canEditArticuloTerminado = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
+  const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -254,7 +256,7 @@ export default function ListOrdenesProduccion() {
       return;
     }
 
-    setIsReadOnly(isTabletEmail(user.email));
+    setIsReadOnly(isPanolEmail(user.email) || isAprobEmail(user.email) || isTabletEmail(user.email));
     setUserEmail(user.email ?? null);
 
     let query = supabase
@@ -1179,9 +1181,9 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {isReadOnly ? "Marca los ítems y proceso terminado con tus iniciales (artículo terminado no disponible):" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado con tus iniciales (artículo terminado no disponible):" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
-            {!isReadOnly && (
+            {canEditFullModal && (
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   type="button"
@@ -1249,7 +1251,7 @@ export default function ListOrdenesProduccion() {
                         <p className="text-sm text-gray-700 mt-0.5">{tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : "—"}</p>
                       </div>
                     </div>
-                    {!isReadOnly && (
+                    {canEditFullModal && (
                       <button
                         type="button"
                         onClick={() => handleEliminarTipologia(idx)}
@@ -1277,7 +1279,7 @@ export default function ListOrdenesProduccion() {
                             const checked = key in estadoObraFechas;
                             return (
                               <li key={key} className="flex flex-col">
-                                <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : undefined}>
+                                <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : undefined}>
                                   <input
                                     type="checkbox"
                                     checked={checked}
@@ -1313,14 +1315,14 @@ export default function ListOrdenesProduccion() {
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
                           {(() => {
                             const itemsProceso = ESTADOS_OBRA_STRUCTURE[proceso];
-                            const todosMarcados = itemsProceso.every((item) => {
+                            const alMenosUnoMarcado = itemsProceso.some((item) => {
                               const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
                               return k in estadoObraFechas;
                             });
-                            const terminadoDisabled = !canEditParaTipologia || !todosMarcados;
+                            const terminadoDisabled = !canEditParaTipologia || !alMenosUnoMarcado;
                             return (
                             <>
-                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque todos los pasos anteriores primero" : undefined) : undefined}>
+                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : undefined}>
                             <input
                               type="checkbox"
                               checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
@@ -1382,7 +1384,7 @@ export default function ListOrdenesProduccion() {
                         <div className="flex items-center gap-2">
                           <label
                             className={`flex items-center gap-1.5 ${!articuloDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                            title={articuloDisabled ? (canEditArticuloTerminado ? "Marque todos los procesos como terminados primero" : "Los usuarios tablet no pueden marcar artículo terminado") : undefined}
+                            title={articuloDisabled ? (soloVista ? "Solo visualización" : canEditArticuloTerminado ? "Marque todos los procesos como terminados primero" : "Los usuarios tablet no pueden marcar artículo terminado") : undefined}
                           >
                             <input
                               type="checkbox"
@@ -1429,7 +1431,7 @@ export default function ListOrdenesProduccion() {
                   </div>
                 </div>
               ))}
-              {!isReadOnly && (mostrarAgregarTipologia ? (
+              {canEditFullModal && (mostrarAgregarTipologia ? (
                 <div className="border-2 border-dashed border-amber-400 rounded-lg p-3 bg-amber-50/50">
                   <input
                     type="text"
@@ -1474,6 +1476,7 @@ export default function ListOrdenesProduccion() {
               ))}
             </div>
             <div className="flex gap-3">
+              {canEditCheckboxes && (
               <button
                 type="button"
                 onClick={handleUpdateEstadoObra}
@@ -1482,6 +1485,7 @@ export default function ListOrdenesProduccion() {
               >
                 {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
               </button>
+              )}
               <button
                 type="button"
                 onClick={() => {

@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isPanolEmail } from "@/lib/panol-access";
+import { isPanolEmail, isProduccionEmail } from "@/lib/panol-access";
 import ListPanolProductosGenerales from "@/components/lists/panol/listpanolproductosgenerales";
 
 
@@ -16,7 +16,7 @@ export default async function Page() {
     redirect("/auth/login");
   }
 
-  if (!isPanolEmail(authData.user.email)) {
+  if (!isPanolEmail(authData.user.email) && !isProduccionEmail(authData.user.email)) {
     redirect("/protected");
   }
 
