@@ -169,6 +169,7 @@ type OrdenProduccion = {
   obra: string | null;
   mes: string | null;
   semana: string | null;
+  alertas: string | null;
   url_imagen: string | null;
   usuario_id: string | null;
   estado_obra?: unknown;
@@ -197,6 +198,7 @@ export default function ListOrdenesProduccion() {
     obra: "",
     mes: "",
     semana: "",
+    alertas: "",
   });
   const [imagenFiles, setImagenFiles] = useState<File[]>([]);
   const [showArchivosModal, setShowArchivosModal] = useState(false);
@@ -214,8 +216,11 @@ export default function ListOrdenesProduccion() {
   const [estadoObraIniciales, setEstadoObraIniciales] = useState<Record<string, string>>({});
   const [estadoObraArticuloTerminado, setEstadoObraArticuloTerminado] = useState<Record<string, boolean>>({});
   const [estadoObraArticuloIniciales, setEstadoObraArticuloIniciales] = useState<Record<string, string>>({});
+  const [estadoObraArticuloObservaciones, setEstadoObraArticuloObservaciones] = useState<Record<string, string>>({});
+  const [estadoObraObservaciones, setEstadoObraObservaciones] = useState<Record<string, string>>({});
   const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
   const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
+  const [editingTipologiaIdx, setEditingTipologiaIdx] = useState<number | null>(null);
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -226,12 +231,16 @@ export default function ListOrdenesProduccion() {
   const estadoObraInicialesRef = React.useRef(estadoObraIniciales);
   const estadoObraArticuloTerminadoRef = React.useRef(estadoObraArticuloTerminado);
   const estadoObraArticuloInicialesRef = React.useRef(estadoObraArticuloIniciales);
+  const estadoObraArticuloObservacionesRef = React.useRef(estadoObraArticuloObservaciones);
+  const estadoObraObservacionesRef = React.useRef(estadoObraObservaciones);
   estadoObraTipologiasRef.current = estadoObraTipologias;
   estadoObraFechasRef.current = estadoObraFechas;
   estadoObraTerminadoRef.current = estadoObraTerminado;
   estadoObraInicialesRef.current = estadoObraIniciales;
   estadoObraArticuloTerminadoRef.current = estadoObraArticuloTerminado;
   estadoObraArticuloInicialesRef.current = estadoObraArticuloIniciales;
+  estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
+  estadoObraObservacionesRef.current = estadoObraObservaciones;
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
   const canEditArticuloTerminado = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
@@ -283,7 +292,7 @@ export default function ListOrdenesProduccion() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingOrden(null);
-    setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
+    setFormData({ num_carpeta: "", obra: "", mes: "", semana: "", alertas: "" });
     setImagenFiles([]);
     setFormError("");
     setFormSuccess("");
@@ -296,6 +305,7 @@ export default function ListOrdenesProduccion() {
       obra: orden.obra ?? "",
       mes: orden.mes ?? "",
       semana: orden.semana ?? "",
+      alertas: orden.alertas ?? "",
     });
     setImagenFiles([]);
     setFormError("");
@@ -344,6 +354,24 @@ export default function ListOrdenesProduccion() {
         }
       }
     }
+    const observaciones: Record<string, string> = {};
+    const rawObservaciones = rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
+      ? (rawEstado as Record<string, unknown>).observacionesPorProceso
+      : null;
+    if (rawObservaciones && typeof rawObservaciones === "object" && !Array.isArray(rawObservaciones)) {
+      for (const [k, v] of Object.entries(rawObservaciones)) {
+        if (typeof v === "string") observaciones[k] = v;
+      }
+    }
+    const articuloObservaciones: Record<string, string> = {};
+    const rawArticuloObs = rawEstado && typeof rawEstado === "object" && "articuloObservaciones" in rawEstado
+      ? (rawEstado as Record<string, unknown>).articuloObservaciones
+      : null;
+    if (rawArticuloObs && typeof rawArticuloObs === "object" && !Array.isArray(rawArticuloObs)) {
+      for (const [k, v] of Object.entries(rawArticuloObs)) {
+        if (typeof v === "string") articuloObservaciones[k] = v;
+      }
+    }
     tipologias.forEach((t, idx) => {
       for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
         const itemData = t.estados[proceso];
@@ -361,6 +389,8 @@ export default function ListOrdenesProduccion() {
     setEstadoObraIniciales(iniciales);
     setEstadoObraArticuloTerminado(articuloTerminado);
     setEstadoObraArticuloIniciales(articuloIniciales);
+    setEstadoObraArticuloObservaciones(articuloObservaciones);
+    setEstadoObraObservaciones(observaciones);
     const tipologiasParaRef = _backup !== undefined ? _backup : tipologias;
     const fechasParaRef: Record<string, string> = {};
     tipologiasParaRef.forEach((t, idx) => {
@@ -504,17 +534,26 @@ export default function ListOrdenesProduccion() {
 
   const handleEliminarTodasTipologias = () => {
     if (!confirm("¿Estás seguro de que deseas eliminar todas las tipologías?")) return;
+    setEditingTipologiaIdx(null);
     setEstadoObraTipologias([]);
     setEstadoObraFechas({});
     setEstadoObraTerminado({});
     setEstadoObraIniciales({});
     setEstadoObraArticuloTerminado({});
     setEstadoObraArticuloIniciales({});
+    setEstadoObraArticuloObservaciones({});
+    setEstadoObraObservaciones({});
     setNuevaTipologiaNombre("");
     setMostrarAgregarTipologia(false);
   };
 
   const handleEliminarTipologia = (idx: number) => {
+    setEditingTipologiaIdx((prev) => {
+      if (prev === null) return null;
+      if (prev === idx) return null;
+      if (prev > idx) return prev - 1;
+      return prev;
+    });
     setEstadoObraTipologias((prev) => prev.filter((_, i) => i !== idx));
     const sep = ESTADO_OBRA_KEY_SEP;
     setEstadoObraFechas((prev) => {
@@ -567,6 +606,28 @@ export default function ListOrdenesProduccion() {
       }
       return next;
     });
+    setEstadoObraObservaciones((prev) => {
+      const next: Record<string, string> = {};
+      const sep = ESTADO_OBRA_KEY_SEP;
+      for (const [key, val] of Object.entries(prev)) {
+        const parts = key.split(sep);
+        const keyIdx = parseInt(parts[0], 10);
+        if (Number.isNaN(keyIdx)) continue;
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[`${keyIdx - 1}${sep}${parts.slice(1).join(sep)}`] = val;
+      }
+      return next;
+    });
+    setEstadoObraArticuloObservaciones((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const keyIdx = parseInt(key, 10);
+        if (Number.isNaN(keyIdx)) continue;
+        if (keyIdx < idx) next[key] = val;
+        else if (keyIdx > idx) next[String(keyIdx - 1)] = val;
+      }
+      return next;
+    });
   };
 
   const saveEstadoObraToSupabase = useCallback(async (closeModal = false) => {
@@ -583,6 +644,8 @@ export default function ListOrdenesProduccion() {
     const inicialesActual = estadoObraInicialesRef.current;
     const articuloTerminadoActual = estadoObraArticuloTerminadoRef.current;
     const articuloInicialesActual = estadoObraArticuloInicialesRef.current;
+    const articuloObservacionesActual = estadoObraArticuloObservacionesRef.current;
+    const observacionesActual = estadoObraObservacionesRef.current;
     const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
       const estados: EstadoObraData = {};
       for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
@@ -636,7 +699,15 @@ export default function ListOrdenesProduccion() {
         articuloTerminado[key] = { terminado: !!term, iniciales: ini };
       }
     });
-    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado };
+    const observacionesPorProceso: Record<string, string> = {};
+    for (const [key, val] of Object.entries(observacionesActual)) {
+      observacionesPorProceso[key] = typeof val === "string" ? val.trim() : "";
+    }
+    const articuloObservaciones: Record<string, string> = {};
+    for (const [key, val] of Object.entries(articuloObservacionesActual)) {
+      articuloObservaciones[key] = typeof val === "string" ? val.trim() : "";
+    }
+    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado, observacionesPorProceso, articuloObservaciones };
     const baseQuery = supabase
       .from("ordenes_produccion")
       .update({ estado_obra: estadoObraPayload })
@@ -654,6 +725,7 @@ export default function ListOrdenesProduccion() {
       if (closeModal) {
         setShowEstadoObraModal(false);
         setEstadoObraOrden(null);
+        setEditingTipologiaIdx(null);
       }
     }
     setUpdatingEstadoObra(false);
@@ -943,6 +1015,7 @@ export default function ListOrdenesProduccion() {
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
+          alertas: formData.alertas.trim() || null,
           url_imagen: urlImagen,
         })
         .eq("id", editingOrden.id);
@@ -965,6 +1038,7 @@ export default function ListOrdenesProduccion() {
           obra: formData.obra.trim(),
           mes: formData.mes,
           semana: formData.semana,
+          alertas: formData.alertas.trim() || null,
           url_imagen: urlImagen,
           usuario_id: user.id,
         });
@@ -1080,7 +1154,7 @@ export default function ListOrdenesProduccion() {
               type="button"
               onClick={() => {
                 setEditingOrden(null);
-                setFormData({ num_carpeta: "", obra: "", mes: "", semana: "" });
+                setFormData({ num_carpeta: "", obra: "", mes: "", semana: "", alertas: "" });
                 setImagenFiles([]);
                 setFormError("");
                 setFormSuccess("");
@@ -1151,7 +1225,7 @@ export default function ListOrdenesProduccion() {
       {showEstadoObraModal && estadoObraOrden && (
         <div
           className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); }}
+          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); }}
           role="presentation"
         >
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
@@ -1172,7 +1246,7 @@ export default function ListOrdenesProduccion() {
                 )}
                 <button
                   type="button"
-                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); }}
+                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); }}
                   disabled={updatingEstadoObra}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm"
                 >
@@ -1220,46 +1294,188 @@ export default function ListOrdenesProduccion() {
                     <div className="grid gap-x-4 gap-y-2 w-full min-w-[600px] shrink-0" style={{ gridTemplateColumns: "minmax(70px, 1fr) minmax(90px, 1.5fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr)" }}>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Tipología">Tip</p>
-                        <p className="text-sm font-medium text-gray-800 truncate mt-0.5" title={tipologia.nombre}>{tipologia.nombre || "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.nombre || ""}
+                            onChange={(e) => {
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], nombre: e.target.value };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="Tipología"
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-gray-800 truncate mt-0.5" title={tipologia.nombre}>{tipologia.nombre || "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Descripción">Desc</p>
-                        <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.descripcion ?? ""}>{tipologia.descripcion || "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.descripcion ?? ""}
+                            onChange={(e) => {
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], descripcion: e.target.value || null };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="Descripción"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.descripcion ?? ""}>{tipologia.descripcion || "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Hojas</p>
-                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : ""}
+                            onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], hojas: v };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Guías</p>
-                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : ""}
+                            onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], guias: v };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Mosq</p>
-                        <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.mosq ?? ""}>{tipologia.mosq || "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.mosq ?? ""}
+                            onChange={(e) => {
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], mosq: e.target.value || null };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.mosq ?? ""}>{tipologia.mosq || "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Umbral</p>
-                        <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.umbral ?? ""}>{tipologia.umbral || "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.umbral ?? ""}
+                            onChange={(e) => {
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], umbral: e.target.value || null };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.umbral ?? ""}>{tipologia.umbral || "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Ancho</p>
-                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : ""}
+                            onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], ancho: v };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : "—"}</p>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Alto</p>
-                        <p className="text-sm text-gray-700 mt-0.5">{tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : "—"}</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : ""}
+                            onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], alto: v };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : "—"}</p>
+                        )}
                       </div>
                     </div>
                     {canEditFullModal && (
-                      <button
-                        type="button"
-                        onClick={() => handleEliminarTipologia(idx)}
-                        className="text-red-500 hover:text-red-700 text-sm px-2 py-1 shrink-0"
-                        title="Eliminar tipología"
-                      >
-                        ✕ Eliminar
-                      </button>
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTipologiaIdx(editingTipologiaIdx === idx ? null : idx)}
+                          className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1"
+                          title="Editar características del artículo"
+                        >
+                          {editingTipologiaIdx === idx ? "✓ Listo" : "Editar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarTipologia(idx)}
+                          className="text-red-500 hover:text-red-700 text-sm px-2 py-1"
+                          title="Eliminar tipología"
+                        >
+                          ✕ Eliminar
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="space-y-3">
@@ -1367,6 +1583,23 @@ export default function ListOrdenesProduccion() {
                             );
                           })()}
                         </div>
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-500 mb-0.5">Observación</label>
+                          <input
+                            type="text"
+                            disabled={soloVista}
+                            value={estadoObraObservaciones[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] ?? ""}
+                            onChange={(e) => {
+                              const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+                              setEstadoObraObservaciones((prev) => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }));
+                            }}
+                            placeholder="Observación del proceso"
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </div>
                     ))}
                     </>
@@ -1381,6 +1614,7 @@ export default function ListOrdenesProduccion() {
                       const articuloDisabled = !canEditArticuloTerminado || !todosProcesosTerminados;
                       const articuloKey = String(idx);
                       return (
+                        <div>
                         <div className="flex items-center gap-2">
                           <label
                             className={`flex items-center gap-1.5 ${!articuloDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
@@ -1425,6 +1659,23 @@ export default function ListOrdenesProduccion() {
                               title="Iniciales del operador (2 caracteres)"
                             />
                           )}
+                        </div>
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-500 mb-0.5">Observación</label>
+                          <input
+                            type="text"
+                            disabled={soloVista}
+                            value={estadoObraArticuloObservaciones[articuloKey] ?? ""}
+                            onChange={(e) => {
+                              setEstadoObraArticuloObservaciones((prev) => ({
+                                ...prev,
+                                [articuloKey]: e.target.value,
+                              }));
+                            }}
+                            placeholder="Observación del artículo terminado"
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
                         </div>
                       );
                     })()}
@@ -1491,6 +1742,7 @@ export default function ListOrdenesProduccion() {
                 onClick={() => {
                   setShowEstadoObraModal(false);
                   setEstadoObraOrden(null);
+                  setEditingTipologiaIdx(null);
                 }}
                 disabled={updatingEstadoObra}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
@@ -1612,6 +1864,19 @@ export default function ListOrdenesProduccion() {
                   </select>
                 </div>
                 <div>
+                  <label htmlFor="alertas" className="block text-sm font-medium text-gray-700 mb-1">
+                    Alertas
+                  </label>
+                  <input
+                    id="alertas"
+                    type="text"
+                    value={formData.alertas}
+                    onChange={(e) => setFormData((p) => ({ ...p, alertas: e.target.value }))}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Texto de alertas"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Imágenes (carpeta o varios archivos) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
@@ -1693,6 +1958,7 @@ export default function ListOrdenesProduccion() {
               <th className={headerClass}>Obra</th>
               <th className={headerClass}>Mes</th>
               <th className={headerClass}>Semana</th>
+              <th className={headerClass}>Alertas</th>
               <th className={headerClass}>Estado de obra</th>
               <th className={headerClass}>Imagen</th>
             </tr>
@@ -1701,7 +1967,7 @@ export default function ListOrdenesProduccion() {
             {filteredOrdenes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={isReadOnly ? 7 : 8}
+                  colSpan={isReadOnly ? 8 : 9}
                   className="px-4 py-8 text-center text-gray-500"
                 >
                   No hay órdenes de producción registradas.
@@ -1737,6 +2003,13 @@ export default function ListOrdenesProduccion() {
                   <td className={cellClass}>{renderValue(orden.obra)}</td>
                   <td className={cellClass}>{renderValue(orden.mes)}</td>
                   <td className={cellClass}>{renderValue(orden.semana)}</td>
+                  <td className={cellClass}>
+                    {orden.alertas ? (
+                      <span className="text-red-600 font-medium">{renderValue(orden.alertas)}</span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
                   <td className={cellClass}>
                     <button
                       type="button"
