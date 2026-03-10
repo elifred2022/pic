@@ -142,6 +142,7 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
     const dismissKey = makeDismissKey(alertToShow.ordenId, alertToShow.alertas);
     addDismissed(dismissKey);
     setAlertToShow(null);
+    window.location.reload();
   };
 
   if (!alertToShow) return null;
