@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessOrdenesProduccion } from "@/lib/panol-access";
 import ListOrdenesProduccion from "@/components/lists/panol/listordenesproduccion";
+import OrdenesProduccionAlertasRealtimeListener from "@/components/realtime/ordenesproduccionalertasrealtimelistener";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -17,6 +18,7 @@ export default async function Page() {
 
   return (
     <div className="p-4">
+      <OrdenesProduccionAlertasRealtimeListener />
       <ListOrdenesProduccion />
     </div>
   );

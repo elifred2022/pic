@@ -4,6 +4,7 @@ import { AuthButton } from "@/components/auth/auth-button";
 import { hasEnvVars } from "@/lib/utils";
 import PicRealtimeListener from "@/components/realtime/picrealtimelistener";
 import PedidosProductivosRealtimeListener from "@/components/realtime/pedidosproductivosrealtimelistener";
+import OrdenesProduccionAlertasRealtimeListener from "@/components/realtime/ordenesproduccionalertasrealtimelistener";
 
 
 
@@ -33,6 +34,7 @@ export default function ProtectedLayout({
         <div className="flex-1 flex flex-col gap-20 w-full p-5">
          <PicRealtimeListener />
          <PedidosProductivosRealtimeListener />
+         <OrdenesProduccionAlertasRealtimeListener />
           {children}
         </div>
 
