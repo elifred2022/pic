@@ -21,15 +21,16 @@ const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
 type EstadoObraData = Record<string, Record<string, string>>;
 
 type TipologiaItem = {
-  nombre: string;
+  nombre: string; // tipologia (texto)
   estados: EstadoObraData;
-  descripcion?: string | null;
-  hojas?: number | null;
-  guias?: number | null;
-  mosq?: string | null;
-  umbral?: string | null;
-  ancho?: number | null;
-  alto?: number | null;
+  descripcion?: string | null; // texto
+  marco?: number | null; // numerico
+  hojas?: number | null; // numerico
+  guias?: number | null; // numerico
+  hojas_mosq?: number | null; // numerico
+  umbral?: number | null; // numerico
+  ancho?: number | null; // numerico
+  alto?: number | null; // numerico
 };
 
 type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
@@ -105,10 +106,11 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
           nombre: typeof t.nombre === "string" ? t.nombre : "Tipología",
           estados: parseEstadoObraData((t.estados as Record<string, unknown>) ?? {}),
           descripcion: typeof t.descripcion === "string" ? t.descripcion : null,
+          marco: parseNumFromDb(t.marco),
           hojas: parseNumFromDb(t.hojas),
           guias: parseNumFromDb(t.guias),
-          mosq: typeof t.mosq === "string" ? t.mosq.trim() || null : null,
-          umbral: typeof t.umbral === "string" ? t.umbral.trim() || null : null,
+          hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
+          umbral: parseNumFromDb(t.umbral),
           ancho: parseNumFromDb(t.ancho),
           alto: parseNumFromDb(t.alto),
         }));
@@ -120,10 +122,11 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
             nombre: typeof t.nombre === "string" ? t.nombre : "Tipología",
             estados: parseEstadoObraData((t.estados as Record<string, unknown>) ?? {}),
             descripcion: typeof t.descripcion === "string" ? t.descripcion : null,
+            marco: parseNumFromDb(t.marco),
             hojas: parseNumFromDb(t.hojas),
             guias: parseNumFromDb(t.guias),
-            mosq: typeof t.mosq === "string" ? t.mosq.trim() || null : null,
-            umbral: typeof t.umbral === "string" ? t.umbral.trim() || null : null,
+            hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
+            umbral: parseNumFromDb(t.umbral),
             ancho: parseNumFromDb(t.ancho),
             alto: parseNumFromDb(t.alto),
           }));
@@ -411,9 +414,10 @@ export default function ListOrdenesProduccion() {
           Object.entries(t.estados).map(([proceso, items]) => [proceso, { ...items }])
         ),
         descripcion: t.descripcion ?? null,
+        marco: t.marco ?? null,
         hojas: t.hojas ?? null,
         guias: t.guias ?? null,
-        mosq: t.mosq ?? null,
+        hojas_mosq: t.hojas_mosq ?? null,
         umbral: t.umbral ?? null,
         ancho: t.ancho ?? null,
         alto: t.alto ?? null,
@@ -465,12 +469,12 @@ export default function ListOrdenesProduccion() {
       const wb = XLSX.read(data, { type: "array" });
       const firstSheet = wb.Sheets[wb.SheetNames[0]];
       let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: true });
-      const headerWords = ["tipologia", "tipología", "descripcion", "descripción", "hojas", "guias", "guías", "mosq", "umbral", "ancho", "alto"];
+      const headerWords = ["tipologia", "tipología", "descripcion", "descripción", "marco", "hojas", "guias", "guías", "hojas_mosq", "hojas mosq", "umbral", "ancho", "alto"];
       let firstKeys: string[] = [];
       if (rows.length > 0) {
         firstKeys = Object.keys(rows[0]);
         const hasHeader = firstKeys.some((k) =>
-          /tipolog|descripcion|hojas|guias|mosq|umbral|ancho|alto/i.test(String(k))
+          /tipolog|descripcion|marco|hojas|guias|hojas_mosq|hojas mosq|umbral|ancho|alto/i.test(String(k))
         );
         if (!hasHeader) {
           rows = rows.map((r) => ({
@@ -483,6 +487,7 @@ export default function ListOrdenesProduccion() {
             F: r["5"] ?? r["F"] ?? r[firstKeys[5]],
             G: r["6"] ?? r["G"] ?? r[firstKeys[6]],
             H: r["7"] ?? r["H"] ?? r[firstKeys[7]],
+            I: r["8"] ?? r["I"] ?? r[firstKeys[8]],
           }));
         }
       }
@@ -499,30 +504,32 @@ export default function ListOrdenesProduccion() {
         if (ri === 0 && headerWords.includes(nombre.toLowerCase())) continue;
         const descripcionRaw = getExcelVal(row, ["descripcion", "Descripción", "B"], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
         const descripcion = String(descripcionRaw ?? "").trim() || null;
-        const hojasRaw = getExcelVal(row, ["hojas", "Hojas", "C"], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys);
+        const marcoRaw = getExcelVal(row, ["marco", "Marco", "C"], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys);
+        const marco = parseNumExcel(marcoRaw);
+        const hojasRaw = getExcelVal(row, ["hojas", "Hojas", "D"], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys);
         const hojas = parseNumExcel(hojasRaw);
-        const guiasRaw = getExcelVal(row, ["guias", "guías", "Guías", "D"], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys);
+        const guiasRaw = getExcelVal(row, ["guias", "guías", "Guías", "E"], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys);
         const guias = parseNumExcel(guiasRaw);
-        const mosqRaw = getExcelVal(row, ["mosq", "Mosq", "E"], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys);
-        const mosq = mosqRaw !== undefined && mosqRaw !== null ? String(mosqRaw).trim() || null : null;
-        const umbralRaw = getExcelVal(row, ["umbral", "Umbral", "UMBRAL", "F"], 5, firstKeys)
+        const hojasMosqRaw = getExcelVal(row, ["hojas_mosq", "hojas mosq", "Hojas Mosq", "F"], 5, firstKeys) ?? getExcelVal(row, [], 5, firstKeys);
+        const hojas_mosq = parseNumExcel(hojasMosqRaw);
+        const umbralRaw = getExcelVal(row, ["umbral", "Umbral", "UMBRAL", "G"], 6, firstKeys)
           ?? (() => {
             const uk = firstKeys?.find((k) => /umbral/i.test(String(k)));
             return uk ? row[uk] : undefined;
           })()
-          ?? getExcelVal(row, [], 5, firstKeys);
-        const umbral = umbralRaw !== undefined && umbralRaw !== null ? String(umbralRaw).trim() || null : null;
-        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "G"], 6, firstKeys) ?? getExcelVal(row, [], 6, firstKeys);
+          ?? getExcelVal(row, [], 6, firstKeys);
+        const umbral = parseNumExcel(umbralRaw);
+        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "H"], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys);
         const ancho = parseNumExcel(anchoRaw);
-        const altoRaw = getExcelVal(row, ["alto", "Alto", "H"], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys);
+        const altoRaw = getExcelVal(row, ["alto", "Alto", "I"], 8, firstKeys) ?? getExcelVal(row, [], 8, firstKeys);
         const alto = parseNumExcel(altoRaw);
-        nuevas.push({ nombre, descripcion, hojas, guias, mosq, umbral, ancho, alto, estados: {} });
+        nuevas.push({ nombre, descripcion, marco, hojas, guias, hojas_mosq, umbral, ancho, alto, estados: {} });
       }
       setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
       if (nuevas.length > 0) {
         alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
       } else {
-        alert("No se encontraron filas con datos. El Excel debe tener encabezados: Tipología, Descripción, Hojas, Guías, Mosq, Umbral, Ancho, Alto");
+        alert("No se encontraron filas con datos. El Excel debe tener encabezados: Tipología, Descripción, Marco, Hojas, Guías, Hojas Mosq, Umbral, Ancho, Alto");
       }
     } catch (ex) {
       console.error("Error al importar:", ex);
@@ -662,7 +669,8 @@ export default function ListOrdenesProduccion() {
         descripcion: t.descripcion ?? null,
         hojas: t.hojas ?? null,
         guias: t.guias ?? null,
-        mosq: t.mosq ?? null,
+        marco: t.marco ?? null,
+        hojas_mosq: t.hojas_mosq ?? null,
         umbral: t.umbral ?? null,
         ancho: t.ancho ?? null,
         alto: t.alto ?? null,
@@ -672,9 +680,10 @@ export default function ListOrdenesProduccion() {
       nombre: t.nombre,
       estados: t.estados,
       descripcion: t.descripcion ?? null,
+      marco: t.marco ?? null,
       hojas: t.hojas ?? null,
       guias: t.guias ?? null,
-      mosq: t.mosq ?? null,
+      hojas_mosq: t.hojas_mosq ?? null,
       umbral: t.umbral ?? null,
       ancho: t.ancho ?? null,
       alto: t.alto ?? null,
@@ -793,7 +802,7 @@ export default function ListOrdenesProduccion() {
   const handleDownloadTerminados = () => {
     const rows: Array<{
       Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
-      Tipologia: string; Desc: string; Hojas: string; Guias: string; Mosq: string; Umbral: string; Ancho: string; Alto: string;
+      Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
       Iniciales: string;
     }> = [];
     for (const orden of filteredOrdenes) {
@@ -815,10 +824,11 @@ export default function ListOrdenesProduccion() {
           ? String(tipologia.nombre ?? "")
           : `Tipología ${tipIdx + 1}`;
         const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
+        const marco = tipologia && typeof tipologia.marco !== "undefined" && tipologia.marco != null ? String(tipologia.marco) : "";
         const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
         const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
-        const mosq = tipologia && typeof tipologia.mosq === "string" ? tipologia.mosq : "";
-        const umbral = tipologia && typeof tipologia.umbral === "string" ? tipologia.umbral : "";
+        const hojasMosq = tipologia && typeof tipologia.hojas_mosq !== "undefined" && tipologia.hojas_mosq != null ? String(tipologia.hojas_mosq) : "";
+        const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
         const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
         const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
         const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
@@ -830,9 +840,10 @@ export default function ListOrdenesProduccion() {
           Fecha: fecha,
           Tipologia: tipologiaNombre,
           Desc: desc,
+          Marco: marco,
           Hojas: hojas,
           Guias: guias,
-          Mosq: mosq,
+          "Hojas Mosq": hojasMosq,
           Umbral: umbral,
           Ancho: ancho,
           Alto: alto,
@@ -870,7 +881,7 @@ export default function ListOrdenesProduccion() {
   const handleDownloadProcesosTerminados = () => {
     const rows: Array<{
       Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
-      Tipologia: string; Desc: string; Hojas: string; Guias: string; Mosq: string; Umbral: string; Ancho: string; Alto: string;
+      Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
       Proceso: string; Iniciales: string;
     }> = [];
     for (const orden of filteredOrdenes) {
@@ -893,10 +904,11 @@ export default function ListOrdenesProduccion() {
           ? String(tipologia.nombre ?? "")
           : `Tipología ${tipIdx + 1}`;
         const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
+        const marco = tipologia && typeof tipologia.marco !== "undefined" && tipologia.marco != null ? String(tipologia.marco) : "";
         const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
         const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
-        const mosq = tipologia && typeof tipologia.mosq === "string" ? tipologia.mosq : "";
-        const umbral = tipologia && typeof tipologia.umbral === "string" ? tipologia.umbral : "";
+        const hojasMosq = tipologia && typeof tipologia.hojas_mosq !== "undefined" && tipologia.hojas_mosq != null ? String(tipologia.hojas_mosq) : "";
+        const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
         const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
         const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
         const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
@@ -908,9 +920,10 @@ export default function ListOrdenesProduccion() {
           Fecha: fecha,
           Tipologia: tipologiaNombre,
           Desc: desc,
+          Marco: marco,
           Hojas: hojas,
           Guias: guias,
-          Mosq: mosq,
+          "Hojas Mosq": hojasMosq,
           Umbral: umbral,
           Ancho: ancho,
           Alto: alto,
@@ -1228,8 +1241,8 @@ export default function ListOrdenesProduccion() {
           onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); }}
           role="presentation"
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10 -mt-1 pt-1">
+          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10 pt-1 -mx-6 px-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
               <h3 className="text-lg font-bold text-gray-800">
                 Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
               </h3>
@@ -1290,8 +1303,9 @@ export default function ListOrdenesProduccion() {
             <div className="space-y-6 mb-6">
               {estadoObraTipologias.map((tipologia, idx) => (
                 <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
-                  <div className="flex items-start justify-between gap-4 mb-3 overflow-x-auto">
-                    <div className="grid gap-x-4 gap-y-2 w-full min-w-[600px] shrink-0" style={{ gridTemplateColumns: "minmax(70px, 1fr) minmax(90px, 1.5fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr) minmax(45px, 0.7fr)" }}>
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-3">
+                    <div className="overflow-x-auto min-w-0 -mx-1 px-1">
+                      <div className="grid gap-x-4 gap-y-2 w-full min-w-[650px] shrink-0" style={{ gridTemplateColumns: "minmax(65px, 1fr) minmax(85px, 1.4fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(50px, 0.75fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr)" }}>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Tipología">Tip</p>
                         {editingTipologiaIdx === idx ? (
@@ -1330,6 +1344,27 @@ export default function ListOrdenesProduccion() {
                           />
                         ) : (
                           <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.descripcion ?? ""}>{tipologia.descripcion || "—"}</p>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Marco</p>
+                        {editingTipologiaIdx === idx ? (
+                          <input
+                            type="text"
+                            value={tipologia.marco != null && !Number.isNaN(tipologia.marco) ? String(tipologia.marco) : ""}
+                            onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
+                              setEstadoObraTipologias((prev) => {
+                                const next = [...prev];
+                                next[idx] = { ...next[idx], marco: v };
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                            placeholder="—"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.marco != null && !Number.isNaN(tipologia.marco) ? String(tipologia.marco) : "—"}</p>
                         )}
                       </div>
                       <div className="min-w-0">
@@ -1375,15 +1410,16 @@ export default function ListOrdenesProduccion() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Mosq</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Hojas Mosq</p>
                         {editingTipologiaIdx === idx ? (
                           <input
                             type="text"
-                            value={tipologia.mosq ?? ""}
+                            value={tipologia.hojas_mosq != null && !Number.isNaN(tipologia.hojas_mosq) ? String(tipologia.hojas_mosq) : ""}
                             onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
                               setEstadoObraTipologias((prev) => {
                                 const next = [...prev];
-                                next[idx] = { ...next[idx], mosq: e.target.value || null };
+                                next[idx] = { ...next[idx], hojas_mosq: v };
                                 return next;
                               });
                             }}
@@ -1391,7 +1427,7 @@ export default function ListOrdenesProduccion() {
                             placeholder="—"
                           />
                         ) : (
-                          <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.mosq ?? ""}>{tipologia.mosq || "—"}</p>
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas_mosq != null && !Number.isNaN(tipologia.hojas_mosq) ? String(tipologia.hojas_mosq) : "—"}</p>
                         )}
                       </div>
                       <div className="min-w-0">
@@ -1399,11 +1435,12 @@ export default function ListOrdenesProduccion() {
                         {editingTipologiaIdx === idx ? (
                           <input
                             type="text"
-                            value={tipologia.umbral ?? ""}
+                            value={tipologia.umbral != null && !Number.isNaN(tipologia.umbral) ? String(tipologia.umbral) : ""}
                             onChange={(e) => {
+                              const v = parseNumExcel(e.target.value);
                               setEstadoObraTipologias((prev) => {
                                 const next = [...prev];
-                                next[idx] = { ...next[idx], umbral: e.target.value || null };
+                                next[idx] = { ...next[idx], umbral: v };
                                 return next;
                               });
                             }}
@@ -1411,7 +1448,7 @@ export default function ListOrdenesProduccion() {
                             placeholder="—"
                           />
                         ) : (
-                          <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.umbral ?? ""}>{tipologia.umbral || "—"}</p>
+                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.umbral != null && !Number.isNaN(tipologia.umbral) ? String(tipologia.umbral) : "—"}</p>
                         )}
                       </div>
                       <div className="min-w-0">
@@ -1457,8 +1494,9 @@ export default function ListOrdenesProduccion() {
                         )}
                       </div>
                     </div>
+                    </div>
                     {canEditFullModal && (
-                      <div className="flex flex-col items-center gap-1 shrink-0">
+                      <div className="flex flex-row sm:flex-col items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => setEditingTipologiaIdx(editingTipologiaIdx === idx ? null : idx)}
