@@ -100,7 +100,7 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
         { event: "INSERT", schema: "public", table: "ordenes_produccion" },
         (payload) => {
           console.log("[Alertas OP] INSERT recibido:", payload);
-          const newRow = (payload.new ?? payload.record ?? payload) as OrdenProduccionPayload;
+          const newRow = payload.new as OrdenProduccionPayload;
           checkAndShow(newRow);
         }
       )
@@ -109,7 +109,7 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
         { event: "UPDATE", schema: "public", table: "ordenes_produccion" },
         (payload) => {
           console.log("[Alertas OP] UPDATE recibido:", payload);
-          const newRow = (payload.new ?? payload.record ?? payload) as OrdenProduccionPayload;
+          const newRow = payload.new as OrdenProduccionPayload;
           const oldRow = payload.old as OrdenProduccionPayload | undefined;
           const alertasNew = (newRow?.alertas ?? "").toString().trim();
           const alertasOld = (oldRow?.alertas ?? "").toString().trim();
