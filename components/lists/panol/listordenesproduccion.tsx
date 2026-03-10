@@ -150,6 +150,25 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
   return { tipologias: [] };
 }
 
+function getArticulosTerminadosProgress(estadoObra: unknown): { completed: number; total: number; percent: number } {
+  const parsed = parseEstadoObra(estadoObra);
+  const total = parsed.tipologias.length;
+  if (total === 0) return { completed: 0, total: 0, percent: 0 };
+  const raw = estadoObra && typeof estadoObra === "object" ? (estadoObra as Record<string, unknown>) : null;
+  const articuloTerminado = raw?.articuloTerminado;
+  if (!articuloTerminado || typeof articuloTerminado !== "object" || Array.isArray(articuloTerminado)) {
+    return { completed: 0, total, percent: 0 };
+  }
+  let completed = 0;
+  for (const [, v] of Object.entries(articuloTerminado)) {
+    if (v && typeof v === "object" && "terminado" in v && (v as Record<string, unknown>).terminado) {
+      completed++;
+    }
+  }
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { completed, total, percent };
+}
+
 function formatEstadoObraSummary(data: EstadoObraConTipologias): string {
   const parts: string[] = [];
   for (const t of data.tipologias) {
@@ -2031,6 +2050,25 @@ export default function ListOrdenesProduccion() {
                         >
                           🗑️ Eliminar
                         </button>
+                        {(() => {
+                          const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
+                          if (total === 0) return null;
+                          return (
+                            <div className="w-full min-w-[80px] mt-1">
+                              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                                <span>Artículos terminados</span>
+                                <span>{percent}%</span>
+                              </div>
+                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-400">{completed}/{total}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </td>
                   )}
