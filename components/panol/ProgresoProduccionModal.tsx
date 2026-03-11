@@ -16,14 +16,20 @@ type Props = {
 };
 
 export default function ProgresoProduccionModal({ ordenes, onClose }: Props) {
+  const ordenesOrdenadas = [...ordenes].sort((a, b) => {
+    const { percent: percentA } = getArticulosTerminadosProgress(a.estado_obra);
+    const { percent: percentB } = getArticulosTerminadosProgress(b.estado_obra);
+    return percentB - percentA; // más completas primero
+  });
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white shrink-0">
@@ -46,7 +52,7 @@ export default function ProgresoProduccionModal({ ordenes, onClose }: Props) {
             </p>
           ) : (
             <div className="space-y-4">
-              {ordenes.map((orden) => {
+              {ordenesOrdenadas.map((orden) => {
                 const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
                 return (
                   <div
