@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { canAccessOrdenesProduccion, isAdminEmail, isAprobEmail, isPanolEmail, isProduccionEmail, isTabletEmail } from "@/lib/panol-access";
+import { getArticulosTerminadosProgress } from "@/lib/panol/estado-obra";
+import ProgresoProduccionModal from "@/components/panol/ProgresoProduccionModal";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
@@ -150,25 +152,6 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
   return { tipologias: [] };
 }
 
-function getArticulosTerminadosProgress(estadoObra: unknown): { completed: number; total: number; percent: number } {
-  const parsed = parseEstadoObra(estadoObra);
-  const total = parsed.tipologias.length;
-  if (total === 0) return { completed: 0, total: 0, percent: 0 };
-  const raw = estadoObra && typeof estadoObra === "object" ? (estadoObra as Record<string, unknown>) : null;
-  const articuloTerminado = raw?.articuloTerminado;
-  if (!articuloTerminado || typeof articuloTerminado !== "object" || Array.isArray(articuloTerminado)) {
-    return { completed: 0, total, percent: 0 };
-  }
-  let completed = 0;
-  for (const [, v] of Object.entries(articuloTerminado)) {
-    if (v && typeof v === "object" && "terminado" in v && (v as Record<string, unknown>).terminado) {
-      completed++;
-    }
-  }
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-  return { completed, total, percent };
-}
-
 function formatEstadoObraSummary(data: EstadoObraConTipologias): string {
   const parts: string[] = [];
   for (const t of data.tipologias) {
@@ -245,6 +228,7 @@ export default function ListOrdenesProduccion() {
   const [editingTipologiaIdx, setEditingTipologiaIdx] = useState<number | null>(null);
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
+  const [showProgresoModal, setShowProgresoModal] = useState(false);
   const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
   const estadoObraInicialRef = React.useRef<{ tipologias: TipologiaItem[]; fechas: Record<string, string> } | null>(null);
   const estadoObraTipologiasRef = React.useRef(estadoObraTipologias);
@@ -1229,6 +1213,14 @@ export default function ListOrdenesProduccion() {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowProgresoModal(true)}
+            className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200"
+            title="Ver barra de progreso de producción"
+          >
+            📊 Ver progreso de producción
+          </button>
           {!isTabletEmail(userEmail) && (
             <>
           <button
@@ -1254,6 +1246,12 @@ export default function ListOrdenesProduccion() {
         </div>
       </div>
 
+      {showProgresoModal && (
+        <ProgresoProduccionModal
+          ordenes={filteredOrdenes.map((o) => ({ id: o.id, num_carpeta: o.num_carpeta, obra: o.obra, estado_obra: o.estado_obra }))}
+          onClose={() => setShowProgresoModal(false)}
+        />
+      )}
       {showEstadoObraModal && estadoObraOrden && (
         <div
           className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
