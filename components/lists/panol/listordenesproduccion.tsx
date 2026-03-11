@@ -219,8 +219,8 @@ export default function ListOrdenesProduccion() {
   const [estadoObraFechas, setEstadoObraFechas] = useState<Record<string, string>>({});
   const [estadoObraTerminado, setEstadoObraTerminado] = useState<Record<string, boolean>>({});
   const [estadoObraIniciales, setEstadoObraIniciales] = useState<Record<string, string>>({});
+  const [estadoObraInicialesPorItem, setEstadoObraInicialesPorItem] = useState<Record<string, string>>({});
   const [estadoObraArticuloTerminado, setEstadoObraArticuloTerminado] = useState<Record<string, boolean>>({});
-  const [estadoObraArticuloIniciales, setEstadoObraArticuloIniciales] = useState<Record<string, string>>({});
   const [estadoObraArticuloObservaciones, setEstadoObraArticuloObservaciones] = useState<Record<string, string>>({});
   const [estadoObraObservaciones, setEstadoObraObservaciones] = useState<Record<string, string>>({});
   const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
@@ -235,21 +235,18 @@ export default function ListOrdenesProduccion() {
   const estadoObraFechasRef = React.useRef(estadoObraFechas);
   const estadoObraTerminadoRef = React.useRef(estadoObraTerminado);
   const estadoObraInicialesRef = React.useRef(estadoObraIniciales);
-  const estadoObraArticuloTerminadoRef = React.useRef(estadoObraArticuloTerminado);
-  const estadoObraArticuloInicialesRef = React.useRef(estadoObraArticuloIniciales);
+  const estadoObraInicialesPorItemRef = React.useRef(estadoObraInicialesPorItem);
   const estadoObraArticuloObservacionesRef = React.useRef(estadoObraArticuloObservaciones);
   const estadoObraObservacionesRef = React.useRef(estadoObraObservaciones);
   estadoObraTipologiasRef.current = estadoObraTipologias;
   estadoObraFechasRef.current = estadoObraFechas;
   estadoObraTerminadoRef.current = estadoObraTerminado;
   estadoObraInicialesRef.current = estadoObraIniciales;
-  estadoObraArticuloTerminadoRef.current = estadoObraArticuloTerminado;
-  estadoObraArticuloInicialesRef.current = estadoObraArticuloIniciales;
+  estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
-  const canEditArticuloTerminado = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
   const supabase = createClient();
 
@@ -334,8 +331,8 @@ export default function ListOrdenesProduccion() {
     const fechas: Record<string, string> = {};
     const terminado: Record<string, boolean> = {};
     const iniciales: Record<string, string> = {};
+    const inicialesPorItem: Record<string, string> = {};
     const articuloTerminado: Record<string, boolean> = {};
-    const articuloIniciales: Record<string, string> = {};
     const rawTerminado = rawEstado && typeof rawEstado === "object" && "procesoTerminado" in rawEstado
       ? (rawEstado as Record<string, unknown>).procesoTerminado
       : null;
@@ -355,12 +352,18 @@ export default function ListOrdenesProduccion() {
       for (const [k, v] of Object.entries(rawArticulo)) {
         if (v && typeof v === "object" && "terminado" in v) {
           articuloTerminado[k] = !!(v as Record<string, unknown>).terminado;
-          const ini = (v as Record<string, unknown>).iniciales;
-          if (typeof ini === "string" && ini.length <= 2) articuloIniciales[k] = ini.toUpperCase().slice(0, 2);
         }
       }
     }
     const observaciones: Record<string, string> = {};
+    const rawInicialesPorItem = rawEstado && typeof rawEstado === "object" && "inicialesPorItem" in rawEstado
+      ? (rawEstado as Record<string, unknown>).inicialesPorItem
+      : null;
+    if (rawInicialesPorItem && typeof rawInicialesPorItem === "object" && !Array.isArray(rawInicialesPorItem)) {
+      for (const [k, v] of Object.entries(rawInicialesPorItem)) {
+        if (typeof v === "string" && v.length <= 2) inicialesPorItem[k] = v.toUpperCase().slice(0, 2);
+      }
+    }
     const rawObservaciones = rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
       ? (rawEstado as Record<string, unknown>).observacionesPorProceso
       : null;
@@ -393,8 +396,8 @@ export default function ListOrdenesProduccion() {
     setEstadoObraFechas(fechas);
     setEstadoObraTerminado(terminado);
     setEstadoObraIniciales(iniciales);
+    setEstadoObraInicialesPorItem(inicialesPorItem);
     setEstadoObraArticuloTerminado(articuloTerminado);
-    setEstadoObraArticuloIniciales(articuloIniciales);
     setEstadoObraArticuloObservaciones(articuloObservaciones);
     setEstadoObraObservaciones(observaciones);
     const tipologiasParaRef = _backup !== undefined ? _backup : tipologias;
@@ -550,7 +553,7 @@ export default function ListOrdenesProduccion() {
     setEstadoObraTerminado({});
     setEstadoObraIniciales({});
     setEstadoObraArticuloTerminado({});
-    setEstadoObraArticuloIniciales({});
+    setEstadoObraInicialesPorItem({});
     setEstadoObraArticuloObservaciones({});
     setEstadoObraObservaciones({});
     setNuevaTipologiaNombre("");
@@ -606,13 +609,14 @@ export default function ListOrdenesProduccion() {
       }
       return next;
     });
-    setEstadoObraArticuloIniciales((prev) => {
+    setEstadoObraInicialesPorItem((prev) => {
       const next: Record<string, string> = {};
       for (const [key, val] of Object.entries(prev)) {
-        const keyIdx = parseInt(key, 10);
+        const parts = key.split(sep);
+        const keyIdx = parseInt(parts[0], 10);
         if (Number.isNaN(keyIdx)) continue;
         if (keyIdx < idx) next[key] = val;
-        else if (keyIdx > idx) next[String(keyIdx - 1)] = val;
+        else if (keyIdx > idx) next[`${keyIdx - 1}${sep}${parts.slice(1).join(sep)}`] = val as string;
       }
       return next;
     });
@@ -652,8 +656,7 @@ export default function ListOrdenesProduccion() {
     const fechasActuales = estadoObraFechasRef.current;
     const terminadoActual = estadoObraTerminadoRef.current;
     const inicialesActual = estadoObraInicialesRef.current;
-    const articuloTerminadoActual = estadoObraArticuloTerminadoRef.current;
-    const articuloInicialesActual = estadoObraArticuloInicialesRef.current;
+    const inicialesPorItemActual = estadoObraInicialesPorItemRef.current;
     const articuloObservacionesActual = estadoObraArticuloObservacionesRef.current;
     const observacionesActual = estadoObraObservacionesRef.current;
     const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
@@ -705,10 +708,11 @@ export default function ListOrdenesProduccion() {
     const articuloTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
     tipologiasActuales.forEach((_, tipIdx) => {
       const key = String(tipIdx);
-      const term = articuloTerminadoActual[key];
-      const ini = (articuloInicialesActual[key] ?? "").slice(0, 2).toUpperCase();
-      if (term || ini) {
-        articuloTerminado[key] = { terminado: !!term, iniciales: ini };
+      const todosProcesosTerminados = Object.keys(ESTADOS_OBRA_STRUCTURE).every((proceso) =>
+        !!terminadoActual[`${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`]
+      );
+      if (todosProcesosTerminados) {
+        articuloTerminado[key] = { terminado: true, iniciales: "" };
       }
     });
     const observacionesPorProceso: Record<string, string> = {};
@@ -719,7 +723,12 @@ export default function ListOrdenesProduccion() {
     for (const [key, val] of Object.entries(articuloObservacionesActual)) {
       articuloObservaciones[key] = typeof val === "string" ? val.trim() : "";
     }
-    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado, observacionesPorProceso, articuloObservaciones };
+    const inicialesPorItem: Record<string, string> = {};
+    for (const [key, val] of Object.entries(inicialesPorItemActual)) {
+      const s = typeof val === "string" ? val.slice(0, 2).toUpperCase().trim() : "";
+      if (s) inicialesPorItem[key] = s;
+    }
+    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado, observacionesPorProceso, articuloObservaciones, inicialesPorItem };
     const baseQuery = supabase
       .from("ordenes_produccion")
       .update({ estado_obra: estadoObraPayload })
@@ -1285,7 +1294,7 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado con tus iniciales (artículo terminado no disponible):" : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado con tus iniciales. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {canEditFullModal && (
               <div className="flex flex-wrap gap-2 mb-4">
@@ -1550,29 +1559,53 @@ export default function ListOrdenesProduccion() {
                             const checked = key in estadoObraFechas;
                             return (
                               <li key={key} className="flex flex-col">
-                                <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : undefined}>
+                                <div className="flex items-center gap-1.5">
+                                  <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : isTabletEmail(userEmail) ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={!canEditParaTipologia}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEstadoObraFechas((prev) => ({
+                                            ...prev,
+                                            [key]: new Date().toISOString(),
+                                          }));
+                                        } else {
+                                          if (isTabletEmail(userEmail)) return;
+                                          setEstadoObraFechas((prev) => {
+                                            const next = { ...prev };
+                                            delete next[key];
+                                            return next;
+                                          });
+                                          setEstadoObraInicialesPorItem((prev) => {
+                                            const next = { ...prev };
+                                            delete next[key];
+                                            return next;
+                                          });
+                                        }
+                                      }}
+                                      className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                    />
+                                    <span className="text-xs">{item}</span>
+                                  </label>
                                   <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={!canEditParaTipologia}
+                                    type="text"
+                                    maxLength={2}
+                                    disabled={!canEditParaTipologia || !checked}
+                                    value={estadoObraInicialesPorItem[key] ?? ""}
                                     onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setEstadoObraFechas((prev) => ({
-                                          ...prev,
-                                          [key]: new Date().toISOString(),
-                                        }));
-                                      } else {
-                                        setEstadoObraFechas((prev) => {
-                                          const next = { ...prev };
-                                          delete next[key];
-                                          return next;
-                                        });
-                                      }
+                                      const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
+                                      setEstadoObraInicialesPorItem((prev) => ({
+                                        ...prev,
+                                        [key]: val,
+                                      }));
                                     }}
-                                    className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                    placeholder="In"
+                                    className="w-8 px-1 py-0.5 text-xs border border-gray-300 rounded text-center uppercase disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                    title="Iniciales (2 caracteres)"
                                   />
-                                  <span className="text-xs">{item}</span>
-                                </label>
+                                </div>
                                 <span
                                   className="text-xs text-gray-500 mt-0.5 ml-5 min-h-[1rem]"
                                   title={fecha}
@@ -1593,13 +1626,14 @@ export default function ListOrdenesProduccion() {
                             const terminadoDisabled = !canEditParaTipologia || !alMenosUnoMarcado;
                             return (
                             <>
-                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : undefined}>
+                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : isTabletEmail(userEmail) ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                             <input
                               type="checkbox"
                               checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
                               disabled={terminadoDisabled}
                               onChange={(e) => {
                                 const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+                                if (!e.target.checked && isTabletEmail(userEmail)) return;
                                 setEstadoObraTerminado((prev) => ({
                                   ...prev,
                                   [key]: e.target.checked,
@@ -1666,54 +1700,23 @@ export default function ListOrdenesProduccion() {
                       const todosProcesosTerminados = Object.keys(ESTADOS_OBRA_STRUCTURE).every((proceso) =>
                         !!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]
                       );
-                      const articuloDisabled = !canEditArticuloTerminado || !todosProcesosTerminados;
                       const articuloKey = String(idx);
                       return (
                         <div>
                         <div className="flex items-center gap-2">
                           <label
-                            className={`flex items-center gap-1.5 ${!articuloDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                            title={articuloDisabled ? (soloVista ? "Solo visualización" : canEditArticuloTerminado ? "Marque todos los procesos como terminados primero" : "Los usuarios tablet no pueden marcar artículo terminado") : undefined}
+                            className="flex items-center gap-1.5 cursor-default"
+                            title={todosProcesosTerminados ? "Se activa automáticamente cuando todos los procesos están terminados" : "Marque todos los procesos como terminados"}
                           >
                             <input
                               type="checkbox"
-                              checked={!!estadoObraArticuloTerminado[articuloKey]}
-                              disabled={articuloDisabled}
-                              onChange={(e) => {
-                                setEstadoObraArticuloTerminado((prev) => ({
-                                  ...prev,
-                                  [articuloKey]: e.target.checked,
-                                }));
-                                if (!e.target.checked) {
-                                  setEstadoObraArticuloIniciales((prev) => {
-                                    const next = { ...prev };
-                                    delete next[articuloKey];
-                                    return next;
-                                  });
-                                }
-                              }}
-                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={todosProcesosTerminados}
+                              readOnly
+                              tabIndex={-1}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
                             />
                             <span className="text-xs font-semibold">Artículo terminado</span>
                           </label>
-                          {estadoObraArticuloTerminado[articuloKey] && (
-                            <input
-                              type="text"
-                              maxLength={2}
-                              disabled={!canEditArticuloTerminado}
-                              value={estadoObraArticuloIniciales[articuloKey] ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
-                                setEstadoObraArticuloIniciales((prev) => ({
-                                  ...prev,
-                                  [articuloKey]: val,
-                                }));
-                              }}
-                              placeholder="Iniciales"
-                              className="w-10 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-center uppercase"
-                              title="Iniciales del operador (2 caracteres)"
-                            />
-                          )}
                         </div>
                         <div className="mt-2">
                           <label className="block text-xs font-medium text-gray-500 mb-0.5">Observación</label>
