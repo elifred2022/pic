@@ -248,6 +248,7 @@ export default function ListOrdenesProduccion() {
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
+  const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "");
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -2099,7 +2100,7 @@ export default function ListOrdenesProduccion() {
           <table className="min-w-full table-auto border-collapse">
             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <tr>
-              {!isReadOnly && <th className={headerClass}>Acciones</th>}
+              {showAccionesColumn && <th className={headerClass}>Acciones</th>}
               <th className={headerClass}>Fecha</th>
               <th className={headerClass}>Nº Carpeta</th>
               <th className={headerClass}>Obra</th>
@@ -2114,7 +2115,7 @@ export default function ListOrdenesProduccion() {
             {filteredOrdenes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={isReadOnly ? 8 : 9}
+                  colSpan={showAccionesColumn ? 9 : 8}
                   className="px-4 py-8 text-center text-gray-500"
                 >
                   No hay órdenes de producción registradas.
@@ -2123,7 +2124,7 @@ export default function ListOrdenesProduccion() {
             ) : (
               filteredOrdenes.map((orden) => (
                 <tr key={orden.id} className="hover:bg-gray-50 transition-colors duration-200">
-                  {!isReadOnly && (
+                  {showAccionesColumn && (
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2 items-center">
                         <button
