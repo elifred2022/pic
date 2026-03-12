@@ -211,8 +211,8 @@ export default function ListOrdenesProduccion() {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
-  const [descargandoTerminados, setDescargandoTerminados] = useState(false);
-  const [descargandoProcesosTerminados, setDescargandoProcesosTerminados] = useState(false);
+  const [excelDownloadTipo, setExcelDownloadTipo] = useState<string>("");
+  const [descargandoExcel, setDescargandoExcel] = useState(false);
   const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
   const [estadoObraOrden, setEstadoObraOrden] = useState<OrdenProduccion | null>(null);
   const [estadoObraTipologias, setEstadoObraTipologias] = useState<TipologiaItem[]>([]);
@@ -815,7 +815,6 @@ export default function ListOrdenesProduccion() {
     const rows: Array<{
       Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
       Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
-      Iniciales: string;
     }> = [];
     for (const orden of filteredOrdenes) {
       const raw = orden.estado_obra;
@@ -843,7 +842,6 @@ export default function ListOrdenesProduccion() {
         const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
         const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
         const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
-        const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
         rows.push({
           Carpeta: orden.num_carpeta ?? "",
           Obra: orden.obra ?? "",
@@ -859,7 +857,6 @@ export default function ListOrdenesProduccion() {
           Umbral: umbral,
           Ancho: ancho,
           Alto: alto,
-          Iniciales: iniciales,
         });
       }
     }
@@ -867,7 +864,7 @@ export default function ListOrdenesProduccion() {
       alert("No hay artículos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
       return;
     }
-    setDescargandoTerminados(true);
+    setDescargandoExcel(true);
     try {
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -886,7 +883,7 @@ export default function ListOrdenesProduccion() {
       console.error("Error al descargar:", err);
       alert("Error al generar el archivo Excel.");
     } finally {
-      setDescargandoTerminados(false);
+      setDescargandoExcel(false);
     }
   };
 
@@ -894,7 +891,7 @@ export default function ListOrdenesProduccion() {
     const rows: Array<{
       Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
       Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
-      Proceso: string; Iniciales: string;
+      Proceso: string;
     }> = [];
     for (const orden of filteredOrdenes) {
       const raw = orden.estado_obra;
@@ -923,7 +920,6 @@ export default function ListOrdenesProduccion() {
         const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
         const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
         const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
-        const iniciales = typeof v.iniciales === "string" ? v.iniciales.slice(0, 2).toUpperCase() : "";
         rows.push({
           Carpeta: orden.num_carpeta ?? "",
           Obra: orden.obra ?? "",
@@ -940,7 +936,6 @@ export default function ListOrdenesProduccion() {
           Ancho: ancho,
           Alto: alto,
           Proceso: proceso,
-          Iniciales: iniciales,
         });
       }
     }
@@ -948,7 +943,7 @@ export default function ListOrdenesProduccion() {
       alert("No hay procesos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
       return;
     }
-    setDescargandoProcesosTerminados(true);
+    setDescargandoExcel(true);
     try {
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -967,8 +962,100 @@ export default function ListOrdenesProduccion() {
       console.error("Error al descargar:", err);
       alert("Error al generar el archivo Excel.");
     } finally {
-      setDescargandoProcesosTerminados(false);
+      setDescargandoExcel(false);
     }
+  };
+
+  const handleDownloadEstadisticasIniciales = () => {
+    const rows: Array<{
+      Carpeta: string; Obra: string; Tipologia: string; Descripcion: string;
+      Proceso: string; Item: string; Iniciales: string; Fecha: string;
+    }> = [];
+    for (const orden of filteredOrdenes) {
+      const raw = orden.estado_obra;
+      if (!raw || typeof raw !== "object") continue;
+      const obj = raw as Record<string, unknown>;
+      const inicialesPorItem = (obj.inicialesPorItem && typeof obj.inicialesPorItem === "object" && !Array.isArray(obj.inicialesPorItem))
+        ? obj.inicialesPorItem as Record<string, string>
+        : {};
+      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
+      for (const [key, ini] of Object.entries(inicialesPorItem)) {
+        const val = typeof ini === "string" ? ini.trim().slice(0, 2).toUpperCase() : "";
+        if (!val) continue;
+        const parts = String(key).split(ESTADO_OBRA_KEY_SEP);
+        if (parts.length < 3) continue;
+        const tipIdx = parseInt(parts[0] ?? "0", 10);
+        const proceso = parts[1] ?? "";
+        const item = parts[2] ?? "";
+        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
+        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
+          ? String(tipologia.nombre ?? "")
+          : `Tipología ${tipIdx + 1}`;
+        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
+        let fecha = "";
+        if (tipologia && typeof tipologia === "object" && "estados" in tipologia) {
+          const estados = tipologia.estados as Record<string, Record<string, string>> | undefined;
+          const procesoData = estados?.[proceso];
+          const fechaIso = procesoData?.[item];
+          fecha = fechaIso ? formatFechaISO(fechaIso) : "";
+        }
+        rows.push({
+          Carpeta: orden.num_carpeta ?? "",
+          Obra: orden.obra ?? "",
+          Tipologia: tipologiaNombre,
+          Descripcion: desc,
+          Proceso: proceso,
+          Item: item,
+          Iniciales: val,
+          Fecha: fecha,
+        });
+      }
+    }
+    if (rows.length === 0) {
+      alert("No hay procesos con iniciales en las órdenes actuales (o en el filtro aplicado).");
+      return;
+    }
+    setDescargandoExcel(true);
+    try {
+      const wb = XLSX.utils.book_new();
+      const conteoIniciales = new Map<string, number>();
+      for (const row of rows) {
+        const ini = row.Iniciales || "";
+        if (ini) conteoIniciales.set(ini, (conteoIniciales.get(ini) ?? 0) + 1);
+      }
+      const resumenRows = Array.from(conteoIniciales.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([Iniciales, Cantidad]) => ({ Iniciales, Cantidad }));
+      const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
+      XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen por iniciales");
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Detalle por proceso");
+      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `procesos-terminados-operarios-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar:", err);
+      alert("Error al generar el archivo Excel.");
+    } finally {
+      setDescargandoExcel(false);
+    }
+  };
+
+  const handleDescargarExcelSeleccionado = () => {
+    if (!excelDownloadTipo) {
+      alert("Selecciona un tipo de descarga.");
+      return;
+    }
+    if (excelDownloadTipo === "articulos") handleDownloadTerminados();
+    else if (excelDownloadTipo === "procesos") handleDownloadProcesosTerminados();
+    else if (excelDownloadTipo === "operarios") handleDownloadEstadisticasIniciales();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1231,26 +1318,28 @@ export default function ListOrdenesProduccion() {
             📊 Ver progreso de producción
           </button>
           {!isTabletEmail(userEmail) && (
-            <>
-          <button
-            type="button"
-            onClick={handleDownloadTerminados}
-            disabled={descargandoTerminados}
-            className="px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            title="Descargar Excel con todos los artículos marcados como terminados"
-          >
-            {descargandoTerminados ? "⏳ Generando..." : "📥 Descargar artículos terminados"}
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadProcesosTerminados}
-            disabled={descargandoProcesosTerminados}
-            className="px-4 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            title="Descargar Excel con todos los procesos marcados como terminados"
-          >
-            {descargandoProcesosTerminados ? "⏳ Generando..." : "📥 Descargar procesos terminados"}
-          </button>
-            </>
+            <div className="flex items-center gap-2">
+              <select
+                value={excelDownloadTipo}
+                onChange={(e) => setExcelDownloadTipo(e.target.value)}
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 min-w-[280px]"
+                title="Selecciona el tipo de descarga Excel"
+              >
+                <option value="">— Seleccionar descarga Excel —</option>
+                <option value="articulos">Artículos terminados</option>
+                <option value="procesos">Procesos terminados</option>
+                <option value="operarios">Procesos terminados por operarios</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleDescargarExcelSeleccionado}
+                disabled={descargandoExcel || !excelDownloadTipo}
+                className="px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                title="Descargar el Excel seleccionado"
+              >
+                {descargandoExcel ? "⏳ Generando..." : "📥 Descargar"}
+              </button>
+            </div>
           )}
         </div>
       </div>
