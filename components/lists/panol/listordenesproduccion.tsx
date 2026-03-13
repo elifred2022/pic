@@ -211,6 +211,7 @@ export default function ListOrdenesProduccion() {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
+  const [deletingOrdenId, setDeletingOrdenId] = useState<string | null>(null);
   const [excelDownloadTipo, setExcelDownloadTipo] = useState<string>("");
   const [descargandoExcel, setDescargandoExcel] = useState(false);
   const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
@@ -809,6 +810,38 @@ export default function ListOrdenesProduccion() {
       alert("Error al descargar la carpeta. Intenta de nuevo.");
     } finally {
       setDownloadingOrdenId(null);
+    }
+  };
+
+  const handleEliminarCarpeta = async (orden: OrdenProduccion) => {
+    const numCarpeta = orden.num_carpeta ?? "(sin número)";
+    const nombreObra = orden.obra ?? "(sin nombre)";
+    const confirmado = window.confirm(
+      `¿Está seguro de eliminar esta carpeta?\n\nNúmero de carpeta: ${numCarpeta}\nNombre de obra: ${nombreObra}`
+    );
+    if (!confirmado) return;
+    setDeletingOrdenId(orden.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Debe iniciar sesión para realizar esta acción.");
+        return;
+      }
+      let updateQuery = supabase
+        .from("ordenes_produccion")
+        .update({ url_imagen: null })
+        .eq("id", orden.id);
+      if (!canAccessOrdenesProduccion(user.email)) {
+        updateQuery = updateQuery.eq("usuario_id", user.id);
+      }
+      const { error } = await updateQuery;
+      if (error) {
+        alert(`Error al eliminar la carpeta: ${error.message}`);
+        return;
+      }
+      await fetchOrdenes();
+    } finally {
+      setDeletingOrdenId(null);
     }
   };
 
@@ -2219,6 +2252,14 @@ export default function ListOrdenesProduccion() {
                             className="inline-block px-3 py-2 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
                           >
                             {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarCarpeta(orden)}
+                            disabled={deletingOrdenId === orden.id}
+                            className="inline-block px-3 py-2 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+                          >
+                            {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
                           </button>
                         </div>
                       );
