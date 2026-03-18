@@ -37,6 +37,13 @@ export const aprobEmails = [
 export const tabletEmails = [
   "tabletpys331@gmail.com",
   "orlandojosemartinez1946@gmail.com",
+  "supervisorpys@gmail.com", 
+"tabletpyspaez@gmail.com", 
+"tabletpysherrera@gmail.com",
+"tabletpysfleitas@gmail.com",
+"tabletpyscruz@gmail.com",
+"tabletpysalfonso@gmail.com",
+
  //"elifred21@hotmail.com"
 ];
 
