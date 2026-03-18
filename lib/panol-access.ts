@@ -13,6 +13,7 @@ export const produccionEmails = [
   "pvcordenes@perfilesyservicios.com.ar",
   "recepcioncardales@perfilesyservicios.com.ar",
   "supervisorpys@gmail.com",
+  "gonzalo@perfilesyservicios.com.ar",
   //"elifred21@hotmail.com",
 ];
 
