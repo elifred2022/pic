@@ -13,7 +13,7 @@ export const produccionEmails = [
   "pvcordenes@perfilesyservicios.com.ar",
   "recepcioncardales@perfilesyservicios.com.ar",
   "supervisorpys@gmail.com",
-  "elifred21@hotmail.com",
+  //"elifred21@hotmail.com",
 ];
 
 export const adminEmails = [
@@ -44,7 +44,7 @@ export const tabletEmails = [
 "tabletpyscruz@gmail.com",
 "tabletpysalfonso@gmail.com",
 
- //"elifred21@hotmail.com"
+ "elifred21@hotmail.com"
 ];
 
 export const isPanolEmail = (email?: string | null) =>

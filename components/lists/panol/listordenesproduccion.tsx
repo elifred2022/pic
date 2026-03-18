@@ -249,7 +249,7 @@ export default function ListOrdenesProduccion() {
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
-  const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "");
+  const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "") || isTabletEmail(userEmail);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -2160,20 +2160,24 @@ export default function ListOrdenesProduccion() {
                   {showAccionesColumn && (
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2 items-center">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(orden)}
-                          className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(orden)}
-                          className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                        >
-                          🗑️ Eliminar
-                        </button>
+                        {!isTabletEmail(userEmail) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(orden)}
+                              className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(orden)}
+                              className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </>
+                        )}
                         {(() => {
                           const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
                           if (total === 0) return null;
@@ -2253,14 +2257,16 @@ export default function ListOrdenesProduccion() {
                           >
                             {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleEliminarCarpeta(orden)}
-                            disabled={deletingOrdenId === orden.id}
-                            className="inline-block px-3 py-2 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
-                          >
-                            {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
-                          </button>
+                          {!isTabletEmail(userEmail) && (
+                            <button
+                              type="button"
+                              onClick={() => handleEliminarCarpeta(orden)}
+                              disabled={deletingOrdenId === orden.id}
+                              className="inline-block px-3 py-2 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+                            >
+                              {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
