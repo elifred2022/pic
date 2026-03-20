@@ -68,6 +68,14 @@ export function CrearFormOrdenCompra() {
   const [itemsOrden, setItemsOrden] = useState<ItemOrden[]>([]);
   const [totalOrden, setTotalOrden] = useState(0);
   const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
+  const [mostrarFormSinPic, setMostrarFormSinPic] = useState(false);
+  const [articuloSinPic, setArticuloSinPic] = useState({
+    nombre: "",
+    cantidad: 1,
+    precio_unitario: 0,
+    descuento: 0,
+    divisa: "USD" as const
+  });
   
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
@@ -254,8 +262,11 @@ export function CrearFormOrdenCompra() {
       console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
       console.log("✅ Artículos disponibles (filtrados):", articulosDisponibles);
       
-      // Extraer sectores únicos de los artículos disponibles
+      // Extraer sectores únicos de los artículos disponibles + "Compra directa" para órdenes sin PIC
       const sectoresUnicos = [...new Set(articulosDisponibles.map(articulo => articulo.sector))].filter(sector => sector && sector.trim() !== '');
+      if (!sectoresUnicos.includes("Compra directa")) {
+        sectoresUnicos.unshift("Compra directa");
+      }
       setSectoresDisponibles(sectoresUnicos);
       console.log("✅ Sectores disponibles:", sectoresUnicos);
       
@@ -312,6 +323,34 @@ export function CrearFormOrdenCompra() {
 
   const handleRemoverArticulo = (articuloId: string) => {
     setItemsOrden(itemsOrden.filter(item => item.articulo_id !== articuloId));
+  };
+
+  const handleAgregarArticuloSinPic = () => {
+    const nombre = articuloSinPic.nombre.trim();
+    if (!nombre) {
+      setError("Debe ingresar el nombre del artículo");
+      return;
+    }
+    if (articuloSinPic.cantidad < 1) {
+      setError("La cantidad debe ser al menos 1");
+      return;
+    }
+    const idUnico = `sin-pic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const precioConDescuento = calcularPrecioConDescuento(articuloSinPic.precio_unitario, articuloSinPic.descuento);
+    const nuevoItem: ItemOrden = {
+      articulo_id: idUnico,
+      articulo_nombre: nombre,
+      cantidad: articuloSinPic.cantidad,
+      precio_unitario: articuloSinPic.precio_unitario,
+      descuento: articuloSinPic.descuento,
+      costunitcdesc: precioConDescuento,
+      divisa: articuloSinPic.divisa,
+      total: articuloSinPic.cantidad * precioConDescuento
+    };
+    setItemsOrden([...itemsOrden, nuevoItem]);
+    setArticuloSinPic({ nombre: "", cantidad: 1, precio_unitario: 0, descuento: 0, divisa: "USD" });
+    setMostrarFormSinPic(false);
+    setError(null);
   };
 
   const handleCantidadChange = (articuloId: string, nuevaCantidad: number) => {
@@ -380,24 +419,26 @@ export function CrearFormOrdenCompra() {
     }
 
     const resultados = await Promise.all(
-      itemsOrden.map((item) => {
-        const precioConDescuento = calcularPrecioConDescuento(
-          item.precio_unitario,
-          item.descuento
-        );
-        return supabase
-          .from("articulos")
-          .update({
-            costunit: item.precio_unitario,
-            descuento: item.descuento,
-            divisa: item.divisa,
-            costunitcdesc: precioConDescuento,
-            updated_at: new Date().toISOString(),
-            ultimo_prov: proveedorSeleccionado?.nombreprov ?? null,
-            update_usuario: updateUsuario,
-          })
-          .eq("articulo", item.articulo_nombre);
-      })
+      itemsOrden
+        .filter((item) => !item.articulo_id.startsWith("sin-pic-"))
+        .map((item) => {
+          const precioConDescuento = calcularPrecioConDescuento(
+            item.precio_unitario,
+            item.descuento
+          );
+          return supabase
+            .from("articulos")
+            .update({
+              costunit: item.precio_unitario,
+              descuento: item.descuento,
+              divisa: item.divisa,
+              costunitcdesc: precioConDescuento,
+              updated_at: new Date().toISOString(),
+              ultimo_prov: proveedorSeleccionado?.nombreprov ?? null,
+              update_usuario: updateUsuario,
+            })
+            .eq("articulo", item.articulo_nombre);
+        })
     );
 
     const errorActualizacion = resultados.find((res) => res.error)?.error;
@@ -652,6 +693,89 @@ export function CrearFormOrdenCompra() {
              
             </div>
 
+            {/* Botón y formulario para agregar artículo sin PIC */}
+            <div className="border border-dashed border-amber-300 rounded-lg p-4 bg-amber-50/50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMostrarFormSinPic(!mostrarFormSinPic)}
+                className="border-amber-400 text-amber-800 hover:bg-amber-100"
+              >
+                {mostrarFormSinPic ? "✖ Cerrar" : "➕ Agregar artículo sin PIC"}
+              </Button>
+              <p className="text-sm text-amber-700 mt-1">Orden de compra no vinculada a pedido (PIC)</p>
+              {mostrarFormSinPic && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-amber-200 space-y-4">
+                  <div>
+                    <Label htmlFor="nombre-sin-pic">Nombre del artículo *</Label>
+                    <Input
+                      id="nombre-sin-pic"
+                      type="text"
+                      value={articuloSinPic.nombre}
+                      onChange={(e) => setArticuloSinPic(prev => ({ ...prev, nombre: e.target.value }))}
+                      placeholder="Ej: Tornillo M8 x 50"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <Label htmlFor="cant-sin-pic">Cantidad *</Label>
+                      <Input
+                        id="cant-sin-pic"
+                        type="number"
+                        min="1"
+                        value={articuloSinPic.cantidad}
+                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, cantidad: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="precio-sin-pic">Precio unitario</Label>
+                      <Input
+                        id="precio-sin-pic"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={articuloSinPic.precio_unitario}
+                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, precio_unitario: parseNumero(e.target.value) }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="desc-sin-pic">Descuento %</Label>
+                      <Input
+                        id="desc-sin-pic"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={articuloSinPic.descuento}
+                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, descuento: parseNumero(e.target.value) }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="divisa-sin-pic">Divisa</Label>
+                      <select
+                        id="divisa-sin-pic"
+                        value={articuloSinPic.divisa}
+                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, divisa: e.target.value as "USD" | "EUR" | "ARS" }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="ARS">ARS</option>
+                      </select>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAgregarArticuloSinPic}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    ✅ Agregar a la orden
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {/* Artículos Aprobados */}
             <div>
               <Label className="text-lg font-semibold">Artículos Aprobados Disponibles</Label>
@@ -711,7 +835,12 @@ export function CrearFormOrdenCompra() {
                   {itemsOrden.map((item) => (
                     <div key={item.articulo_id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
                       <div className="flex-1">
-                        <h4 className="font-medium">{item.articulo_nombre}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{item.articulo_nombre}</h4>
+                          {item.articulo_id.startsWith("sin-pic-") && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">Sin PIC</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <div>

@@ -35,6 +35,8 @@ export default function ListaOrdenesCompra() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
   const [ordenesFiltradas, setOrdenesFiltradas] = useState<OrdenCompra[]>([]);
   const [filtroBusqueda, setFiltroBusqueda] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ordenes' | 'otros'>('ordenes');
@@ -125,9 +127,27 @@ export default function ListaOrdenesCompra() {
       return true;
     });
     
-    console.log('Órdenes después del filtro:', ordenesFiltradas.length);
+    // Aplicar filtro por rango de fechas (desde - hasta)
+    if (fechaDesde || fechaHasta) {
+      ordenesFiltradas = ordenesFiltradas.filter(orden => {
+        if (!orden.fecha) return false;
+        const fechaOrden = new Date(orden.fecha);
+        fechaOrden.setHours(0, 0, 0, 0);
+        if (fechaDesde) {
+          const desde = new Date(fechaDesde);
+          desde.setHours(0, 0, 0, 0);
+          if (fechaOrden < desde) return false;
+        }
+        if (fechaHasta) {
+          const hasta = new Date(fechaHasta);
+          hasta.setHours(23, 59, 59, 999);
+          if (fechaOrden > hasta) return false;
+        }
+        return true;
+      });
+    }
     
-    // Si no hay filtro de búsqueda, devolver las órdenes filtradas por checkbox
+    // Si no hay filtro de búsqueda, devolver las órdenes filtradas por checkbox y fecha
     if (!filtroBusqueda.trim()) {
       setOrdenesFiltradas(ordenesFiltradas);
       return;
@@ -225,7 +245,7 @@ export default function ListaOrdenesCompra() {
     });
     
     setOrdenesFiltradas(ordenesFiltradas);
-  }, [filtroBusqueda, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
+  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
 
   useEffect(() => {
     if (activeTab === 'ordenes') {
@@ -304,20 +324,53 @@ export default function ListaOrdenesCompra() {
         </Button>
       </div>
 
-      {/* Campo de búsqueda */}
+      {/* Campo de búsqueda y filtro por fecha */}
       <div className="mb-6">
-        <Label htmlFor="filtro-busqueda" className="text-sm text-gray-600">
-          🔍 Buscar por número, palabra o fecha
-        </Label>
-        <Input
-          id="filtro-busqueda"
-          type="text"
-          value={filtroBusqueda}
-          onChange={(e) => setFiltroBusqueda(e.target.value)}
-          placeholder="Buscar por NOC, proveedor, CUIT, fecha, estado, artículos..."
-          className="w-full"
-        />
-        {filtroBusqueda && (
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <Label htmlFor="filtro-busqueda" className="text-sm text-gray-600">
+              🔍 Buscar por NOC, palabra o fecha
+            </Label>
+            <Input
+              id="filtro-busqueda"
+              type="text"
+              value={filtroBusqueda}
+              onChange={(e) => setFiltroBusqueda(e.target.value)}
+              placeholder="Buscar por NOC, proveedor, CUIT, fecha, estado, artículos..."
+              className="w-full"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-desde" className="text-sm text-gray-600">Desde</Label>
+            <Input
+              id="fecha-desde"
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-hasta" className="text-sm text-gray-600">Hasta</Label>
+            <Input
+              id="fecha-hasta"
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          {(fechaDesde || fechaHasta) && (
+            <Button
+              variant="outline"
+              onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+              className="border-gray-300 shrink-0"
+            >
+              Limpiar fechas
+            </Button>
+          )}
+        </div>
+        {(filtroBusqueda || fechaDesde || fechaHasta) && (
           <p className="text-sm text-gray-500 mt-1">
             Mostrando {ordenesFiltradas.length} de {ordenes.length} órdenes
           </p>
