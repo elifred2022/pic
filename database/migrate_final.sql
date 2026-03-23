@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS ordenes_compra (
     condicion_pago VARCHAR,
     noc VARCHAR,
     total DECIMAL(10,2),
+    divisa VARCHAR DEFAULT 'USD',
     observaciones TEXT,
     articulos JSONB,
     estado VARCHAR DEFAULT 'pendiente',

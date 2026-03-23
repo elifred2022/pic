@@ -97,6 +97,9 @@ interface OrdenCompra {
   email: string;
   estado: string;
   total: number;
+  divisa?: string;
+  importe_competencia?: number | null;
+  ahorro?: number | null;
   observaciones?: string;
   condicion_pago?: string;
   articulos: Array<{
@@ -137,6 +140,8 @@ export default function VerOrdenCompraPage() {
     observaciones: '',
     condicion_pago: '',
     lugar_entrega: '',
+    importe_competencia: '',
+    divisa: 'USD',
     articulos: [] as Array<{
       articulo_id: string;
       articulo_nombre: string;
@@ -157,8 +162,7 @@ export default function VerOrdenCompraPage() {
     articulo_nombre: '',
     cantidad: 1,
     precio_unitario: 0,
-    descuento: 0,
-    divisa: "USD" as "USD" | "EUR" | "ARS"
+    descuento: 0
   });
   const params = useParams();
   const router = useRouter();
@@ -224,6 +228,20 @@ export default function VerOrdenCompraPage() {
     filtrarProveedores();
   }, [filtrarProveedores]);
 
+  // Sincronizar divisa de la orden con todos los artículos cuando cambia
+  useEffect(() => {
+    if (showEditModal && editData.articulos.length > 0) {
+      const divisaOrden = editData.divisa || "USD";
+      const tieneOtroDivisa = editData.articulos.some(a => (a.divisa ?? "USD") !== divisaOrden);
+      if (tieneOtroDivisa) {
+        setEditData(prev => ({
+          ...prev,
+          articulos: prev.articulos.map(a => ({ ...a, divisa: prev.divisa || "USD" }))
+        }));
+      }
+    }
+  }, [editData.divisa, showEditModal]);
+
   const getEstadoBadge = (estado: string) => {
     const estados = {
       pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
@@ -277,6 +295,8 @@ export default function VerOrdenCompraPage() {
         observaciones: orden.observaciones || '',
         condicion_pago: orden.condicion_pago || '',
         lugar_entrega: orden.lugar_entrega,
+        importe_competencia: orden.importe_competencia != null ? String(orden.importe_competencia) : '',
+        divisa: orden.divisa || 'USD',
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
           divisa: item.divisa ?? "USD",
@@ -303,6 +323,8 @@ export default function VerOrdenCompraPage() {
       observaciones: '',
       condicion_pago: '',
       lugar_entrega: '',
+      importe_competencia: '',
+      divisa: 'USD',
       articulos: []
     });
     setBusquedaProveedor('');
@@ -419,31 +441,51 @@ export default function VerOrdenCompraPage() {
 
     try {
       setSaving(true);
+      const divisaOrden = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
       const articulosActualizados = editData.articulos.map((item) => ({
         ...item,
+        divisa: divisaOrden,
         costunitcdesc: calcularPrecioConDescuento(item.precio_unitario, item.descuento),
         total: getRowTotal(item),
       }));
       const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
-      
-      const { error } = await supabase
-        .from("ordenes_compra")
-        .update({
-          noc: parseInt(editData.noc),
-          proveedor: editData.proveedor,
-          cuit: editData.cuit,
-          direccion: editData.direccion,
-          telefono: editData.telefono,
-          estado: editData.estado,
-          observaciones: editData.observaciones,
-          condicion_pago: editData.condicion_pago,
-          lugar_entrega: editData.lugar_entrega,
-          articulos: articulosActualizados,
-          total: totalOrden
-        })
-        .eq("id", orden.id);
+      const importeComp = parseFloat(editData.importe_competencia) || 0;
+      const ahorro = importeComp > 0 ? importeComp - totalOrden : null;
 
-      if (error) throw error;
+      const payload = {
+        divisa: divisaOrden,
+        noc: parseInt(editData.noc),
+        proveedor: editData.proveedor,
+        cuit: editData.cuit,
+        direccion: editData.direccion,
+        telefono: editData.telefono,
+        estado: editData.estado,
+        observaciones: editData.observaciones,
+        condicion_pago: editData.condicion_pago,
+        lugar_entrega: editData.lugar_entrega,
+        articulos: articulosActualizados,
+        total: totalOrden,
+        importe_competencia: importeComp > 0 ? importeComp : null,
+        ahorro: ahorro,
+      };
+
+      const { data: datosActualizados, error } = await supabase
+        .from("ordenes_compra")
+        .update(payload)
+        .eq("id", orden.id)
+        .select("id, divisa, total")
+        .single();
+
+      if (error) {
+        console.error("Error actualizando ordenes_compra:", error);
+        throw error;
+      }
+
+      // Update explícito de divisa (asegura que se persista si el payload principal lo ignora)
+      await supabase
+        .from("ordenes_compra")
+        .update({ divisa: divisaOrden })
+        .eq("id", orden.id);
 
       try {
         await actualizarArticulosSupabase(articulosActualizados, editData.proveedor);
@@ -453,7 +495,7 @@ export default function VerOrdenCompraPage() {
         return;
       }
 
-      // Actualizar el estado local
+      // Actualizar el estado local (usar divisa de la respuesta si vino)
       setOrden({
         ...orden,
         noc: parseInt(editData.noc),
@@ -466,7 +508,10 @@ export default function VerOrdenCompraPage() {
         condicion_pago: editData.condicion_pago,
         lugar_entrega: editData.lugar_entrega,
         articulos: articulosActualizados,
-        total: totalOrden
+        total: totalOrden,
+        importe_competencia: importeComp > 0 ? importeComp : null,
+        ahorro: ahorro,
+        divisa: datosActualizados?.divisa ?? divisaOrden
       });
 
       setShowEditModal(false);
@@ -492,7 +537,7 @@ export default function VerOrdenCompraPage() {
       cantidad: nuevoArticulo.cantidad,
       precio_unitario: nuevoArticulo.precio_unitario,
       descuento: nuevoArticulo.descuento,
-      divisa: nuevoArticulo.divisa,
+      divisa: editData.divisa || "USD",
       costunitcdesc: precioConDescuento,
       total: nuevoArticulo.cantidad * precioConDescuento
     };
@@ -506,8 +551,7 @@ export default function VerOrdenCompraPage() {
       articulo_nombre: '',
       cantidad: 1,
       precio_unitario: 0,
-      descuento: 0,
-      divisa: "USD"
+      descuento: 0
     });
     setShowArticuloModal(false);
   };
@@ -687,7 +731,7 @@ export default function VerOrdenCompraPage() {
               <div>
                 <p className="text-sm text-gray-600 print:text-xs">Total de la Orden</p>
                 <p className="text-2xl font-bold text-green-600 print:text-lg">
-                  ${totalOrdenCalculado.toLocaleString('es-AR')}
+                  {orden.divisa || 'USD'} ${totalOrdenCalculado.toLocaleString('es-AR')}
                 </p>
               </div>
               <div>
@@ -706,8 +750,20 @@ export default function VerOrdenCompraPage() {
                 <p className="text-sm text-gray-600 print:text-xs">Dirección de Entrega</p>
                 <p className="font-medium print:text-sm">{orden.lugar_entrega}</p>
               </div>
-              
-              
+              {orden.importe_competencia != null && orden.importe_competencia > 0 && (
+                <>
+                  <div>
+                    <p className="text-sm text-gray-600 print:text-xs">Importe competencia</p>
+                    <p className="font-medium print:text-sm">${Number(orden.importe_competencia).toLocaleString('es-AR')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 print:text-xs">Ahorro</p>
+                    <p className={`font-medium print:text-sm ${(orden.ahorro ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${Number(orden.ahorro ?? 0).toLocaleString('es-AR')}
+                    </p>
+                  </div>
+                </>
+              )}
 
             </div>
           </CardContent>
@@ -953,6 +1009,51 @@ export default function VerOrdenCompraPage() {
                   </div>
                   
                   <div>
+                    <Label htmlFor="edit-divisa">Divisa</Label>
+                    <select
+                      id="edit-divisa"
+                      name="divisa"
+                      value={editData.divisa || "USD"}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "USD" || val === "EUR" || val === "ARS") {
+                          setEditData(prev => ({ ...prev, divisa: val }));
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="ARS">ARS</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-importe-competencia">Importe competencia</Label>
+                    <Input
+                      id="edit-importe-competencia"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editData.importe_competencia}
+                      onChange={(e) => setEditData({ ...editData, importe_competencia: e.target.value })}
+                      placeholder="Precio que cobraría la competencia"
+                      className="w-full"
+                    />
+                    {editData.importe_competencia && parseFloat(editData.importe_competencia) > 0 && (
+                      <p className="text-sm mt-1">
+                        Ahorro: <span className={(() => {
+                          const tot = editData.articulos.reduce((s, i) => s + (i.total || 0), 0);
+                          const aho = parseFloat(editData.importe_competencia) - tot;
+                          return aho >= 0 ? 'text-green-600 font-semibold' : 'text-red-600';
+                        })()}>
+                          ${(parseFloat(editData.importe_competencia) - editData.articulos.reduce((s, i) => s + (i.total || 0), 0)).toLocaleString('es-AR')}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
                     <Label htmlFor="edit-condicion-pago">Condición de Pago</Label>
                     <select
                       id="edit-condicion-pago"
@@ -1062,16 +1163,8 @@ export default function VerOrdenCompraPage() {
                               step="0.01"
                             />
                           </div>
-                          <div>
-                            <select
-                              value={articulo.divisa ?? "USD"}
-                              onChange={(e) => handleEditarArticulo(index, 'divisa', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="USD">USD</option>
-                              <option value="EUR">EUR</option>
-                              <option value="ARS">ARS</option>
-                            </select>
+                          <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium text-center">
+                            {editData.divisa || "USD"}
                           </div>
                           <div className="text-sm text-right">
                             ${calcularPrecioConDescuento(articulo.precio_unitario, articulo.descuento).toLocaleString('es-AR')}
@@ -1191,17 +1284,10 @@ export default function VerOrdenCompraPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="nuevo-articulo-divisa">Divisa</Label>
-                  <select
-                    id="nuevo-articulo-divisa"
-                    value={nuevoArticulo.divisa}
-                    onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, divisa: e.target.value as "USD" | "EUR" | "ARS" })}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="ARS">ARS</option>
-                  </select>
+                  <Label>Divisa</Label>
+                  <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium">
+                    {editData.divisa || "USD"}
+                  </div>
                 </div>
               </div>
               
@@ -1223,8 +1309,7 @@ export default function VerOrdenCompraPage() {
                     articulo_nombre: '',
                     cantidad: 1,
                     precio_unitario: 0,
-                    descuento: 0,
-                    divisa: "USD"
+                    descuento: 0
                   });
                 }}
                 variant="outline"

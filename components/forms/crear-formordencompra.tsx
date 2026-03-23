@@ -69,18 +69,11 @@ export function CrearFormOrdenCompra() {
   const [totalOrden, setTotalOrden] = useState(0);
   const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
   const [mostrarFormSinPic, setMostrarFormSinPic] = useState(false);
-  const [articuloSinPic, setArticuloSinPic] = useState<{
-    nombre: string;
-    cantidad: number;
-    precio_unitario: number;
-    descuento: number;
-    divisa: "USD" | "EUR" | "ARS";
-  }>({
+  const [articuloSinPic, setArticuloSinPic] = useState({
     nombre: "",
     cantidad: 1,
     precio_unitario: 0,
-    descuento: 0,
-    divisa: "USD"
+    descuento: 0
   });
   
   const [formData, setFormData] = useState({
@@ -91,7 +84,10 @@ export function CrearFormOrdenCompra() {
     noc: "",
     sector: "",
     cod_cta: "",
-    condicion_pago: ""
+    condicion_pago: "",
+    condi_proceso: "",
+    importe_competencia: "",
+    divisa: "USD" as "USD" | "EUR" | "ARS"
   });
 
   const router = useRouter();
@@ -113,6 +109,23 @@ export function CrearFormOrdenCompra() {
     const total = itemsOrden.reduce((sum, item) => sum + item.total, 0);
     setTotalOrden(total);
   }, [itemsOrden]);
+
+  // Sincronizar divisa de la orden con todos los artículos cuando cambia
+  useEffect(() => {
+    if (itemsOrden.length > 0) {
+      const tieneOtroDivisa = itemsOrden.some(item => item.divisa !== formData.divisa);
+      if (tieneOtroDivisa) {
+        setItemsOrden(prev => prev.map(item => ({ ...item, divisa: formData.divisa })));
+      }
+    }
+  }, [formData.divisa]);
+
+  // Calcular ahorro: importe_competencia - total (positivo = ahorramos vs competencia)
+  const ahorroCalculado = (() => {
+    const impComp = parseNumero(formData.importe_competencia);
+    if (impComp <= 0) return null;
+    return impComp - totalOrden;
+  })();
 
   const fetchProveedores = useCallback(async () => {
     try {
@@ -319,7 +332,7 @@ export function CrearFormOrdenCompra() {
       precio_unitario: 0, // Precio por defecto, se puede editar después
       descuento: 0,
       costunitcdesc: 0,
-      divisa: "USD",
+      divisa: formData.divisa,
       total: 0
     };
 
@@ -350,11 +363,11 @@ export function CrearFormOrdenCompra() {
       precio_unitario: articuloSinPic.precio_unitario,
       descuento: articuloSinPic.descuento,
       costunitcdesc: precioConDescuento,
-      divisa: articuloSinPic.divisa,
+      divisa: formData.divisa,
       total: articuloSinPic.cantidad * precioConDescuento
     };
     setItemsOrden([...itemsOrden, nuevoItem]);
-    setArticuloSinPic({ nombre: "", cantidad: 1, precio_unitario: 0, descuento: 0, divisa: "USD" });
+    setArticuloSinPic({ nombre: "", cantidad: 1, precio_unitario: 0, descuento: 0 });
     setMostrarFormSinPic(false);
     setError(null);
   };
@@ -495,23 +508,29 @@ export function CrearFormOrdenCompra() {
     setError(null);
 
     try {
+      const divisa = (formData.divisa === "EUR" || formData.divisa === "ARS") ? formData.divisa : "USD";
+      const insertData = {
+        divisa,
+        cuit: proveedorSeleccionado.cuitprov.toString(),
+        proveedor: proveedorSeleccionado.nombreprov,
+        direccion: proveedorSeleccionado.direccionprov,
+        telefono: proveedorSeleccionado.telefonoprov.toString(),
+        lugar_entrega: formData.lugar_entrega,
+        sector: formData.sector,
+        cod_cta: formData.cod_cta,
+        condicion_pago: formData.condicion_pago,
+        condi_proceso: formData.condi_proceso || null,
+        noc: formData.noc,
+        total: totalOrden,
+        importe_competencia: formData.importe_competencia ? parseNumero(formData.importe_competencia) : null,
+        ahorro: ahorroCalculado !== null ? ahorroCalculado : null,
+        observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
+        articulos: itemsOrden,
+        estado: formData.estado,
+      };
       const { error } = await supabase
         .from("ordenes_compra")
-        .insert({
-          cuit: proveedorSeleccionado.cuitprov.toString(),
-          proveedor: proveedorSeleccionado.nombreprov,
-          direccion: proveedorSeleccionado.direccionprov,
-          telefono: proveedorSeleccionado.telefonoprov.toString(),
-          lugar_entrega: formData.lugar_entrega,
-          sector: formData.sector,
-          cod_cta: formData.cod_cta,
-          condicion_pago: formData.condicion_pago,
-          noc: formData.noc,
-          total: totalOrden,
-          observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
-          articulos: itemsOrden,
-          estado: formData.estado,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -640,6 +659,30 @@ export function CrearFormOrdenCompra() {
               </p>
             </div>
 
+            {/* Divisa de la orden */}
+            <div>
+              <Label htmlFor="divisa_orden">Divisa de la Orden</Label>
+              <select
+                id="divisa_orden"
+                name="divisa"
+                value={formData.divisa}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "USD" || val === "EUR" || val === "ARS") {
+                    setFormData(prev => ({ ...prev, divisa: val }));
+                  }
+                }}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="ARS">ARS</option>
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                💱 Los artículos que agregues usarán esta divisa por defecto
+              </p>
+            </div>
+
             {/* Código de Cuenta */}
             <div>
               <Label htmlFor="cod_cta">Código de Cuenta *</Label>
@@ -685,6 +728,22 @@ export function CrearFormOrdenCompra() {
               </p>
             </div>
 
+            {/* Condición de Proceso */}
+            <div>
+              <Label htmlFor="condi_proceso">Condición de Proceso</Label>
+              <select
+                id="condi_proceso"
+                value={formData.condi_proceso}
+                onChange={(e) => setFormData({ ...formData, condi_proceso: e.target.value })}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Seleccione condición de proceso</option>
+                <option value="Bajo proceso">Bajo proceso</option>
+                <option value="Fuera de proceso">Fuera de proceso</option>
+                <option value="Urgente">Urgente</option>
+              </select>
+            </div>
+
             {/* Número de Orden de Compra */}
             <div>
               <Label htmlFor="noc">Número de Orden de Compra *</Label>
@@ -704,7 +763,10 @@ export function CrearFormOrdenCompra() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setMostrarFormSinPic(!mostrarFormSinPic)}
+                onClick={() => {
+                  setMostrarFormSinPic(!mostrarFormSinPic);
+                  if (!mostrarFormSinPic) setArticuloSinPic(prev => ({ ...prev }));
+                }}
                 className="border-amber-400 text-amber-800 hover:bg-amber-100"
               >
                 {mostrarFormSinPic ? "✖ Cerrar" : "➕ Agregar artículo sin PIC"}
@@ -758,17 +820,10 @@ export function CrearFormOrdenCompra() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="divisa-sin-pic">Divisa</Label>
-                      <select
-                        id="divisa-sin-pic"
-                        value={articuloSinPic.divisa}
-                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, divisa: e.target.value as "USD" | "EUR" | "ARS" }))}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="ARS">ARS</option>
-                      </select>
+                      <Label>Divisa</Label>
+                      <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium">
+                        {formData.divisa}
+                      </div>
                     </div>
                   </div>
                   <Button
@@ -884,21 +939,9 @@ export function CrearFormOrdenCompra() {
                         </div>
                         <div>
                           <Label className="text-sm">Divisa</Label>
-                          <select
-                            value={item.divisa}
-                            onChange={(e) =>
-                              setItemsOrden(itemsOrden.map(current =>
-                                current.articulo_id === item.articulo_id
-                                  ? { ...current, divisa: e.target.value as ItemOrden["divisa"] }
-                                  : current
-                              ))
-                            }
-                            className="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="ARS">ARS</option>
-                          </select>
+                          <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium w-20">
+                            {formData.divisa}
+                          </div>
                         </div>
                         <div className="text-right">
                           <Label className="text-sm">Unit. c/ desc.</Label>
@@ -939,10 +982,36 @@ export function CrearFormOrdenCompra() {
                 />
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                 <h4 className="font-semibold text-lg mb-2">Resumen de la Orden</h4>
                 <p><strong>Total de Artículos:</strong> {itemsOrden.length}</p>
-                <p><strong>Total de la Orden:</strong> <span className="text-2xl font-bold text-green-600">${totalOrden.toLocaleString('es-AR')}</span></p>
+                <div className="flex items-center gap-2">
+                  <p><strong>Total de la Orden:</strong></p>
+                  <span className="font-medium">{formData.divisa}</span>
+                  <span className="text-2xl font-bold text-green-600">${totalOrden.toLocaleString('es-AR')}</span>
+                </div>
+                <div>
+                  <Label htmlFor="importe_competencia" className="text-sm text-gray-600">Importe competencia</Label>
+                  <Input
+                    id="importe_competencia"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.importe_competencia}
+                    onChange={(e) => setFormData({ ...formData, importe_competencia: e.target.value })}
+                    placeholder="Precio que cobraría la competencia"
+                    className="mt-1"
+                  />
+                  {ahorroCalculado !== null && (
+                    <p className="mt-1 text-sm">
+                      <strong>Ahorro:</strong>{" "}
+                      <span className={ahorroCalculado >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
+                        ${ahorroCalculado.toLocaleString('es-AR')}
+                        {ahorroCalculado >= 0 ? " (vs competencia)" : ""}
+                      </span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 

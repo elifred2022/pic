@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 interface OrdenCompra {
   id: number;
@@ -28,7 +29,15 @@ interface OrdenCompra {
   }>;
   estado: string;
   total: number;
+  divisa?: string;
+  importe_competencia?: number | null;
+  ahorro?: number | null;
   observaciones?: string;
+  condicion_pago?: string;
+  condi_proceso?: string;
+  cod_cta?: string;
+  sector?: string;
+  created_at?: string;
 } 
 
 export default function ListaOrdenesCompra() {
@@ -46,6 +55,7 @@ export default function ListaOrdenesCompra() {
   const [ocultarPendientes, setOcultarPendientes] = useState(false);
   const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [exportando, setExportando] = useState(false);
   
   const router = useRouter();
   const supabase = createClient();
@@ -303,6 +313,51 @@ export default function ListaOrdenesCompra() {
     return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
   };
 
+  const extractPIC = (articulos?: Array<{ articulo_id: string }>) => {
+    if (!articulos?.length) return "-";
+    const pics = new Set<string>();
+    articulos.forEach((a) => {
+      const id = a.articulo_id || "";
+      if (id.startsWith("productivo-") || id.startsWith("general-")) {
+        const match = id.match(/^(productivo|general)-(\d+)/);
+        if (match) pics.add(`${match[1]}-${match[2]}`);
+      } else if (id.startsWith("sin-pic-")) pics.add("Sin PIC");
+    });
+    return pics.size > 0 ? [...pics].join(", ") : "-";
+  };
+
+  const descargarExcel = useCallback(() => {
+    try {
+      setExportando(true);
+      const rows = ordenesFiltradas.map((o) => ({
+        estado: o.estado ?? "",
+        noc: o.noc ?? "",
+        pic: extractPIC(o.articulos),
+        sector: o.sector ?? "",
+        fecha: o.fecha
+          ? new Date(o.fecha).toLocaleDateString("es-AR")
+          : o.created_at
+            ? new Date(o.created_at).toLocaleDateString("es-AR")
+            : "",
+        proveedor: o.proveedor ?? "",
+        total: o.total ?? 0,
+        divisa: o.divisa ?? "USD",
+        condi_proceso: o.condi_proceso ?? "",
+        cod_cta: o.cod_cta ?? "",
+        importe_competencia: o.importe_competencia ?? "",
+        ahorro: o.ahorro ?? "",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Órdenes de Compra");
+      XLSX.writeFile(wb, `ordenes-compra-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error("Error al exportar Excel:", err);
+    } finally {
+      setExportando(false);
+    }
+  }, [ordenesFiltradas]);
+
   // Función para extraer solo el número del ID
   const extractIdNumber = (articuloId: string) => {
     // Si el ID tiene formato "productivo-123-articulo" o "general-456-articulo"
@@ -317,11 +372,21 @@ export default function ListaOrdenesCompra() {
 
   const renderOrdenesTab = () => (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
-        <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
-          ➕ Crear Nueva Orden
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={descargarExcel}
+            disabled={exportando || ordenesFiltradas.length === 0}
+            variant="outline"
+            className="border-green-500 text-green-700 hover:bg-green-50"
+          >
+            {exportando ? "⏳ Exportando..." : "📥 Descargar Excel"}
+          </Button>
+          <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
+            ➕ Crear Nueva Orden
+          </Button>
+        </div>
       </div>
 
       {/* Campo de búsqueda y filtro por fecha */}
@@ -449,6 +514,14 @@ export default function ListaOrdenesCompra() {
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
                       CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha).toLocaleDateString('es-AR')}
+                      <span className="ml-2">| {orden.divisa || 'USD'} ${orden.total?.toLocaleString('es-AR')}</span>
+                      {orden.importe_competencia != null && orden.importe_competencia > 0 && orden.ahorro != null && (
+                        <span className="ml-2">
+                          | Ahorro: <span className={(orden.ahorro ?? 0) >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
+                            ${Number(orden.ahorro).toLocaleString('es-AR')}
+                          </span>
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
