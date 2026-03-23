@@ -35,6 +35,7 @@ interface OrdenCompra {
   observaciones?: string;
   condicion_pago?: string;
   condi_proceso?: string;
+  tipo_pago?: string;
   cod_cta?: string;
   sector?: string;
   created_at?: string;
@@ -341,11 +342,12 @@ export default function ListaOrdenesCompra() {
             : "",
         proveedor: o.proveedor ?? "",
         total: o.total ?? 0,
-        divisa: o.divisa ?? "USD",
         condi_proceso: o.condi_proceso ?? "",
         cod_cta: o.cod_cta ?? "",
         importe_competencia: o.importe_competencia ?? "",
         ahorro: o.ahorro ?? "",
+        tipo_pago: o.tipo_pago ?? "",
+        divisa: o.divisa ?? "USD",
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
