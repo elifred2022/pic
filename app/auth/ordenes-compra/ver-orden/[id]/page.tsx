@@ -102,6 +102,7 @@ interface OrdenCompra {
   ahorro?: number | null;
   observaciones?: string;
   condicion_pago?: string;
+  tipo_pago?: string;
   articulos: Array<{
     articulo_id: string;
     articulo_nombre: string;
@@ -141,6 +142,7 @@ export default function VerOrdenCompraPage() {
     estado: '',
     observaciones: '',
     condicion_pago: '',
+    tipo_pago: '',
     lugar_entrega: '',
     cod_cta: '',
     sector: '',
@@ -300,6 +302,7 @@ export default function VerOrdenCompraPage() {
         estado: orden.estado,
         observaciones: orden.observaciones || '',
         condicion_pago: orden.condicion_pago || '',
+        tipo_pago: orden.tipo_pago || '',
         lugar_entrega: orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
@@ -329,6 +332,7 @@ export default function VerOrdenCompraPage() {
       estado: '',
       observaciones: '',
       condicion_pago: '',
+      tipo_pago: '',
       lugar_entrega: '',
       cod_cta: '',
       sector: '',
@@ -468,6 +472,7 @@ export default function VerOrdenCompraPage() {
         estado: editData.estado,
         observaciones: editData.observaciones,
         condicion_pago: editData.condicion_pago,
+        tipo_pago: editData.tipo_pago || null,
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
@@ -512,6 +517,7 @@ export default function VerOrdenCompraPage() {
         estado: editData.estado,
         observaciones: editData.observaciones,
         condicion_pago: editData.condicion_pago,
+        tipo_pago: editData.tipo_pago || undefined,
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
@@ -1067,6 +1073,21 @@ export default function VerOrdenCompraPage() {
                       <option value="ECHEQ 15 DIAS FF">ECHEQ 15 DIAS FF</option>
                       <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>
                       <option value="PAGO CONTRA ENTREGA">PAGO CONTRA ENTREGA</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-tipo-pago">Tipo de Pago</Label>
+                    <select
+                      id="edit-tipo-pago"
+                      value={editData.tipo_pago || ''}
+                      onChange={(e) => setEditData({ ...editData, tipo_pago: e.target.value })}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccione tipo de pago</option>
+                      <option value="CTA A">CTA A</option>
+                      <option value="CTA B">CTA B</option>
+                      <option value="MERCADO LIBRE">MERCADO LIBRE</option>
                     </select>
                   </div>
 
