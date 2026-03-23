@@ -69,12 +69,18 @@ export function CrearFormOrdenCompra() {
   const [totalOrden, setTotalOrden] = useState(0);
   const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
   const [mostrarFormSinPic, setMostrarFormSinPic] = useState(false);
-  const [articuloSinPic, setArticuloSinPic] = useState({
+  const [articuloSinPic, setArticuloSinPic] = useState<{
+    nombre: string;
+    cantidad: number;
+    precio_unitario: number;
+    descuento: number;
+    divisa: "USD" | "EUR" | "ARS";
+  }>({
     nombre: "",
     cantidad: 1,
     precio_unitario: 0,
     descuento: 0,
-    divisa: "USD" as const
+    divisa: "USD"
   });
   
   const [formData, setFormData] = useState({
