@@ -330,7 +330,12 @@ export default function ListaOrdenesCompra() {
   const descargarExcel = useCallback(() => {
     try {
       setExportando(true);
-      const rows = ordenesFiltradas.map((o) => ({
+      const ordenadasPorNoc = [...ordenesFiltradas].sort((a, b) => {
+        const nocA = Number(a.noc) || 0;
+        const nocB = Number(b.noc) || 0;
+        return nocA - nocB;
+      });
+      const rows = ordenadasPorNoc.map((o) => ({
         estado: o.estado ?? "",
         noc: o.noc ?? "",
         pic: extractPIC(o.articulos),
