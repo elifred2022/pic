@@ -85,6 +85,7 @@ export function CrearFormOrdenCompra() {
     sector: "",
     cod_cta: "",
     condicion_pago: "",
+    tipo_pago: "",
     condi_proceso: "",
     importe_competencia: "",
     divisa: "USD" as "USD" | "EUR" | "ARS"
@@ -519,6 +520,7 @@ export function CrearFormOrdenCompra() {
         sector: formData.sector,
         cod_cta: formData.cod_cta,
         condicion_pago: formData.condicion_pago,
+        tipo_pago: formData.tipo_pago || null,
         condi_proceso: formData.condi_proceso || null,
         noc: formData.noc,
         total: totalOrden,
@@ -686,15 +688,55 @@ export function CrearFormOrdenCompra() {
             {/* Código de Cuenta */}
             <div>
               <Label htmlFor="cod_cta">Código de Cuenta *</Label>
-              <Input
+              <select
                 id="cod_cta"
-                type="text"
                 value={formData.cod_cta}
                 onChange={(e) => setFormData({ ...formData, cod_cta: e.target.value })}
-                placeholder="Ingrese el código de cuenta"
                 required
-                className="w-full"
-              />
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Seleccione código de cuenta</option>
+                <option value="1111 MAQ VIDRIERIA">1111 MAQ VIDRIERIA</option>
+                <option value="1115 MAQ HERR GENERAL">1115 MAQ HERR GENERAL</option>
+                <option value="1401 MATERIA PRIMA PVC">1401 MATERIA PRIMA PVC</option>
+                <option value="1402 MATERIA PRIMA ALUMINIO">1402 MATERIA PRIMA ALUMINIO</option>
+                <option value="1403 MATERIA PRIMA VIDRIO">1403 MATERIA PRIMA VIDRIO</option>
+                <option value="1404 HERRAJES PANOL CARDALES">1404 HERRAJES PANOL CARDALES</option>
+                <option value="1408 SILICONA SELLADORES ESPUMA CARDALES">1408 SILICONA SELLADORES ESPUMA CARDALES</option>
+                <option value="1412 TORNILLERIA CARDALES">1412 TORNILLERIA CARDALES</option>
+                <option value="1413 TELA MOSQUITERO">1413 TELA MOSQUITERO</option>
+                <option value="1414 BURLETE">1414 BURLETE</option>
+                <option value="1415 FELPAS Y CORDON">1415 FELPAS Y CORDON</option>
+                <option value="1416 INSUMOS DVH">1416 INSUMOS DVH</option>
+                <option value="1509 ALMUERZOS VIANDAS">1509 ALMUERZOS VIANDAS</option>
+                <option value="1511 CAPACITACION DE PERSONAL">1511 CAPACITACION DE PERSONAL</option>
+                <option value="1512 INDUMENTARIA OPERARIOS">1512 INDUMENTARIA OPERARIOS</option>
+                <option value="1514 EPP">1514 EPP</option>
+                <option value="1527 ALCOHOL ISOP">1527 ALCOHOL ISOP</option>
+                <option value="1528 FERRET INSUMOS CARDALES">1528 FERRET INSUMOS CARDALES</option>
+                <option value="1529 EMBALAJE">1529 EMBALAJE</option>
+                <option value="1530 LUBRICANTE MAQUINAS">1530 LUBRICANTE MAQUINAS</option>
+                <option value="1540 MANTENIMIENTO PVC">1540 MANTENIMIENTO PVC</option>
+                <option value="1541 MANT MAQ VIDRIO">1541 MANT MAQ VIDRIO</option>
+                <option value="1545 MANTENIM MAQ GENERAL">1545 MANTENIM MAQ GENERAL</option>
+                <option value="1548 MANT RODADOS Y FLOTA">1548 MANT RODADOS Y FLOTA</option>
+                <option value="1549 MANTENIMIENTO INMUEBLE">1549 MANTENIMIENTO INMUEBLE</option>
+                <option value="1604 BOTIQUIN PRIM AUX">1604 BOTIQUIN PRIM AUX</option>
+                <option value="1604 FARMACIA CARDALES">1604 FARMACIA CARDALES</option>
+                <option value="1606 LIBRERÍA CARDALES">1606 LIBRERÍA CARDALES</option>
+                <option value="1625 HONO SEG E HIG">1625 HONO SEG E HIG</option>
+                <option value="1705 INV ESCOBAR">1705 INV ESCOBAR</option>
+                <option value="1706 INV EQUIP DE PRODUCCION">1706 INV EQUIP DE PRODUCCION</option>
+                <option value="1708 INV MOBILIARIO CARDALES">1708 INV MOBILIARIO CARDALES</option>
+                <option value="1709 INV EQUI COMPUT">1709 INV EQUI COMPUT</option>
+                <option value="2114 MAQ EQUIP Y HERRAM REPARACIONES">2114 MAQ EQUIP Y HERRAM REPARACIONES</option>
+                <option value="2404 HERRAJES GASCON">2404 HERRAJES GASCON</option>
+                <option value="2408 SILICONA SELLADORES ESPUMA GASCON">2408 SILICONA SELLADORES ESPUMA GASCON</option>
+                <option value="2412 TORNILLERIA GASCON">2412 TORNILLERIA GASCON</option>
+                <option value="2414 BURLETE GASCON">2414 BURLETE GASCON</option>
+                <option value="2415 FELPA Y CORDON GASCON">2415 FELPA Y CORDON GASCON</option>
+                <option value="2528 FERRET INSUMOS GASCON">2528 FERRET INSUMOS GASCON</option>
+              </select>
               <p className="text-sm text-gray-500 mt-1">
                 💳 Código de cuenta para la orden de compra
               </p>
@@ -726,6 +768,22 @@ export function CrearFormOrdenCompra() {
               <p className="text-sm text-gray-500 mt-1">
                 💳 Seleccione la forma de pago para la orden de compra
               </p>
+            </div>
+
+            {/* Tipo de Pago */}
+            <div>
+              <Label htmlFor="tipo_pago">Tipo de Pago</Label>
+              <select
+                id="tipo_pago"
+                value={formData.tipo_pago}
+                onChange={(e) => setFormData({ ...formData, tipo_pago: e.target.value })}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Seleccione tipo de pago</option>
+                <option value="CTA A">CTA A</option>
+                <option value="CTA B">CTA B</option>
+                <option value="MERCADO LIBRE">MERCADO LIBRE</option>
+              </select>
             </div>
 
             {/* Condición de Proceso */}

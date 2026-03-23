@@ -374,7 +374,21 @@ export default function ListaOrdenesCompra() {
     <div className="w-full">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
+            variant="outline"
+            className="border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            🏭 Pedidos Productivos
+          </Button>
+          <Button
+            onClick={() => router.push("/auth/list-adminpedidosgenerales")}
+            variant="outline"
+            className="border-purple-500 text-purple-600 hover:bg-purple-50"
+          >
+            📋 Pedidos Generales
+          </Button>
           <Button
             onClick={descargarExcel}
             disabled={exportando || ordenesFiltradas.length === 0}
@@ -515,11 +529,14 @@ export default function ListaOrdenesCompra() {
                     <p className="text-sm text-gray-600 mt-1">
                       CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha).toLocaleDateString('es-AR')}
                       <span className="ml-2">| {orden.divisa || 'USD'} ${orden.total?.toLocaleString('es-AR')}</span>
-                      {orden.importe_competencia != null && orden.importe_competencia > 0 && orden.ahorro != null && (
+                      {orden.importe_competencia != null && orden.importe_competencia > 0 && (
                         <span className="ml-2">
-                          | Ahorro: <span className={(orden.ahorro ?? 0) >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
-                            ${Number(orden.ahorro).toLocaleString('es-AR')}
-                          </span>
+                          | Imp. competencia: ${Number(orden.importe_competencia).toLocaleString('es-AR')}
+                          {orden.ahorro != null && (
+                            <> | Ahorro: <span className={(orden.ahorro ?? 0) >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
+                              ${Number(orden.ahorro).toLocaleString('es-AR')}
+                            </span></>
+                          )}
                         </span>
                       )}
                     </p>

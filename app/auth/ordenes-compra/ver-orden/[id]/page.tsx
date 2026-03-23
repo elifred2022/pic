@@ -113,6 +113,8 @@ interface OrdenCompra {
     total: number;
   }>;
   lugar_entrega: string;
+  cod_cta?: string;
+  sector?: string;
 }
 
 interface Proveedor {
@@ -140,7 +142,8 @@ export default function VerOrdenCompraPage() {
     observaciones: '',
     condicion_pago: '',
     lugar_entrega: '',
-    importe_competencia: '',
+    cod_cta: '',
+    sector: '',
     divisa: 'USD',
     articulos: [] as Array<{
       articulo_id: string;
@@ -236,7 +239,10 @@ export default function VerOrdenCompraPage() {
       if (tieneOtroDivisa) {
         setEditData(prev => ({
           ...prev,
-          articulos: prev.articulos.map(a => ({ ...a, divisa: prev.divisa || "USD" }))
+          articulos: prev.articulos.map(a => ({
+            ...a,
+            divisa: (prev.divisa === "EUR" || prev.divisa === "ARS" ? prev.divisa : "USD") as "USD" | "EUR" | "ARS"
+          }))
         }));
       }
     }
@@ -295,7 +301,8 @@ export default function VerOrdenCompraPage() {
         observaciones: orden.observaciones || '',
         condicion_pago: orden.condicion_pago || '',
         lugar_entrega: orden.lugar_entrega,
-        importe_competencia: orden.importe_competencia != null ? String(orden.importe_competencia) : '',
+        cod_cta: orden.cod_cta || '',
+        sector: orden.sector || '',
         divisa: orden.divisa || 'USD',
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
@@ -323,7 +330,8 @@ export default function VerOrdenCompraPage() {
       observaciones: '',
       condicion_pago: '',
       lugar_entrega: '',
-      importe_competencia: '',
+      cod_cta: '',
+      sector: '',
       divisa: 'USD',
       articulos: []
     });
@@ -441,7 +449,7 @@ export default function VerOrdenCompraPage() {
 
     try {
       setSaving(true);
-      const divisaOrden = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
+      const divisaOrden: "USD" | "EUR" | "ARS" = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
       const articulosActualizados = editData.articulos.map((item) => ({
         ...item,
         divisa: divisaOrden,
@@ -449,8 +457,6 @@ export default function VerOrdenCompraPage() {
         total: getRowTotal(item),
       }));
       const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
-      const importeComp = parseFloat(editData.importe_competencia) || 0;
-      const ahorro = importeComp > 0 ? importeComp - totalOrden : null;
 
       const payload = {
         divisa: divisaOrden,
@@ -463,10 +469,10 @@ export default function VerOrdenCompraPage() {
         observaciones: editData.observaciones,
         condicion_pago: editData.condicion_pago,
         lugar_entrega: editData.lugar_entrega,
+        cod_cta: editData.cod_cta || null,
+        sector: editData.sector || null,
         articulos: articulosActualizados,
         total: totalOrden,
-        importe_competencia: importeComp > 0 ? importeComp : null,
-        ahorro: ahorro,
       };
 
       const { data: datosActualizados, error } = await supabase
@@ -507,10 +513,10 @@ export default function VerOrdenCompraPage() {
         observaciones: editData.observaciones,
         condicion_pago: editData.condicion_pago,
         lugar_entrega: editData.lugar_entrega,
+        cod_cta: editData.cod_cta || undefined,
+        sector: editData.sector || undefined,
         articulos: articulosActualizados,
         total: totalOrden,
-        importe_competencia: importeComp > 0 ? importeComp : null,
-        ahorro: ahorro,
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
 
@@ -531,13 +537,14 @@ export default function VerOrdenCompraPage() {
       nuevoArticulo.precio_unitario,
       nuevoArticulo.descuento
     );
+    const divisaArt: "USD" | "EUR" | "ARS" = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
     const articulo = {
       articulo_id: `temp-${Date.now()}`,
       articulo_nombre: nuevoArticulo.articulo_nombre,
       cantidad: nuevoArticulo.cantidad,
       precio_unitario: nuevoArticulo.precio_unitario,
       descuento: nuevoArticulo.descuento,
-      divisa: editData.divisa || "USD",
+      divisa: divisaArt,
       costunitcdesc: precioConDescuento,
       total: nuevoArticulo.cantidad * precioConDescuento
     };
@@ -653,13 +660,27 @@ export default function VerOrdenCompraPage() {
           <h2 className="text-3xl font-bold text-gray-900 print:text-2xl">
             📋 Orden de Compra #{orden.noc}
           </h2>
-          <div className="flex gap-2 print-hidden">
+          <div className="flex flex-wrap gap-2 print-hidden">
             <Button
               onClick={handleOpenEditModal}
               variant="outline"
               className="border-blue-500 text-blue-600 hover:bg-blue-50"
             >
               ✏️ Editar
+            </Button>
+            <Button
+              onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
+              variant="outline"
+              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+            >
+              🏭 Pedidos Productivos
+            </Button>
+            <Button
+              onClick={() => router.push("/auth/list-adminpedidosgenerales")}
+              variant="outline"
+              className="border-purple-500 text-purple-600 hover:bg-purple-50"
+            >
+              📋 Pedidos Generales
             </Button>
             <Button
               onClick={() => router.push("/auth/ordenes-compra")}
@@ -750,21 +771,18 @@ export default function VerOrdenCompraPage() {
                 <p className="text-sm text-gray-600 print:text-xs">Dirección de Entrega</p>
                 <p className="font-medium print:text-sm">{orden.lugar_entrega}</p>
               </div>
-              {orden.importe_competencia != null && orden.importe_competencia > 0 && (
-                <>
-                  <div>
-                    <p className="text-sm text-gray-600 print:text-xs">Importe competencia</p>
-                    <p className="font-medium print:text-sm">${Number(orden.importe_competencia).toLocaleString('es-AR')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 print:text-xs">Ahorro</p>
-                    <p className={`font-medium print:text-sm ${(orden.ahorro ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${Number(orden.ahorro ?? 0).toLocaleString('es-AR')}
-                    </p>
-                  </div>
-                </>
+              {orden.cod_cta && (
+                <div>
+                  <p className="text-sm text-gray-600 print:text-xs">Código de Cuenta</p>
+                  <p className="font-medium print:text-sm">{orden.cod_cta}</p>
+                </div>
               )}
-
+              {orden.sector && (
+                <div>
+                  <p className="text-sm text-gray-600 print:text-xs">Sector</p>
+                  <p className="font-medium print:text-sm">{orden.sector}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1029,31 +1047,6 @@ export default function VerOrdenCompraPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="edit-importe-competencia">Importe competencia</Label>
-                    <Input
-                      id="edit-importe-competencia"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editData.importe_competencia}
-                      onChange={(e) => setEditData({ ...editData, importe_competencia: e.target.value })}
-                      placeholder="Precio que cobraría la competencia"
-                      className="w-full"
-                    />
-                    {editData.importe_competencia && parseFloat(editData.importe_competencia) > 0 && (
-                      <p className="text-sm mt-1">
-                        Ahorro: <span className={(() => {
-                          const tot = editData.articulos.reduce((s, i) => s + (i.total || 0), 0);
-                          const aho = parseFloat(editData.importe_competencia) - tot;
-                          return aho >= 0 ? 'text-green-600 font-semibold' : 'text-red-600';
-                        })()}>
-                          ${(parseFloat(editData.importe_competencia) - editData.articulos.reduce((s, i) => s + (i.total || 0), 0)).toLocaleString('es-AR')}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
                     <Label htmlFor="edit-condicion-pago">Condición de Pago</Label>
                     <select
                       id="edit-condicion-pago"
@@ -1075,6 +1068,70 @@ export default function VerOrdenCompraPage() {
                       <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>
                       <option value="PAGO CONTRA ENTREGA">PAGO CONTRA ENTREGA</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-cod-cta">Código de Cuenta</Label>
+                    <select
+                      id="edit-cod-cta"
+                      value={editData.cod_cta || ''}
+                      onChange={(e) => setEditData({ ...editData, cod_cta: e.target.value })}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccione código de cuenta</option>
+                      <option value="1111 MAQ VIDRIERIA">1111 MAQ VIDRIERIA</option>
+                      <option value="1115 MAQ HERR GENERAL">1115 MAQ HERR GENERAL</option>
+                      <option value="1401 MATERIA PRIMA PVC">1401 MATERIA PRIMA PVC</option>
+                      <option value="1402 MATERIA PRIMA ALUMINIO">1402 MATERIA PRIMA ALUMINIO</option>
+                      <option value="1403 MATERIA PRIMA VIDRIO">1403 MATERIA PRIMA VIDRIO</option>
+                      <option value="1404 HERRAJES PANOL CARDALES">1404 HERRAJES PANOL CARDALES</option>
+                      <option value="1408 SILICONA SELLADORES ESPUMA CARDALES">1408 SILICONA SELLADORES ESPUMA CARDALES</option>
+                      <option value="1412 TORNILLERIA CARDALES">1412 TORNILLERIA CARDALES</option>
+                      <option value="1413 TELA MOSQUITERO">1413 TELA MOSQUITERO</option>
+                      <option value="1414 BURLETE">1414 BURLETE</option>
+                      <option value="1415 FELPAS Y CORDON">1415 FELPAS Y CORDON</option>
+                      <option value="1416 INSUMOS DVH">1416 INSUMOS DVH</option>
+                      <option value="1509 ALMUERZOS VIANDAS">1509 ALMUERZOS VIANDAS</option>
+                      <option value="1511 CAPACITACION DE PERSONAL">1511 CAPACITACION DE PERSONAL</option>
+                      <option value="1512 INDUMENTARIA OPERARIOS">1512 INDUMENTARIA OPERARIOS</option>
+                      <option value="1514 EPP">1514 EPP</option>
+                      <option value="1527 ALCOHOL ISOP">1527 ALCOHOL ISOP</option>
+                      <option value="1528 FERRET INSUMOS CARDALES">1528 FERRET INSUMOS CARDALES</option>
+                      <option value="1529 EMBALAJE">1529 EMBALAJE</option>
+                      <option value="1530 LUBRICANTE MAQUINAS">1530 LUBRICANTE MAQUINAS</option>
+                      <option value="1540 MANTENIMIENTO PVC">1540 MANTENIMIENTO PVC</option>
+                      <option value="1541 MANT MAQ VIDRIO">1541 MANT MAQ VIDRIO</option>
+                      <option value="1545 MANTENIM MAQ GENERAL">1545 MANTENIM MAQ GENERAL</option>
+                      <option value="1548 MANT RODADOS Y FLOTA">1548 MANT RODADOS Y FLOTA</option>
+                      <option value="1549 MANTENIMIENTO INMUEBLE">1549 MANTENIMIENTO INMUEBLE</option>
+                      <option value="1604 BOTIQUIN PRIM AUX">1604 BOTIQUIN PRIM AUX</option>
+                      <option value="1604 FARMACIA CARDALES">1604 FARMACIA CARDALES</option>
+                      <option value="1606 LIBRERÍA CARDALES">1606 LIBRERÍA CARDALES</option>
+                      <option value="1625 HONO SEG E HIG">1625 HONO SEG E HIG</option>
+                      <option value="1705 INV ESCOBAR">1705 INV ESCOBAR</option>
+                      <option value="1706 INV EQUIP DE PRODUCCION">1706 INV EQUIP DE PRODUCCION</option>
+                      <option value="1708 INV MOBILIARIO CARDALES">1708 INV MOBILIARIO CARDALES</option>
+                      <option value="1709 INV EQUI COMPUT">1709 INV EQUI COMPUT</option>
+                      <option value="2114 MAQ EQUIP Y HERRAM REPARACIONES">2114 MAQ EQUIP Y HERRAM REPARACIONES</option>
+                      <option value="2404 HERRAJES GASCON">2404 HERRAJES GASCON</option>
+                      <option value="2408 SILICONA SELLADORES ESPUMA GASCON">2408 SILICONA SELLADORES ESPUMA GASCON</option>
+                      <option value="2412 TORNILLERIA GASCON">2412 TORNILLERIA GASCON</option>
+                      <option value="2414 BURLETE GASCON">2414 BURLETE GASCON</option>
+                      <option value="2415 FELPA Y CORDON GASCON">2415 FELPA Y CORDON GASCON</option>
+                      <option value="2528 FERRET INSUMOS GASCON">2528 FERRET INSUMOS GASCON</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-sector">Sector</Label>
+                    <Input
+                      id="edit-sector"
+                      type="text"
+                      value={editData.sector || ''}
+                      onChange={(e) => setEditData({ ...editData, sector: e.target.value })}
+                      placeholder="Ej: Compra directa, Ventas..."
+                      className="w-full"
+                    />
                   </div>
                 </div>
               </div>
