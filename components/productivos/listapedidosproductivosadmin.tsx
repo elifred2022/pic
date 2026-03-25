@@ -225,9 +225,9 @@ export default function ListaPedidosProductivosAdmin() {
 
       // Verificar en los artículos
       const matchArticulos = pedido.articulos?.some((art: Articulo) =>
-        ['codint', 'articulo', 'descripcion', 'provsug'].some((campo) => {
+        ['codint', 'articulo', 'descripcion', 'provsug', 'existencia'].some((campo) => {
           const val = art[campo as keyof Articulo];
-          return val && String(val).toLowerCase().includes(s);
+          return val !== null && val !== undefined && String(val).toLowerCase().includes(s);
         })
       ) ?? false;
 
@@ -512,7 +512,12 @@ const handleUpdatePedido = async () => {
               ? comparativaPedido.articulos.map(art => `
                 <div class="info-item">
                   <span class="info-label">${art.articulo}</span>
-                  <span>Cant: ${art.cant}</span>
+                </div>
+                <div class="info-item" style="margin-bottom: 4px;">
+                  <span style="font-size: 9px; color: #4b5563;">Desc: ${art.descripcion != null && String(art.descripcion).trim() !== '' ? art.descripcion : '-'}</span>
+                </div>
+                <div class="info-item">
+                  <span>Cant: ${art.cant} · Stock: ${art.existencia ?? '-'}</span>
                 </div>
                 <div class="info-item" style="margin-left: 15px; margin-bottom: 8px;">
                   <span style="font-family: monospace; background: #f3f4f6; padding: 1px 4px; border-radius: 2px; font-size: 8px;">
@@ -818,9 +823,11 @@ const handleUpdatePedido = async () => {
                         {p.articulos.map((art, index) => (
                           <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
                             <div className="font-medium text-gray-800">{art.articulo}</div>
-                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded">Código: {art.codint}</div>
+                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                             <div className="text-gray-600">Cant: {art.cant}</div>
+                            <div className="text-gray-600">Stock: {art.existencia ?? '-'}</div>
                             <div className="text-gray-600">Prov: {art.provsug || '-'}</div>
+                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                           </div>
                         ))}
                       </div>
@@ -887,10 +894,11 @@ const handleUpdatePedido = async () => {
                        {formData.articulos.map((art, index) => (
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
                            <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
-                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                           <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
                            <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
                            <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
+                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                          </div>
                        ))}
                      </div>
@@ -1289,10 +1297,11 @@ const handleUpdatePedido = async () => {
                        {comparativaPedido.articulos.map((art, index) => (
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
                            <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
-                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                           <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
-                           <div className="text-gray-600 text-xs">Desc: {art.descripcion}</div>
+                           <div className="text-gray-600 text-xs">Stock: {art.existencia ?? '-'}</div>
                            <div className="text-gray-600 text-xs">Observ: {art.observacion || '-'}</div>
+                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                          </div>
                        ))}
                      </div>
