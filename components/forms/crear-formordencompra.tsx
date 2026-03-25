@@ -38,12 +38,25 @@ interface ArticuloAprobado {
 interface ItemOrden {
   articulo_id: string;
   articulo_nombre: string;
+  articulo_db_id?: string | null; // id real en tabla articulos (si aplica)
+  codint?: string | null;
   cantidad: number;
   precio_unitario: number;
   descuento: number; // porcentaje 0-100
   costunitcdesc: number;
   divisa: "USD" | "EUR" | "ARS";
   total: number;
+}
+
+interface ArticuloCatalogo {
+  id: string;
+  codint: string | null;
+  articulo: string;
+  descripcion: string | null;
+  costunit: string | null;
+  descuento: string | null;
+  costunitcdesc: string | null;
+  divisa: string | null;
 }
 
 interface ArticuloOrden {
@@ -69,6 +82,9 @@ export function CrearFormOrdenCompra() {
   const [totalOrden, setTotalOrden] = useState(0);
   const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
   const [mostrarFormSinPic, setMostrarFormSinPic] = useState(false);
+  const [busquedaArticuloCatalogo, setBusquedaArticuloCatalogo] = useState("");
+  const [articulosCatalogo, setArticulosCatalogo] = useState<ArticuloCatalogo[]>([]);
+  const [buscandoCatalogo, setBuscandoCatalogo] = useState(false);
   const [articuloSinPic, setArticuloSinPic] = useState({
     nombre: "",
     cantidad: 1,
@@ -303,6 +319,36 @@ export function CrearFormOrdenCompra() {
     fetchUltimoNOC();
   }, [fetchProveedores, fetchArticulosAprobados, fetchUltimoNOC]);
 
+  useEffect(() => {
+    const term = busquedaArticuloCatalogo.trim();
+    if (term.length < 2) {
+      setArticulosCatalogo([]);
+      setBuscandoCatalogo(false);
+      return;
+    }
+
+    setBuscandoCatalogo(true);
+    const t = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("articulos")
+        .select("id,codint,articulo,descripcion,costunit,descuento,costunitcdesc,divisa")
+        .or(`codint.ilike.%${term}%,articulo.ilike.%${term}%`)
+        .limit(15);
+
+      if (error) {
+        console.error("Error buscando artículos en catálogo:", error);
+        setArticulosCatalogo([]);
+        setBuscandoCatalogo(false);
+        return;
+      }
+
+      setArticulosCatalogo((data as ArticuloCatalogo[]) || []);
+      setBuscandoCatalogo(false);
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [busquedaArticuloCatalogo, supabase]);
+
   const handleCuitChange = (valor: string) => {
     setFormData({ ...formData, cuit_proveedor: valor });
     
@@ -329,6 +375,8 @@ export function CrearFormOrdenCompra() {
     const nuevoItem: ItemOrden = {
       articulo_id: articulo.id,
       articulo_nombre: articulo.articulo,
+      articulo_db_id: null,
+      codint: null,
       cantidad: articulo.cantidad,
       precio_unitario: 0, // Precio por defecto, se puede editar después
       descuento: 0,
@@ -360,6 +408,8 @@ export function CrearFormOrdenCompra() {
     const nuevoItem: ItemOrden = {
       articulo_id: idUnico,
       articulo_nombre: nombre,
+      articulo_db_id: null,
+      codint: null,
       cantidad: articuloSinPic.cantidad,
       precio_unitario: articuloSinPic.precio_unitario,
       descuento: articuloSinPic.descuento,
@@ -370,6 +420,34 @@ export function CrearFormOrdenCompra() {
     setItemsOrden([...itemsOrden, nuevoItem]);
     setArticuloSinPic({ nombre: "", cantidad: 1, precio_unitario: 0, descuento: 0 });
     setMostrarFormSinPic(false);
+    setError(null);
+  };
+
+  const handleAgregarArticuloDesdeCatalogo = (art: ArticuloCatalogo) => {
+    // Evitar duplicados por id real
+    if (itemsOrden.some((i) => i.articulo_db_id && i.articulo_db_id === art.id)) {
+      setError("Este artículo ya está en la orden");
+      return;
+    }
+
+    const precioUnit = parseNumero(String(art.costunit ?? "0"));
+    const desc = parseNumero(String(art.descuento ?? "0"));
+    const precioConDescuento = calcularPrecioConDescuento(precioUnit, desc);
+
+    const nuevoItem: ItemOrden = {
+      articulo_id: `catalogo-${art.id}`,
+      articulo_nombre: art.articulo,
+      articulo_db_id: art.id,
+      codint: art.codint ?? null,
+      cantidad: 1,
+      precio_unitario: precioUnit,
+      descuento: desc,
+      costunitcdesc: precioConDescuento,
+      divisa: formData.divisa,
+      total: 1 * precioConDescuento,
+    };
+
+    setItemsOrden((prev) => [...prev, nuevoItem]);
     setError(null);
   };
 
@@ -446,7 +524,7 @@ export function CrearFormOrdenCompra() {
             item.precio_unitario,
             item.descuento
           );
-          return supabase
+          const query = supabase
             .from("articulos")
             .update({
               costunit: item.precio_unitario,
@@ -456,8 +534,13 @@ export function CrearFormOrdenCompra() {
               updated_at: new Date().toISOString(),
               ultimo_prov: proveedorSeleccionado?.nombreprov ?? null,
               update_usuario: updateUsuario,
-            })
-            .eq("articulo", item.articulo_nombre);
+            });
+
+          if (item.articulo_db_id) {
+            return query.eq("id", item.articulo_db_id);
+          }
+
+          return query.eq("articulo", item.articulo_nombre);
         })
     );
 
@@ -895,6 +978,64 @@ export function CrearFormOrdenCompra() {
               )}
             </div>
 
+            {/* Agregar artículo productivo desde catálogo (tabla articulos) */}
+            <div className="border border-dashed border-sky-300 rounded-lg p-4 bg-sky-50/50">
+              <Label className="text-sm font-semibold">Agregar artículo productivo (catálogo)</Label>
+              <p className="text-xs text-sky-700 mt-1">
+                Tipiá <strong>código interno</strong> o <strong>nombre</strong>. Se extrae de la tabla <strong>articulos</strong>.
+              </p>
+
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="busqueda-articulo-catalogo">Buscar</Label>
+                  <Input
+                    id="busqueda-articulo-catalogo"
+                    type="text"
+                    value={busquedaArticuloCatalogo}
+                    onChange={(e) => setBusquedaArticuloCatalogo(e.target.value)}
+                    placeholder="Ej: 1416 o BURLETE"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {buscandoCatalogo ? "Buscando..." : "Mínimo 2 caracteres"}
+                  </p>
+                </div>
+              </div>
+
+              {articulosCatalogo.length > 0 && (
+                <div className="mt-3 grid gap-2">
+                  {articulosCatalogo.map((a) => {
+                    const yaAgregado = itemsOrden.some((i) => i.articulo_db_id === a.id);
+                    return (
+                      <div key={a.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-sky-200">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{a.articulo}</span>
+                            {a.codint && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-sky-100 text-sky-800">
+                                CodInt: {a.codint}
+                              </span>
+                            )}
+                          </div>
+                          {a.descripcion && (
+                            <p className="text-xs text-gray-500 mt-1">Descripción: {a.descripcion}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => handleAgregarArticuloDesdeCatalogo(a)}
+                          className="bg-sky-600 hover:bg-sky-700"
+                          disabled={yaAgregado}
+                        >
+                          {yaAgregado ? "✅ Agregado" : "➕ Agregar"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Artículos Aprobados */}
             <div>
               <Label className="text-lg font-semibold">Artículos Aprobados Disponibles</Label>
@@ -956,6 +1097,11 @@ export function CrearFormOrdenCompra() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{item.articulo_nombre}</h4>
+                          {item.codint && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-sky-100 text-sky-800">
+                              CodInt: {item.codint}
+                            </span>
+                          )}
                           {item.articulo_id.startsWith("sin-pic-") && (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">Sin PIC</span>
                           )}
