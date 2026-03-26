@@ -812,7 +812,7 @@ export function CrearFormOrdenCompra() {
                 <option value="1706 INV EQUIP DE PRODUCCION">1706 INV EQUIP DE PRODUCCION</option>
                 <option value="1708 INV MOBILIARIO CARDALES">1708 INV MOBILIARIO CARDALES</option>
                 <option value="1709 INV EQUI COMPUT">1709 INV EQUI COMPUT</option>
-                <option value="2114 MAQ EQUIP Y HERRAM REPARACIONES">2114 MAQ EQUIP Y HERRAM REPARACIONES</option>
+                <option value="2114 MAQ EQUIP Y HERRAM REPAR COLOC">2114 MAQ EQUIP Y HERRAM REPAR COLOC</option>
                 <option value="2404 HERRAJES GASCON">2404 HERRAJES GASCON</option>
                 <option value="2408 SILICONA SELLADORES ESPUMA GASCON">2408 SILICONA SELLADORES ESPUMA GASCON</option>
                 <option value="2412 TORNILLERIA GASCON">2412 TORNILLERIA GASCON</option>
