@@ -9,6 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 interface OrdenCompra {
   id: number;
@@ -57,6 +65,8 @@ export default function ListaOrdenesCompra() {
   const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [exportandoDetalle, setExportandoDetalle] = useState(false);
+  const [tipoExcel, setTipoExcel] = useState<"resumen" | "detalle">("detalle");
   
   const router = useRouter();
   const supabase = createClient();
@@ -320,11 +330,25 @@ export default function ListaOrdenesCompra() {
     articulos.forEach((a) => {
       const id = a.articulo_id || "";
       if (id.startsWith("productivo-") || id.startsWith("general-")) {
-        const match = id.match(/^(productivo|general)-(\d+)/);
+        const match = id.match(/^(productivo|general)-([^-]+)/);
         if (match) pics.add(`${match[1]}-${match[2]}`);
       } else if (id.startsWith("sin-pic-")) pics.add("Sin PIC");
     });
     return pics.size > 0 ? [...pics].join(", ") : "-";
+  };
+
+  const parsePicFromArticuloId = (articuloId: string) => {
+    const id = articuloId || "";
+    if (id.startsWith("sin-pic-")) {
+      return { tipo: "sin-pic" as const, pedidoId: null as string | null, pic: "Sin PIC" };
+    }
+    const match = id.match(/^(productivo|general)-([^-]+)-/);
+    if (!match) {
+      return { tipo: "otro" as const, pedidoId: null as string | null, pic: "-" };
+    }
+    const tipo = match[1] as "productivo" | "general";
+    const pedidoId = match[2];
+    return { tipo, pedidoId, pic: `${tipo}-${pedidoId}` };
   };
 
   const descargarExcel = useCallback(() => {
@@ -365,6 +389,145 @@ export default function ListaOrdenesCompra() {
     }
   }, [ordenesFiltradas]);
 
+  const descargarExcelDetalle = useCallback(async () => {
+    try {
+      setExportandoDetalle(true);
+
+      const ordenadasPorNoc = [...ordenesFiltradas].sort((a, b) => {
+        const nocA = Number(a.noc) || 0;
+        const nocB = Number(b.noc) || 0;
+        return nocA - nocB;
+      });
+
+      const productivoIds = new Set<string>();
+      const generalIds = new Set<string>();
+
+      for (const o of ordenadasPorNoc) {
+        for (const it of o.articulos ?? []) {
+          const parsed = parsePicFromArticuloId(it.articulo_id);
+          if (parsed.tipo === "productivo" && parsed.pedidoId) productivoIds.add(parsed.pedidoId);
+          if (parsed.tipo === "general" && parsed.pedidoId) generalIds.add(parsed.pedidoId);
+        }
+      }
+
+      const [productivosRes, generalesRes] = await Promise.all([
+        productivoIds.size > 0
+          ? supabase
+              .from("pedidos_productivos")
+              .select("id, created_at, solicita, sector")
+              .in("id", [...productivoIds])
+          : Promise.resolve({ data: [], error: null } as { data: any[]; error: any }),
+        generalIds.size > 0
+          ? supabase.from("pic").select("id, created_at, solicita, sector").in("id", [...generalIds])
+          : Promise.resolve({ data: [], error: null } as { data: any[]; error: any }),
+      ]);
+
+      if (productivosRes.error) throw productivosRes.error;
+      if (generalesRes.error) throw generalesRes.error;
+
+      const pedidoMap = new Map<
+        string,
+        { created_at?: string | null; solicita?: string | null; sector?: string | null }
+      >();
+
+      (productivosRes.data || []).forEach((p: any) => {
+        if (p?.id) pedidoMap.set(`productivo:${p.id}`, p);
+      });
+      (generalesRes.data || []).forEach((p: any) => {
+        if (p?.id) pedidoMap.set(`general:${p.id}`, p);
+      });
+
+      const fmtFecha = (iso?: string | null) =>
+        iso ? new Date(iso).toLocaleDateString("es-AR") : "";
+
+      const rows = ordenadasPorNoc.flatMap((o) => {
+        const articulos = o.articulos ?? [];
+        return articulos.map((it) => {
+          const parsed = parsePicFromArticuloId(it.articulo_id);
+          const pedidoKey =
+            parsed.tipo === "productivo" || parsed.tipo === "general"
+              ? `${parsed.tipo}:${parsed.pedidoId}`
+              : null;
+          const pedido = pedidoKey ? pedidoMap.get(pedidoKey) : undefined;
+
+          return {
+            pic: parsed.pic,
+            fecha_pic: fmtFecha(pedido?.created_at ?? null),
+            sector: o.sector ?? pedido?.sector ?? "",
+            solicita: pedido?.solicita ?? "",
+            cod_cta: o.cod_cta ?? "",
+            cantidad: it.cantidad ?? 0,
+            articulo: it.articulo_nombre ?? "",
+            noc: o.noc ?? "",
+            proveedor: o.proveedor ?? "",
+            precio_unitario: it.precio_unitario ?? 0,
+            descuento: it.descuento ?? 0,
+            precio_con_descuento:
+              (it.precio_unitario ?? 0) *
+              (1 - Math.min(Math.max((it.descuento ?? 0) / 100, 0), 1)),
+            divisa: (it as any)?.divisa ?? o.divisa ?? "USD",
+          };
+        });
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows, {
+        header: [
+          "pic",
+          "fecha_pic",
+          "sector",
+          "solicita",
+          "cod_cta",
+          "cantidad",
+          "articulo",
+          "noc",
+          "proveedor",
+          "precio_unitario",
+          "descuento",
+          "precio_con_descuento",
+          "divisa",
+        ],
+      });
+
+      // Encabezados “lindos” en el orden requerido
+      XLSX.utils.sheet_add_aoa(
+        ws,
+        [[
+          "pic",
+          "fecha pic",
+          "sector",
+          "solicita",
+          "codigo de cuenta",
+          "cantidad",
+          "articulo",
+          "noc",
+          "proveedor",
+          "precio unitario",
+          "descuento",
+          "precio con descuento",
+          "divisa",
+        ]],
+        { origin: "A1" }
+      );
+
+      // Mover data una fila abajo para que no pise encabezados
+      XLSX.utils.sheet_add_json(ws, rows, {
+        origin: "A2",
+        skipHeader: true,
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Detalle OC");
+      XLSX.writeFile(
+        wb,
+        `ordenes-compra-detalle-${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (err) {
+      console.error("Error al exportar Excel (detalle):", err);
+    } finally {
+      setExportandoDetalle(false);
+    }
+  }, [ordenesFiltradas, supabase]);
+
   // Función para extraer solo el número del ID
   const extractIdNumber = (articuloId: string) => {
     // Si el ID tiene formato "productivo-123-articulo" o "general-456-articulo"
@@ -396,13 +559,36 @@ export default function ListaOrdenesCompra() {
           >
             📋 Pedidos Generales
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-gray-300">
+                {tipoExcel === "detalle" ? "Detalle PIC" : "Resumen OC"}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={tipoExcel}
+                onValueChange={(v) => setTipoExcel(v as "resumen" | "detalle")}
+              >
+                <DropdownMenuRadioItem value="detalle">Detalle PIC</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="resumen">Resumen OC</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
-            onClick={descargarExcel}
-            disabled={exportando || ordenesFiltradas.length === 0}
-            variant="outline"
-            className="border-green-500 text-green-700 hover:bg-green-50"
+            onClick={() => {
+              if (tipoExcel === "detalle") descargarExcelDetalle();
+              else descargarExcel();
+            }}
+            disabled={
+              ordenesFiltradas.length === 0 ||
+              exportando ||
+              exportandoDetalle
+            }
+            className="bg-green-600 hover:bg-green-700"
           >
-            {exportando ? "⏳ Exportando..." : "📥 Descargar Excel"}
+            {exportando || exportandoDetalle ? "⏳ Exportando..." : "📥 Descargar"}
           </Button>
           <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
             ➕ Crear Nueva Orden
