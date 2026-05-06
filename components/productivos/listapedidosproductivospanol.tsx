@@ -23,7 +23,7 @@ type Pedido = {
   proveedor_seleccionado: string | null;
   fecha_conf: string;
   fecha_prom: string;
-  fecha_ent: string;
+  fecha_ent: string | null;
   rto: number | null;
   fac: number | null;
   articulos: {
