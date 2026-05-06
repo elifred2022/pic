@@ -29,6 +29,8 @@ type Pedido = {
   controlado: string;
   supervisor: string;
   aprueba: string;
+  nota_aprobador?: string;
+  notas_aprobador?: string;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -846,7 +848,14 @@ const handleUpdatePedido = async () => {
                       <span className="text-sm text-gray-600">{p.supervisor}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</span>
+                      <span className="text-xs text-red-600 max-w-[180px] break-words">
+                        {p.notas_aprobador || p.nota_aprobador || "-"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.numero_oc)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.proveedor_seleccionado)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">${(Number(p.usd) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

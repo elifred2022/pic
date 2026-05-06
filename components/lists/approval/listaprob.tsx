@@ -49,6 +49,7 @@ type Pedido = {
   subt_prov3: number;
   estado: string;
   aprueba: string;
+  notas_aprobador: string;
   notas: string;
   oc: number;
   proveedor_selec: string;
@@ -294,9 +295,6 @@ export default function ListAprob() {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicita</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
@@ -335,6 +333,7 @@ export default function ListAprob() {
                             superviso: pedido.superviso,
                             estado: pedido.estado,
                             aprueba: pedido.aprueba,
+                            notas_aprobador: pedido.notas_aprobador,
                             oc: pedido.oc,
                             proveedor_selec: pedido.proveedor_selec,
                             fecha_conf: pedido.fecha_conf,
@@ -378,9 +377,6 @@ export default function ListAprob() {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.existencia}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
                       {Array.isArray(pedido.articulos) ? (
@@ -438,7 +434,14 @@ export default function ListAprob() {
 
 
 
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{renderValue(pedido.aprueba)}</span>
+                      <span className="text-xs text-red-600 max-w-[180px] break-words">
+                        {pedido.notas_aprobador || "-"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{pedido.oc}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(pedido.proveedor_selec)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>
@@ -666,6 +669,19 @@ export default function ListAprob() {
                     <option value="Carolina S.">Carolina S.</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nota del aprobador:</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.notas_aprobador ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notas_aprobador: e.target.value })
+                    }
+                    placeholder="Escribí una nota para este pedido"
+                  />
+                </div>
               </div>
 
               {/* Botones de acción */}
@@ -678,9 +694,14 @@ export default function ListAprob() {
                 </button>
                 <button
                   onClick={async () => {
+                    const cleanFormData = {
+                      ...formData,
+                    } as Partial<Pedido> & { notas_aporbador?: string };
+                    delete cleanFormData.notas_aporbador;
+
                     const { error } = await supabase
                       .from("pic")
-                      .update(formData)
+                      .update(cleanFormData)
                       .eq("id", editingPedido.id);
 
                     if (error) {

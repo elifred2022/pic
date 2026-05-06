@@ -15,6 +15,8 @@ type Pedido = {
   controlado: string;
   supervisor: string;
   aprueba: string;
+  notas_aprobador?: string;
+  nota_aprobador?: string;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -22,8 +24,8 @@ type Pedido = {
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string;
-  rto: number;
-  fac: number;
+  rto: number | null;
+  fac: number | null;
   articulos: {
     codint: string;
     articulo: string;
@@ -38,8 +40,10 @@ type Pedido = {
 export default function ListaPedidosProductivos() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
-    
-    
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+    const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
+    const [formData, setFormData] = useState<Partial<Pedido>>({});
+
     const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
     const [ocultarAprobados, setOcultarAprobados] = useState(false);
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
@@ -103,6 +107,8 @@ export default function ListaPedidosProductivos() {
         console.warn("No hay usuario logueado");
         return;
       }
+
+      setCurrentUserEmail(user.email ?? null);
   
       let query = supabase.from("pedidos_productivos").select("*");
       if (!isPanolEmail(user.email)) {
@@ -211,6 +217,51 @@ export default function ListaPedidosProductivos() {
     return String(value);
   }
 
+  function toDateInputValue(dateString: string | null | undefined): string {
+    if (!dateString) return "";
+    return dateString.split("T")[0];
+  }
+
+  const isPanolUser = isPanolEmail(currentUserEmail);
+
+  const handleSaveEdit = async () => {
+    if (!editingPedido) return;
+
+    const payload: Pick<Pedido, "fecha_ent" | "rto" | "fac" | "observ"> = {
+      fecha_ent: formData.fecha_ent || null,
+      rto: formData.rto ?? null,
+      fac: formData.fac ?? null,
+      observ: formData.observ || "",
+    };
+
+    const { error } = await supabase
+      .from("pedidos_productivos")
+      .update(payload)
+      .eq("id", editingPedido.id);
+
+    if (error) {
+      console.error("Error actualizando datos de entrega:", error);
+      return;
+    }
+
+    setPedidos((prev) =>
+      prev.map((p) =>
+        p.id === editingPedido.id
+          ? {
+              ...p,
+              fecha_ent: (payload.fecha_ent as string) || p.fecha_ent,
+              rto: payload.rto,
+              fac: payload.fac,
+              observ: payload.observ,
+            }
+          : p,
+      ),
+    );
+
+    setEditingPedido(null);
+    setFormData({});
+  };
+
 // Estilos para la tabla (comentados por ahora)
 // const headerClass = "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap";
 // const cellClass = "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
@@ -311,6 +362,9 @@ export default function ListaPedidosProductivos() {
           <table className="min-w-full table-auto border-collapse">
             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
               <tr>
+                {isPanolUser && (
+                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Acciones</th>
+                )}
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
@@ -334,6 +388,24 @@ export default function ListaPedidosProductivos() {
             <tbody>
               {filteredPedidos.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  {isPanolUser && (
+                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                      <button
+                        onClick={() => {
+                          setEditingPedido(p);
+                          setFormData({
+                            fecha_ent: toDateInputValue(p.fecha_ent),
+                            rto: p.rto,
+                            fac: p.fac,
+                            observ: p.observ || "",
+                          });
+                        }}
+                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
+                      >
+                        ✏️ Editar
+                      </button>
+                    </td>
+                  )}
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <span
                       className={
@@ -404,7 +476,14 @@ export default function ListaPedidosProductivos() {
                        <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
                      </div>
                    </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</span>
+                      <span className="text-xs text-red-600 max-w-[180px] break-words">
+                        {p.notas_aprobador || p.nota_aprobador || "-"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.numero_oc || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.proveedor_seleccionado || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
@@ -418,6 +497,85 @@ export default function ListaPedidosProductivos() {
           </table>
         </div>
       </div>
+
+      {editingPedido && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-screen overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold">✏️ Editar entrega #{editingPedido.id}</h2>
+              <p className="text-blue-100 mt-2">Carga de fecha entrega, RTO y FAC</p>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Entrega:</label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={toDateInputValue(formData.fecha_ent)}
+                    onChange={(e) => setFormData({ ...formData, fecha_ent: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.observ ?? ""}
+                    onChange={(e) => setFormData({ ...formData, observ: e.target.value })}
+                    placeholder="Agregá o modificá observaciones"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">RTO:</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.rto ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        rto: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">FAC:</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.fac ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        fac: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setEditingPedido(null);
+                    setFormData({});
+                  }}
+                  className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
+                >
+                  ❌ Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
+                >
+                  💾 Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

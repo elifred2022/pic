@@ -29,6 +29,7 @@ type Pedido = {
   controlado: string;
   supervisor: string;
   aprueba: string;
+  nota_aprobador: string;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -229,6 +230,7 @@ const handleUpdatePedido = async () => {
         observ: formData.observ,
         numero_oc: formData.numero_oc,
         proveedor_seleccionado: formData.proveedor_seleccionado,
+        nota_aprobador: formData.nota_aprobador,
     };
 
     // Solo actualiza la comparativa si estamos en el modal de edición completa
@@ -458,7 +460,14 @@ const handleUpdatePedido = async () => {
                        <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
                      </div>
                    </td>
-                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</span>
+                      <span className="text-xs text-red-600 max-w-[180px] break-words">
+                        {p.nota_aprobador || "-"}
+                      </span>
+                    </div>
+                  </td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.numero_oc || "-"}</td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{p.proveedor_seleccionado || "-"}</td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
@@ -598,6 +607,17 @@ const handleUpdatePedido = async () => {
                     onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nota del aprobador:</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  value={formData.nota_aprobador || ""}
+                  onChange={(e) => setFormData({ ...formData, nota_aprobador: e.target.value })}
+                  placeholder="Escribí una nota para este pedido"
+                />
               </div>
 
               {/* Botones de acción */}

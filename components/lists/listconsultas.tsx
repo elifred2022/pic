@@ -371,7 +371,14 @@ const cellClass =
                
               
             
-              <td className={cellClass}>{renderValue(pedido.aprueba)}</td>
+              <td className={cellClass}>
+                <div className="flex flex-col items-center gap-1">
+                  <span>{renderValue(pedido.aprueba)}</span>
+                  <span className="text-xs text-red-600 break-words">
+                    {(pedido as any).notas_aprobador || (pedido as any).nota_aprobador || "-"}
+                  </span>
+                </div>
+              </td>
               <td className={cellClass}>{pedido.oc}</td>
               <td className={cellClass}>{renderValue(pedido.proveedor_selec)}</td>
               <td className={cellClass}>{pedido.usd}</td>

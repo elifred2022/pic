@@ -28,6 +28,8 @@ type Pedido = {
   superviso: string;
   estado: string;
   aprueba: string;
+  notas_aprobador?: string;
+  nota_aprobador?: string;
   notas: string;
   oc: number;
   proveedor_selec: string;
@@ -455,7 +457,14 @@ function renderValue(value: unknown): string {
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                 </div>
               </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(pedido.aprueba)}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{renderValue(pedido.aprueba)}</span>
+                      <span className="text-xs text-red-600 max-w-[180px] break-words">
+                        {pedido.notas_aprobador || pedido.nota_aprobador || "-"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{pedido.oc}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(pedido.proveedor_selec) || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>

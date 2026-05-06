@@ -394,7 +394,14 @@ function renderValue(value: unknown): string {
               </td>
 
      
-      <td className="px-4 py-2 border">{renderValue(pedido.aprueba)}</td>
+      <td className="px-4 py-2 border">
+        <div className="flex flex-col items-center gap-1">
+          <span>{renderValue(pedido.aprueba)}</span>
+          <span className="text-xs text-red-600 break-words">
+            {(pedido as any).notas_aprobador || (pedido as any).nota_aprobador || "-"}
+          </span>
+        </div>
+      </td>
       <td className="px-4 py-2 border">{renderValue(pedido.oc)}</td>
       <td className="px-4 py-2 border">{renderValue(pedido.proveedor_selec)|| "-"}</td>
       <td className="px-4 py-2 border">{formatDate(pedido.fecha_conf)}</td>

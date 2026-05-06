@@ -11,6 +11,8 @@ type PedidoGeneral = {
   estado: string;
   sector: string;
   aprueba: string;
+  notas_aprobador?: string;
+  nota_aprobador?: string;
   fecha: string;
   solicita: string;
   categoria: string;
@@ -27,7 +29,7 @@ export default function ListaBiComponente() {
       setLoading(true);
       const { data, error } = await supabase
         .from("pic")
-        .select("id, numero_pic, estado, sector, aprueba, fecha, solicita, categoria")
+        .select("id, numero_pic, estado, sector, aprueba, notas_aprobador, nota_aprobador, fecha, solicita, categoria")
         .order("fecha", { ascending: false });
 
       if (error) {
@@ -129,7 +131,12 @@ export default function ListaBiComponente() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Aprueba:</span>
-                    <span className="ml-2 text-gray-900">{pedido.aprueba}</span>
+                    <div className="ml-2 flex flex-col">
+                      <span className="text-gray-900">{pedido.aprueba}</span>
+                      <span className="text-xs text-red-600 break-words">
+                        {pedido.notas_aprobador || pedido.nota_aprobador || "-"}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Solicita:</span>

@@ -38,6 +38,7 @@ type Pedido = {
   superviso: string;
   estado: string;
   aprueba: string;
+  notas_aprobador?: string;
   oc: number;
   proveedor_selec: string;
   usd: number;
@@ -881,7 +882,14 @@ export default function ListAdmin() {
                   </td>
                
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-red-600 text-xs max-w-32 break-words">{renderValue(pedido.notas)}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center"> {renderValue(pedido.aprueba)}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <span>{renderValue(pedido.aprueba)}</span>
+                  <span className="text-xs text-red-600 max-w-[180px] break-words">
+                    {pedido.notas_aprobador || "-"}
+                  </span>
+                </div>
+              </td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{pedido.oc}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{renderValue(pedido.proveedor_selec)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.usd}</td>
