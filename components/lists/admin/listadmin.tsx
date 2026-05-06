@@ -8,6 +8,7 @@ type ArticuloComparativa = {
   articulo: string;
   cant: number;
   precioUnitario: number | null;
+  descuentoPorcentaje: number;
   subtotal: number;
 };
 
@@ -83,6 +84,13 @@ export default function ListAdmin() {
   const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
   const supabase = createClient();
 
+  const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
+    const precioBase = precioUnitario || 0;
+    const descuentoNormalizado = Math.min(100, Math.max(0, descuentoPorcentaje || 0));
+    const precioConDescuento = precioBase * (1 - descuentoNormalizado / 100);
+    return precioConDescuento * cantidad;
+  };
+
   // ✅ Función para actualizar pedido
   const handleUpdatePedido = async () => {
     if (!editingPedido) return;
@@ -96,6 +104,7 @@ export default function ListAdmin() {
           articulo: art.articulo,
           cant: art.cant,
           precioUnitario: art.precioUnitario,
+          descuentoPorcentaje: art.descuentoPorcentaje || 0,
           subtotal: art.subtotal
         })),
         total: prov.total
@@ -122,26 +131,38 @@ export default function ListAdmin() {
 
   // Recalcular comparativa cuando se abre el modal de edición
   useEffect(() => {
-    if (editingPedido && formData.articulos && formData.articulos.length > 0) {
-      // Si ya existe comparativa en la base de datos, cargarla
-      if (editingPedido.comparativa_prov && Array.isArray(editingPedido.comparativa_prov)) {
-        setComparativaForm(editingPedido.comparativa_prov);
-      } else if (!comparativaForm) {
-        // Crear estructura inicial si no existe
-        const articulosBase = formData.articulos.map(a => ({
-          articulo: a.articulo,
-          cant: a.cant,
-          precioUnitario: null,
-          subtotal: 0
-        }));
+    if (!editingPedido || !formData.articulos || formData.articulos.length === 0) return;
 
-        setComparativaForm([
-          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-          { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
-        ]);
-      }
+    // Evita re-inicializar en cada render y romper el árbol con loops de estado.
+    if (comparativaForm) return;
+
+    // Si ya existe comparativa en la base de datos, cargarla
+    if (editingPedido.comparativa_prov && Array.isArray(editingPedido.comparativa_prov)) {
+      const comparativaConDescuento = editingPedido.comparativa_prov.map((prov) => ({
+        ...prov,
+        articulos: prov.articulos.map((art) => ({
+          ...art,
+          descuentoPorcentaje: art.descuentoPorcentaje || 0
+        }))
+      }));
+      setComparativaForm(comparativaConDescuento);
+      return;
     }
+
+    // Crear estructura inicial si no existe
+    const articulosBase = formData.articulos.map(a => ({
+      articulo: a.articulo,
+      cant: a.cant,
+      precioUnitario: null,
+      descuentoPorcentaje: 0,
+      subtotal: 0
+    }));
+
+    setComparativaForm([
+      { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+      { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+      { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
+    ]);
   }, [editingPedido, formData.articulos, comparativaForm]);
 
   // función para formatear las fechas
@@ -469,6 +490,7 @@ export default function ListAdmin() {
                       <div style="margin: 2px 0; padding: 2px; background: #f8fafc; border-radius: 2px;">
                         <strong>${art.articulo}</strong><br>
                         <span>Precio: $${(art.precioUnitario || 0).toLocaleString('es-AR')}</span><br>
+                        <span>Desc.: ${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</span><br>
                         <span>Subtotal: $${(art.subtotal || 0).toLocaleString('es-AR')}</span>
                       </div>
                     `).join('')}
@@ -916,7 +938,7 @@ export default function ListAdmin() {
       {/* ✅ Modal de edición */}
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1800px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">✏️ Editar Pedido General #{editingPedido.id}</h2>
               <p className="text-blue-100 mt-2">Modifica los datos del pedido general</p>
@@ -1128,7 +1150,7 @@ export default function ListAdmin() {
                             // Obtener la cantidad del artículo original del pedido
                             const articuloOriginal = formData.articulos!.find(a => a.articulo === art.articulo);
                             const cantidad = articuloOriginal?.cant || 0;
-                            const subtotal = (art.precioUnitario ? art.precioUnitario * cantidad : 0);
+                            const subtotal = calcularSubtotalConDescuento(art.precioUnitario, art.descuentoPorcentaje, cantidad);
                             
                             return {
                               ...art,
@@ -1177,6 +1199,7 @@ export default function ListAdmin() {
                           <tr className="border-b border-gray-200">
                             <th className="px-2 py-2 text-left font-medium">Artículo</th>
                             <th className="px-2 py-2 text-right font-medium">Precio Unit.</th>
+                            <th className="px-2 py-2 text-right font-medium">Desc. %</th>
                             <th className="px-2 py-2 text-right font-medium">Subtotal</th>
                           </tr>
                         </thead>
@@ -1194,15 +1217,52 @@ export default function ListAdmin() {
                                     
                                     const newComparativa = [...comparativaForm];
                                     const newPrecio = parseFloat(e.target.value) || 0;
+                                    const descuentoPorcentajeActual = newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje || 0;
                                     
                                     // Obtener la cantidad del artículo original del pedido
                                     const articuloOriginal = formData.articulos?.find(a => a.articulo === art.articulo);
                                     const cantidad = articuloOriginal?.cant || 0;
                                     
                                     newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
-                                    newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * cantidad;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
+                                      newPrecio,
+                                      descuentoPorcentajeActual,
+                                      cantidad
+                                    );
                                     
                                     // Recalcular total del proveedor
+                                    newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
+                                      (sum: number, articulo: ArticuloComparativa) => sum + (articulo.subtotal || 0), 0
+                                    );
+
+                                    setComparativaForm(newComparativa);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  value={art.descuentoPorcentaje || 0}
+                                  onChange={(e) => {
+                                    if (!comparativaForm) return;
+
+                                    const newComparativa = [...comparativaForm];
+                                    const nuevoDescuento = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                                    const precioUnitarioActual = newComparativa[provIndex].articulos[artIndex].precioUnitario;
+
+                                    const articuloOriginal = formData.articulos?.find(a => a.articulo === art.articulo);
+                                    const cantidad = articuloOriginal?.cant || 0;
+
+                                    newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje = nuevoDescuento;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
+                                      precioUnitarioActual,
+                                      nuevoDescuento,
+                                      cantidad
+                                    );
+
                                     newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
                                       (sum: number, articulo: ArticuloComparativa) => sum + (articulo.subtotal || 0), 0
                                     );
@@ -1362,7 +1422,7 @@ export default function ListAdmin() {
       {/* MODAL VER INFO */}
       {verInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">📋 Pedido interno de compra #{verInfo.id}</h2>
               <p className="text-green-100 mt-2">Información detallada del pedido</p>
@@ -1445,6 +1505,7 @@ export default function ListAdmin() {
                                  <tr className="border-b border-gray-200">
                                    <th className="px-2 py-1 text-left text-gray-600 font-medium">Artículo</th>
                                    <th className="px-2 py-1 text-right text-gray-600 font-medium">Precio Unit.</th>
+                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Desc. %</th>
                                    <th className="px-2 py-1 text-right text-gray-600 font-medium">Subtotal</th>
                                  </tr>
                                </thead>
@@ -1454,6 +1515,9 @@ export default function ListAdmin() {
                                      <td className="px-2 py-1 text-sm font-medium">{art.articulo}</td>
                                      <td className="px-2 py-1 text-right text-gray-700">
                                        ${(art.precioUnitario || 0).toLocaleString("es-AR")}
+                                     </td>
+                                     <td className="px-2 py-1 text-right text-gray-700">
+                                       {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
                                      </td>
                                      <td className="px-2 py-1 text-right font-medium text-gray-800">
                                        ${(art.subtotal || 0).toLocaleString("es-AR")}

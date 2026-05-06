@@ -8,6 +8,7 @@ type ArticuloComparativa = {
   articulo: string;
   cant: number;
   precioUnitario: number | null;
+  descuentoPorcentaje: number;
   subtotal: number;
 };
 
@@ -459,7 +460,7 @@ export default function ListAprob() {
       {/* Modal de edición */}
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">✏️ Editar Pedido #{editingPedido.id}</h2>
               <p className="text-blue-100 mt-2">Modifica los datos del pedido general</p>
@@ -561,6 +562,7 @@ export default function ListAprob() {
                                 <div className="font-medium text-gray-800 text-xs">{art.articulo}</div>
                                 <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
                                 <div className="text-gray-600 text-xs">Precio: ${(art.precioUnitario || 0).toLocaleString("es-AR")}</div>
+                                <div className="text-gray-600 text-xs">Desc.: {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</div>
                                 <div className="text-gray-600 text-xs font-semibold">Subtotal: ${(art.subtotal || 0).toLocaleString("es-AR")}</div>
                               </div>
                             ))}

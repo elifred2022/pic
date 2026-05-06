@@ -9,6 +9,7 @@ type ArticuloComparativa = {
   cant: number;
   articulo: string;
   precioUnitario: number | null;
+  descuentoPorcentaje: number;
   subtotal: number;
 };
 
@@ -83,6 +84,13 @@ export default function ListaPedidosProductivosAdmin() {
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const [fechaImpresion, setFechaImpresion] = useState("");
     const supabase = createClient();
+
+    const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
+      const precioBase = precioUnitario || 0;
+      const descuentoNormalizado = Math.min(100, Math.max(0, descuentoPorcentaje || 0));
+      const precioConDescuento = precioBase * (1 - descuentoNormalizado / 100);
+      return precioConDescuento * cantidad;
+    };
   
          /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
      useEffect(() => {
@@ -137,6 +145,7 @@ export default function ListaPedidosProductivosAdmin() {
             articulo: a.articulo,
             cant: a.cant,
             precioUnitario: null,
+            descuentoPorcentaje: 0,
             subtotal: 0
           }));
 
@@ -550,6 +559,7 @@ const handleUpdatePedido = async () => {
                       <th>Artículo</th>
                       <th>Cant.</th>
                       <th>Precio Unit.</th>
+                      <th>Desc. %</th>
                       <th>Subtotal</th>
                     </tr>
                   </thead>
@@ -559,6 +569,7 @@ const handleUpdatePedido = async () => {
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
                         <td>$${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
                         <td>$${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     `).join('')}
@@ -729,7 +740,8 @@ const handleUpdatePedido = async () => {
                                          ...prov,
                                          articulos: prov.articulos.map(art => ({
                                            ...art,
-                                           cant: art.cant || p.articulos.find(a => a.codint === art.codint)?.cant || 0
+                                          cant: art.cant || p.articulos.find(a => a.codint === art.codint)?.cant || 0,
+                                          descuentoPorcentaje: art.descuentoPorcentaje || 0
                                          }))
                                        }));
                                        setComparativaForm(comparativaConCant);
@@ -740,6 +752,7 @@ const handleUpdatePedido = async () => {
                                            articulo: a.articulo,
                                            cant: a.cant,
                                            precioUnitario: null,
+                                           descuentoPorcentaje: 0,
                                            subtotal: 0
                                        }));
 
@@ -876,7 +889,7 @@ const handleUpdatePedido = async () => {
     {/* ✅ Modal de edición */}
       {editingPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1800px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">✏️ Editar Pedido Productivo #{formData.id}</h2>
               <p className="text-blue-100 mt-2">Modifica los datos del pedido productivo</p>
@@ -968,7 +981,7 @@ const handleUpdatePedido = async () => {
                                // Obtener la cantidad del artículo original del pedido
                                const articuloOriginal = formData.articulos!.find(a => a.codint === art.codint);
                                const cantidad = articuloOriginal?.cant || 0;
-                               const subtotal = (art.precioUnitario ? art.precioUnitario * cantidad : 0);
+                               const subtotal = calcularSubtotalConDescuento(art.precioUnitario, art.descuentoPorcentaje, cantidad);
                                
                                return {
                                  ...art,
@@ -1015,6 +1028,7 @@ const handleUpdatePedido = async () => {
                           <tr className="border-b border-gray-200">
                             <th className="px-2 py-2 text-left font-medium">Artículo</th>
                             <th className="px-2 py-2 text-right font-medium">Precio Unit.</th>
+                            <th className="px-2 py-2 text-right font-medium">Desc. %</th>
                             <th className="px-2 py-2 text-right font-medium">Subtotal</th>
                                 </tr>
                               </thead>
@@ -1032,13 +1046,18 @@ const handleUpdatePedido = async () => {
                                            
                                            const newComparativa = [...comparativaForm];
                                            const newPrecio = parseFloat(e.target.value) || 0;
+                                          const descuentoPorcentajeActual = newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje || 0;
                                            
                                            // Obtener la cantidad del artículo original del pedido
                                            const articuloOriginal = formData.articulos?.find(a => a.codint === art.codint);
                                            const cantidad = articuloOriginal?.cant || 0;
                                            
                                            newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
-                                           newComparativa[provIndex].articulos[artIndex].subtotal = newPrecio * cantidad;
+                                          newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
+                                            newPrecio,
+                                            descuentoPorcentajeActual,
+                                            cantidad
+                                          );
                                            
                                            // Recalcular total del proveedor
                                            newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
@@ -1049,6 +1068,40 @@ const handleUpdatePedido = async () => {
                                          }}
                                       />
                                     </td>
+                              <td className="px-2 py-2 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  value={art.descuentoPorcentaje || 0}
+                                  onChange={(e) => {
+                                    if (!comparativaForm) return;
+
+                                    const newComparativa = [...comparativaForm];
+                                    const nuevoDescuento = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                                    const precioUnitarioActual = newComparativa[provIndex].articulos[artIndex].precioUnitario;
+
+                                    // Obtener la cantidad del artículo original del pedido
+                                    const articuloOriginal = formData.articulos?.find(a => a.codint === art.codint);
+                                    const cantidad = articuloOriginal?.cant || 0;
+
+                                    newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje = nuevoDescuento;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
+                                      precioUnitarioActual,
+                                      nuevoDescuento,
+                                      cantidad
+                                    );
+
+                                    // Recalcular total del proveedor
+                                    newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
+                                      (sum, articulo) => sum + (articulo.subtotal || 0), 0
+                                    );
+
+                                    setComparativaForm(newComparativa);
+                                  }}
+                                />
+                              </td>
                               <td className="px-2 py-2 text-right text-sm font-medium">
                                 ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
@@ -1281,7 +1334,7 @@ const handleUpdatePedido = async () => {
       {/* ✅ Modal de comparativa */}
 {comparativaPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{comparativaPedido.id}</h2>
               <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
@@ -1344,6 +1397,7 @@ const handleUpdatePedido = async () => {
                              <th className="px-2 py-2 text-center font-medium w-1/6">Cant.</th>
                              <th className="px-2 py-2 text-center font-medium w-1/6">Stock</th>
                              <th className="px-2 py-2 text-center font-medium w-1/6">Precio</th>
+                            <th className="px-2 py-2 text-center font-medium w-1/6">Desc. %</th>
                              <th className="px-2 py-2 text-center font-medium w-1/6">Subtotal</th>
                                          </tr>
                                      </thead>
@@ -1365,6 +1419,9 @@ const handleUpdatePedido = async () => {
                                <td className="px-2 py-2 text-center text-sm">
                                  ${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                </td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                {(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
+                              </td>
                                <td className="px-2 py-2 text-center text-sm">
                                  ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                </td>

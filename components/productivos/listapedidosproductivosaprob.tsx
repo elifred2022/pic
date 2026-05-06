@@ -9,6 +9,7 @@ type ArticuloComparativa = {
   cant: number;
   articulo: string;
   precioUnitario: number;
+  descuentoPorcentaje: number;
   subtotal: number;
 };
 
@@ -490,7 +491,7 @@ const handleUpdatePedido = async () => {
       {/* Modal de comparativa */}
       {comparativaPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{formData.id}</h2>
               <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
@@ -548,6 +549,7 @@ const handleUpdatePedido = async () => {
                             <th className="px-2 py-2 text-left font-medium">Artículo</th>
                             <th className="px-2 py-2 text-center font-medium">Cant.</th>
                             <th className="px-2 py-2 text-center font-medium">Precio</th>
+                            <th className="px-2 py-2 text-center font-medium">Desc. %</th>
                             <th className="px-2 py-2 text-center font-medium">Subtotal</th>
                           </tr>
                         </thead>
@@ -560,6 +562,9 @@ const handleUpdatePedido = async () => {
                               <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
                               <td className="px-2 py-2 text-center text-sm">
                                 ${(art.precioUnitario || 0).toFixed(0)}
+                              </td>
+                              <td className="px-2 py-2 text-center text-sm">
+                                {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
                               </td>
                               <td className="px-2 py-2 text-center text-sm">
                                 ${(art.subtotal || 0).toFixed(0)}
