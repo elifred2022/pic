@@ -614,6 +614,13 @@ export default function ListAprob() {
                     {renderValue(editingPedido.notas_comprador)}
                   </div>
                 </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">Notas del aprobador</p>
+                  <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                    {renderValue(editingPedido.notas_aprobador)}
+                  </div>
+                </div>
                 </div>
               </div>
 

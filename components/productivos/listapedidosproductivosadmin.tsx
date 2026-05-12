@@ -587,6 +587,15 @@ const handleUpdatePedido = async () => {
           }
         </div>
 
+        <div class="info-section" style="margin-top: 12px;">
+          <h3>Nota del comprador</h3>
+          <p style="margin: 0; font-size: 10px; white-space: pre-wrap;">${String(comparativaPedido.nota_comprador ?? '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        </div>
+        <div class="info-section" style="margin-top: 8px;">
+          <h3>Notas del aprobador</h3>
+          <p style="margin: 0; font-size: 10px; white-space: pre-wrap;">${String(comparativaPedido.notas_aprobador || comparativaPedido.nota_aprobador || '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        </div>
+
         <div class="fecha-impresion">
           Impreso el ${fechaImpresion}
         </div>
@@ -1458,6 +1467,13 @@ const handleUpdatePedido = async () => {
                     <p className="text-sm font-semibold text-gray-800 mb-2">Nota del comprador</p>
                     <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
                       {renderValue(comparativaPedido.nota_comprador)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Notas del aprobador</p>
+                    <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                      {renderValue(comparativaPedido.notas_aprobador || comparativaPedido.nota_aprobador)}
                     </div>
                   </div>
                 </div>

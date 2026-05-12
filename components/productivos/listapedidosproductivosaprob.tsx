@@ -31,6 +31,7 @@ type Pedido = {
   supervisor: string;
   aprueba: string;
   nota_aprobador: string;
+  notas_aprobador?: string;
   nota_comprador?: string;
   estado: string;
   observ: string;
@@ -586,6 +587,13 @@ const handleUpdatePedido = async () => {
                     <p className="text-sm font-semibold text-gray-800 mb-2">Nota del comprador</p>
                     <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
                       {renderValue(comparativaPedido.nota_comprador)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Notas del aprobador</p>
+                    <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                      {renderValue(comparativaPedido.notas_aprobador || comparativaPedido.nota_aprobador)}
                     </div>
                   </div>
                 </div>

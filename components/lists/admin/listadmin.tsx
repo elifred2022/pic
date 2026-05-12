@@ -40,6 +40,7 @@ type Pedido = {
   estado: string;
   aprueba: string;
   notas_aprobador?: string;
+  nota_aprobador?: string;
   oc: number;
   proveedor_selec: string;
   usd: number;
@@ -506,6 +507,10 @@ export default function ListAdmin() {
           <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
             <h4 style="margin: 0 0 6px 0; font-size: 10px;">Notas del comprador</h4>
             <p style="margin: 0; font-size: 9px; white-space: pre-wrap;">${String(verInfo.notas_comprador ?? '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+          </div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+            <h4 style="margin: 0 0 6px 0; font-size: 10px;">Notas del aprobador</h4>
+            <p style="margin: 0; font-size: 9px; white-space: pre-wrap;">${String(verInfo.notas_aprobador || verInfo.nota_aprobador || '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
           </div>
         </div>
         ` : ''}
@@ -1567,6 +1572,13 @@ export default function ListAdmin() {
                          <p className="text-sm font-semibold text-gray-800 mb-2">Notas del comprador</p>
                          <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
                            {renderValue(verInfo.notas_comprador)}
+                         </div>
+                       </div>
+
+                       <div className="mt-4 pt-4 border-t border-gray-300">
+                         <p className="text-sm font-semibold text-gray-800 mb-2">Notas del aprobador</p>
+                         <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                           {renderValue(verInfo.notas_aprobador || verInfo.nota_aprobador)}
                          </div>
                        </div>
                      </div>
