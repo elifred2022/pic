@@ -66,6 +66,7 @@ type Pedido = {
   cost_prov_tres: string | number;
   subt_prov3: number;
   comparativa_prov?: ProveedorComparativa[] | null;
+  notas_comprador?: string;
   // Agregá más campos si los usás en el .map()
 };
 
@@ -502,6 +503,10 @@ export default function ListAdmin() {
               </div>
             `).join('')}
           </div>
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+            <h4 style="margin: 0 0 6px 0; font-size: 10px;">Notas del comprador</h4>
+            <p style="margin: 0; font-size: 9px; white-space: pre-wrap;">${String(verInfo.notas_comprador ?? '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+          </div>
         </div>
         ` : ''}
         
@@ -736,6 +741,7 @@ export default function ListAdmin() {
                         prov_tres: pedido.prov_tres,
                         cost_prov_tres: pedido.cost_prov_tres,
                         subt_prov3: pedido.subt_prov3,
+                        notas_comprador: pedido.notas_comprador,
                       });
                     }}
                   >
@@ -781,6 +787,7 @@ export default function ListAdmin() {
                         prov_tres: pedido.prov_tres,
                         cost_prov_tres: pedido.cost_prov_tres,
                         subt_prov3: pedido.subt_prov3,
+                        notas_comprador: pedido.notas_comprador,
                       });
                     }}
                   >
@@ -1135,47 +1142,48 @@ export default function ListAdmin() {
 
               {/* Sección de Comparativa de Proveedores */}
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                    <span className="mr-2">📊</span>
-                    Comparativa de Proveedores
-                  </h3>
-                  <button
-                    onClick={() => {
-                      if (formData.articulos && formData.articulos.length > 0 && comparativaForm) {
-                        // Recalcular totales de proveedores
-                        const nuevaComparativa = comparativaForm.map(prov => ({
-                          ...prov,
-                          articulos: prov.articulos.map(art => {
-                            // Obtener la cantidad del artículo original del pedido
-                            const articuloOriginal = formData.articulos!.find(a => a.articulo === art.articulo);
-                            const cantidad = articuloOriginal?.cant || 0;
-                            const subtotal = calcularSubtotalConDescuento(art.precioUnitario, art.descuentoPorcentaje, cantidad);
-                            
-                            return {
-                              ...art,
-                              cant: cantidad, // Asegurar que tenga la cantidad correcta
-                              subtotal: subtotal
-                            };
-                          }),
-                          total: 0 // Se recalculará abajo
-                        }));
-                        
-                        // Recalcular totales de proveedores
-                        nuevaComparativa.forEach(prov => {
-                          prov.total = prov.articulos.reduce((sum: number, art: ArticuloComparativa) => sum + (art.subtotal || 0), 0);
-                        });
-                        
-                        setComparativaForm(nuevaComparativa);
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    🔄 Recalcular Totales
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {comparativaForm && comparativaForm.map((prov, provIndex) => (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <span className="mr-2">📊</span>
+                      Comparativa de Proveedores
+                    </h3>
+                    <button
+                      onClick={() => {
+                        if (formData.articulos && formData.articulos.length > 0 && comparativaForm) {
+                          // Recalcular totales de proveedores
+                          const nuevaComparativa = comparativaForm.map(prov => ({
+                            ...prov,
+                            articulos: prov.articulos.map(art => {
+                              // Obtener la cantidad del artículo original del pedido
+                              const articuloOriginal = formData.articulos!.find(a => a.articulo === art.articulo);
+                              const cantidad = articuloOriginal?.cant || 0;
+                              const subtotal = calcularSubtotalConDescuento(art.precioUnitario, art.descuentoPorcentaje, cantidad);
+                              
+                              return {
+                                ...art,
+                                cant: cantidad, // Asegurar que tenga la cantidad correcta
+                                subtotal: subtotal
+                              };
+                            }),
+                            total: 0 // Se recalculará abajo
+                          }));
+                          
+                          // Recalcular totales de proveedores
+                          nuevaComparativa.forEach(prov => {
+                            prov.total = prov.articulos.reduce((sum: number, art: ArticuloComparativa) => sum + (art.subtotal || 0), 0);
+                          });
+                          
+                          setComparativaForm(nuevaComparativa);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      🔄 Recalcular Totales
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {comparativaForm && comparativaForm.map((prov, provIndex) => (
                     <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
                       <label className="block mb-3 text-sm font-medium text-gray-700">
                         Proveedor {provIndex + 1}:
@@ -1283,6 +1291,22 @@ export default function ListAdmin() {
                       </div>
                     </div>
                   ))}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <label className="block text-sm font-medium text-amber-950 mb-2">
+                      Notas del comprador
+                    </label>
+                    <textarea
+                      className="w-full px-4 py-3 border border-amber-300 rounded-lg bg-white text-gray-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 text-sm"
+                      rows={3}
+                      placeholder="Observaciones de compras sobre la comparativa de precios..."
+                      value={formData.notas_comprador ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notas_comprador: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1491,48 +1515,60 @@ export default function ListAdmin() {
                  {/* Comparativa de Proveedores */}
                  {verInfo.comparativa_prov && Array.isArray(verInfo.comparativa_prov) && verInfo.comparativa_prov.length > 0 && (
                    <div className="mb-6">
-                     <h4 className="text-lg font-semibold text-gray-800 mb-4">📊 Comparativa de Proveedores</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                       {verInfo.comparativa_prov.map((prov, provIndex) => (
-                         <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                           <h5 className="font-semibold text-gray-800 mb-3 text-center">
-                             {prov.nombreProveedor || `Proveedor ${provIndex + 1}`}
-                           </h5>
-                           
-                           {prov.articulos && prov.articulos.length > 0 && (
-                             <table className="w-full text-sm">
-                               <thead>
-                                 <tr className="border-b border-gray-200">
-                                   <th className="px-2 py-1 text-left text-gray-600 font-medium">Artículo</th>
-                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Precio Unit.</th>
-                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Desc. %</th>
-                                   <th className="px-2 py-1 text-right text-gray-600 font-medium">Subtotal</th>
-                                 </tr>
-                               </thead>
-                               <tbody>
-                                 {prov.articulos.map((art, artIndex) => (
-                                   <tr key={artIndex} className="border-b border-gray-100 last:border-b-0">
-                                     <td className="px-2 py-1 text-sm font-medium">{art.articulo}</td>
-                                     <td className="px-2 py-1 text-right text-gray-700">
-                                       ${(art.precioUnitario || 0).toLocaleString("es-AR")}
-                                     </td>
-                                     <td className="px-2 py-1 text-right text-gray-700">
-                                       {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
-                                     </td>
-                                     <td className="px-2 py-1 text-right font-medium text-gray-800">
-                                       ${(art.subtotal || 0).toLocaleString("es-AR")}
-                                     </td>
+                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                       <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                         <span className="mr-2">💰</span>
+                         Cotizaciones de Proveedores
+                       </h4>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         {verInfo.comparativa_prov.map((prov, provIndex) => (
+                           <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
+                             <h5 className="font-semibold text-gray-800 mb-3 text-center">
+                               {prov.nombreProveedor || `Proveedor ${provIndex + 1}`}
+                             </h5>
+                             
+                             {prov.articulos && prov.articulos.length > 0 && (
+                               <table className="w-full text-sm">
+                                 <thead>
+                                   <tr className="border-b border-gray-200">
+                                     <th className="px-2 py-1 text-left text-gray-600 font-medium">Artículo</th>
+                                     <th className="px-2 py-1 text-right text-gray-600 font-medium">Precio Unit.</th>
+                                     <th className="px-2 py-1 text-right text-gray-600 font-medium">Desc. %</th>
+                                     <th className="px-2 py-1 text-right text-gray-600 font-medium">Subtotal</th>
                                    </tr>
-                                 ))}
-                               </tbody>
-                             </table>
-                           )}
-                           
-                           <div className="mt-3 text-center font-bold text-gray-800 bg-white p-2 rounded border">
-                             Total: ${(prov.total || 0).toLocaleString("es-AR")}
+                                 </thead>
+                                 <tbody>
+                                   {prov.articulos.map((art, artIndex) => (
+                                     <tr key={artIndex} className="border-b border-gray-100 last:border-b-0">
+                                       <td className="px-2 py-1 text-sm font-medium">{art.articulo}</td>
+                                       <td className="px-2 py-1 text-right text-gray-700">
+                                         ${(art.precioUnitario || 0).toLocaleString("es-AR")}
+                                       </td>
+                                       <td className="px-2 py-1 text-right text-gray-700">
+                                         {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
+                                       </td>
+                                       <td className="px-2 py-1 text-right font-medium text-gray-800">
+                                         ${(art.subtotal || 0).toLocaleString("es-AR")}
+                                       </td>
+                                     </tr>
+                                   ))}
+                                 </tbody>
+                               </table>
+                             )}
+                             
+                             <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-2 rounded border text-sm">
+                               Total: ${(prov.total || 0).toLocaleString("es-AR")}
+                             </div>
                            </div>
+                         ))}
+                       </div>
+
+                       <div className="mt-4 pt-4 border-t border-gray-300">
+                         <p className="text-sm font-semibold text-gray-800 mb-2">Notas del comprador</p>
+                         <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                           {renderValue(verInfo.notas_comprador)}
                          </div>
-                       ))}
+                       </div>
                      </div>
                    </div>
                  )}

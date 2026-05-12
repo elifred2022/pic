@@ -32,6 +32,7 @@ type Pedido = {
   aprueba: string;
   nota_aprobador?: string;
   notas_aprobador?: string;
+  nota_comprador?: string;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -301,7 +302,8 @@ const handleUpdatePedido = async () => {
     // Solo actualiza la comparativa si estamos en el modal de edición completa
     // donde el usuario tiene la capacidad de cambiar los precios.
     if (editingPedido) {
-        dataToUpdate.comparativa_prov = comparativaForm; 
+        dataToUpdate.comparativa_prov = comparativaForm;
+        dataToUpdate.nota_comprador = formData.nota_comprador;
     }
 
     const { error } = await supabase
@@ -1115,6 +1117,21 @@ const handleUpdatePedido = async () => {
                           </div>
                         ))}
                     </div>
+
+                <div className="mt-4 bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                  <label className="block text-sm font-medium text-amber-950 mb-2">
+                    Notas del comprador
+                  </label>
+                  <textarea
+                    className="w-full px-4 py-3 border border-amber-300 rounded-lg bg-white text-gray-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 text-sm"
+                    rows={3}
+                    placeholder="Observaciones de compras sobre la comparativa de precios..."
+                    value={formData.nota_comprador ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nota_comprador: e.target.value })
+                    }
+                  />
+                </div>
                   </div>
 
                {/* Campos de edición del estado */}
@@ -1375,13 +1392,14 @@ const handleUpdatePedido = async () => {
             
             {/* Sección de Comparativa de Proveedores (Solo lectura) */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <span className="mr-2">💰</span>
-                  Cotizaciones de Proveedores
-                </h3>
-                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span className="mr-2">💰</span>
+                    Cotizaciones de Proveedores
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                     <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
+                     <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
                                              <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
                                  <input
                                      type="text"
@@ -1434,8 +1452,16 @@ const handleUpdatePedido = async () => {
                                 </div>
                             </div>
                         ))}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Nota del comprador</p>
+                    <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                      {renderValue(comparativaPedido.nota_comprador)}
+                    </div>
+                  </div>
                 </div>
-            </div>
+              </div>
 
               <hr className="my-6" />
 

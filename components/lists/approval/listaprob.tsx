@@ -60,6 +60,7 @@ type Pedido = {
   rto: number;
   fac: number;
   comparativa_prov?: ProveedorComparativa[] | null;
+  notas_comprador?: string;
 };
 
 export default function ListAprob() {
@@ -540,17 +541,18 @@ export default function ListAprob() {
                )}
 
                {/* Comparativa de proveedores */}
-               <div className="mb-6" style={{display: 'block'}}>
+               <div className="mb-6">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <span className="mr-2">💰</span>
-                  Comparativa de Proveedores
+                  Cotizaciones de Proveedores
                 </h3>
                 
                 {/* Mostrar comparativa nueva si existe */}
                 {editingPedido.comparativa_prov && Array.isArray(editingPedido.comparativa_prov) && editingPedido.comparativa_prov.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {editingPedido.comparativa_prov.map((prov, provIndex) => (
-                      <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                      <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
                         <h4 className="font-medium text-gray-700 mb-3 text-center">
                           {prov.nombreProveedor || `Proveedor ${provIndex + 1}`}
                         </h4>
@@ -566,7 +568,7 @@ export default function ListAprob() {
                                 <div className="text-gray-600 text-xs font-semibold">Subtotal: ${(art.subtotal || 0).toLocaleString("es-AR")}</div>
                               </div>
                             ))}
-                            <div className="mt-3 text-center font-bold text-gray-800 bg-white p-2 rounded border">
+                            <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-2 rounded border text-sm">
                               Total: ${(prov.total || 0).toLocaleString("es-AR")}
                             </div>
                           </div>
@@ -577,7 +579,7 @@ export default function ListAprob() {
                 ) : (
                   /* Mostrar proveedores antiguos si no hay comparativa nueva */
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
                       <h4 className="font-medium text-gray-700 mb-3">Proveedor 1</h4>
                       <div className="space-y-2 text-sm">
                         <p><span className="font-medium">Nombre:</span> {editingPedido.prov_uno}</p>
@@ -586,7 +588,7 @@ export default function ListAprob() {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
                       <h4 className="font-medium text-gray-700 mb-3">Proveedor 2</h4>
                       <div className="space-y-2 text-sm">
                         <p><span className="font-medium">Nombre:</span> {editingPedido.prov_dos}</p>
@@ -595,7 +597,7 @@ export default function ListAprob() {
                       </div>
                     </div>
                      
-                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
                       <h4 className="font-medium text-gray-700 mb-3">Proveedor 3</h4>
                       <div className="space-y-2 text-sm">
                         <p><span className="font-medium">Nombre:</span> {editingPedido.prov_tres}</p>
@@ -605,6 +607,14 @@ export default function ListAprob() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">Notas del comprador</p>
+                  <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                    {renderValue(editingPedido.notas_comprador)}
+                  </div>
+                </div>
+                </div>
               </div>
 
               <hr className="my-6" />

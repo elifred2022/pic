@@ -31,6 +31,7 @@ type Pedido = {
   supervisor: string;
   aprueba: string;
   nota_aprobador: string;
+  nota_comprador?: string;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -528,13 +529,14 @@ const handleUpdatePedido = async () => {
               
               {/* Sección de Comparativa de Proveedores (Solo lectura) */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <span className="mr-2">💰</span>
-                  Cotizaciones de Proveedores
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span className="mr-2">💰</span>
+                    Cotizaciones de Proveedores
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                    <div key={provIndex} className="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm">
+                    <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
                       <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
                       <input
                         type="text"
@@ -573,11 +575,19 @@ const handleUpdatePedido = async () => {
                           ))}
                         </tbody>
                       </table>
-                      <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
+                      <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-3 rounded border text-sm">
                         Total: ${(prov.total || 0).toFixed(0)}
                       </div>
                     </div>
                   ))}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-300">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Nota del comprador</p>
+                    <div className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                      {renderValue(comparativaPedido.nota_comprador)}
+                    </div>
+                  </div>
                 </div>
               </div>
 
