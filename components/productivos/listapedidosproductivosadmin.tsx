@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
+
 type ArticuloComparativa = {
   codint: string;
   cant: number;
@@ -26,6 +28,7 @@ type Pedido = {
   necesidad: string;
   categoria: string;
   solicita: string;
+  nota_solicitante?: string | null;
   sector: string;
   controlado: string;
   supervisor: string;
@@ -33,6 +36,7 @@ type Pedido = {
   nota_aprobador?: string;
   notas_aprobador?: string;
   nota_comprador?: string;
+  comprador?: string | null;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -304,6 +308,7 @@ const handleUpdatePedido = async () => {
     if (editingPedido) {
         dataToUpdate.comparativa_prov = comparativaForm;
         dataToUpdate.nota_comprador = formData.nota_comprador;
+        dataToUpdate.comprador = formData.comprador?.trim() || null;
     }
 
     const { error } = await supabase
@@ -509,6 +514,18 @@ const handleUpdatePedido = async () => {
               <span class="info-label">Solicitante:</span>
               <span>${comparativaPedido.solicita || '-'}</span>
             </div>
+            ${
+              comparativaPedido.nota_solicitante &&
+              String(comparativaPedido.nota_solicitante).trim()
+                ? `<div class="info-item">
+              <span class="info-label">Notas solicitante:</span>
+              <span>${String(comparativaPedido.nota_solicitante)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")}</span>
+            </div>`
+                : ""
+            }
             <div class="info-item">
               <span class="info-label">Aprueba:</span>
               <span>${comparativaPedido.aprueba || '-'}</span>
@@ -720,6 +737,7 @@ const handleUpdatePedido = async () => {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículo Solicitado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Observ/Mensaje</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Comprador</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Prov. Selecc.</th>
@@ -841,7 +859,16 @@ const handleUpdatePedido = async () => {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.created_at)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.necesidad)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{p.solicita}</span>
+                      {p.nota_solicitante?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {p.nota_solicitante}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     {p.articulos && p.articulos.length > 0 ? (
@@ -870,6 +897,16 @@ const handleUpdatePedido = async () => {
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
                       <span className="text-sm text-gray-600">{p.supervisor}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{renderValue(p.comprador)}</span>
+                      {p.nota_comprador?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {p.nota_comprador}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
@@ -915,6 +952,12 @@ const handleUpdatePedido = async () => {
                    <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
                    <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
                    <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                   {formData.nota_solicitante?.trim() ? (
+                     <p className="text-gray-700 mb-2 text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                       <span className="font-medium text-gray-800">Notas solicitante:</span>{" "}
+                       {formData.nota_solicitante}
+                     </p>
+                   ) : null}
                  </div>
 
                  <div className="bg-gray-50 p-4 rounded-lg">
@@ -1141,6 +1184,29 @@ const handleUpdatePedido = async () => {
                     }
                   />
                 </div>
+
+                <div className="mt-4 bg-slate-50 border border-slate-200 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-slate-800 mb-2">
+                      Comprador asignado
+                    </label>
+                    <select
+                      className="w-full max-w-md px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.comprador ?? ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          comprador: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">Sin asignar</option>
+                      {COMPRADOR_OPCIONES.map((nombre) => (
+                        <option key={nombre} value={nombre}>
+                          {nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   </div>
 
                {/* Campos de edición del estado */}
@@ -1374,6 +1440,12 @@ const handleUpdatePedido = async () => {
                     <p><span className="font-medium">Fecha necesidad:</span> {formatDate(comparativaPedido.necesidad)}</p>
                     <p><span className="font-medium">Sector:</span> {comparativaPedido.sector}</p>
                     <p><span className="font-medium">Solicitante:</span> {comparativaPedido.solicita}</p>
+                    {comparativaPedido.nota_solicitante?.trim() ? (
+                      <p className="text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                        <span className="font-medium text-gray-800">Notas solicitante:</span>{" "}
+                        {comparativaPedido.nota_solicitante}
+                      </p>
+                    ) : null}
                     <p><span className="font-medium">Aprueba:</span> {comparativaPedido.aprueba}</p>
                   </div>
                 </div>

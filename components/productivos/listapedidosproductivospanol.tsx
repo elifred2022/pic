@@ -11,6 +11,7 @@ type Pedido = {
   necesidad: string;
   categoria: string;
   solicita: string;
+  nota_solicitante?: string | null;
   sector: string;
   controlado: string;
   supervisor: string;
@@ -21,6 +22,8 @@ type Pedido = {
   observ: string;
   numero_oc: string | null;
   proveedor_seleccionado: string | null;
+  comprador?: string | null;
+  nota_comprador?: string | null;
   fecha_conf: string;
   fecha_prom: string;
   fecha_ent: string | null;
@@ -227,11 +230,15 @@ export default function ListaPedidosProductivos() {
   const handleSaveEdit = async () => {
     if (!editingPedido) return;
 
-    const payload: Pick<Pedido, "fecha_ent" | "rto" | "fac" | "observ"> = {
+    const payload: Pick<
+      Pedido,
+      "fecha_ent" | "rto" | "fac" | "observ" | "nota_solicitante"
+    > = {
       fecha_ent: formData.fecha_ent || null,
       rto: formData.rto ?? null,
       fac: formData.fac ?? null,
       observ: formData.observ || "",
+      nota_solicitante: formData.nota_solicitante?.trim() || null,
     };
 
     const { error } = await supabase
@@ -253,6 +260,7 @@ export default function ListaPedidosProductivos() {
               rto: payload.rto,
               fac: payload.fac,
               observ: payload.observ,
+              nota_solicitante: payload.nota_solicitante,
             }
           : p,
       ),
@@ -375,6 +383,9 @@ export default function ListaPedidosProductivos() {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Observaciones</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                {isPanolUser && (
+                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Comprador</th>
+                )}
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Seleccionado</th>
@@ -398,6 +409,7 @@ export default function ListaPedidosProductivos() {
                             rto: p.rto,
                             fac: p.fac,
                             observ: p.observ || "",
+                            nota_solicitante: p.nota_solicitante ?? "",
                           });
                         }}
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
@@ -435,7 +447,16 @@ export default function ListaPedidosProductivos() {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.created_at)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.necesidad)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{p.solicita}</span>
+                      {p.nota_solicitante?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {p.nota_solicitante}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
@@ -476,11 +497,30 @@ export default function ListaPedidosProductivos() {
                        <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
                      </div>
                    </td>
+                  {isPanolUser && (
+                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-medium text-gray-800">{renderValue(p.comprador)}</span>
+                        {p.nota_comprador?.trim() ? (
+                          <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                            {p.nota_comprador}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</span>
-                      <span className="text-xs text-red-600 max-w-[180px] break-words">
-                        {p.notas_aprobador || p.nota_aprobador || "-"}
+                      <span
+                        className={
+                          (p.notas_aprobador || p.nota_aprobador)?.trim()
+                            ? "text-xs text-blue-700 font-bold max-w-[180px] break-words whitespace-pre-wrap"
+                            : "text-xs text-gray-400"
+                        }
+                      >
+                        {(p.notas_aprobador || p.nota_aprobador)?.trim() ||
+                          "-"}
                       </span>
                     </div>
                   </td>
@@ -503,7 +543,9 @@ export default function ListaPedidosProductivos() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-screen overflow-y-auto">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">✏️ Editar entrega #{editingPedido.id}</h2>
-              <p className="text-blue-100 mt-2">Carga de fecha entrega, RTO y FAC</p>
+              <p className="text-blue-100 mt-2">
+                Carga de fecha entrega, RTO, FAC y notas del solicitante
+              </p>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 gap-4">
@@ -526,6 +568,22 @@ export default function ListaPedidosProductivos() {
                     placeholder="Agregá o modificá observaciones"
                   />
                 </div>
+                {isPanolUser && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notas del solicitante:
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-y min-h-[88px]"
+                      value={formData.nota_solicitante ?? ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nota_solicitante: e.target.value })
+                      }
+                      placeholder="Aclaraciones del solicitante sobre el pedido"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">RTO:</label>
                   <input

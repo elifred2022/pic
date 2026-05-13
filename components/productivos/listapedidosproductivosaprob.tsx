@@ -26,6 +26,7 @@ type Pedido = {
   necesidad: string;
   categoria: string;
   solicita: string;
+  nota_solicitante?: string | null;
   sector: string;
   controlado: string;
   supervisor: string;
@@ -33,6 +34,7 @@ type Pedido = {
   nota_aprobador: string;
   notas_aprobador?: string;
   nota_comprador?: string;
+  comprador?: string | null;
   estado: string;
   observ: string;
   numero_oc: string | null;
@@ -376,6 +378,7 @@ const handleUpdatePedido = async () => {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículo Solicitado</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Observ/Mensaje</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Supervisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Comprador</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Prov. Selecc.</th>
@@ -434,7 +437,16 @@ const handleUpdatePedido = async () => {
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{new Date(p.created_at).toLocaleDateString()}</td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{new Date(p.necesidad).toLocaleDateString()}</td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
-                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.solicita}</td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="flex flex-col items-center gap-1">
+                       <span className="font-medium text-gray-800">{p.solicita}</span>
+                       {p.nota_solicitante?.trim() ? (
+                         <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                           {p.nota_solicitante}
+                         </span>
+                       ) : null}
+                     </div>
+                   </td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
                    <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                      {p.articulos && p.articulos.length > 0 ? (
@@ -461,6 +473,16 @@ const handleUpdatePedido = async () => {
                      <div className="flex flex-col gap-1">
                        <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
                        <span className="text-sm text-gray-600">{p.supervisor || "-"}</span>
+                     </div>
+                   </td>
+                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                     <div className="flex flex-col items-center gap-1">
+                       <span className="font-medium text-gray-800">{renderValue(p.comprador)}</span>
+                       {p.nota_comprador?.trim() ? (
+                         <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                           {p.nota_comprador}
+                         </span>
+                       ) : null}
                      </div>
                    </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
@@ -506,6 +528,12 @@ const handleUpdatePedido = async () => {
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Sector:</span> {formData.sector}</p>
                     <p><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                    {formData.nota_solicitante?.trim() ? (
+                      <p className="text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                        <span className="font-medium text-gray-800">Notas solicitante:</span>{" "}
+                        {formData.nota_solicitante}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 

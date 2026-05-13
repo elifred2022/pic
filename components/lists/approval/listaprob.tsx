@@ -24,6 +24,7 @@ type Pedido = {
   necesidad: string;
   categoria: string;
   solicita: string;
+  nota_solicitante?: string | null;
   sector: string;
   cc: number;
   cant: number;
@@ -61,6 +62,7 @@ type Pedido = {
   fac: number;
   comparativa_prov?: ProveedorComparativa[] | null;
   notas_comprador?: string;
+  comprador?: string | null;
 };
 
 export default function ListAprob() {
@@ -300,7 +302,7 @@ export default function ListAprob() {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
-                
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Comprador</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
@@ -325,6 +327,7 @@ export default function ListAprob() {
                             necesidad: pedido.necesidad,
                             categoria: pedido.categoria,
                             solicita: pedido.solicita,
+                            nota_solicitante: pedido.nota_solicitante,
                             sector: pedido.sector,
                             cc: pedido.cc,
                             cant: pedido.cant,
@@ -343,6 +346,8 @@ export default function ListAprob() {
                             fecha_ent: pedido.fecha_ent,
                             rto: pedido.rto,
                             fac: pedido.fac,
+                            notas_comprador: pedido.notas_comprador,
+                            comprador: pedido.comprador,
                           });
                         }}
                       >
@@ -377,7 +382,16 @@ export default function ListAprob() {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{pedido.solicita}</span>
+                      {pedido.nota_solicitante?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {pedido.nota_solicitante}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
@@ -433,9 +447,16 @@ export default function ListAprob() {
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                     </div>
                   </td>
-
-
-
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{renderValue(pedido.comprador)}</span>
+                      {pedido.notas_comprador?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {pedido.notas_comprador}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span>{renderValue(pedido.aprueba)}</span>
@@ -475,6 +496,12 @@ export default function ListAprob() {
                     <p><span className="font-medium">Fecha necesidad:</span> {formatDate(editingPedido.necesidad)}</p>
                     <p><span className="font-medium">Sector:</span> {editingPedido.sector}</p>
                     <p><span className="font-medium">Solicitante:</span> {editingPedido.solicita}</p>
+                    {editingPedido.nota_solicitante?.trim() ? (
+                      <p className="text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                        <span className="font-medium text-gray-800">Notas solicitante:</span>{" "}
+                        {editingPedido.nota_solicitante}
+                      </p>
+                    ) : null}
                     <p><span className="font-medium">Aprueba:</span> {editingPedido.aprueba}</p>
                   </div>
                 </div>

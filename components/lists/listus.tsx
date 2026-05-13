@@ -30,6 +30,9 @@ type Pedido = {
   aprueba: string;
   notas_aprobador?: string;
   nota_aprobador?: string;
+  comprador?: string | null;
+  notas_comprador?: string | null;
+  nota_solicitante?: string | null;
   notas: string;
   oc: number;
   proveedor_selec: string;
@@ -321,11 +324,10 @@ function renderValue(value: unknown): string {
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicita</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Sol</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cant Exist</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Comprador</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
@@ -352,8 +354,6 @@ function renderValue(value: unknown): string {
                 solicita: pedido.solicita,
                 sector: pedido.sector,
                 cc: pedido.cc,
-                cant: pedido.cant,
-                cant_exist: pedido.cant_exist,
                                                          articulos: pedido.articulos,
                 descripcion: pedido.descripcion,
                  controlado: pedido.controlado,
@@ -366,6 +366,7 @@ function renderValue(value: unknown): string {
                 fecha_ent: pedido.fecha_ent,
                 rto: pedido.rto,
                 fac: pedido.fac,
+                nota_solicitante: pedido.nota_solicitante ?? "",
               });
             }}
           >
@@ -400,11 +401,18 @@ function renderValue(value: unknown): string {
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{pedido.solicita}</span>
+                      {pedido.nota_solicitante?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {pedido.nota_solicitante}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cc}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant}</td>
-                                              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.cant_exist}</td>
                             <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                               <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
                                                                  {Array.isArray(pedido.articulos) ? (
@@ -457,6 +465,16 @@ function renderValue(value: unknown): string {
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                 </div>
               </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{renderValue(pedido.comprador)}</span>
+                      {pedido.notas_comprador?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {pedido.notas_comprador}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span>{renderValue(pedido.aprueba)}</span>
@@ -595,6 +613,20 @@ function renderValue(value: unknown): string {
 
               {/* Campos de edición */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nota del solicitante:
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-y min-h-[5rem]"
+                    placeholder="Comentarios visibles para compras / aprobación…"
+                    value={formData.nota_solicitante ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nota_solicitante: e.target.value })
+                    }
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Descripción/Observación:</label>
               <input

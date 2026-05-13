@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
+
 type ArticuloComparativa = {
   articulo: string;
   cant: number;
@@ -24,6 +26,7 @@ type Pedido = {
   necesidad: string;
   categoria: string;
   solicita: string;
+  nota_solicitante?: string | null;
   sector: string;
 
   articulos: Array<{
@@ -68,6 +71,7 @@ type Pedido = {
   subt_prov3: number;
   comparativa_prov?: ProveedorComparativa[] | null;
   notas_comprador?: string;
+  comprador?: string | null;
   // Agregá más campos si los usás en el .map()
 };
 
@@ -98,7 +102,7 @@ export default function ListAdmin() {
     if (!editingPedido) return;
     
     // Preparar datos para actualizar, incluyendo la comparativa de proveedores
-    const datosActualizar = {
+    const datosActualizar: Record<string, unknown> = {
       ...formData,
       comparativa_prov: comparativaForm ? comparativaForm.map(prov => ({
         nombreProveedor: prov.nombreProveedor,
@@ -112,6 +116,11 @@ export default function ListAdmin() {
         total: prov.total
       })) : null
     };
+
+    datosActualizar.comprador =
+      typeof formData.comprador === "string" && formData.comprador.trim()
+        ? formData.comprador.trim()
+        : null;
     
     const { error } = await supabase
       .from("pic")
@@ -397,6 +406,18 @@ export default function ListAdmin() {
               <tr>
                 <td><strong>Solicitante</strong></td>
                 <td>${verInfo.solicita || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Notas solicitante</strong></td>
+                <td>${verInfo.nota_solicitante && String(verInfo.nota_solicitante).trim() ? String(verInfo.nota_solicitante).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>') : '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Comprador</strong></td>
+                <td>${verInfo.comprador ? String(verInfo.comprador).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Notas del comprador</strong></td>
+                <td>${verInfo.notas_comprador && String(verInfo.notas_comprador).trim() ? String(verInfo.notas_comprador).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>') : '-'}</td>
               </tr>
               <tr>
                 <td><strong>Sector</strong></td>
@@ -685,6 +706,7 @@ export default function ListAdmin() {
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado/Revisado</th>
+                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Comprador</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Notas</th>
                   <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
@@ -715,6 +737,7 @@ export default function ListAdmin() {
                         necesidad: pedido.necesidad,
                         categoria: pedido.categoria,
                         solicita: pedido.solicita,
+                        nota_solicitante: pedido.nota_solicitante,
                         sector: pedido.sector,
                         articulos: pedido.articulos,
                         notas: pedido.notas,
@@ -747,6 +770,7 @@ export default function ListAdmin() {
                         cost_prov_tres: pedido.cost_prov_tres,
                         subt_prov3: pedido.subt_prov3,
                         notas_comprador: pedido.notas_comprador,
+                        comprador: pedido.comprador,
                       });
                     }}
                   >
@@ -761,6 +785,7 @@ export default function ListAdmin() {
                         necesidad: pedido.necesidad,
                         categoria: pedido.categoria,
                         solicita: pedido.solicita,
+                        nota_solicitante: pedido.nota_solicitante,
                         sector: pedido.sector,
                         articulos: pedido.articulos,
                         notas: pedido.notas,
@@ -793,6 +818,7 @@ export default function ListAdmin() {
                         cost_prov_tres: pedido.cost_prov_tres,
                         subt_prov3: pedido.subt_prov3,
                         notas_comprador: pedido.notas_comprador,
+                        comprador: pedido.comprador,
                       });
                     }}
                   >
@@ -852,7 +878,16 @@ export default function ListAdmin() {
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.necesidad)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.categoria}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.solicita}</td>
+              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-medium text-gray-800">{pedido.solicita}</span>
+                  {pedido.nota_solicitante?.trim() ? (
+                    <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                      {pedido.nota_solicitante}
+                    </span>
+                  ) : null}
+                </div>
+              </td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.sector}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                 <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
@@ -914,6 +949,16 @@ export default function ListAdmin() {
                       <span className="text-sm text-gray-600">{pedido.superviso}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-800">{renderValue(pedido.comprador)}</span>
+                      {pedido.notas_comprador?.trim() ? (
+                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
+                          {pedido.notas_comprador}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-red-600 text-xs max-w-32 break-words">{renderValue(pedido.notas)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
@@ -965,6 +1010,12 @@ export default function ListAdmin() {
                   <p className="text-gray-700 mb-2"><span className="font-medium">Sector:</span> {formData.sector}</p>
                   <p className="text-gray-700 mb-2"><span className="font-medium">Categoría:</span> {formData.categoria}</p>
                   <p className="text-gray-700 mb-2"><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
+                  {formData.nota_solicitante?.trim() ? (
+                    <p className="text-gray-700 mb-2 text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                      <span className="font-medium text-gray-800">Notas solicitante:</span>{" "}
+                      {formData.nota_solicitante}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -1312,6 +1363,29 @@ export default function ListAdmin() {
                       }
                     />
                   </div>
+
+                  <div className="mt-4 bg-slate-50 border border-slate-200 p-4 rounded-lg">
+                    <label className="block text-sm font-medium text-slate-800 mb-2">
+                      Comprador asignado
+                    </label>
+                    <select
+                      className="w-full max-w-md px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={formData.comprador ?? ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          comprador: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">Sin asignar</option>
+                      {COMPRADOR_OPCIONES.map((nombre) => (
+                        <option key={nombre} value={nombre}>
+                          {nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1464,6 +1538,26 @@ export default function ListAdmin() {
                   <br/>
                 <span className="text-black font-semibold">Solicita: {verInfo.solicita}</span>
                 <br/>
+                {verInfo.nota_solicitante?.trim() ? (
+                  <>
+                    <span className="text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                      Notas solicitante: {verInfo.nota_solicitante}
+                    </span>
+                    <br/>
+                  </>
+                ) : null}
+                <span className="text-black font-semibold">
+                  Comprador: {verInfo.comprador ? renderValue(verInfo.comprador) : "-"}
+                </span>
+                <br />
+                {verInfo.notas_comprador?.trim() ? (
+                  <>
+                    <span className="text-sm text-blue-700 font-bold whitespace-pre-wrap">
+                      Notas del comprador: {verInfo.notas_comprador}
+                    </span>
+                    <br />
+                  </>
+                ) : null}
                 <span className="text-black font-semibold">Aprueba: {verInfo.aprueba}</span>
               </div>
               {/* Mostrar lista de artículos */}
