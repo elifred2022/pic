@@ -28,12 +28,59 @@ type TipologiaItem = {
   descripcion?: string | null; // texto
   marco?: number | null; // numerico
   hojas?: number | null; // numerico
-  guias?: number | null; // numerico
-  hojas_mosq?: number | null; // numerico
-  umbral?: number | null; // numerico
+  guias?: number | null; // guía aluminio (legacy: "Guías")
+  guia_mosquitero?: number | null;
+  mosq_comun?: number | null;
+  mosq_riel?: number | null;
+  mosquitero_fijo?: number | null;
+  unidades_mq?: number | null;
+  guia_emb?: number | null;
+  umbral_pvc?: number | null;
+  umbral_aluminio?: number | null;
+  hojas_mosq?: number | null; // numerico (legacy; importación nueva usa unidades_mq)
+  umbral?: number | null; // numerico (legacy umbral único)
   ancho?: number | null; // numerico
   alto?: number | null; // numerico
 };
+
+/** Orden de columnas al importar Excel (índice 0 = columna A). */
+const ESTADO_OBRA_EXCEL_IMPORT_COLS = 15;
+const EXCEL_COL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
+  k: keyof Pick<
+    TipologiaItem,
+    | "marco"
+    | "hojas"
+    | "guias"
+    | "guia_mosquitero"
+    | "mosq_comun"
+    | "mosq_riel"
+    | "mosquitero_fijo"
+    | "unidades_mq"
+    | "guia_emb"
+    | "umbral_pvc"
+    | "umbral_aluminio"
+    | "ancho"
+    | "alto"
+  >;
+  title: string;
+  abbrev: string;
+}> = [
+  { k: "marco", title: "Marco", abbrev: "Mar" },
+  { k: "hojas", title: "Hojas", abbrev: "Hoj" },
+  { k: "guias", title: "Guía aluminio", abbrev: "G.Al" },
+  { k: "guia_mosquitero", title: "Guía mosquitero", abbrev: "G.Mq" },
+  { k: "mosq_comun", title: "Mosq. común", abbrev: "M.c" },
+  { k: "mosq_riel", title: "Mosq. riel", abbrev: "M.r" },
+  { k: "mosquitero_fijo", title: "Mosq. fijo", abbrev: "M.f" },
+  { k: "unidades_mq", title: "Unid. mq", abbrev: "U.mq" },
+  { k: "guia_emb", title: "Guía emb.", abbrev: "G.e" },
+  { k: "umbral_pvc", title: "Umbral PVC", abbrev: "U.P" },
+  { k: "umbral_aluminio", title: "Umbral aluminio", abbrev: "U.Al" },
+  { k: "ancho", title: "Ancho", abbrev: "Anc" },
+  { k: "alto", title: "Alto", abbrev: "Alt" },
+];
 
 type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
 
@@ -111,6 +158,14 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
           marco: parseNumFromDb(t.marco),
           hojas: parseNumFromDb(t.hojas),
           guias: parseNumFromDb(t.guias),
+          guia_mosquitero: parseNumFromDb(t.guia_mosquitero),
+          mosq_comun: parseNumFromDb(t.mosq_comun),
+          mosq_riel: parseNumFromDb(t.mosq_riel),
+          mosquitero_fijo: parseNumFromDb(t.mosquitero_fijo),
+          unidades_mq: parseNumFromDb(t.unidades_mq),
+          guia_emb: parseNumFromDb(t.guia_emb),
+          umbral_pvc: parseNumFromDb(t.umbral_pvc),
+          umbral_aluminio: parseNumFromDb(t.umbral_aluminio),
           hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
           umbral: parseNumFromDb(t.umbral),
           ancho: parseNumFromDb(t.ancho),
@@ -127,6 +182,14 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
             marco: parseNumFromDb(t.marco),
             hojas: parseNumFromDb(t.hojas),
             guias: parseNumFromDb(t.guias),
+            guia_mosquitero: parseNumFromDb(t.guia_mosquitero),
+            mosq_comun: parseNumFromDb(t.mosq_comun),
+            mosq_riel: parseNumFromDb(t.mosq_riel),
+            mosquitero_fijo: parseNumFromDb(t.mosquitero_fijo),
+            unidades_mq: parseNumFromDb(t.unidades_mq),
+            guia_emb: parseNumFromDb(t.guia_emb),
+            umbral_pvc: parseNumFromDb(t.umbral_pvc),
+            umbral_aluminio: parseNumFromDb(t.umbral_aluminio),
             hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
             umbral: parseNumFromDb(t.umbral),
             ancho: parseNumFromDb(t.ancho),
@@ -425,6 +488,14 @@ export default function ListOrdenesProduccion() {
         marco: t.marco ?? null,
         hojas: t.hojas ?? null,
         guias: t.guias ?? null,
+        guia_mosquitero: t.guia_mosquitero ?? null,
+        mosq_comun: t.mosq_comun ?? null,
+        mosq_riel: t.mosq_riel ?? null,
+        mosquitero_fijo: t.mosquitero_fijo ?? null,
+        unidades_mq: t.unidades_mq ?? null,
+        guia_emb: t.guia_emb ?? null,
+        umbral_pvc: t.umbral_pvc ?? null,
+        umbral_aluminio: t.umbral_aluminio ?? null,
         hojas_mosq: t.hojas_mosq ?? null,
         umbral: t.umbral ?? null,
         ancho: t.ancho ?? null,
@@ -445,7 +516,8 @@ export default function ListOrdenesProduccion() {
 
   const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number, firstKeys?: string[]): unknown => {
     if (colIdx !== undefined && colIdx >= 0) {
-      const colKeys: string[] = [String(colIdx), "ABCDEFGHIJ"[colIdx]];
+      const letter = EXCEL_COL_LETTERS[colIdx];
+      const colKeys: string[] = [String(colIdx), letter].filter(Boolean) as string[];
       if (firstKeys?.[colIdx]) colKeys.push(firstKeys[colIdx]);
       for (const k of colKeys) {
         const val = row[k];
@@ -459,8 +531,7 @@ export default function ListOrdenesProduccion() {
         if (!k) continue;
         const kn = norm(k);
         const match = excelNorm === kn || excelNorm.includes(kn) || kn.includes(excelNorm) ||
-          (keys.some((x) => x.toLowerCase().includes("tipolog")) && excelNorm.includes("tipolog")) ||
-          (keys.some((x) => /umbral/i.test(x)) && /umbral/i.test(excelNorm));
+          (keys.some((x) => x.toLowerCase().includes("tipolog")) && excelNorm.includes("tipolog"));
         if (match && val !== undefined && val !== null && String(val).trim() !== "") return val;
       }
     }
@@ -472,72 +543,102 @@ export default function ListOrdenesProduccion() {
     e.target.value = "";
     if (!file) return;
     setImportandoEstadoObra(true);
+    const colSynonyms: string[][] = [
+      ["tipologia", "tipología", "tipologias", "Tipología"],
+      ["descripcion", "descripción", "descripciones", "Descripciones", "Descripción"],
+      ["marco", "Marco"],
+      ["hojas", "Hojas"],
+      ["guia aluminio", "guía aluminio", "guias", "guías", "Guías"],
+      ["guia mosquitero", "guía mosquitero", "Guia Mosquitero"],
+      ["mosq comun", "mosquitero comun", "mosquitero común", "Mosq comun"],
+      ["mosq riel", "mosquitero riel", "Mosq riel"],
+      ["mosquitero fijo", "Mosquitero fijo"],
+      ["unidades mq", "Unidades mq", "Unidades Mq"],
+      ["guia emb", "guía emb", "Guia emb"],
+      ["umbral pvc", "Umbral pvc", "Umbral PVC"],
+      ["umbral aluminio", "umbral alum", "Umbral aluminio", "Umbral Aluminio"],
+      ["ancho", "Ancho"],
+      ["alto", "Alto"],
+    ];
     try {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: "array" });
       const firstSheet = wb.Sheets[wb.SheetNames[0]];
       let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: true });
-      const headerWords = ["tipologia", "tipología", "descripcion", "descripción", "marco", "hojas", "guias", "guías", "hojas_mosq", "hojas mosq", "umbral", "ancho", "alto"];
       let firstKeys: string[] = [];
       if (rows.length > 0) {
         firstKeys = Object.keys(rows[0]);
         const hasHeader = firstKeys.some((k) =>
-          /tipolog|descripcion|marco|hojas|guias|hojas_mosq|hojas mosq|umbral|ancho|alto/i.test(String(k))
+          /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|unidades|ancho|alto|mosquitero/i.test(String(k))
         );
         if (!hasHeader) {
-          rows = rows.map((r) => ({
-            ...r,
-            A: r["0"] ?? r["A"] ?? r[firstKeys[0]],
-            B: r["1"] ?? r["B"] ?? r[firstKeys[1]],
-            C: r["2"] ?? r["C"] ?? r[firstKeys[2]],
-            D: r["3"] ?? r["D"] ?? r[firstKeys[3]],
-            E: r["4"] ?? r["E"] ?? r[firstKeys[4]],
-            F: r["5"] ?? r["F"] ?? r[firstKeys[5]],
-            G: r["6"] ?? r["G"] ?? r[firstKeys[6]],
-            H: r["7"] ?? r["H"] ?? r[firstKeys[7]],
-            I: r["8"] ?? r["I"] ?? r[firstKeys[8]],
-          }));
+          rows = rows.map((r) => {
+            const o: Record<string, unknown> = { ...r };
+            for (let i = 0; i < ESTADO_OBRA_EXCEL_IMPORT_COLS; i++) {
+              const L = EXCEL_COL_LETTERS[i];
+              o[L] = r[String(i)] ?? r[L] ?? (firstKeys[i] !== undefined ? r[firstKeys[i]] : undefined);
+            }
+            return o;
+          });
         }
       }
+      const hasHeaderRow = rows.length > 0 && Object.keys(rows[0]).some((k) =>
+        /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|unidades|ancho|alto|mosquitero/i.test(String(k))
+      );
       const nuevas: TipologiaItem[] = [];
       for (let ri = 0; ri < rows.length; ri++) {
         const row = rows[ri];
-        let nombreRaw = getExcelVal(row, ["tipologia", "tipología", "Tipología", "A"], 0, firstKeys) ?? getExcelVal(row, [], 0, firstKeys);
+        if (hasHeaderRow && ri === 0) continue;
+        let nombreRaw = getExcelVal(row, colSynonyms[0], 0, firstKeys) ?? getExcelVal(row, [], 0, firstKeys);
         if (nombreRaw === undefined) {
           const firstCol = row[firstKeys[0]] ?? row["0"] ?? row["A"];
           if (firstCol !== undefined && firstCol !== null && String(firstCol).trim()) nombreRaw = firstCol;
         }
         const nombre = String(nombreRaw ?? "").trim();
         if (!nombre) continue;
-        if (ri === 0 && headerWords.includes(nombre.toLowerCase())) continue;
-        const descripcionRaw = getExcelVal(row, ["descripcion", "Descripción", "B"], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
+        const descripcionRaw = getExcelVal(row, colSynonyms[1], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
         const descripcion = String(descripcionRaw ?? "").trim() || null;
-        const marcoRaw = getExcelVal(row, ["marco", "Marco", "C"], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys);
-        const marco = parseNumExcel(marcoRaw);
-        const hojasRaw = getExcelVal(row, ["hojas", "Hojas", "D"], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys);
-        const hojas = parseNumExcel(hojasRaw);
-        const guiasRaw = getExcelVal(row, ["guias", "guías", "Guías", "E"], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys);
-        const guias = parseNumExcel(guiasRaw);
-        const hojasMosqRaw = getExcelVal(row, ["hojas_mosq", "hojas mosq", "Hojas Mosq", "F"], 5, firstKeys) ?? getExcelVal(row, [], 5, firstKeys);
-        const hojas_mosq = parseNumExcel(hojasMosqRaw);
-        const umbralRaw = getExcelVal(row, ["umbral", "Umbral", "UMBRAL", "G"], 6, firstKeys)
-          ?? (() => {
-            const uk = firstKeys?.find((k) => /umbral/i.test(String(k)));
-            return uk ? row[uk] : undefined;
-          })()
-          ?? getExcelVal(row, [], 6, firstKeys);
-        const umbral = parseNumExcel(umbralRaw);
-        const anchoRaw = getExcelVal(row, ["ancho", "Ancho", "H"], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys);
-        const ancho = parseNumExcel(anchoRaw);
-        const altoRaw = getExcelVal(row, ["alto", "Alto", "I"], 8, firstKeys) ?? getExcelVal(row, [], 8, firstKeys);
-        const alto = parseNumExcel(altoRaw);
-        nuevas.push({ nombre, descripcion, marco, hojas, guias, hojas_mosq, umbral, ancho, alto, estados: {} });
+        const marco = parseNumExcel(getExcelVal(row, colSynonyms[2], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys));
+        const hojas = parseNumExcel(getExcelVal(row, colSynonyms[3], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys));
+        const guias = parseNumExcel(getExcelVal(row, colSynonyms[4], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys));
+        const guia_mosquitero = parseNumExcel(getExcelVal(row, colSynonyms[5], 5, firstKeys) ?? getExcelVal(row, [], 5, firstKeys));
+        const mosq_comun = parseNumExcel(getExcelVal(row, colSynonyms[6], 6, firstKeys) ?? getExcelVal(row, [], 6, firstKeys));
+        const mosq_riel = parseNumExcel(getExcelVal(row, colSynonyms[7], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys));
+        const mosquitero_fijo = parseNumExcel(getExcelVal(row, colSynonyms[8], 8, firstKeys) ?? getExcelVal(row, [], 8, firstKeys));
+        const unidades_mq = parseNumExcel(getExcelVal(row, colSynonyms[9], 9, firstKeys) ?? getExcelVal(row, [], 9, firstKeys));
+        const guia_emb = parseNumExcel(getExcelVal(row, colSynonyms[10], 10, firstKeys) ?? getExcelVal(row, [], 10, firstKeys));
+        const umbral_pvc = parseNumExcel(getExcelVal(row, colSynonyms[11], 11, firstKeys) ?? getExcelVal(row, [], 11, firstKeys));
+        const umbral_aluminio = parseNumExcel(getExcelVal(row, colSynonyms[12], 12, firstKeys) ?? getExcelVal(row, [], 12, firstKeys));
+        const ancho = parseNumExcel(getExcelVal(row, colSynonyms[13], 13, firstKeys) ?? getExcelVal(row, [], 13, firstKeys));
+        const alto = parseNumExcel(getExcelVal(row, colSynonyms[14], 14, firstKeys) ?? getExcelVal(row, [], 14, firstKeys));
+        nuevas.push({
+          nombre,
+          descripcion,
+          marco,
+          hojas,
+          guias,
+          guia_mosquitero,
+          mosq_comun,
+          mosq_riel,
+          mosquitero_fijo,
+          unidades_mq,
+          guia_emb,
+          umbral_pvc,
+          umbral_aluminio,
+          hojas_mosq: null,
+          umbral: null,
+          ancho,
+          alto,
+          estados: {},
+        });
       }
       setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
       if (nuevas.length > 0) {
         alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
       } else {
-        alert("No se encontraron filas con datos. El Excel debe tener encabezados: Tipología, Descripción, Marco, Hojas, Guías, Hojas Mosq, Umbral, Ancho, Alto");
+        alert(
+          "No se encontraron filas con datos. El Excel debe tener columnas en este orden: Tipologías, Descripciones, Marco, Hojas, Guía aluminio, Guía mosquitero, Mosq común, Mosq riel, Mosquitero fijo, Unidades mq, Guía emb, Umbral PVC, Umbral aluminio, Ancho, Alto."
+        );
       }
     } catch (ex) {
       console.error("Error al importar:", ex);
@@ -678,6 +779,14 @@ export default function ListOrdenesProduccion() {
         hojas: t.hojas ?? null,
         guias: t.guias ?? null,
         marco: t.marco ?? null,
+        guia_mosquitero: t.guia_mosquitero ?? null,
+        mosq_comun: t.mosq_comun ?? null,
+        mosq_riel: t.mosq_riel ?? null,
+        mosquitero_fijo: t.mosquitero_fijo ?? null,
+        unidades_mq: t.unidades_mq ?? null,
+        guia_emb: t.guia_emb ?? null,
+        umbral_pvc: t.umbral_pvc ?? null,
+        umbral_aluminio: t.umbral_aluminio ?? null,
         hojas_mosq: t.hojas_mosq ?? null,
         umbral: t.umbral ?? null,
         ancho: t.ancho ?? null,
@@ -691,6 +800,14 @@ export default function ListOrdenesProduccion() {
       marco: t.marco ?? null,
       hojas: t.hojas ?? null,
       guias: t.guias ?? null,
+      guia_mosquitero: t.guia_mosquitero ?? null,
+      mosq_comun: t.mosq_comun ?? null,
+      mosq_riel: t.mosq_riel ?? null,
+      mosquitero_fijo: t.mosquitero_fijo ?? null,
+      unidades_mq: t.unidades_mq ?? null,
+      guia_emb: t.guia_emb ?? null,
+      umbral_pvc: t.umbral_pvc ?? null,
+      umbral_aluminio: t.umbral_aluminio ?? null,
       hojas_mosq: t.hojas_mosq ?? null,
       umbral: t.umbral ?? null,
       ancho: t.ancho ?? null,
@@ -1454,7 +1571,7 @@ export default function ListOrdenesProduccion() {
                 <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-3">
                     <div className="overflow-x-auto min-w-0 -mx-1 px-1">
-                      <div className="grid gap-x-4 gap-y-2 w-full min-w-[650px] shrink-0" style={{ gridTemplateColumns: "minmax(65px, 1fr) minmax(85px, 1.4fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(50px, 0.75fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr) minmax(42px, 0.65fr)" }}>
+                      <div className="grid gap-x-2 gap-y-2 w-full min-w-[1040px] shrink-0" style={{ gridTemplateColumns: "minmax(56px, 1fr) minmax(72px, 1.25fr) repeat(13, minmax(34px, 0.68fr))" }}>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Tipología">Tip</p>
                         {editingTipologiaIdx === idx ? (
@@ -1495,153 +1612,54 @@ export default function ListOrdenesProduccion() {
                           <p className="text-sm text-gray-700 truncate mt-0.5" title={tipologia.descripcion ?? ""}>{tipologia.descripcion || "—"}</p>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Marco</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.marco != null && !Number.isNaN(tipologia.marco) ? String(tipologia.marco) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], marco: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.marco != null && !Number.isNaN(tipologia.marco) ? String(tipologia.marco) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Hojas</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], hojas: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas != null && !Number.isNaN(tipologia.hojas) ? String(tipologia.hojas) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Guías</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], guias: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.guias != null && !Number.isNaN(tipologia.guias) ? String(tipologia.guias) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Hojas Mosq</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.hojas_mosq != null && !Number.isNaN(tipologia.hojas_mosq) ? String(tipologia.hojas_mosq) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], hojas_mosq: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.hojas_mosq != null && !Number.isNaN(tipologia.hojas_mosq) ? String(tipologia.hojas_mosq) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Umbral</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.umbral != null && !Number.isNaN(tipologia.umbral) ? String(tipologia.umbral) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], umbral: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.umbral != null && !Number.isNaN(tipologia.umbral) ? String(tipologia.umbral) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Ancho</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], ancho: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.ancho != null && !Number.isNaN(tipologia.ancho) ? String(tipologia.ancho) : "—"}</p>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Alto</p>
-                        {editingTipologiaIdx === idx ? (
-                          <input
-                            type="text"
-                            value={tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : ""}
-                            onChange={(e) => {
-                              const v = parseNumExcel(e.target.value);
-                              setEstadoObraTipologias((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], alto: v };
-                                return next;
-                              });
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded mt-0.5"
-                            placeholder="—"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-700 mt-0.5">{tipologia.alto != null && !Number.isNaN(tipologia.alto) ? String(tipologia.alto) : "—"}</p>
-                        )}
-                      </div>
+                      {TIPOLOGIA_NUM_METRIC_COLS.map(({ k, title, abbrev }) => {
+                        const inputVal = (() => {
+                          if (k === "unidades_mq") {
+                            const v = tipologia.unidades_mq ?? tipologia.hojas_mosq;
+                            return v != null && !Number.isNaN(v) ? String(v) : "";
+                          }
+                          if (k === "umbral_pvc") {
+                            const v = tipologia.umbral_pvc ?? tipologia.umbral;
+                            return v != null && !Number.isNaN(v) ? String(v) : "";
+                          }
+                          const v = tipologia[k];
+                          return v != null && typeof v === "number" && !Number.isNaN(v) ? String(v) : "";
+                        })();
+                        const viewVal = inputVal || "—";
+                        return (
+                          <div key={k} className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap" title={title}>{abbrev}</p>
+                            {editingTipologiaIdx === idx ? (
+                              <input
+                                type="text"
+                                value={inputVal}
+                                onChange={(e) => {
+                                  const v = parseNumExcel(e.target.value);
+                                  setEstadoObraTipologias((prev) => {
+                                    const next = [...prev];
+                                    const cur = { ...next[idx] };
+                                    if (k === "unidades_mq") {
+                                      cur.unidades_mq = v;
+                                      cur.hojas_mosq = null;
+                                    } else if (k === "umbral_pvc") {
+                                      cur.umbral_pvc = v;
+                                      cur.umbral = null;
+                                    } else {
+                                      (cur as unknown as Record<string, number | null | undefined>)[k] = v;
+                                    }
+                                    next[idx] = cur;
+                                    return next;
+                                  });
+                                }}
+                                className="w-full px-1.5 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                                placeholder="—"
+                              />
+                            ) : (
+                              <p className="text-sm text-gray-700 mt-0.5">{viewVal}</p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     </div>
                     {canEditFullModal && (

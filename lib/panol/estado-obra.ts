@@ -15,6 +15,14 @@ type TipologiaItem = {
   marco?: number | null;
   hojas?: number | null;
   guias?: number | null;
+  guia_mosquitero?: number | null;
+  mosq_comun?: number | null;
+  mosq_riel?: number | null;
+  mosquitero_fijo?: number | null;
+  unidades_mq?: number | null;
+  guia_emb?: number | null;
+  umbral_pvc?: number | null;
+  umbral_aluminio?: number | null;
   hojas_mosq?: number | null;
   umbral?: number | null;
   ancho?: number | null;
@@ -80,6 +88,14 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
           marco: parseNumFromDb(t.marco),
           hojas: parseNumFromDb(t.hojas),
           guias: parseNumFromDb(t.guias),
+          guia_mosquitero: parseNumFromDb(t.guia_mosquitero),
+          mosq_comun: parseNumFromDb(t.mosq_comun),
+          mosq_riel: parseNumFromDb(t.mosq_riel),
+          mosquitero_fijo: parseNumFromDb(t.mosquitero_fijo),
+          unidades_mq: parseNumFromDb(t.unidades_mq),
+          guia_emb: parseNumFromDb(t.guia_emb),
+          umbral_pvc: parseNumFromDb(t.umbral_pvc),
+          umbral_aluminio: parseNumFromDb(t.umbral_aluminio),
           hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
           umbral: parseNumFromDb(t.umbral),
           ancho: parseNumFromDb(t.ancho),
@@ -96,6 +112,14 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
             marco: parseNumFromDb(t.marco),
             hojas: parseNumFromDb(t.hojas),
             guias: parseNumFromDb(t.guias),
+            guia_mosquitero: parseNumFromDb(t.guia_mosquitero),
+            mosq_comun: parseNumFromDb(t.mosq_comun),
+            mosq_riel: parseNumFromDb(t.mosq_riel),
+            mosquitero_fijo: parseNumFromDb(t.mosquitero_fijo),
+            unidades_mq: parseNumFromDb(t.unidades_mq),
+            guia_emb: parseNumFromDb(t.guia_emb),
+            umbral_pvc: parseNumFromDb(t.umbral_pvc),
+            umbral_aluminio: parseNumFromDb(t.umbral_aluminio),
             hojas_mosq: parseNumFromDb(t.hojas_mosq ?? t.hoja_mosq),
             umbral: parseNumFromDb(t.umbral),
             ancho: parseNumFromDb(t.ancho),
