@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { canAccessOrdenesProduccion, isAdminEmail, isAprobEmail, isPanolEmail, isProduccionEmail, isTabletEmail } from "@/lib/panol-access";
 import { getArticulosTerminadosProgress } from "@/lib/panol/estado-obra";
+import { inicialesDesdeNombre, MARCA_OPERADOR_LONGITUD } from "@/lib/utils";
 import ProgresoProduccionModal from "@/components/panol/ProgresoProduccionModal";
+import OrdenesProduccionMobileList from "@/components/lists/panol/OrdenesProduccionMobileList";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
@@ -273,6 +275,7 @@ export default function ListOrdenesProduccion() {
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userNombre, setUserNombre] = useState("");
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
   const [deletingOrdenId, setDeletingOrdenId] = useState<string | null>(null);
   const [excelDownloadTipo, setExcelDownloadTipo] = useState<string>("");
@@ -293,6 +296,7 @@ export default function ListOrdenesProduccion() {
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const [showProgresoModal, setShowProgresoModal] = useState(false);
+  const [selectedMobileOrdenId, setSelectedMobileOrdenId] = useState<string | null>(null);
   const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
   const estadoObraInicialRef = React.useRef<{ tipologias: TipologiaItem[]; fechas: Record<string, string> } | null>(null);
   const estadoObraTipologiasRef = React.useRef(estadoObraTipologias);
@@ -302,6 +306,9 @@ export default function ListOrdenesProduccion() {
   const estadoObraInicialesPorItemRef = React.useRef(estadoObraInicialesPorItem);
   const estadoObraArticuloObservacionesRef = React.useRef(estadoObraArticuloObservaciones);
   const estadoObraObservacionesRef = React.useRef(estadoObraObservaciones);
+  const userInicialesRef = React.useRef("");
+  const userIniciales = inicialesDesdeNombre(userNombre || userEmail?.split("@")[0] || "");
+  userInicialesRef.current = userIniciales;
   estadoObraTipologiasRef.current = estadoObraTipologias;
   estadoObraFechasRef.current = estadoObraFechas;
   estadoObraTerminadoRef.current = estadoObraTerminado;
@@ -335,6 +342,13 @@ export default function ListOrdenesProduccion() {
 
     setIsReadOnly(isPanolEmail(user.email) || isAprobEmail(user.email) || isTabletEmail(user.email));
     setUserEmail(user.email ?? null);
+
+    const { data: perfil } = await supabase
+      .from("usuarios")
+      .select("nombre")
+      .eq("uuid", user.id)
+      .single();
+    setUserNombre(perfil?.nombre?.trim() ?? "");
 
     let query = supabase
       .from("ordenes_produccion")
@@ -406,7 +420,7 @@ export default function ListOrdenesProduccion() {
         if (v && typeof v === "object" && "terminado" in v) {
           terminado[k] = !!(v as Record<string, unknown>).terminado;
           const ini = (v as Record<string, unknown>).iniciales;
-          if (typeof ini === "string" && ini.length <= 2) iniciales[k] = ini.toUpperCase().slice(0, 2);
+          if (typeof ini === "string" && ini.trim()) iniciales[k] = ini.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
         }
       }
     }
@@ -426,7 +440,7 @@ export default function ListOrdenesProduccion() {
       : null;
     if (rawInicialesPorItem && typeof rawInicialesPorItem === "object" && !Array.isArray(rawInicialesPorItem)) {
       for (const [k, v] of Object.entries(rawInicialesPorItem)) {
-        if (typeof v === "string" && v.length <= 2) inicialesPorItem[k] = v.toUpperCase().slice(0, 2);
+        if (typeof v === "string" && v.trim()) inicialesPorItem[k] = v.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
       }
     }
     const rawObservaciones = rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
@@ -818,7 +832,7 @@ export default function ListOrdenesProduccion() {
       tipologiasActuales.forEach((_, tipIdx) => {
         const key = `${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
         const term = terminadoActual[key];
-        const ini = (inicialesActual[key] ?? "").slice(0, 2).toUpperCase();
+        const ini = (inicialesActual[key] ?? "").slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase();
         if (term || ini) {
           procesoTerminado[key] = { terminado: !!term, iniciales: ini };
         }
@@ -844,7 +858,7 @@ export default function ListOrdenesProduccion() {
     }
     const inicialesPorItem: Record<string, string> = {};
     for (const [key, val] of Object.entries(inicialesPorItemActual)) {
-      const s = typeof val === "string" ? val.slice(0, 2).toUpperCase().trim() : "";
+      const s = typeof val === "string" ? val.slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase().trim() : "";
       if (s) inicialesPorItem[key] = s;
     }
     const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado, observacionesPorProceso, articuloObservaciones, inicialesPorItem };
@@ -1131,7 +1145,7 @@ export default function ListOrdenesProduccion() {
         : {};
       const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
       for (const [key, ini] of Object.entries(inicialesPorItem)) {
-        const val = typeof ini === "string" ? ini.trim().slice(0, 2).toUpperCase() : "";
+        const val = typeof ini === "string" ? ini.trim().slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase() : "";
         if (!val) continue;
         const parts = String(key).split(ESTADO_OBRA_KEY_SEP);
         if (parts.length < 3) continue;
@@ -1390,6 +1404,75 @@ export default function ListOrdenesProduccion() {
   const cellClass =
     "px-4 py-3 border-b border-gray-200 align-top text-sm text-center whitespace-pre-wrap break-words";
 
+  const mobileBtnBase =
+    "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed";
+
+  const selectMobileOrden = (id: string) => {
+    setSelectedMobileOrdenId(id);
+  };
+
+  const renderArticulosProgress = (orden: OrdenProduccion) => {
+    const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
+    if (total === 0) return null;
+    return (
+      <div className="w-full rounded-lg bg-gray-50 p-3 border border-gray-100">
+        <div className="flex justify-between text-xs text-gray-600 mb-1 font-medium">
+          <span>Artículos terminados</span>
+          <span>{percent}%</span>
+        </div>
+        <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span className="text-xs text-gray-500 mt-1 block">{completed}/{total}</span>
+      </div>
+    );
+  };
+
+  const renderOrdenImagenButtons = (orden: OrdenProduccion, mobile = false) => {
+    const items = parseImageItems(orden.url_imagen);
+    if (items.length === 0) {
+      return <span className="text-sm text-gray-400">Sin imágenes</span>;
+    }
+    const btn = mobile
+      ? mobileBtnBase
+      : "inline-block px-3 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-200";
+    return (
+      <div className={mobile ? "flex flex-col gap-2" : "flex flex-col gap-2 items-center"}>
+        <button
+          type="button"
+          onClick={() => {
+            setArchivosModalItems(items);
+            setShowArchivosModal(true);
+          }}
+          className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+        >
+          Ver imágenes
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDownloadCarpeta(orden)}
+          disabled={downloadingOrdenId === orden.id}
+          className={mobile ? `${btn} bg-emerald-600 text-white hover:bg-emerald-700` : `${btn} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
+        </button>
+        {!isTabletEmail(userEmail) && (
+          <button
+            type="button"
+            onClick={() => handleEliminarCarpeta(orden)}
+            disabled={deletingOrdenId === orden.id}
+            className={mobile ? `${btn} bg-red-600 text-white hover:bg-red-700` : `${btn} bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -1399,19 +1482,19 @@ export default function ListOrdenesProduccion() {
   }
 
   return (
-    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+    <div className="flex-1 w-full p-2 sm:p-4 bg-gray-50 min-h-screen">
       {/* Header con navegación */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center justify-between mb-4">
           <Link
             href="/protected"
-            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+            className="inline-block px-4 sm:px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 text-center touch-manipulation"
           >
             ← Home
           </Link>
-          <h1 className="text-3xl font-bold text-gray-800">🏭 Órdenes de Producción</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">🏭 Órdenes de Producción</h1>
         </div>
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
           {!isReadOnly && (
             <button
               type="button"
@@ -1423,7 +1506,7 @@ export default function ListOrdenesProduccion() {
                 setFormSuccess("");
                 setShowModal(true);
               }}
-              className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+              className="w-full sm:w-auto inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 touch-manipulation min-h-[48px]"
             >
               ➕ Nueva obra
             </button>
@@ -1433,7 +1516,7 @@ export default function ListOrdenesProduccion() {
             placeholder="🔍 Buscar por carpeta, obra, mes, semana..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full sm:max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-h-[48px]"
           />
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm font-medium text-gray-600">Desde:</label>
@@ -1463,7 +1546,7 @@ export default function ListOrdenesProduccion() {
           <button
             type="button"
             onClick={() => setShowProgresoModal(true)}
-            className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200"
+            className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
             title="Ver barra de progreso de producción"
           >
             📊 Ver progreso de producción
@@ -1534,7 +1617,7 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado con tus iniciales. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {canEditFullModal && (
               <div className="flex flex-wrap gap-2 mb-4">
@@ -1712,6 +1795,13 @@ export default function ListOrdenesProduccion() {
                                             ...prev,
                                             [key]: new Date().toISOString(),
                                           }));
+                                          const ini = userInicialesRef.current;
+                                          if (ini) {
+                                            setEstadoObraInicialesPorItem((prev) => ({
+                                              ...prev,
+                                              [key]: ini,
+                                            }));
+                                          }
                                         } else {
                                           if (isTabletEmail(userEmail)) return;
                                           setEstadoObraFechas((prev) => {
@@ -1730,22 +1820,14 @@ export default function ListOrdenesProduccion() {
                                     />
                                     <span className="text-xs">{item}</span>
                                   </label>
-                                  <input
-                                    type="text"
-                                    maxLength={2}
-                                    disabled={!canEditParaTipologia || !checked}
-                                    value={estadoObraInicialesPorItem[key] ?? ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
-                                      setEstadoObraInicialesPorItem((prev) => ({
-                                        ...prev,
-                                        [key]: val,
-                                      }));
-                                    }}
-                                    placeholder="In"
-                                    className="w-8 px-1 py-0.5 text-xs border border-gray-300 rounded text-center uppercase disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                    title="Iniciales (2 caracteres)"
-                                  />
+                                  {checked && estadoObraInicialesPorItem[key] ? (
+                                    <span
+                                      className="inline-flex min-w-[2.75rem] items-center justify-center px-1 py-0.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded uppercase"
+                                      title="Marcado por"
+                                    >
+                                      {estadoObraInicialesPorItem[key]}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 <span
                                   className="text-xs text-gray-500 mt-0.5 ml-5 min-h-[1rem]"
@@ -1779,7 +1861,15 @@ export default function ListOrdenesProduccion() {
                                   ...prev,
                                   [key]: e.target.checked,
                                 }));
-                                if (!e.target.checked) {
+                                if (e.target.checked) {
+                                  const ini = userInicialesRef.current;
+                                  if (ini) {
+                                    setEstadoObraIniciales((prev) => ({
+                                      ...prev,
+                                      [key]: ini,
+                                    }));
+                                  }
+                                } else {
                                   setEstadoObraIniciales((prev) => {
                                     const next = { ...prev };
                                     delete next[key];
@@ -1791,24 +1881,15 @@ export default function ListOrdenesProduccion() {
                             />
                             <span className="text-xs font-medium">Proceso terminado</span>
                           </label>
-                          {estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] && (
-                            <input
-                              type="text"
-                              maxLength={2}
-                              disabled={!canEditParaTipologia}
-                              value={estadoObraIniciales[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "").toUpperCase().slice(0, 2);
-                                setEstadoObraIniciales((prev) => ({
-                                  ...prev,
-                                  [`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]: val,
-                                }));
-                              }}
-                              placeholder="Iniciales"
-                              className="w-10 px-1.5 py-0.5 text-xs border border-gray-300 rounded text-center uppercase"
-                              title="Iniciales del operador (2 caracteres)"
-                            />
-                          )}
+                          {estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] &&
+                          estadoObraIniciales[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] ? (
+                            <span
+                              className="inline-flex min-w-[2.75rem] items-center justify-center px-1.5 py-0.5 text-xs font-semibold text-green-800 bg-green-50 border border-green-200 rounded uppercase"
+                              title="Marcado por"
+                            >
+                              {estadoObraIniciales[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
+                            </span>
+                          ) : null}
                             </>
                             );
                           })()}
@@ -2147,7 +2228,24 @@ export default function ListOrdenesProduccion() {
       )}
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+        <OrdenesProduccionMobileList
+          ordenes={filteredOrdenes}
+          selectedId={selectedMobileOrdenId}
+          onSelect={selectMobileOrden}
+          onClearSelection={() => setSelectedMobileOrdenId(null)}
+          renderValue={renderValue}
+          formatDate={formatDate}
+          showAccionesColumn={showAccionesColumn}
+          isTabletUser={isTabletEmail(userEmail)}
+          mobileBtnBase={mobileBtnBase}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onOpenEstado={handleOpenEstadoObra}
+          renderProgress={renderArticulosProgress}
+          renderImagenButtons={(orden) => renderOrdenImagenButtons(orden, true)}
+          estadoSummary={(orden) => formatEstadoObraSummary(parseEstadoObra(orden.estado_obra))}
+        />
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full table-auto border-collapse">
             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <tr>

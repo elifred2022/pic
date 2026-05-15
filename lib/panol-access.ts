@@ -3,7 +3,7 @@ export const panolesEmails = [
   "panolgascon@perfilesyservicios.com.ar",
   "asist.controlstock@perfilesyservicios.com.ar",
    "recepcioncardales@perfilesyservicios.com.ar",
- "elifred21@hotmail.com"
+ //"elifred21@hotmail.com"
 ];
 
 export const produccionEmails = [
@@ -37,15 +37,14 @@ export const aprobEmails = [
 
 export const tabletEmails = [
   "tabletpys331@gmail.com",
-  
-  "supervisorpys@gmail.com", 
+    "supervisorpys@gmail.com", 
 "tabletpyspaez@gmail.com", 
 "tabletpysherrera@gmail.com",
 "tabletpysfleitas@gmail.com",
 "tabletpyscruz@gmail.com",
 "tabletpysalfonso@gmail.com",
-//"orlandojosemartinez1946@gmail.com",
-// "elifred21@hotmail.com"
+"orlandojosemartinez1946@gmail.com",
+"elifred21@hotmail.com"
 
 ];
 
