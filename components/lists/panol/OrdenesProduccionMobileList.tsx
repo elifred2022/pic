@@ -122,6 +122,25 @@ export default function OrdenesProduccionMobileList({
               </span>
             </div>
           </div>
+          <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">Estado de obra</p>
+            <button
+              type="button"
+              onClick={() => onOpenEstado(selected)}
+              className={`${mobileBtnBase} bg-amber-500 text-white hover:bg-amber-600`}
+            >
+              📋 Estado de obra
+            </button>
+            {summary ? (
+              <p className="text-xs text-gray-500 px-1 break-words" title={summary}>
+                {summary.length > 120 ? `${summary.slice(0, 117)}...` : summary}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold uppercase text-gray-500">Imágenes</p>
+            {renderImagenButtons(selected)}
+          </div>
           {showAccionesColumn && (
             <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
               <p className="text-xs font-bold uppercase text-gray-500">Acciones</p>
@@ -148,25 +167,6 @@ export default function OrdenesProduccionMobileList({
               {renderProgress(selected)}
             </div>
           )}
-          <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs font-bold uppercase text-gray-500">Estado de obra</p>
-            <button
-              type="button"
-              onClick={() => onOpenEstado(selected)}
-              className={`${mobileBtnBase} bg-amber-500 text-white hover:bg-amber-600`}
-            >
-              📋 Estado de obra
-            </button>
-            {summary ? (
-              <p className="text-xs text-gray-500 px-1 break-words" title={summary}>
-                {summary.length > 120 ? `${summary.slice(0, 117)}...` : summary}
-              </p>
-            ) : null}
-          </div>
-          <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs font-bold uppercase text-gray-500">Imágenes</p>
-            {renderImagenButtons(selected)}
-          </div>
         </div>
       </article>
     );

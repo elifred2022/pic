@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
 
@@ -88,7 +89,11 @@ export default function ListaPedidosProductivosAdmin() {
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const [fechaImpresion, setFechaImpresion] = useState("");
+    const [selectedMobilePedidoId, setSelectedMobilePedidoId] = useState<string | null>(null);
     const supabase = createClient();
+
+    const mobileBtnBase =
+      "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation";
 
     const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
       const precioBase = precioUnitario || 0;
@@ -274,6 +279,61 @@ export default function ListaPedidosProductivosAdmin() {
   
     return String(value);
   }
+
+  const initComparativaForm = (p: Pedido) => {
+    if (p.comparativa_prov && p.comparativa_prov.length > 0) {
+      const comparativaConCant = p.comparativa_prov.map((prov) => ({
+        ...prov,
+        articulos: prov.articulos.map((art) => ({
+          ...art,
+          cant: art.cant || p.articulos.find((a) => a.codint === art.codint)?.cant || 0,
+          descuentoPorcentaje: art.descuentoPorcentaje || 0,
+        })),
+      }));
+      setComparativaForm(comparativaConCant);
+    } else {
+      const articulosBase = p.articulos.map((a) => ({
+        codint: a.codint,
+        articulo: a.articulo,
+        cant: a.cant,
+        precioUnitario: null,
+        descuentoPorcentaje: 0,
+        subtotal: 0,
+      }));
+      setComparativaForm([
+        { nombreProveedor: "", articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+        { nombreProveedor: "", articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+        { nombreProveedor: "", articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
+      ]);
+    }
+  };
+
+  const abrirEdicionPedido = (p: Pedido) => {
+    setEditingPedido(p);
+    setFormData(p);
+    initComparativaForm(p);
+  };
+
+  const abrirComparativaPedido = (p: Pedido) => {
+    setComparativaPedido(p);
+    setFormData(p);
+  };
+
+  const eliminarPedido = async (p: Pedido) => {
+    const confirm = window.confirm(`¿Estás seguro de que querés eliminar el pedido ${p.id}?`);
+    if (!confirm) return;
+
+    const { error } = await supabase.from("pedidos_productivos").delete().eq("id", p.id);
+    if (error) {
+      alert("Error al eliminar");
+      console.error(error);
+    } else {
+      alert("Pedido eliminado");
+      setSelectedMobilePedidoId((prev) => (prev === p.id ? null : prev));
+      const { data } = await supabase.from("pedidos_productivos").select("*");
+      if (data) setPedidos(data);
+    }
+  };
 
   // ✅ Función para actualizar pedido
  // ✅ Función para actualizar pedido
@@ -722,7 +782,19 @@ const handleUpdatePedido = async () => {
 
       {/* Tabla con scroll horizontal y encabezado congelado */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+        <PedidosProductivosAdminMobileList
+          pedidos={filteredPedidos}
+          selectedId={selectedMobilePedidoId}
+          onSelect={setSelectedMobilePedidoId}
+          onClearSelection={() => setSelectedMobilePedidoId(null)}
+          formatDate={formatDate}
+          renderValue={renderValue}
+          mobileBtnBase={mobileBtnBase}
+          onEdit={abrirEdicionPedido}
+          onComparativa={abrirComparativaPedido}
+          onDelete={eliminarPedido}
+        />
+        <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
           <table className="min-w-full table-auto border-collapse">
             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
               <tr>
@@ -758,70 +830,19 @@ const handleUpdatePedido = async () => {
                     <div className="flex flex-col gap-2">
                       <button 
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                                                   onClick={() => {
-                                     setEditingPedido(p);
-                                     setFormData(p);
-
-                                     // Inicializa el estado de la comparativa
-                                     if (p.comparativa_prov && p.comparativa_prov.length > 0) {
-                                       // Asegurar que todos los artículos tengan la propiedad 'cant'
-                                       const comparativaConCant = p.comparativa_prov.map(prov => ({
-                                         ...prov,
-                                         articulos: prov.articulos.map(art => ({
-                                           ...art,
-                                          cant: art.cant || p.articulos.find(a => a.codint === art.codint)?.cant || 0,
-                                          descuentoPorcentaje: art.descuentoPorcentaje || 0
-                                         }))
-                                       }));
-                                       setComparativaForm(comparativaConCant);
-                                     } else {
-                                       // Si no hay datos, crea una estructura inicial para 3 proveedores
-                                       const articulosBase = p.articulos.map(a => ({
-                                           codint: a.codint,
-                                           articulo: a.articulo,
-                                           cant: a.cant,
-                                           precioUnitario: null,
-                                           descuentoPorcentaje: 0,
-                                           subtotal: 0
-                                       }));
-
-                                       setComparativaForm([
-                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 },
-                                         { nombreProveedor: '', articulos: JSON.parse(JSON.stringify(articulosBase)), total: 0 }
-                                       ]);
-                                     }
-                                   }}
+                                                   onClick={() => abrirEdicionPedido(p)}
                 >
                         ✏️ Editar
                 </button>
                  <button
                         className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                      onClick={() => {
-                          setComparativaPedido(p);
-                          setFormData(p); // Carga los datos al `formData` para poder editar el estado y el proveedor
-                      }}
+                      onClick={() => abrirComparativaPedido(p)}
                   >
                         📊 Comparativa
                   </button>
                 <button
                         className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                    onClick={async () => {
-                      const confirm = window.confirm(
-                        `¿Estás seguro de que querés eliminar el pedido ${p.id}?`
-                      );
-                      if (!confirm) return;
-
-                      const { error } = await supabase.from("pedidos_productivos").delete().eq("id", p.id);
-                      if (error) {
-                        alert("Error al eliminar");
-                        console.error(error);
-                      } else {
-                        alert("Pedido eliminado");
-                        const { data } = await supabase.from("pedidos_productivos").select("*");
-                        if (data) setPedidos(data);
-                      }
-                    }}
+                    onClick={() => eliminarPedido(p)}
                   >
                         🗑️ Elim
                   </button>

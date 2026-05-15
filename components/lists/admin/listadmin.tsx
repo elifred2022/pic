@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
 
@@ -88,7 +89,11 @@ export default function ListAdmin() {
 
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
+  const [selectedMobilePedidoId, setSelectedMobilePedidoId] = useState<string | null>(null);
   const supabase = createClient();
+
+  const mobileBtnBase =
+    "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation";
 
   const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
     const precioBase = precioUnitario || 0;
@@ -262,6 +267,74 @@ export default function ListAdmin() {
 
     return String(value);
   }
+
+  const buildFormDataFromPedido = (pedido: Pedido): Partial<Pedido> => ({
+    created_at: pedido.created_at,
+    necesidad: pedido.necesidad,
+    categoria: pedido.categoria,
+    solicita: pedido.solicita,
+    nota_solicitante: pedido.nota_solicitante,
+    sector: pedido.sector,
+    articulos: pedido.articulos,
+    notas: pedido.notas,
+    controlado: pedido.controlado,
+    superviso: pedido.superviso,
+    estado: pedido.estado,
+    oc: pedido.oc,
+    proveedor_selec: pedido.proveedor_selec,
+    usd: pedido.usd,
+    eur: pedido.eur,
+    tc: pedido.tc,
+    ars: pedido.ars,
+    porcent: pedido.porcent,
+    ars_desc: pedido.ars_desc,
+    total_simp: pedido.total_simp,
+    fecha_conf: pedido.fecha_conf,
+    fecha_prom: pedido.fecha_prom,
+    fecha_ent: pedido.fecha_ent,
+    rto: pedido.rto,
+    fac: pedido.fac,
+    mod_pago: pedido.mod_pago,
+    proceso: pedido.proceso,
+    prov_uno: pedido.prov_uno,
+    cost_prov_uno: pedido.cost_prov_uno,
+    subt_prov1: pedido.subt_prov1,
+    prov_dos: pedido.prov_dos,
+    cost_prov_dos: pedido.cost_prov_dos,
+    subt_prov2: pedido.subt_prov2,
+    prov_tres: pedido.prov_tres,
+    cost_prov_tres: pedido.cost_prov_tres,
+    subt_prov3: pedido.subt_prov3,
+    notas_comprador: pedido.notas_comprador,
+    comprador: pedido.comprador,
+  });
+
+  const abrirInfoPedido = (pedido: Pedido) => {
+    setVerInfo(pedido);
+    setFormData(buildFormDataFromPedido(pedido));
+  };
+
+  const abrirEdicionPedido = (pedido: Pedido) => {
+    setComparativaForm(null);
+    setEditingPedido(pedido);
+    setFormData(buildFormDataFromPedido(pedido));
+  };
+
+  const eliminarPedido = async (pedido: Pedido) => {
+    const confirm = window.confirm(`¿Estás seguro de que querés eliminar el pedido ${pedido.id}?`);
+    if (!confirm) return;
+
+    const { error } = await supabase.from("pic").delete().eq("id", pedido.id);
+    if (error) {
+      alert("Error al eliminar");
+      console.error(error);
+    } else {
+      alert("Pedido eliminado");
+      setSelectedMobilePedidoId((prev) => (prev === pedido.id ? null : prev));
+      const { data } = await supabase.from("pic").select("*");
+      if (data) setPedidos(data);
+    }
+  };
 
   // Estilos para la tabla (comentados por ahora)
   // const headerClass = "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap";
@@ -692,7 +765,19 @@ export default function ListAdmin() {
 
              {/* Tabla con scroll horizontal y encabezado congelado */}
        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-         <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+         <PedidosGeneralesAdminMobileList
+           pedidos={filteredPedidos}
+           selectedId={selectedMobilePedidoId}
+           onSelect={setSelectedMobilePedidoId}
+           onClearSelection={() => setSelectedMobilePedidoId(null)}
+           formatDate={formatDate}
+           renderValue={renderValue}
+           mobileBtnBase={mobileBtnBase}
+           onInfo={abrirInfoPedido}
+           onEdit={abrirEdicionPedido}
+           onDelete={eliminarPedido}
+         />
+         <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
            <table className="min-w-full table-auto border-collapse">
              <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
                <tr>
@@ -730,119 +815,20 @@ export default function ListAdmin() {
                 <div className="flex flex-col gap-2">
                    <button
                     className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-xs"
-                    onClick={() => {
-                      setVerInfo(pedido);
-                      setFormData({
-                        created_at: pedido.created_at,
-                        necesidad: pedido.necesidad,
-                        categoria: pedido.categoria,
-                        solicita: pedido.solicita,
-                        nota_solicitante: pedido.nota_solicitante,
-                        sector: pedido.sector,
-                        articulos: pedido.articulos,
-                        notas: pedido.notas,
-                        controlado: pedido.controlado,
-                        superviso: pedido.superviso,
-                        estado: pedido.estado,
-                        oc: pedido.oc,
-                        proveedor_selec: pedido.proveedor_selec,
-                        usd: pedido.usd,
-                        eur: pedido.eur,
-                        tc: pedido.tc,
-                        ars: pedido.ars,
-                        porcent: pedido.porcent,
-                        ars_desc: pedido.ars_desc,
-                        total_simp: pedido.total_simp,
-                        fecha_conf: pedido.fecha_conf,
-                        fecha_prom: pedido.fecha_prom,
-                        fecha_ent: pedido.fecha_ent,
-                        rto: pedido.rto,
-                        fac: pedido.fac,
-                        mod_pago: pedido.mod_pago,
-                        proceso: pedido.proceso,
-                        prov_uno: pedido.prov_uno,
-                        cost_prov_uno: pedido.cost_prov_uno,
-                        subt_prov1: pedido.subt_prov1,
-                        prov_dos: pedido.prov_dos,
-                        cost_prov_dos: pedido.cost_prov_dos,
-                        subt_prov2: pedido.subt_prov2,
-                        prov_tres: pedido.prov_tres,
-                        cost_prov_tres: pedido.cost_prov_tres,
-                        subt_prov3: pedido.subt_prov3,
-                        notas_comprador: pedido.notas_comprador,
-                        comprador: pedido.comprador,
-                      });
-                    }}
+                    onClick={() => abrirInfoPedido(pedido)}
                   >
                     📋 Info
                   </button>
                   <button
                     className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-xs"
-                    onClick={() => {
-                      setEditingPedido(pedido);
-                      setFormData({
-                        created_at: pedido.created_at,
-                        necesidad: pedido.necesidad,
-                        categoria: pedido.categoria,
-                        solicita: pedido.solicita,
-                        nota_solicitante: pedido.nota_solicitante,
-                        sector: pedido.sector,
-                        articulos: pedido.articulos,
-                        notas: pedido.notas,
-                        controlado: pedido.controlado,
-                        superviso: pedido.superviso,
-                        estado: pedido.estado,
-                        oc: pedido.oc,
-                        proveedor_selec: pedido.proveedor_selec,
-                        usd: pedido.usd,
-                        eur: pedido.eur,
-                        tc: pedido.tc,
-                        ars: pedido.ars,
-                        porcent: pedido.porcent,
-                        ars_desc: pedido.ars_desc,
-                        total_simp: pedido.total_simp,
-                        fecha_conf: pedido.fecha_conf,
-                        fecha_prom: pedido.fecha_prom,
-                        fecha_ent: pedido.fecha_ent,
-                        rto: pedido.rto,
-                        fac: pedido.fac,
-                        mod_pago: pedido.mod_pago,
-                        proceso: pedido.proceso,
-                        prov_uno: pedido.prov_uno,
-                        cost_prov_uno: pedido.cost_prov_uno,
-                        subt_prov1: pedido.subt_prov1,
-                        prov_dos: pedido.prov_dos,
-                        cost_prov_dos: pedido.cost_prov_dos,
-                        subt_prov2: pedido.subt_prov2,
-                        prov_tres: pedido.prov_tres,
-                        cost_prov_tres: pedido.cost_prov_tres,
-                        subt_prov3: pedido.subt_prov3,
-                        notas_comprador: pedido.notas_comprador,
-                        comprador: pedido.comprador,
-                      });
-                    }}
+                    onClick={() => abrirEdicionPedido(pedido)}
                   >
                     ✏️ Edit
                   </button>
 
                   <button
                     className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-xs"
-                    onClick={async () => {
-                      const confirm = window.confirm(
-                        `¿Estás seguro de que querés eliminar el pedido ${pedido.id}?`
-                      );
-                      if (!confirm) return;
-
-                      const { error } = await supabase.from("pic").delete().eq("id", pedido.id);
-                      if (error) {
-                        alert("Error al eliminar");
-                        console.error(error);
-                      } else {
-                        alert("Pedido eliminado");
-                        const { data } = await supabase.from("pic").select("*");
-                        if (data) setPedidos(data);
-                      }
-                    }}
+                    onClick={() => eliminarPedido(pedido)}
                   >
                     🗑️ Elim
                   </button>
