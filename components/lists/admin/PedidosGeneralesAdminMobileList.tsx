@@ -2,6 +2,20 @@
 
 import type { ReactNode } from "react";
 
+type ArticuloComparativa = {
+  articulo: string;
+  cant: number;
+  precioUnitario: number | null;
+  descuentoPorcentaje: number;
+  subtotal: number;
+};
+
+type ProveedorComparativa = {
+  nombreProveedor: string;
+  articulos: ArticuloComparativa[];
+  total: number;
+};
+
 type ArticuloPedido = {
   articulo: string;
   descripcion?: string;
@@ -12,6 +26,7 @@ type ArticuloPedido = {
 };
 
 export type PedidoGeneralesMobile = {
+  comparativa_prov?: ProveedorComparativa[] | null;
   id: string;
   created_at: string;
   necesidad: string;
