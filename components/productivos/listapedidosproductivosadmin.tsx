@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 
-const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
+const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
 type ArticuloComparativa = {
   codint: string;
