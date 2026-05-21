@@ -31,6 +31,7 @@ type Pedido = {
     existencia: number;
     cant: number;
     provsug: string;
+    codprovsug?: string;
   }[];
 };
 
@@ -47,6 +48,32 @@ export default function ListaPedidosProductivosVista() {
   
     
     const supabase = createClient();
+
+    const enriquecerPedidosConCodProvSug = async (pedidos: Pedido[]): Promise<Pedido[]> => {
+      const codints = [
+        ...new Set(
+          pedidos.flatMap((p) => (p.articulos ?? []).map((a) => a.codint).filter(Boolean))
+        ),
+      ];
+      if (codints.length === 0) return pedidos;
+
+      const { data } = await supabase
+        .from("articulos")
+        .select("codint, codprovsug")
+        .in("codint", codints);
+
+      const codProvPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+      );
+
+      return pedidos.map((p) => ({
+        ...p,
+        articulos: (p.articulos ?? []).map((art) => ({
+          ...art,
+          codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
+        })),
+      }));
+    };
   
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
         useEffect(() => {
@@ -111,7 +138,10 @@ export default function ListaPedidosProductivosVista() {
       const { data, error } = await query;
   
       if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
+      else if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConCodProvSug(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     };
   
     fetchPedidos();
@@ -270,6 +300,7 @@ const cellClass =
                         <th className="border px-1 py-1 text-xs">Descripción</th>
                         <th className="border px-1 py-1 text-xs">Cant. sol.</th>
                         <th className="border px-1 py-1 text-xs">Stock</th>
+                        <th className="border px-1 py-1 text-xs">Cod. prov. sug.</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -280,6 +311,9 @@ const cellClass =
                         <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
                         <td className="border px-1 py-1 text-xs">{a.cant}</td>
                         <td className="border px-1 py-1 text-xs">{a.existencia}</td>
+                        <td className="border px-1 py-1 text-xs font-mono">
+                          {a.codprovsug?.trim() ? a.codprovsug : "-"}
+                        </td>
                         </tr>
                     ))}
                     </tbody>

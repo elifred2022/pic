@@ -37,6 +37,7 @@ type Pedido = {
     observacion: string;
     cant: number;
     provsug: string;
+    codprovsug?: string;
   }[];
 };
 
@@ -53,6 +54,32 @@ export default function ListaPedidosProductivos() {
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
     const supabase = createClient();
+
+    const enriquecerPedidosConCodProvSug = async (pedidos: Pedido[]): Promise<Pedido[]> => {
+      const codints = [
+        ...new Set(
+          pedidos.flatMap((p) => (p.articulos ?? []).map((a) => a.codint).filter(Boolean))
+        ),
+      ];
+      if (codints.length === 0) return pedidos;
+
+      const { data } = await supabase
+        .from("articulos")
+        .select("codint, codprovsug")
+        .in("codint", codints);
+
+      const codProvPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+      );
+
+      return pedidos.map((p) => ({
+        ...p,
+        articulos: (p.articulos ?? []).map((art) => ({
+          ...art,
+          codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
+        })),
+      }));
+    };
   
     /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
     useEffect(() => {
@@ -121,7 +148,10 @@ export default function ListaPedidosProductivos() {
       const { data, error } = await query;
   
       if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
+      else if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConCodProvSug(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     };
   
     fetchPedidos();
@@ -468,6 +498,7 @@ export default function ListaPedidosProductivos() {
                             <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
                             <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
                             <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
+                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cod. prov. sug.</th>
                             <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
                           </tr>
                         </thead>
@@ -479,6 +510,9 @@ export default function ListaPedidosProductivos() {
                               <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
                               <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                               <td className="px-2 py-1 text-center">{a.existencia}</td>
+                              <td className="px-2 py-1 font-mono text-gray-700">
+                                {a.codprovsug?.trim() ? a.codprovsug : "-"}
+                              </td>
                               <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
                             </tr>
                           ))}

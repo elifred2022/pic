@@ -58,6 +58,7 @@ type Pedido = {
     existencia: number;
     cant: number;
     provsug: string;
+    codprovsug?: string;
     observacion: string;
   }[];
 };
@@ -71,6 +72,7 @@ export default function ListaPedidosProductivosAdmin() {
     existencia: number;
     cant: number;
     provsug: string;
+    codprovsug?: string;
     observacion: string;
   }
 
@@ -194,7 +196,10 @@ export default function ListaPedidosProductivosAdmin() {
         //.eq("uuid", user.id); // 👈 Filtra por usuario logueado
   
       if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
+      else if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConCodProvSug(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     };
   
     fetchPedidos();
@@ -246,7 +251,7 @@ export default function ListaPedidosProductivosAdmin() {
 
       // Verificar en los artículos
       const matchArticulos = pedido.articulos?.some((art: Articulo) =>
-        ['codint', 'articulo', 'descripcion', 'provsug', 'existencia'].some((campo) => {
+        ['codint', 'articulo', 'descripcion', 'provsug', 'codprovsug', 'existencia'].some((campo) => {
           const val = art[campo as keyof Articulo];
           return val !== null && val !== undefined && String(val).toLowerCase().includes(s);
         })
@@ -314,9 +319,41 @@ export default function ListaPedidosProductivosAdmin() {
     initComparativaForm(p);
   };
 
-  const abrirComparativaPedido = (p: Pedido) => {
-    setComparativaPedido(p);
-    setFormData(p);
+  const enriquecerPedidosConCodProvSug = async (pedidos: Pedido[]): Promise<Pedido[]> => {
+    const codints = [
+      ...new Set(
+        pedidos.flatMap((p) => (p.articulos ?? []).map((a) => a.codint).filter(Boolean))
+      ),
+    ];
+    if (codints.length === 0) return pedidos;
+
+    const { data } = await supabase
+      .from("articulos")
+      .select("codint, codprovsug")
+      .in("codint", codints);
+
+    const codProvPorCodint = new Map(
+      (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+    );
+
+    return pedidos.map((p) => ({
+      ...p,
+      articulos: (p.articulos ?? []).map((art) => ({
+        ...art,
+        codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
+      })),
+    }));
+  };
+
+  const enriquecerArticulosConCodProvSug = async (p: Pedido): Promise<Pedido> => {
+    const [enriquecido] = await enriquecerPedidosConCodProvSug([p]);
+    return enriquecido;
+  };
+
+  const abrirComparativaPedido = async (p: Pedido) => {
+    const pedidoEnriquecido = await enriquecerArticulosConCodProvSug(p);
+    setComparativaPedido(pedidoEnriquecido);
+    setFormData(pedidoEnriquecido);
   };
 
   const eliminarPedido = async (p: Pedido) => {
@@ -331,7 +368,10 @@ export default function ListaPedidosProductivosAdmin() {
       alert("Pedido eliminado");
       setSelectedMobilePedidoId((prev) => (prev === p.id ? null : prev));
       const { data } = await supabase.from("pedidos_productivos").select("*");
-      if (data) setPedidos(data);
+      if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConCodProvSug(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     }
   };
 
@@ -607,7 +647,7 @@ const handleUpdatePedido = async () => {
                   <span style="font-size: 9px; color: #4b5563;">Desc: ${art.descripcion != null && String(art.descripcion).trim() !== '' ? art.descripcion : '-'}</span>
                 </div>
                 <div class="info-item">
-                  <span>Cant: ${art.cant} · Stock: ${art.existencia ?? '-'}</span>
+                  <span>Cant: ${art.cant} · Stock: ${art.existencia ?? '-'} · Cod. prov. sug.: ${art.codprovsug?.trim() ? art.codprovsug : '-'}</span>
                 </div>
                 <div class="info-item" style="margin-left: 15px; margin-bottom: 8px;">
                   <span style="font-family: monospace; background: #f3f4f6; padding: 1px 4px; border-radius: 2px; font-size: 8px;">
@@ -637,21 +677,27 @@ const handleUpdatePedido = async () => {
                     <tr>
                       <th>Artículo</th>
                       <th>Cant.</th>
+                      <th>Cod. prov. sug.</th>
                       <th>Precio Unit.</th>
                       <th>Desc. %</th>
                       <th>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${prov.articulos.map(art => `
+                    ${prov.articulos.map(art => {
+                      const articuloOriginal = comparativaPedido.articulos?.find(a => a.codint === art.codint);
+                      const codProvSug = articuloOriginal?.codprovsug?.trim() ? articuloOriginal.codprovsug : '-';
+                      return `
                       <tr>
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
+                        <td>${codProvSug}</td>
                         <td>$${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
                         <td>$${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
-                    `).join('')}
+                    `;
+                    }).join('')}
                   </tbody>
                 </table>
                 
@@ -901,6 +947,7 @@ const handleUpdatePedido = async () => {
                             <div className="text-gray-600">Cant: {art.cant}</div>
                             <div className="text-gray-600">Stock: {art.existencia ?? '-'}</div>
                             <div className="text-gray-600">Prov: {art.provsug || '-'}</div>
+                            <div className="text-gray-600">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>
                             <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                           </div>
                         ))}
@@ -994,6 +1041,7 @@ const handleUpdatePedido = async () => {
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
                            <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
+                           <div className="text-gray-600 text-xs">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>
                            <div className="text-gray-600 text-xs">Observ: {art.observacion}</div>
                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                          </div>
@@ -1481,6 +1529,7 @@ const handleUpdatePedido = async () => {
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
                            <div className="text-gray-600 text-xs">Stock: {art.existencia ?? '-'}</div>
+                           <div className="text-gray-600 text-xs">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>
                            <div className="text-gray-600 text-xs">Observ: {art.observacion || '-'}</div>
                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                          </div>
@@ -1513,10 +1562,11 @@ const handleUpdatePedido = async () => {
                                              <table className="w-full text-gray-700 text-sm">
                                      <thead>
                            <tr className="border-b border-gray-200">
-                             <th className="px-2 py-2 text-left font-medium w-2/5">Artículo</th>
-                             <th className="px-2 py-2 text-center font-medium w-1/6">Cant.</th>
-                             <th className="px-2 py-2 text-center font-medium w-1/6">Stock</th>
-                             <th className="px-2 py-2 text-center font-medium w-1/6">Precio</th>
+                             <th className="px-2 py-2 text-left font-medium">Artículo</th>
+                             <th className="px-2 py-2 text-center font-medium">Cant.</th>
+                             <th className="px-2 py-2 text-center font-medium">Stock</th>
+                             <th className="px-2 py-2 text-center font-medium">Cod. prov. sug.</th>
+                             <th className="px-2 py-2 text-center font-medium">Precio</th>
                             <th className="px-2 py-2 text-center font-medium w-1/6">Desc. %</th>
                              <th className="px-2 py-2 text-center font-medium w-1/6">Subtotal</th>
                                          </tr>
@@ -1534,6 +1584,12 @@ const handleUpdatePedido = async () => {
                                  {(() => {
                                    const articuloOriginal = comparativaPedido.articulos.find(a => a.codint === art.codint);
                                    return articuloOriginal?.existencia || 0;
+                                 })()}
+                               </td>
+                               <td className="px-2 py-2 text-center text-sm font-mono">
+                                 {(() => {
+                                   const articuloOriginal = comparativaPedido.articulos.find(a => a.codint === art.codint);
+                                   return articuloOriginal?.codprovsug?.trim() ? articuloOriginal.codprovsug : '-';
                                  })()}
                                </td>
                                <td className="px-2 py-2 text-center text-sm">

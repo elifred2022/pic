@@ -24,6 +24,7 @@ type ArticuloPedido = {
   existencia: number;
   cant: number;
   provsug: string;
+  codprovsug?: string;
   observacion: string;
 };
 
@@ -191,6 +192,9 @@ export default function PedidosProductivosAdminMobileList({
                     <p className="text-gray-600">Cant: {art.cant}</p>
                     <p className="text-gray-600">Stock: {art.existencia ?? "-"}</p>
                     <p className="text-gray-600">Prov: {art.provsug || "-"}</p>
+                    <p className="text-gray-600">
+                      Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : "-"}
+                    </p>
                     <p className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">
                       Código: {art.codint}
                     </p>
