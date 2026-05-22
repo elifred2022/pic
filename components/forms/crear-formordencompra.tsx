@@ -71,6 +71,26 @@ interface ArticuloPedido {
   observacion: string;
 }
 
+const SECTORES = [
+  "Compra directa",
+  "Panol Cardales",
+  "Panol Gascon",
+  "Mantenimiento",
+  "RRHH",
+  "Seguridad e Higiene",
+  "Vidrio",
+  "Pvc",
+  "Perf. Aluminio",
+  "Administracion",
+  "Colocaciones",
+  "Reparaciones",
+  "Mediciones",
+  "Maestranza",
+  "Compras",
+  "Calidad",
+  "Flota",
+];
+
 export function CrearFormOrdenCompra() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +100,6 @@ export function CrearFormOrdenCompra() {
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<Proveedor | null>(null);
   const [itemsOrden, setItemsOrden] = useState<ItemOrden[]>([]);
   const [totalOrden, setTotalOrden] = useState(0);
-  const [sectoresDisponibles, setSectoresDisponibles] = useState<string[]>([]);
   const [mostrarFormSinPic, setMostrarFormSinPic] = useState(false);
   const [busquedaArticuloCatalogo, setBusquedaArticuloCatalogo] = useState("");
   const [articulosCatalogo, setArticulosCatalogo] = useState<ArticuloCatalogo[]>([]);
@@ -248,8 +267,8 @@ export function CrearFormOrdenCompra() {
       
       // Procesar artículos de pedidos productivos
       const articulosProductivosProcesados = articulosProductivosData?.flatMap(pedido => 
-        pedido.articulos?.map((articulo: ArticuloPedido) => ({
-          id: `productivo-${pedido.id}-${articulo.articulo}`, // ID único con prefijo
+        pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
+          id: `productivo-${pedido.id}-${index}-${articulo.articulo}`,
           pedido_id: pedido.id, // ID del pedido original
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
@@ -268,8 +287,8 @@ export function CrearFormOrdenCompra() {
 
       // Procesar artículos de pedidos generales (tabla pic)
       const articulosGeneralesProcesados = articulosGeneralesData?.flatMap(pedido => 
-        pedido.articulos?.map((articulo: ArticuloPedido) => ({
-          id: `general-${pedido.id}-${articulo.articulo}`, // ID único con prefijo
+        pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
+          id: `general-${pedido.id}-${index}-${articulo.articulo}`,
           pedido_id: pedido.id, // ID del pedido original
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
@@ -297,14 +316,6 @@ export function CrearFormOrdenCompra() {
       console.log("✅ Artículos productivos procesados:", articulosProductivosProcesados);
       console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
       console.log("✅ Artículos disponibles (filtrados):", articulosDisponibles);
-      
-      // Extraer sectores únicos de los artículos disponibles + "Compra directa" para órdenes sin PIC
-      const sectoresUnicos = [...new Set(articulosDisponibles.map(articulo => articulo.sector))].filter(sector => sector && sector.trim() !== '');
-      if (!sectoresUnicos.includes("Compra directa")) {
-        sectoresUnicos.unshift("Compra directa");
-      }
-      setSectoresDisponibles(sectoresUnicos);
-      console.log("✅ Sectores disponibles:", sectoresUnicos);
       
       setArticulosAprobados(articulosDisponibles);
     } catch (err) {
@@ -733,14 +744,14 @@ export function CrearFormOrdenCompra() {
                 required
               >
                 <option value="">Seleccione el sector</option>
-                {sectoresDisponibles.map((sector) => (
+                {SECTORES.map((sector) => (
                   <option key={sector} value={sector}>
-                    {sector}
+                    {sector === "Administracion" ? "Administración" : sector}
                   </option>
                 ))}
               </select>
               <p className="text-sm text-gray-500 mt-1">
-                🏭 Sectores disponibles de los artículos aprobados
+                🏭 Todos los sectores disponibles
               </p>
             </div>
 
