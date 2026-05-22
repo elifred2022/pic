@@ -4,7 +4,16 @@ import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { canAccessOrdenesProduccion, isAdminEmail, isAprobEmail, isPanolEmail, isProduccionEmail, isTabletEmail } from "@/lib/panol-access";
-import { getArticulosTerminadosProgress } from "@/lib/panol/estado-obra";
+import {
+  areAllProcesosTerminadosParaTipologia,
+  ESTADOS_OBRA_STRUCTURE,
+  ESTADO_OBRA_PROCESOS,
+  getArticulosTerminadosProgress,
+  getCheckboxItemGroupsForTipologia,
+  getCheckboxItemsForTipologia,
+  getFechaGuardadaParaItem,
+  getProcesosConItemsParaTipologia,
+} from "@/lib/panol/estado-obra";
 import { inicialesDesdeNombre, MARCA_OPERADOR_LONGITUD } from "@/lib/utils";
 import ProgresoProduccionModal from "@/components/panol/ProgresoProduccionModal";
 import OrdenesProduccionMobileList from "@/components/lists/panol/OrdenesProduccionMobileList";
@@ -12,14 +21,6 @@ import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
 const ESTADO_OBRA_KEY_SEP = "::";
-
-const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
-  CORTE: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
-  MECANIZADO: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
-  SOLDADURA: ["Marco", "Hojas", "Guia Mosquitero"],
-  ARMADO: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
-  JUNQUILLOS: ["Marco", "Hoja", "Hoja Mq"],
-} as const;
 
 // proceso -> item -> fecha (ISO string). Si está vacío = sin fecha (datos antiguos)
 type EstadoObraData = Record<string, Record<string, string>>;
@@ -461,12 +462,14 @@ export default function ListOrdenesProduccion() {
       }
     }
     tipologias.forEach((t, idx) => {
-      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+      for (const proceso of ESTADO_OBRA_PROCESOS) {
+        const items = getCheckboxItemsForTipologia(t, proceso);
         const itemData = t.estados[proceso];
         for (const item of items) {
-          if (itemData && item in itemData) {
+          const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
+          if (fechaGuardada !== undefined) {
             const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-            fechas[key] = itemData[item] ?? "";
+            fechas[key] = fechaGuardada;
           }
         }
       }
@@ -482,12 +485,14 @@ export default function ListOrdenesProduccion() {
     const tipologiasParaRef = _backup !== undefined ? _backup : tipologias;
     const fechasParaRef: Record<string, string> = {};
     tipologiasParaRef.forEach((t, idx) => {
-      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+      for (const proceso of ESTADO_OBRA_PROCESOS) {
+        const items = getCheckboxItemsForTipologia(t, proceso);
         const itemData = t.estados[proceso];
         for (const item of items) {
-          if (itemData && item in itemData) {
+          const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
+          if (fechaGuardada !== undefined) {
             const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-            fechasParaRef[key] = itemData[item] ?? "";
+            fechasParaRef[key] = fechaGuardada;
           }
         }
       }
@@ -778,7 +783,8 @@ export default function ListOrdenesProduccion() {
     const observacionesActual = estadoObraObservacionesRef.current;
     const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
       const estados: EstadoObraData = {};
-      for (const [proceso, items] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+      for (const proceso of ESTADO_OBRA_PROCESOS) {
+        const items = getCheckboxItemsForTipologia(t, proceso);
         const map: Record<string, string> = {};
         for (const item of items) {
           const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
@@ -839,12 +845,9 @@ export default function ListOrdenesProduccion() {
       });
     }
     const articuloTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
-    tipologiasActuales.forEach((_, tipIdx) => {
+    tipologiasActuales.forEach((t, tipIdx) => {
       const key = String(tipIdx);
-      const todosProcesosTerminados = Object.keys(ESTADOS_OBRA_STRUCTURE).every((proceso) =>
-        !!terminadoActual[`${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`]
-      );
-      if (todosProcesosTerminados) {
+      if (areAllProcesosTerminadosParaTipologia(tipIdx, t, terminadoActual, ESTADO_OBRA_KEY_SEP)) {
         articuloTerminado[key] = { terminado: true, iniciales: "" };
       }
     });
@@ -1773,11 +1776,22 @@ export default function ListOrdenesProduccion() {
                       const canEditParaTipologia = canEditCheckboxes && !tabletBloqueadoPorArticulo;
                       return (
                     <>
-                    {Object.entries(ESTADOS_OBRA_STRUCTURE).map(([proceso, items]) => (
+                    {getProcesosConItemsParaTipologia(tipologia).map((proceso) => {
+                      const items = getCheckboxItemsForTipologia(tipologia, proceso);
+                      const itemGroups = getCheckboxItemGroupsForTipologia(tipologia, proceso);
+                      return (
                       <div key={proceso} className="border border-gray-200 rounded p-2 bg-white">
                         <h5 className="font-medium text-gray-700 text-sm mb-1">{proceso}</h5>
-                        <ul className="flex flex-wrap gap-x-6 gap-y-3">
-                          {items.map((item) => {
+                        <div className="flex flex-wrap gap-x-4 gap-y-3 items-start">
+                          {itemGroups.map((group) => (
+                            <div key={group.groupKey} className="flex flex-col min-w-[6.5rem] shrink-0">
+                              {group.items.length > 1 ? (
+                                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5 px-0.5">
+                                  {group.groupLabel}
+                                </p>
+                              ) : null}
+                              <ul className="flex flex-col gap-2">
+                                {group.items.map((item) => {
                             const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
                             const fecha = estadoObraFechas[key] ?? "";
                             const checked = key in estadoObraFechas;
@@ -1816,13 +1830,13 @@ export default function ListOrdenesProduccion() {
                                           });
                                         }
                                       }}
-                                      className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                                      className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500 shrink-0"
                                     />
-                                    <span className="text-xs">{item}</span>
+                                    <span className="text-xs whitespace-nowrap">{item}</span>
                                   </label>
                                   {checked && estadoObraInicialesPorItem[key] ? (
                                     <span
-                                      className="inline-flex min-w-[2.75rem] items-center justify-center px-1 py-0.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded uppercase"
+                                      className="inline-flex min-w-[2.75rem] items-center justify-center px-1 py-0.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded uppercase shrink-0"
                                       title="Marcado por"
                                     >
                                       {estadoObraInicialesPorItem[key]}
@@ -1837,12 +1851,14 @@ export default function ListOrdenesProduccion() {
                                 </span>
                               </li>
                             );
-                          })}
-                        </ul>
+                                })}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
                           {(() => {
-                            const itemsProceso = ESTADOS_OBRA_STRUCTURE[proceso];
-                            const alMenosUnoMarcado = itemsProceso.some((item) => {
+                            const alMenosUnoMarcado = items.some((item) => {
                               const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
                               return k in estadoObraFechas;
                             });
@@ -1912,15 +1928,19 @@ export default function ListOrdenesProduccion() {
                           />
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                     </>
                     );
                     })()}
                   </div>
                   <div className="mt-3 pt-3 border-t-2 border-amber-200 bg-amber-50/50 rounded p-2">
                     {(() => {
-                      const todosProcesosTerminados = Object.keys(ESTADOS_OBRA_STRUCTURE).every((proceso) =>
-                        !!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]
+                      const todosProcesosTerminados = areAllProcesosTerminadosParaTipologia(
+                        idx,
+                        tipologia,
+                        estadoObraTerminado,
+                        ESTADO_OBRA_KEY_SEP
                       );
                       const articuloKey = String(idx);
                       return (

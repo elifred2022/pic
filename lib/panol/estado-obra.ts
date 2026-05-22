@@ -1,4 +1,4 @@
-const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
+export const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
   CORTE: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
   MECANIZADO: ["Marco", "Marco Adicional", "Hojas", "Guia Mosquitero"],
   SOLDADURA: ["Marco", "Hojas", "Guia Mosquitero"],
@@ -6,9 +6,11 @@ const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
   JUNQUILLOS: ["Marco", "Hoja", "Hoja Mq"],
 } as const;
 
-type EstadoObraData = Record<string, Record<string, string>>;
+export const ESTADO_OBRA_PROCESOS = Object.keys(ESTADOS_OBRA_STRUCTURE);
 
-type TipologiaItem = {
+export type EstadoObraData = Record<string, Record<string, string>>;
+
+export type TipologiaItem = {
   nombre: string;
   estados: EstadoObraData;
   descripcion?: string | null;
@@ -29,10 +31,178 @@ type TipologiaItem = {
   alto?: number | null;
 };
 
+/** Máximo de checkboxes por métrica (evita listas enormes por error de carga). */
+const MAX_CHECKBOXES_POR_METRICA = 50;
+
+/** Métricas del Excel que generan checkboxes por proceso (sin ancho/alto). */
+export const TIPOLOGIA_CHECKBOX_METRICS: ReadonlyArray<{
+  metricKey: keyof Pick<
+    TipologiaItem,
+    | "marco"
+    | "hojas"
+    | "guias"
+    | "guia_mosquitero"
+    | "mosq_comun"
+    | "mosq_riel"
+    | "mosquitero_fijo"
+    | "unidades_mq"
+    | "guia_emb"
+    | "umbral_pvc"
+    | "umbral_aluminio"
+  >;
+  /** Nombre base numerado: cantidad 2 → "Hoja 1", "Hoja 2". */
+  numberedBase: string;
+  legacyAliases: readonly string[];
+}> = [
+  { metricKey: "marco", numberedBase: "Marco", legacyAliases: ["Marco", "Marco Adicional"] },
+  { metricKey: "hojas", numberedBase: "Hoja", legacyAliases: ["Hojas", "Hoja"] },
+  { metricKey: "guias", numberedBase: "Guía aluminio", legacyAliases: ["Guías", "Guia aluminio"] },
+  { metricKey: "guia_mosquitero", numberedBase: "Guía mosquitero", legacyAliases: ["Guia Mosquitero", "Guía Mosquitero"] },
+  { metricKey: "mosq_comun", numberedBase: "Mosq. común", legacyAliases: [] },
+  { metricKey: "mosq_riel", numberedBase: "Mosq. riel", legacyAliases: [] },
+  { metricKey: "mosquitero_fijo", numberedBase: "Mosq. fijo", legacyAliases: ["Mosquitero fijo"] },
+  { metricKey: "unidades_mq", numberedBase: "Unid. mq", legacyAliases: ["Hoja Mq", "Hojas Mosq"] },
+  { metricKey: "guia_emb", numberedBase: "Guía emb.", legacyAliases: ["Guia emb"] },
+  { metricKey: "umbral_pvc", numberedBase: "Umbral PVC", legacyAliases: ["Umbral", "Umbral pvc"] },
+  { metricKey: "umbral_aluminio", numberedBase: "Umbral aluminio", legacyAliases: ["Umbral aluminio", "Umbral Aluminio"] },
+];
+
+/** Etiqueta de checkbox para un índice (1-based). Ej: ("Hoja", 2) → "Hoja 2". */
+export function numberedItemLabel(base: string, index: number): string {
+  return `${base} ${index}`;
+}
+
 type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
 type EstadoObraParsed = EstadoObraConTipologias & { _backup?: TipologiaItem[] };
 
 const PROCESOS_VALIDOS = new Set(Object.keys(ESTADOS_OBRA_STRUCTURE));
+
+export function hasMetricQty(val: number | null | undefined): boolean {
+  return val != null && !Number.isNaN(val) && val > 0;
+}
+
+function metricQty(tipologia: TipologiaItem, metricKey: (typeof TIPOLOGIA_CHECKBOX_METRICS)[number]["metricKey"]): number | null {
+  if (metricKey === "unidades_mq") {
+    return tipologia.unidades_mq ?? tipologia.hojas_mosq ?? null;
+  }
+  if (metricKey === "umbral_pvc") {
+    return tipologia.umbral_pvc ?? tipologia.umbral ?? null;
+  }
+  return tipologia[metricKey] ?? null;
+}
+
+function checkboxCountForQty(qty: number): number {
+  if (!hasMetricQty(qty)) return 0;
+  return Math.min(Math.max(1, Math.floor(qty)), MAX_CHECKBOXES_POR_METRICA);
+}
+
+/** True si la tipología trae cantidades del Excel (columnas numéricas con valor > 0). */
+export function tipologiaHasImportedMetrics(tipologia: TipologiaItem): boolean {
+  return TIPOLOGIA_CHECKBOX_METRICS.some((m) => hasMetricQty(metricQty(tipologia, m.metricKey)));
+}
+
+/** Ítems de checkbox para un proceso según métricas del Excel; si no hay métricas, estructura legacy por proceso. */
+export function getCheckboxItemsForTipologia(tipologia: TipologiaItem, proceso: string): string[] {
+  if (tipologiaHasImportedMetrics(tipologia)) {
+    const items: string[] = [];
+    for (const m of TIPOLOGIA_CHECKBOX_METRICS) {
+      const qty = metricQty(tipologia, m.metricKey);
+      if (qty == null || !hasMetricQty(qty)) continue;
+      const count = checkboxCountForQty(qty);
+      for (let i = 1; i <= count; i++) {
+        items.push(numberedItemLabel(m.numberedBase, i));
+      }
+    }
+    return items;
+  }
+  return [...(ESTADOS_OBRA_STRUCTURE[proceso] ?? [])];
+}
+
+export function getProcesosConItemsParaTipologia(tipologia: TipologiaItem): string[] {
+  return ESTADO_OBRA_PROCESOS.filter((proceso) => getCheckboxItemsForTipologia(tipologia, proceso).length > 0);
+}
+
+export type CheckboxItemGroup = {
+  groupKey: string;
+  /** Título de columna (ej. "Hoja"). */
+  groupLabel: string;
+  items: string[];
+};
+
+/** Agrupa ítems similares para mostrarlos en columna (Hoja 1, Hoja 2, …). */
+export function getCheckboxItemGroupsForTipologia(tipologia: TipologiaItem, proceso: string): CheckboxItemGroup[] {
+  if (tipologiaHasImportedMetrics(tipologia)) {
+    const groups: CheckboxItemGroup[] = [];
+    for (const m of TIPOLOGIA_CHECKBOX_METRICS) {
+      const qty = metricQty(tipologia, m.metricKey);
+      if (qty == null || !hasMetricQty(qty)) continue;
+      const count = checkboxCountForQty(qty);
+      const items: string[] = [];
+      for (let i = 1; i <= count; i++) {
+        items.push(numberedItemLabel(m.numberedBase, i));
+      }
+      if (items.length > 0) {
+        groups.push({ groupKey: m.metricKey, groupLabel: m.numberedBase, items });
+      }
+    }
+    return groups;
+  }
+  const legacyItems = [...(ESTADOS_OBRA_STRUCTURE[proceso] ?? [])];
+  return legacyItems.map((item) => ({ groupKey: item, groupLabel: item, items: [item] }));
+}
+
+function findMetricByNumberedLabel(itemLabel: string) {
+  const match = itemLabel.match(/^(.+?)\s+(\d+)$/);
+  if (!match) return { metric: undefined as (typeof TIPOLOGIA_CHECKBOX_METRICS)[number] | undefined, index: 0 };
+  const base = match[1].trim();
+  const index = parseInt(match[2], 10);
+  const metric = TIPOLOGIA_CHECKBOX_METRICS.find((m) => m.numberedBase === base);
+  return { metric, index: Number.isNaN(index) ? 0 : index };
+}
+
+export function getFechaGuardadaParaItem(
+  itemData: Record<string, string> | undefined,
+  itemLabel: string
+): string | undefined {
+  if (!itemData) return undefined;
+  if (itemLabel in itemData) return itemData[itemLabel];
+
+  const { metric, index } = findMetricByNumberedLabel(itemLabel);
+  if (metric && index > 0) {
+    const compact = `${metric.numberedBase}${index}`;
+    if (compact in itemData) return itemData[compact];
+    if (index === 1) {
+      for (const alias of metric.legacyAliases) {
+        if (alias in itemData) return itemData[alias];
+      }
+      if (metric.numberedBase in itemData) return itemData[metric.numberedBase];
+    }
+    if (index === 2 && metric.metricKey === "marco" && "Marco Adicional" in itemData) {
+      return itemData["Marco Adicional"];
+    }
+  }
+
+  const metricByAlias = TIPOLOGIA_CHECKBOX_METRICS.find(
+    (m) => m.numberedBase === itemLabel || m.legacyAliases.includes(itemLabel)
+  );
+  if (metricByAlias) {
+    for (const alias of metricByAlias.legacyAliases) {
+      if (alias in itemData) return itemData[alias];
+    }
+  }
+  return undefined;
+}
+
+export function areAllProcesosTerminadosParaTipologia(
+  tipIdx: number,
+  tipologia: TipologiaItem,
+  terminado: Record<string, boolean>,
+  keySep: string
+): boolean {
+  const procesos = getProcesosConItemsParaTipologia(tipologia);
+  if (procesos.length === 0) return false;
+  return procesos.every((proceso) => !!terminado[`${tipIdx}${keySep}${proceso}`]);
+}
 
 function parseNumFromDb(val: unknown): number | null {
   if (val === undefined || val === null) return null;
