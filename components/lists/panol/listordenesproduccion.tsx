@@ -47,7 +47,7 @@ type TipologiaItem = {
 };
 
 /** Orden de columnas al importar Excel (índice 0 = columna A). */
-const ESTADO_OBRA_EXCEL_IMPORT_COLS = 15;
+const ESTADO_OBRA_EXCEL_IMPORT_COLS = 14;
 const EXCEL_COL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
@@ -60,7 +60,6 @@ const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
     | "mosq_comun"
     | "mosq_riel"
     | "mosquitero_fijo"
-    | "unidades_mq"
     | "guia_emb"
     | "umbral_pvc"
     | "umbral_aluminio"
@@ -77,7 +76,6 @@ const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
   { k: "mosq_comun", title: "Mosq. común", abbrev: "M.c" },
   { k: "mosq_riel", title: "Mosq. riel", abbrev: "M.r" },
   { k: "mosquitero_fijo", title: "Mosq. fijo", abbrev: "M.f" },
-  { k: "unidades_mq", title: "Unid. mq", abbrev: "U.mq" },
   { k: "guia_emb", title: "Guía emb.", abbrev: "G.e" },
   { k: "umbral_pvc", title: "Umbral PVC", abbrev: "U.P" },
   { k: "umbral_aluminio", title: "Umbral aluminio", abbrev: "U.Al" },
@@ -533,6 +531,22 @@ export default function ListOrdenesProduccion() {
     setMostrarAgregarTipologia(false);
   };
 
+  const normExcelLabel = (s: string) =>
+    s
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+
+  /** Fila cuyo valor en tipología es el texto del encabezado (p. ej. planilla sin header en sheet_to_json). */
+  const isExcelHeaderDataRow = (nombre: string, synonyms: string[][]): boolean => {
+    const n = normExcelLabel(nombre);
+    if (!n) return false;
+    if (/^(tipolog(ias?|ia)?|descripciones?|marco|hojas|ancho|alto)$/.test(n)) return true;
+    return synonyms[0].some((k) => normExcelLabel(k) === n);
+  };
+
   const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number, firstKeys?: string[]): unknown => {
     if (colIdx !== undefined && colIdx >= 0) {
       const letter = EXCEL_COL_LETTERS[colIdx];
@@ -563,17 +577,16 @@ export default function ListOrdenesProduccion() {
     if (!file) return;
     setImportandoEstadoObra(true);
     const colSynonyms: string[][] = [
-      ["tipologia", "tipología", "tipologias", "Tipología"],
+      ["tipologia", "tipología", "tipologias", "tipologías", "Tipología", "Tipologías"],
       ["descripcion", "descripción", "descripciones", "Descripciones", "Descripción"],
       ["marco", "Marco"],
       ["hojas", "Hojas"],
-      ["guia aluminio", "guía aluminio", "guias", "guías", "Guías"],
-      ["guia mosquitero", "guía mosquitero", "Guia Mosquitero"],
-      ["mosq comun", "mosquitero comun", "mosquitero común", "Mosq comun"],
-      ["mosq riel", "mosquitero riel", "Mosq riel"],
+      ["guia aluminio", "guía aluminio", "Guía aluminio", "guias", "guías"],
+      ["guia mosquitero", "guía mosquitero", "Guía mosquitero"],
+      ["mosq comun", "mosquitero comun", "mosquitero común", "Mosquitero común", "Mosquitero comun"],
+      ["mosq riel", "mosquitero riel", "Mosquitero riel"],
       ["mosquitero fijo", "Mosquitero fijo"],
-      ["unidades mq", "Unidades mq", "Unidades Mq"],
-      ["guia emb", "guía emb", "Guia emb"],
+      ["guia emb", "guía emb", "Guía emb"],
       ["umbral pvc", "Umbral pvc", "Umbral PVC"],
       ["umbral aluminio", "umbral alum", "Umbral aluminio", "Umbral Aluminio"],
       ["ancho", "Ancho"],
@@ -588,7 +601,7 @@ export default function ListOrdenesProduccion() {
       if (rows.length > 0) {
         firstKeys = Object.keys(rows[0]);
         const hasHeader = firstKeys.some((k) =>
-          /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|unidades|ancho|alto|mosquitero/i.test(String(k))
+          /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|ancho|alto|mosquitero/i.test(String(k))
         );
         if (!hasHeader) {
           rows = rows.map((r) => {
@@ -601,13 +614,9 @@ export default function ListOrdenesProduccion() {
           });
         }
       }
-      const hasHeaderRow = rows.length > 0 && Object.keys(rows[0]).some((k) =>
-        /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|unidades|ancho|alto|mosquitero/i.test(String(k))
-      );
       const nuevas: TipologiaItem[] = [];
       for (let ri = 0; ri < rows.length; ri++) {
         const row = rows[ri];
-        if (hasHeaderRow && ri === 0) continue;
         let nombreRaw = getExcelVal(row, colSynonyms[0], 0, firstKeys) ?? getExcelVal(row, [], 0, firstKeys);
         if (nombreRaw === undefined) {
           const firstCol = row[firstKeys[0]] ?? row["0"] ?? row["A"];
@@ -615,6 +624,7 @@ export default function ListOrdenesProduccion() {
         }
         const nombre = String(nombreRaw ?? "").trim();
         if (!nombre) continue;
+        if (isExcelHeaderDataRow(nombre, colSynonyms)) continue;
         const descripcionRaw = getExcelVal(row, colSynonyms[1], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
         const descripcion = String(descripcionRaw ?? "").trim() || null;
         const marco = parseNumExcel(getExcelVal(row, colSynonyms[2], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys));
@@ -624,12 +634,11 @@ export default function ListOrdenesProduccion() {
         const mosq_comun = parseNumExcel(getExcelVal(row, colSynonyms[6], 6, firstKeys) ?? getExcelVal(row, [], 6, firstKeys));
         const mosq_riel = parseNumExcel(getExcelVal(row, colSynonyms[7], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys));
         const mosquitero_fijo = parseNumExcel(getExcelVal(row, colSynonyms[8], 8, firstKeys) ?? getExcelVal(row, [], 8, firstKeys));
-        const unidades_mq = parseNumExcel(getExcelVal(row, colSynonyms[9], 9, firstKeys) ?? getExcelVal(row, [], 9, firstKeys));
-        const guia_emb = parseNumExcel(getExcelVal(row, colSynonyms[10], 10, firstKeys) ?? getExcelVal(row, [], 10, firstKeys));
-        const umbral_pvc = parseNumExcel(getExcelVal(row, colSynonyms[11], 11, firstKeys) ?? getExcelVal(row, [], 11, firstKeys));
-        const umbral_aluminio = parseNumExcel(getExcelVal(row, colSynonyms[12], 12, firstKeys) ?? getExcelVal(row, [], 12, firstKeys));
-        const ancho = parseNumExcel(getExcelVal(row, colSynonyms[13], 13, firstKeys) ?? getExcelVal(row, [], 13, firstKeys));
-        const alto = parseNumExcel(getExcelVal(row, colSynonyms[14], 14, firstKeys) ?? getExcelVal(row, [], 14, firstKeys));
+        const guia_emb = parseNumExcel(getExcelVal(row, colSynonyms[9], 9, firstKeys) ?? getExcelVal(row, [], 9, firstKeys));
+        const umbral_pvc = parseNumExcel(getExcelVal(row, colSynonyms[10], 10, firstKeys) ?? getExcelVal(row, [], 10, firstKeys));
+        const umbral_aluminio = parseNumExcel(getExcelVal(row, colSynonyms[11], 11, firstKeys) ?? getExcelVal(row, [], 11, firstKeys));
+        const ancho = parseNumExcel(getExcelVal(row, colSynonyms[12], 12, firstKeys) ?? getExcelVal(row, [], 12, firstKeys));
+        const alto = parseNumExcel(getExcelVal(row, colSynonyms[13], 13, firstKeys) ?? getExcelVal(row, [], 13, firstKeys));
         nuevas.push({
           nombre,
           descripcion,
@@ -640,7 +649,6 @@ export default function ListOrdenesProduccion() {
           mosq_comun,
           mosq_riel,
           mosquitero_fijo,
-          unidades_mq,
           guia_emb,
           umbral_pvc,
           umbral_aluminio,
@@ -656,7 +664,7 @@ export default function ListOrdenesProduccion() {
         alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
       } else {
         alert(
-          "No se encontraron filas con datos. El Excel debe tener columnas en este orden: Tipologías, Descripciones, Marco, Hojas, Guía aluminio, Guía mosquitero, Mosq común, Mosq riel, Mosquitero fijo, Unidades mq, Guía emb, Umbral PVC, Umbral aluminio, Ancho, Alto."
+          "No se encontraron filas con datos. El Excel debe tener columnas en este orden: Tipologías, Descripciones, Marco, Hojas, Guía aluminio, Guía mosquitero, Mosquitero común, Mosquitero riel, Mosquitero fijo, Guía emb, Umbral PVC, Umbral aluminio, Ancho, Alto."
         );
       }
     } catch (ex) {
@@ -1657,7 +1665,7 @@ export default function ListOrdenesProduccion() {
                 <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-3">
                     <div className="overflow-x-auto min-w-0 -mx-1 px-1">
-                      <div className="grid gap-x-2 gap-y-2 w-full min-w-[1040px] shrink-0" style={{ gridTemplateColumns: "minmax(56px, 1fr) minmax(72px, 1.25fr) repeat(13, minmax(34px, 0.68fr))" }}>
+                      <div className="grid gap-x-2 gap-y-2 w-full min-w-[980px] shrink-0" style={{ gridTemplateColumns: "minmax(56px, 1fr) minmax(72px, 1.25fr) repeat(12, minmax(34px, 0.68fr))" }}>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase break-words leading-tight hyphens-auto" title="Tipología">Tip</p>
                         {editingTipologiaIdx === idx ? (
@@ -1700,10 +1708,6 @@ export default function ListOrdenesProduccion() {
                       </div>
                       {TIPOLOGIA_NUM_METRIC_COLS.map(({ k, title, abbrev }) => {
                         const inputVal = (() => {
-                          if (k === "unidades_mq") {
-                            const v = tipologia.unidades_mq ?? tipologia.hojas_mosq;
-                            return v != null && !Number.isNaN(v) ? String(v) : "";
-                          }
                           if (k === "umbral_pvc") {
                             const v = tipologia.umbral_pvc ?? tipologia.umbral;
                             return v != null && !Number.isNaN(v) ? String(v) : "";
@@ -1724,10 +1728,7 @@ export default function ListOrdenesProduccion() {
                                   setEstadoObraTipologias((prev) => {
                                     const next = [...prev];
                                     const cur = { ...next[idx] };
-                                    if (k === "unidades_mq") {
-                                      cur.unidades_mq = v;
-                                      cur.hojas_mosq = null;
-                                    } else if (k === "umbral_pvc") {
+                                    if (k === "umbral_pvc") {
                                       cur.umbral_pvc = v;
                                       cur.umbral = null;
                                     } else {
