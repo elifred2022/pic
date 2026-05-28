@@ -46,7 +46,7 @@ export const tabletEmails = [
 "orlandojosemartinez1946@gmail.com",
 "tabletpysignacio@gmail.com",
 "tabletpyscardozo@gmail.com",
-"perfilesyserviciosfabrica@gamil.com"
+"tabletpyssantini@gmail.com"
 //"elifred21@hotmail.com"
 
 ];
