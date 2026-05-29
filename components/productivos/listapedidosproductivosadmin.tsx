@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
+import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
+import { useOcVolver } from "@/hooks/use-oc-volver";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -76,6 +79,9 @@ export default function ListaPedidosProductivosAdmin() {
     observacion: string;
   }
 
+   const searchParams = useSearchParams();
+   const { ocVolver, ensureOcVolver } = useOcVolver();
+   const comparativaAbiertaRef = useRef<string | null>(null);
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [editingPedido, setEditingPedido] = useState<Pedido | null>(null); //modal edicion
@@ -204,6 +210,18 @@ export default function ListaPedidosProductivosAdmin() {
   
     fetchPedidos();
   }, [supabase]);
+
+  useEffect(() => {
+    const comparativaId = searchParams.get("comparativa");
+    if (!comparativaId || pedidos.length === 0) return;
+    if (comparativaAbiertaRef.current === comparativaId) return;
+
+    const pedido = pedidos.find((p) => String(p.id) === comparativaId);
+    if (!pedido) return;
+
+    comparativaAbiertaRef.current = comparativaId;
+    void abrirComparativaPedido(pedido);
+  }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
   
     // funcion para formatear las fechas
    function formatDate(dateString: string | null): string {
@@ -351,6 +369,7 @@ export default function ListaPedidosProductivosAdmin() {
   };
 
   const abrirComparativaPedido = async (p: Pedido) => {
+    await ensureOcVolver(p.numero_oc);
     const pedidoEnriquecido = await enriquecerArticulosConCodProvSug(p);
     setComparativaPedido(pedidoEnriquecido);
     setFormData(pedidoEnriquecido);
@@ -1497,9 +1516,28 @@ const handleUpdatePedido = async () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
-              <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{comparativaPedido.id}</h2>
-              <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{comparativaPedido.id}</h2>
+                  <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
+                </div>
+                <OcBackLink
+                  ordenCompraId={ocVolver?.id ?? null}
+                  ordenCompraNoc={ocVolver?.noc}
+                  variant="light"
+                />
+              </div>
             </div>
+            {ocVolver && (
+              <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-amber-900">Volvé a la orden de compra:</span>
+                <OcBackLink
+                  ordenCompraId={ocVolver.id}
+                  ordenCompraNoc={ocVolver.noc}
+                  variant="dark"
+                />
+              </div>
+            )}
             <div className="p-6">
               {/* Información del pedido */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

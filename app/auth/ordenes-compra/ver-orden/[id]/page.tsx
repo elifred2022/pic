@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import {
+  extractPicDisplayNumber,
+  getComparativaPedidoUrl,
+  parsePicFromArticuloId,
+} from "@/lib/pic-links";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -116,6 +122,9 @@ interface OrdenCompra {
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
+  fc?: number | null;
+  rt?: number | null;
+  fecha_entrega?: string | null;
 }
 
 interface Proveedor {
@@ -146,6 +155,9 @@ export default function VerOrdenCompraPage() {
     lugar_entrega: '',
     cod_cta: '',
     sector: '',
+    fc: '',
+    rt: '',
+    fecha_entrega: '',
     divisa: 'USD',
     articulos: [] as Array<{
       articulo_id: string;
@@ -263,16 +275,20 @@ export default function VerOrdenCompraPage() {
     return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
   };
 
-  // Función para extraer solo el número del ID
-  const extractIdNumber = (articuloId: string) => {
-    // Si el ID tiene formato "productivo-123-articulo" o "general-456-articulo"
-    // extraer solo el número del medio
-    const match = articuloId.match(/(?:productivo|general)-(\d+)-/);
-    if (match) {
-      return match[1];
-    }
-    // Si no coincide con el patrón, devolver el ID original
-    return articuloId;
+  const formatDateLocal = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return '';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return '';
+    return new Date(year, month, day).toLocaleDateString('es-AR');
+  };
+
+  const formatDateForInput = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    return dateStr.split('T')[0];
   };
 
   const calcularPrecioConDescuento = (precio: number, descuento?: number) => {
@@ -306,6 +322,9 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
+        fc: orden.fc != null ? orden.fc.toString() : '',
+        rt: orden.rt != null ? orden.rt.toString() : '',
+        fecha_entrega: formatDateForInput(orden.fecha_entrega),
         divisa: orden.divisa || 'USD',
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
@@ -336,6 +355,9 @@ export default function VerOrdenCompraPage() {
       lugar_entrega: '',
       cod_cta: '',
       sector: '',
+      fc: '',
+      rt: '',
+      fecha_entrega: '',
       divisa: 'USD',
       articulos: []
     });
@@ -476,6 +498,9 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
+        fc: editData.fc ? parseInt(editData.fc, 10) : null,
+        rt: editData.rt ? parseInt(editData.rt, 10) : null,
+        fecha_entrega: editData.fecha_entrega || null,
         articulos: articulosActualizados,
         total: totalOrden,
       };
@@ -521,6 +546,9 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
+        fc: editData.fc ? parseInt(editData.fc, 10) : null,
+        rt: editData.rt ? parseInt(editData.rt, 10) : null,
+        fecha_entrega: editData.fecha_entrega || null,
         articulos: articulosActualizados,
         total: totalOrden,
         divisa: datosActualizados?.divisa ?? divisaOrden
@@ -789,6 +817,26 @@ export default function VerOrdenCompraPage() {
                   <p className="font-medium print:text-sm">{orden.sector}</p>
                 </div>
               )}
+              {orden.fc != null && (
+                <div>
+                  <p className="text-sm text-gray-600 print:text-xs">Factura (FC)</p>
+                  <p className="font-medium print:text-sm">{orden.fc}</p>
+                </div>
+              )}
+              {orden.rt != null && (
+                <div>
+                  <p className="text-sm text-gray-600 print:text-xs">Remitos (RT)</p>
+                  <p className="font-medium print:text-sm">{orden.rt}</p>
+                </div>
+              )}
+              {orden.fecha_entrega && (
+                <div>
+                  <p className="text-sm text-gray-600 print:text-xs">Fecha de Entrega</p>
+                  <p className="font-medium print:text-sm">
+                    {formatDateLocal(orden.fecha_entrega)}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -840,7 +888,32 @@ export default function VerOrdenCompraPage() {
                         return (
                       <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
                         <td className="border border-gray-300 px-3 py-2 text-sm text-gray-600 print:px-2 print:py-1 print:text-xs">
-                          {extractIdNumber(item.articulo_id)}
+                          {(() => {
+                            const comparativaUrl = getComparativaPedidoUrl(item.articulo_id, {
+                              ordenCompraId: orden.id,
+                              ordenCompraNoc: orden.noc,
+                            });
+                            const picLabel = extractPicDisplayNumber(item.articulo_id);
+                            const parsed = parsePicFromArticuloId(item.articulo_id);
+
+                            if (comparativaUrl) {
+                              return (
+                                <Link
+                                  href={comparativaUrl}
+                                  className="text-blue-600 hover:text-blue-800 underline font-medium print:text-gray-600 print:no-underline"
+                                  title={`Ver comparativa del pedido ${parsed.pic}`}
+                                >
+                                  {picLabel}
+                                </Link>
+                              );
+                            }
+
+                            if (parsed.tipo === "sin-pic") {
+                              return <span className="text-gray-500">Sin PIC</span>;
+                            }
+
+                            return picLabel;
+                          })()}
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 print:px-2 print:py-1 print:text-xs">
                           {item.articulo_nombre}
@@ -1018,6 +1091,40 @@ export default function VerOrdenCompraPage() {
                         Parque industrial ruta 6, lote 26, Los Cardales
                       </option>
                     </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="edit-fc">Factura (FC)</Label>
+                      <Input
+                        id="edit-fc"
+                        type="number"
+                        value={editData.fc}
+                        onChange={(e) => setEditData({ ...editData, fc: e.target.value })}
+                        placeholder="Nº de factura"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-rt">Remitos (RT)</Label>
+                      <Input
+                        id="edit-rt"
+                        type="number"
+                        value={editData.rt}
+                        onChange={(e) => setEditData({ ...editData, rt: e.target.value })}
+                        placeholder="Nº de remito"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-fecha-entrega">Fecha de Entrega</Label>
+                      <Input
+                        id="edit-fecha-entrega"
+                        type="date"
+                        value={editData.fecha_entrega}
+                        onChange={(e) => setEditData({ ...editData, fecha_entrega: e.target.value })}
+                      />
+                    </div>
                   </div>
                   
                   <div>

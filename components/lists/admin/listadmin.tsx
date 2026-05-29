@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
+import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
+import { useOcVolver } from "@/hooks/use-oc-volver";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -77,6 +80,9 @@ type Pedido = {
 };
 
 export default function ListAdmin() {
+  const searchParams = useSearchParams();
+  const { ocVolver, ensureOcVolver } = useOcVolver();
+  const comparativaAbiertaRef = useRef<string | null>(null);
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -309,7 +315,8 @@ export default function ListAdmin() {
     comprador: pedido.comprador,
   });
 
-  const abrirInfoPedido = (pedido: Pedido) => {
+  const abrirInfoPedido = async (pedido: Pedido) => {
+    await ensureOcVolver(pedido.oc);
     setVerInfo(pedido);
     setFormData(buildFormDataFromPedido(pedido));
   };
@@ -673,6 +680,28 @@ export default function ListAdmin() {
 
     fetchPedidos();
   }, [supabase]);
+
+  useEffect(() => {
+    const comparativaId = searchParams.get("comparativa");
+    if (!comparativaId || pedidos.length === 0) return;
+    if (comparativaAbiertaRef.current === comparativaId) return;
+
+    const pedido = pedidos.find((p) => String(p.id) === comparativaId);
+    if (!pedido) return;
+
+    comparativaAbiertaRef.current = comparativaId;
+    abrirInfoPedido(pedido);
+  }, [searchParams, pedidos]);
+
+  useEffect(() => {
+    if (!verInfo || !searchParams.get("comparativa")) return;
+    const timer = setTimeout(() => {
+      document
+        .getElementById("comparativa-proveedores")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [verInfo, searchParams]);
 
   return (
     <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
@@ -1513,9 +1542,28 @@ export default function ListAdmin() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
-              <h2 className="text-2xl font-bold">📋 Pedido interno de compra #{verInfo.id}</h2>
-              <p className="text-green-100 mt-2">Información detallada del pedido</p>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">📋 Pedido interno de compra #{verInfo.id}</h2>
+                  <p className="text-green-100 mt-2">Información detallada del pedido</p>
+                </div>
+                <OcBackLink
+                  ordenCompraId={ocVolver?.id ?? null}
+                  ordenCompraNoc={ocVolver?.noc}
+                  variant="light"
+                />
+              </div>
             </div>
+            {ocVolver && (
+              <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-amber-900">Volvé a la orden de compra:</span>
+                <OcBackLink
+                  ordenCompraId={ocVolver.id}
+                  ordenCompraNoc={ocVolver.noc}
+                  variant="dark"
+                />
+              </div>
+            )}
             <div className="p-6">
            <div className="flex-col gap-2">
                 <span className="text-black font-semibold">Fecha necesidad: {verInfo.necesidad}</span>
@@ -1599,7 +1647,7 @@ export default function ListAdmin() {
                  
                  {/* Comparativa de Proveedores */}
                  {verInfo.comparativa_prov && Array.isArray(verInfo.comparativa_prov) && verInfo.comparativa_prov.length > 0 && (
-                   <div className="mb-6">
+                   <div id="comparativa-proveedores" className="mb-6">
                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
                        <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                          <span className="mr-2">💰</span>
