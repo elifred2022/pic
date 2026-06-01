@@ -366,10 +366,10 @@ export default function ListAdmin() {
 
     const datosActualizar = {
       estado: formData.estado,
-      oc: formData.oc != null && formData.oc !== "" ? Number(formData.oc) : 0,
+      oc: formData.oc ?? 0,
       proveedor_selec: formData.proveedor_selec,
-      fac: formData.fac != null && formData.fac !== "" ? Number(formData.fac) : 0,
-      rto: formData.rto != null && formData.rto !== "" ? Number(formData.rto) : 0,
+      fac: formData.fac ?? 0,
+      rto: formData.rto ?? 0,
       fecha_ent: formData.fecha_ent || null,
     };
 
