@@ -8,6 +8,8 @@ import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosP
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import {
+  emptyOcFacturaForm,
+  formatDateInputValue,
   getFacturaViewUrl,
   parseOrdenCompraEntero,
   uploadFacturaOrdenCompra,
@@ -100,7 +102,7 @@ export default function ListaPedidosProductivosAdmin() {
     
 
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
-    const [ocFacturaForm, setOcFacturaForm] = useState({ fc: "", rt: "", fact_path: "" });
+    const [ocFacturaForm, setOcFacturaForm] = useState(emptyOcFacturaForm);
     const [ocFacturaImageUrl, setOcFacturaImageUrl] = useState<string | null>(null);
     const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
     const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
@@ -236,7 +238,7 @@ export default function ListaPedidosProductivosAdmin() {
 
   useEffect(() => {
     if (!comparativaPedido || !comparativaOc?.id) {
-      setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+      setOcFacturaForm(emptyOcFacturaForm());
       setOcFacturaImageUrl(null);
       setOcFacturaUploadError(null);
       return;
@@ -245,13 +247,13 @@ export default function ListaPedidosProductivosAdmin() {
     const ocId = comparativaOc.id;
     let cancelled = false;
 
-    setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+    setOcFacturaForm(emptyOcFacturaForm());
     setOcFacturaImageUrl(null);
 
     const cargarOcFactura = async () => {
       const { data, error } = await supabase
         .from("ordenes_compra")
-        .select("fc, rt, fact_path")
+        .select("fc, rt, fact_path, fecha_entrega")
         .eq("id", ocId)
         .maybeSingle();
 
@@ -262,6 +264,7 @@ export default function ListaPedidosProductivosAdmin() {
         fc: data.fc != null ? String(data.fc) : "",
         rt: data.rt != null ? String(data.rt) : "",
         fact_path: factPath,
+        fecha_entrega: formatDateInputValue(data.fecha_entrega),
       });
 
       if (factPath) {
@@ -424,7 +427,7 @@ export default function ListaPedidosProductivosAdmin() {
   };
 
   const abrirComparativaPedido = async (p: Pedido) => {
-    setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+    setOcFacturaForm(emptyOcFacturaForm());
     setOcFacturaImageUrl(null);
     setOcFacturaUploadError(null);
 
@@ -526,6 +529,7 @@ const handleUpdatePedido = async () => {
           fc: parseOrdenCompraEntero(ocFacturaForm.fc),
           rt: parseOrdenCompraEntero(ocFacturaForm.rt),
           fact_path: ocFacturaForm.fact_path || null,
+          fecha_entrega: ocFacturaForm.fecha_entrega || null,
         })
         .eq("id", comparativaOc.id);
 
@@ -1827,6 +1831,16 @@ const handleUpdatePedido = async () => {
                     onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de entrega (pedido):</label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formData.fecha_ent || ""}
+                    onChange={(e) => setFormData({ ...formData, fecha_ent: e.target.value })}
+                  />
+                </div>
             </div>
 
             {comparativaOc && (
@@ -1871,6 +1885,17 @@ const handleUpdatePedido = async () => {
                       value={ocFacturaForm.rt}
                       onChange={(e) =>
                         setOcFacturaForm((prev) => ({ ...prev, rt: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de entrega (OC)</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                      value={ocFacturaForm.fecha_entrega}
+                      onChange={(e) =>
+                        setOcFacturaForm((prev) => ({ ...prev, fecha_entrega: e.target.value }))
                       }
                     />
                   </div>

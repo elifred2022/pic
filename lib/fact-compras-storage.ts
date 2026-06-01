@@ -49,6 +49,15 @@ export function parseOrdenCompraEntero(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+export function formatDateInputValue(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  return dateStr.split("T")[0];
+}
+
+export function emptyOcFacturaForm() {
+  return { fc: "", rt: "", fact_path: "", fecha_entrega: "" };
+}
+
 /** Sube imagen/PDF de factura y persiste fact_path en ordenes_compra. */
 export async function uploadFacturaOrdenCompra(
   supabase: SupabaseClient,

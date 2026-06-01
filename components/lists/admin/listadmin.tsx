@@ -6,7 +6,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
-import { useOcVolver } from "@/hooks/use-oc-volver";
+import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
+import {
+  emptyOcFacturaForm,
+  formatDateInputValue,
+  getFacturaViewUrl,
+  parseOrdenCompraEntero,
+  uploadFacturaOrdenCompra,
+} from "@/lib/fact-compras-storage";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -81,7 +88,13 @@ type Pedido = {
 
 export default function ListAdmin() {
   const searchParams = useSearchParams();
-  const { ocVolver, ensureOcVolver } = useOcVolver();
+  const { ocVolver, resolveOcParaPedido } = useOcVolver();
+  const [comparativaOc, setComparativaOc] = useState<OcVolver | null>(null);
+  const [ocFacturaForm, setOcFacturaForm] = useState(emptyOcFacturaForm);
+  const [ocFacturaImageUrl, setOcFacturaImageUrl] = useState<string | null>(null);
+  const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
+  const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
+  const [guardandoComparativa, setGuardandoComparativa] = useState(false);
   const comparativaAbiertaRef = useRef<string | null>(null);
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -316,9 +329,88 @@ export default function ListAdmin() {
   });
 
   const abrirInfoPedido = async (pedido: Pedido) => {
-    await ensureOcVolver(pedido.oc);
+    setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturaImageUrl(null);
+    setOcFacturaUploadError(null);
+
+    const oc = await resolveOcParaPedido({ id: pedido.id, numero_oc: pedido.oc });
+    setComparativaOc(oc);
+
     setVerInfo(pedido);
     setFormData(buildFormDataFromPedido(pedido));
+  };
+
+  const handleSubirImagenFacturaOc = async (file: File) => {
+    if (!comparativaOc?.id) return;
+
+    setOcFacturaUploading(true);
+    setOcFacturaUploadError(null);
+
+    const result = await uploadFacturaOrdenCompra(supabase, comparativaOc.id, file);
+
+    setOcFacturaUploading(false);
+
+    if ("error" in result) {
+      setOcFacturaUploadError(result.error);
+      return;
+    }
+
+    setOcFacturaForm((prev) => ({ ...prev, fact_path: result.storagePath }));
+    setOcFacturaImageUrl(result.viewUrl);
+  };
+
+  const handleGuardarComparativa = async () => {
+    if (!verInfo) return;
+
+    setGuardandoComparativa(true);
+
+    const datosActualizar = {
+      estado: formData.estado,
+      oc: formData.oc != null && formData.oc !== "" ? Number(formData.oc) : 0,
+      proveedor_selec: formData.proveedor_selec,
+      fac: formData.fac != null && formData.fac !== "" ? Number(formData.fac) : 0,
+      rto: formData.rto != null && formData.rto !== "" ? Number(formData.rto) : 0,
+      fecha_ent: formData.fecha_ent || null,
+    };
+
+    const { error } = await supabase
+      .from("pic")
+      .update(datosActualizar)
+      .eq("id", verInfo.id);
+
+    if (error) {
+      alert(`Error al guardar el pedido: ${error.message}`);
+      setGuardandoComparativa(false);
+      return;
+    }
+
+    if (comparativaOc?.id) {
+      const { error: ocError } = await supabase
+        .from("ordenes_compra")
+        .update({
+          fc: parseOrdenCompraEntero(ocFacturaForm.fc),
+          rt: parseOrdenCompraEntero(ocFacturaForm.rt),
+          fact_path: ocFacturaForm.fact_path || null,
+          fecha_entrega: ocFacturaForm.fecha_entrega || null,
+        })
+        .eq("id", comparativaOc.id);
+
+      if (ocError) {
+        alert(`Pedido guardado, pero error en la orden de compra: ${ocError.message}`);
+        setGuardandoComparativa(false);
+        return;
+      }
+    }
+
+    setPedidos((prev) =>
+      prev.map((p) =>
+        p.id === verInfo.id ? { ...p, ...datosActualizar } as Pedido : p
+      )
+    );
+
+    setGuardandoComparativa(false);
+    setVerInfo(null);
+    setComparativaOc(null);
   };
 
   const abrirEdicionPedido = (pedido: Pedido) => {
@@ -690,8 +782,53 @@ export default function ListAdmin() {
     if (!pedido) return;
 
     comparativaAbiertaRef.current = comparativaId;
-    abrirInfoPedido(pedido);
-  }, [searchParams, pedidos]);
+    void abrirInfoPedido(pedido);
+  }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!verInfo || !comparativaOc?.id) {
+      setOcFacturaForm(emptyOcFacturaForm());
+      setOcFacturaImageUrl(null);
+      setOcFacturaUploadError(null);
+      return;
+    }
+
+    const ocId = comparativaOc.id;
+    let cancelled = false;
+
+    setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturaImageUrl(null);
+
+    const cargarOcFactura = async () => {
+      const { data, error } = await supabase
+        .from("ordenes_compra")
+        .select("fc, rt, fact_path, fecha_entrega")
+        .eq("id", ocId)
+        .maybeSingle();
+
+      if (cancelled || error || !data) return;
+
+      const factPath = data.fact_path ?? "";
+      setOcFacturaForm({
+        fc: data.fc != null ? String(data.fc) : "",
+        rt: data.rt != null ? String(data.rt) : "",
+        fact_path: factPath,
+        fecha_entrega: formatDateInputValue(data.fecha_entrega),
+      });
+
+      if (factPath) {
+        const url = await getFacturaViewUrl(supabase, factPath);
+        if (!cancelled) setOcFacturaImageUrl(url);
+      } else if (!cancelled) {
+        setOcFacturaImageUrl(null);
+      }
+    };
+
+    void cargarOcFactura();
+    return () => {
+      cancelled = true;
+    };
+  }, [verInfo?.id, comparativaOc?.id, supabase]);
 
   useEffect(() => {
     if (!verInfo || !searchParams.get("comparativa")) return;
@@ -1747,6 +1884,185 @@ export default function ListAdmin() {
                      </div>
                    </div>
                  )}
+
+                 {searchParams.get("comparativa") && (
+                   <>
+                     <hr className="my-6" />
+                     <h3 className="text-lg font-semibold text-gray-800 mb-4">✏️ Actualizar pedido</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                         <select
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.estado || ""}
+                           onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+                         >
+                           <option value="iniciado">Iniciado</option>
+                           <option value="visto/recibido">Visto/Recibido</option>
+                           <option value="cotizado">Cotizado</option>
+                           <option value="aprobado">Aprobado</option>
+                           <option value="confirmado">Confirmado</option>
+                           <option value="cumplido">Cumplido</option>
+                           <option value="stand by">Stand By</option>
+                           <option value="anulado">Anulado</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Proveedor seleccionado</label>
+                         <input
+                           type="text"
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.proveedor_selec || ""}
+                           onChange={(e) =>
+                             setFormData({ ...formData, proveedor_selec: e.target.value })
+                           }
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Número de OC (pedido)</label>
+                         <input
+                           type="number"
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.oc ?? ""}
+                           onChange={(e) =>
+                             setFormData({ ...formData, oc: parseFloat(e.target.value) || 0 })
+                           }
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Factura (pedido)</label>
+                         <input
+                           type="number"
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.fac ?? ""}
+                           onChange={(e) =>
+                             setFormData({ ...formData, fac: parseFloat(e.target.value) || 0 })
+                           }
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Remito (pedido)</label>
+                         <input
+                           type="number"
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.rto ?? ""}
+                           onChange={(e) =>
+                             setFormData({ ...formData, rto: parseFloat(e.target.value) || 0 })
+                           }
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de entrega (pedido)</label>
+                         <input
+                           type="date"
+                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                           value={formData.fecha_ent || ""}
+                           onChange={(e) =>
+                             setFormData({ ...formData, fecha_ent: e.target.value })
+                           }
+                         />
+                       </div>
+                     </div>
+
+                     {comparativaOc && (
+                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                         <h3 className="text-lg font-semibold text-blue-900 mb-3">
+                           📄 Factura y remito — Orden de compra
+                           {comparativaOc.noc ? ` #${comparativaOc.noc}` : ""}
+                         </h3>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-2">Factura (FC)</label>
+                             <input
+                               type="number"
+                               min={0}
+                               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                               placeholder="Nº de factura"
+                               value={ocFacturaForm.fc}
+                               onChange={(e) =>
+                                 setOcFacturaForm((prev) => ({ ...prev, fc: e.target.value }))
+                               }
+                             />
+                             {ocFacturaImageUrl && ocFacturaForm.fc.trim() && (
+                               <p className="mt-2 text-sm">
+                                 <a
+                                   href={ocFacturaImageUrl}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="text-blue-600 underline font-medium"
+                                 >
+                                   Ver imagen de factura {ocFacturaForm.fc}
+                                 </a>
+                               </p>
+                             )}
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-2">Remito (RT)</label>
+                             <input
+                               type="number"
+                               min={0}
+                               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                               placeholder="Nº de remito"
+                               value={ocFacturaForm.rt}
+                               onChange={(e) =>
+                                 setOcFacturaForm((prev) => ({ ...prev, rt: e.target.value }))
+                               }
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de entrega (OC)</label>
+                             <input
+                               type="date"
+                               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                               value={ocFacturaForm.fecha_entrega}
+                               onChange={(e) =>
+                                 setOcFacturaForm((prev) => ({
+                                   ...prev,
+                                   fecha_entrega: e.target.value,
+                                 }))
+                               }
+                             />
+                           </div>
+                           <div className="md:col-span-2">
+                             <label className="block text-sm font-medium text-gray-700 mb-2">
+                               Imagen de factura
+                             </label>
+                             <input
+                               type="file"
+                               accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
+                               disabled={ocFacturaUploading || guardandoComparativa}
+                               className="w-full text-sm"
+                               onChange={(e) => {
+                                 const file = e.target.files?.[0];
+                                 if (file) void handleSubirImagenFacturaOc(file);
+                                 e.target.value = "";
+                               }}
+                             />
+                             {ocFacturaUploading && (
+                               <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
+                             )}
+                             {ocFacturaUploadError && (
+                               <p className="text-sm text-red-600 mt-1">{ocFacturaUploadError}</p>
+                             )}
+                             {ocFacturaForm.fact_path && ocFacturaImageUrl && !ocFacturaForm.fc.trim() && (
+                               <p className="text-sm mt-2">
+                                 <a
+                                   href={ocFacturaImageUrl}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="text-blue-600 underline"
+                                 >
+                                   Ver imagen cargada
+                                 </a>
+                               </p>
+                             )}
+                           </div>
+                         </div>
+                       </div>
+                     )}
+                   </>
+                 )}
+
                         <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
                         <button
                           onClick={imprimirInfoPedido}
@@ -1755,11 +2071,23 @@ export default function ListAdmin() {
                           🖨️ Imprimir
                         </button>
                         <button
-                          onClick={() => setVerInfo(null)}
+                          onClick={() => {
+                            setVerInfo(null);
+                            setComparativaOc(null);
+                          }}
                           className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                         >
                           🔒 Cerrar
                         </button>
+                        {searchParams.get("comparativa") && (
+                          <button
+                            onClick={handleGuardarComparativa}
+                            disabled={guardandoComparativa || ocFacturaUploading}
+                            className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
+                          >
+                            {guardandoComparativa ? "Guardando..." : "💾 Guardar"}
+                          </button>
+                        )}
                         </div>
             </div>
           </div>
