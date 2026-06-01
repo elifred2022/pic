@@ -526,6 +526,9 @@ const handleUpdatePedido = async () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
                   <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Fecha necesidad:</span> {formatDate(comparativaPedido.necesidad)}</p>
+                    <p><span className="font-medium">Fecha confirmada:</span> {formatDate(comparativaPedido.fecha_conf)}</p>
+                    <p><span className="font-medium">Fecha promesa:</span> {formatDate(comparativaPedido.fecha_prom)}</p>
                     <p><span className="font-medium">Sector:</span> {formData.sector}</p>
                     <p><span className="font-medium">Solicitante:</span> {formData.solicita}</p>
                     {formData.nota_solicitante?.trim() ? (

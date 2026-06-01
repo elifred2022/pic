@@ -727,6 +727,14 @@ const handleUpdatePedido = async () => {
               <span>${formatDate(comparativaPedido.necesidad)}</span>
             </div>
             <div class="info-item">
+              <span class="info-label">Fecha de Confirmado:</span>
+              <span>${formatDate(formData.fecha_conf ?? comparativaPedido.fecha_conf)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Fecha Prometida:</span>
+              <span>${formatDate(formData.fecha_prom ?? comparativaPedido.fecha_prom)}</span>
+            </div>
+            <div class="info-item">
               <span class="info-label">Sector:</span>
               <span>${comparativaPedido.sector || '-'}</span>
             </div>
@@ -1646,6 +1654,8 @@ const handleUpdatePedido = async () => {
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Fecha necesidad:</span> {formatDate(comparativaPedido.necesidad)}</p>
+                    <p><span className="font-medium">Fecha de Confirmado:</span> {formatDate(formData.fecha_conf ?? comparativaPedido.fecha_conf)}</p>
+                    <p><span className="font-medium">Fecha Prometida:</span> {formatDate(formData.fecha_prom ?? comparativaPedido.fecha_prom)}</p>
                     <p><span className="font-medium">Sector:</span> {comparativaPedido.sector}</p>
                     <p><span className="font-medium">Solicitante:</span> {comparativaPedido.solicita}</p>
                     {comparativaPedido.nota_solicitante?.trim() ? (
@@ -1831,16 +1841,48 @@ const handleUpdatePedido = async () => {
                     onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
                   />
                 </div>
+            </div>
 
+            <div className="bg-white border border-gray-200 p-6 rounded-lg mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <span className="mr-2">📅</span>
+                Fechas del Pedido
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de entrega (pedido):</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de Confirmado:
+                  </label>
                   <input
                     type="date"
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    value={formData.fecha_ent || ""}
+                    value={formatDateInputValue(formData.fecha_conf) || ""}
+                    onChange={(e) => setFormData({ ...formData, fecha_conf: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha Prometida:
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formatDateInputValue(formData.fecha_prom) || ""}
+                    onChange={(e) => setFormData({ ...formData, fecha_prom: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de Ingreso:
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={formatDateInputValue(formData.fecha_ent) || ""}
                     onChange={(e) => setFormData({ ...formData, fecha_ent: e.target.value })}
                   />
                 </div>
+              </div>
             </div>
 
             {comparativaOc && (

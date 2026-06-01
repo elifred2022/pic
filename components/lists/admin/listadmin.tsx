@@ -569,7 +569,15 @@ export default function ListAdmin() {
             <tbody>
               <tr>
                 <td><strong>Necesidad</strong></td>
-                <td>${verInfo.necesidad || '-'}</td>
+                <td>${formatDate(verInfo.necesidad) || verInfo.necesidad || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Fecha confirmada</strong></td>
+                <td>${formatDate(verInfo.fecha_conf) || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Fecha promesa</strong></td>
+                <td>${formatDate(verInfo.fecha_prom) || '-'}</td>
               </tr>
               <tr>
                 <td><strong>Categoría</strong></td>
@@ -1703,7 +1711,11 @@ export default function ListAdmin() {
             )}
             <div className="p-6">
            <div className="flex-col gap-2">
-                <span className="text-black font-semibold">Fecha necesidad: {verInfo.necesidad}</span>
+                <span className="text-black font-semibold">Fecha necesidad: {formatDate(verInfo.necesidad)}</span>
+                 <br/>
+                <span className="text-black font-semibold">Fecha confirmada: {formatDate(verInfo.fecha_conf)}</span>
+                 <br/>
+                <span className="text-black font-semibold">Fecha promesa: {formatDate(verInfo.fecha_prom)}</span>
                  <br/>
                 <span className="text-black font-semibold">Sector: {verInfo.sector}</span>
                   <br/>

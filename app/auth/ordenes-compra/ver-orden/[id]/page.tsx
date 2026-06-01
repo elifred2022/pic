@@ -98,6 +98,20 @@ const printStyles = `
   }
 `;
 
+type ArticuloOrdenItem = {
+  articulo_id: string;
+  articulo_nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+  descuento?: number;
+  divisa?: "USD" | "EUR" | "ARS";
+  costunitcdesc?: number;
+  total: number;
+  codint?: string | null;
+  descripcion?: string | null;
+  codprovsug?: string | null;
+};
+
 interface OrdenCompra {
   id: number;
   noc: number;
@@ -115,16 +129,7 @@ interface OrdenCompra {
   observaciones?: string;
   condicion_pago?: string;
   tipo_pago?: string;
-  articulos: Array<{
-    articulo_id: string;
-    articulo_nombre: string;
-    cantidad: number;
-    precio_unitario: number;
-    descuento?: number;
-    divisa?: "USD" | "EUR" | "ARS";
-    costunitcdesc?: number;
-    total: number;
-  }>;
+  articulos: ArticuloOrdenItem[];
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
@@ -167,16 +172,7 @@ export default function VerOrdenCompraPage() {
     fecha_entrega: '',
     fact_path: '',
     divisa: 'USD',
-    articulos: [] as Array<{
-      articulo_id: string;
-      articulo_nombre: string;
-      cantidad: number;
-      precio_unitario: number;
-      descuento?: number;
-      divisa?: "USD" | "EUR" | "ARS";
-      costunitcdesc?: number;
-      total: number;
-    }>
+    articulos: [] as ArticuloOrdenItem[]
   });
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedoresFiltrados, setProveedoresFiltrados] = useState<Proveedor[]>([]);
@@ -196,6 +192,65 @@ export default function VerOrdenCompraPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const enriquecerArticulosOrden = useCallback(
+    async (articulos: ArticuloOrdenItem[]): Promise<ArticuloOrdenItem[]> => {
+      if (articulos.length === 0) return articulos;
+
+      const codints = [
+        ...new Set(articulos.map((a) => a.codint).filter(Boolean)),
+      ] as string[];
+      const nombres = [
+        ...new Set(
+          articulos.map((a) => a.articulo_nombre?.trim()).filter(Boolean)
+        ),
+      ] as string[];
+
+      const codProvPorCodint = new Map<string, string>();
+      const codProvPorNombre = new Map<string, string>();
+      const descPorCodint = new Map<string, string>();
+      const descPorNombre = new Map<string, string>();
+
+      if (codints.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, articulo, codprovsug, descripcion")
+          .in("codint", codints);
+        (data ?? []).forEach((row) => {
+          codProvPorCodint.set(row.codint, row.codprovsug ?? "");
+          if (row.descripcion) descPorCodint.set(row.codint, row.descripcion);
+        });
+      }
+
+      if (nombres.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, articulo, codprovsug, descripcion")
+          .in("articulo", nombres);
+        (data ?? []).forEach((row) => {
+          codProvPorNombre.set(row.articulo, row.codprovsug ?? "");
+          if (row.descripcion) descPorNombre.set(row.articulo, row.descripcion);
+        });
+      }
+
+      return articulos.map((art) => {
+        const codint = art.codint ?? undefined;
+        const descripcion =
+          art.descripcion?.trim() ||
+          (codint ? descPorCodint.get(codint) : undefined) ||
+          descPorNombre.get(art.articulo_nombre) ||
+          null;
+        const codprovsug =
+          art.codprovsug?.trim() ||
+          (codint ? codProvPorCodint.get(codint) : undefined) ||
+          codProvPorNombre.get(art.articulo_nombre) ||
+          null;
+
+        return { ...art, descripcion, codprovsug };
+      });
+    },
+    [supabase]
+  );
+
   const fetchOrden = useCallback(async (id: number) => {
     try {
       setLoading(true);
@@ -206,14 +261,18 @@ export default function VerOrdenCompraPage() {
         .single();
 
       if (error) throw error;
-      setOrden(data);
+
+      const articulosEnriquecidos = await enriquecerArticulosOrden(
+        (data.articulos as ArticuloOrdenItem[]) || []
+      );
+      setOrden({ ...data, articulos: articulosEnriquecidos });
     } catch (err) {
       console.error("Error fetching orden:", err);
       setError("Error al cargar la orden de compra");
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, enriquecerArticulosOrden]);
 
   const fetchProveedores = useCallback(async () => {
     try {
@@ -322,7 +381,7 @@ export default function VerOrdenCompraPage() {
     return precio - (precio * descuentoNormalizado) / 100;
   };
 
-  const getRowTotal = (item: OrdenCompra["articulos"][number]) => {
+  const getRowTotal = (item: ArticuloOrdenItem) => {
     const precioConDescuento = calcularPrecioConDescuento(
       item.precio_unitario,
       item.descuento
@@ -975,7 +1034,7 @@ export default function VerOrdenCompraPage() {
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                         PIC
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs min-w-[200px]">
                         Artículo
                       </th>
                       <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
@@ -1033,8 +1092,18 @@ export default function VerOrdenCompraPage() {
                             return picLabel;
                           })()}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 print:px-2 print:py-1 print:text-xs">
-                          {item.articulo_nombre}
+                        <td className="border border-gray-300 px-3 py-2 text-sm print:px-2 print:py-1 print:text-xs align-top">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-medium text-gray-900">{item.articulo_nombre}</span>
+                            <span className="text-gray-600 leading-snug">
+                              <span className="text-gray-500">Descripción: </span>
+                              {item.descripcion?.trim() ? item.descripcion : "-"}
+                            </span>
+                            <span className="text-gray-600 leading-snug">
+                              <span className="text-gray-500">Cod. prov. sug.: </span>
+                              {item.codprovsug?.trim() ? item.codprovsug : "-"}
+                            </span>
+                          </div>
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-center text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
                           {item.cantidad}
@@ -1465,14 +1534,24 @@ export default function VerOrdenCompraPage() {
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {editData.articulos.map((articulo, index) => (
                       <div key={index} className="bg-white p-3 rounded-lg border border-purple-200">
-                        <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center">
-                          <div className="md:col-span-2">
+                        <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-start">
+                          <div className="md:col-span-2 space-y-2">
                             <Input
                               value={articulo.articulo_nombre}
                               onChange={(e) => handleEditarArticulo(index, 'articulo_nombre', e.target.value)}
                               placeholder="Nombre del artículo"
                               className="text-sm"
                             />
+                            <div className="flex flex-col gap-1 text-xs text-gray-600 pl-0.5">
+                              <p className="leading-snug">
+                                <span className="text-gray-500">Descripción: </span>
+                                {articulo.descripcion?.trim() ? articulo.descripcion : "-"}
+                              </p>
+                              <p className="leading-snug">
+                                <span className="text-gray-500">Cod. prov. sug.: </span>
+                                {articulo.codprovsug?.trim() ? articulo.codprovsug : "-"}
+                              </p>
+                            </div>
                           </div>
                           <div>
                             <Input

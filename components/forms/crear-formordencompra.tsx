@@ -33,6 +33,8 @@ interface ArticuloAprobado {
   necesidad: string;
   estado: string;
   origen: 'productivo' | 'general'; // Nuevo campo para identificar el origen
+  codint?: string;
+  codprovsug?: string;
 }
 
 interface ItemOrden {
@@ -40,6 +42,8 @@ interface ItemOrden {
   articulo_nombre: string;
   articulo_db_id?: string | null; // id real en tabla articulos (si aplica)
   codint?: string | null;
+  descripcion?: string | null;
+  codprovsug?: string | null;
   cantidad: number;
   precio_unitario: number;
   descuento: number; // porcentaje 0-100
@@ -53,6 +57,7 @@ interface ArticuloCatalogo {
   codint: string | null;
   articulo: string;
   descripcion: string | null;
+  codprovsug: string | null;
   costunit: string | null;
   descuento: string | null;
   costunitcdesc: string | null;
@@ -69,6 +74,8 @@ interface ArticuloPedido {
   cant: number;
   cant_exist: number;
   observacion: string;
+  codint?: string;
+  codprovsug?: string;
 }
 
 const SECTORES = [
@@ -139,6 +146,64 @@ export function CrearFormOrdenCompra() {
     const descuentoNormalizado = Math.min(Math.max(descuento, 0), 100);
     return precio - (precio * descuentoNormalizado) / 100;
   };
+
+  const enriquecerArticulosConCatalogo = useCallback(
+    async (articulos: ArticuloAprobado[]): Promise<ArticuloAprobado[]> => {
+      const codints = [
+        ...new Set(articulos.map((a) => a.codint).filter(Boolean)),
+      ] as string[];
+      const nombres = [
+        ...new Set(articulos.filter((a) => !a.codint).map((a) => a.articulo)),
+      ];
+
+      const codProvPorCodint = new Map<string, string>();
+      const codProvPorNombre = new Map<string, string>();
+      const descPorCodint = new Map<string, string>();
+      const descPorNombre = new Map<string, string>();
+      const codintPorNombre = new Map<string, string>();
+
+      if (codints.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, articulo, codprovsug, descripcion")
+          .in("codint", codints);
+        (data ?? []).forEach((row) => {
+          codProvPorCodint.set(row.codint, row.codprovsug ?? "");
+          if (row.descripcion) descPorCodint.set(row.codint, row.descripcion);
+        });
+      }
+
+      if (nombres.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, articulo, codprovsug, descripcion")
+          .in("articulo", nombres);
+        (data ?? []).forEach((row) => {
+          codProvPorNombre.set(row.articulo, row.codprovsug ?? "");
+          if (row.descripcion) descPorNombre.set(row.articulo, row.descripcion);
+          if (row.codint) codintPorNombre.set(row.articulo, row.codint);
+        });
+      }
+
+      return articulos.map((art) => {
+        const codint =
+          art.codint ?? codintPorNombre.get(art.articulo) ?? undefined;
+        const codprovsug =
+          art.codprovsug?.trim() ||
+          (codint ? codProvPorCodint.get(codint) : undefined) ||
+          codProvPorNombre.get(art.articulo) ||
+          "";
+        const descripcion =
+          art.descripcion?.trim() ||
+          (codint ? descPorCodint.get(codint) : undefined) ||
+          descPorNombre.get(art.articulo) ||
+          art.descripcion;
+
+        return { ...art, codint, codprovsug, descripcion };
+      });
+    },
+    [supabase]
+  );
 
   useEffect(() => {
     // Calcular total de la orden
@@ -275,6 +340,8 @@ export function CrearFormOrdenCompra() {
           cantidad: articulo.cant,
           cant_exist: articulo.cant_exist,
           observacion: articulo.observacion,
+          codint: articulo.codint,
+          codprovsug: articulo.codprovsug,
           categoria: pedido.categoria,
           sector: pedido.sector,
           solicita: pedido.solicita,
@@ -312,17 +379,19 @@ export function CrearFormOrdenCompra() {
       const articulosDisponibles = todosLosArticulos.filter(
         articulo => !articulosUsados.has(articulo.id)
       );
+
+      const articulosEnriquecidos = await enriquecerArticulosConCatalogo(articulosDisponibles);
       
       console.log("✅ Artículos productivos procesados:", articulosProductivosProcesados);
       console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
-      console.log("✅ Artículos disponibles (filtrados):", articulosDisponibles);
+      console.log("✅ Artículos disponibles (filtrados):", articulosEnriquecidos);
       
-      setArticulosAprobados(articulosDisponibles);
+      setArticulosAprobados(articulosEnriquecidos);
     } catch (err) {
       console.error("💥 Error completo:", err);
       setError("Error al cargar los artículos aprobados: " + (err as Error).message);
     }
-  }, [supabase]);
+  }, [supabase, enriquecerArticulosConCatalogo]);
 
   useEffect(() => {
     fetchProveedores();
@@ -342,7 +411,7 @@ export function CrearFormOrdenCompra() {
     const t = setTimeout(async () => {
       const { data, error } = await supabase
         .from("articulos")
-        .select("id,codint,articulo,descripcion,costunit,descuento,costunitcdesc,divisa")
+        .select("id,codint,articulo,descripcion,codprovsug,costunit,descuento,costunitcdesc,divisa")
         .or(`codint.ilike.%${term}%,articulo.ilike.%${term}%`)
         .limit(15);
 
@@ -387,7 +456,9 @@ export function CrearFormOrdenCompra() {
       articulo_id: articulo.id,
       articulo_nombre: articulo.articulo,
       articulo_db_id: null,
-      codint: null,
+      codint: articulo.codint ?? null,
+      descripcion: articulo.descripcion?.trim() || null,
+      codprovsug: articulo.codprovsug?.trim() || null,
       cantidad: articulo.cantidad,
       precio_unitario: 0, // Precio por defecto, se puede editar después
       descuento: 0,
@@ -450,6 +521,8 @@ export function CrearFormOrdenCompra() {
       articulo_nombre: art.articulo,
       articulo_db_id: art.id,
       codint: art.codint ?? null,
+      descripcion: art.descripcion?.trim() || null,
+      codprovsug: art.codprovsug?.trim() || null,
       cantidad: 1,
       precio_unitario: precioUnit,
       descuento: desc,
@@ -1031,6 +1104,9 @@ export function CrearFormOrdenCompra() {
                           {a.descripcion && (
                             <p className="text-xs text-gray-500 mt-1">Descripción: {a.descripcion}</p>
                           )}
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Cod. prov. sug.: {a.codprovsug?.trim() ? a.codprovsug : "-"}
+                          </p>
                         </div>
                         <Button
                           type="button"
@@ -1079,6 +1155,10 @@ export function CrearFormOrdenCompra() {
                            Descripción: {articulo.descripcion}
                          </p>
                        )}
+                       <p className="text-xs text-gray-500 mt-0.5">
+                         Cod. prov. sug.:{" "}
+                         {articulo.codprovsug?.trim() ? articulo.codprovsug : "-"}
+                       </p>
                        {articulo.observacion && (
                          <p className="text-xs text-gray-500 mt-1">
                            Observación: {articulo.observacion}
@@ -1117,6 +1197,15 @@ export function CrearFormOrdenCompra() {
                             <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">Sin PIC</span>
                           )}
                         </div>
+                        {item.descripcion && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Descripción: {item.descripcion}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          Cod. prov. sug.:{" "}
+                          {item.codprovsug?.trim() ? item.codprovsug : "-"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <div>
