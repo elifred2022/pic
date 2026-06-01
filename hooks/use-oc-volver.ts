@@ -44,6 +44,35 @@ export function useOcVolver() {
     [supabase]
   );
 
+  /** OC vinculada a un pedido concreto (por Nº OC del pedido, no por ?oc= global en la URL). */
+  const resolveOcParaPedido = useCallback(
+    async (pedido: {
+      id: string;
+      numero_oc?: string | number | null;
+    }): Promise<OcVolver | null> => {
+      if (
+        pedido.numero_oc != null &&
+        pedido.numero_oc !== "" &&
+        pedido.numero_oc !== "-"
+      ) {
+        const byNoc = await resolvePorNoc(pedido.numero_oc);
+        if (byNoc) return byNoc;
+      }
+
+      const urlOc = searchParams.get("oc");
+      const urlComparativa = searchParams.get("comparativa");
+      if (urlOc && urlComparativa === String(pedido.id)) {
+        return {
+          id: urlOc,
+          noc: searchParams.get("noc"),
+        };
+      }
+
+      return null;
+    },
+    [searchParams, resolvePorNoc]
+  );
+
   const ensureOcVolver = useCallback(
     async (nocPedido?: string | number | null) => {
       const oc = searchParams.get("oc");
@@ -63,5 +92,5 @@ export function useOcVolver() {
     [searchParams, resolvePorNoc]
   );
 
-  return { ocVolver, ensureOcVolver, setOcVolver };
+  return { ocVolver, ensureOcVolver, setOcVolver, resolveOcParaPedido };
 }

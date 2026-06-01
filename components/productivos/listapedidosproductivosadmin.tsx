@@ -6,7 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
-import { useOcVolver } from "@/hooks/use-oc-volver";
+import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
+import {
+  getFacturaViewUrl,
+  parseOrdenCompraEntero,
+  uploadFacturaOrdenCompra,
+} from "@/lib/fact-compras-storage";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -80,7 +85,8 @@ export default function ListaPedidosProductivosAdmin() {
   }
 
    const searchParams = useSearchParams();
-   const { ocVolver, ensureOcVolver } = useOcVolver();
+   const { ocVolver, resolveOcParaPedido } = useOcVolver();
+   const [comparativaOc, setComparativaOc] = useState<OcVolver | null>(null);
    const comparativaAbiertaRef = useRef<string | null>(null);
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -94,6 +100,11 @@ export default function ListaPedidosProductivosAdmin() {
     
 
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
+    const [ocFacturaForm, setOcFacturaForm] = useState({ fc: "", rt: "", fact_path: "" });
+    const [ocFacturaImageUrl, setOcFacturaImageUrl] = useState<string | null>(null);
+    const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
+    const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
+    const [guardandoComparativa, setGuardandoComparativa] = useState(false);
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const [fechaImpresion, setFechaImpresion] = useState("");
@@ -222,6 +233,50 @@ export default function ListaPedidosProductivosAdmin() {
     comparativaAbiertaRef.current = comparativaId;
     void abrirComparativaPedido(pedido);
   }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!comparativaPedido || !comparativaOc?.id) {
+      setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+      setOcFacturaImageUrl(null);
+      setOcFacturaUploadError(null);
+      return;
+    }
+
+    const ocId = comparativaOc.id;
+    let cancelled = false;
+
+    setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+    setOcFacturaImageUrl(null);
+
+    const cargarOcFactura = async () => {
+      const { data, error } = await supabase
+        .from("ordenes_compra")
+        .select("fc, rt, fact_path")
+        .eq("id", ocId)
+        .maybeSingle();
+
+      if (cancelled || error || !data) return;
+
+      const factPath = data.fact_path ?? "";
+      setOcFacturaForm({
+        fc: data.fc != null ? String(data.fc) : "",
+        rt: data.rt != null ? String(data.rt) : "",
+        fact_path: factPath,
+      });
+
+      if (factPath) {
+        const url = await getFacturaViewUrl(supabase, factPath);
+        if (!cancelled) setOcFacturaImageUrl(url);
+      } else if (!cancelled) {
+        setOcFacturaImageUrl(null);
+      }
+    };
+
+    void cargarOcFactura();
+    return () => {
+      cancelled = true;
+    };
+  }, [comparativaPedido?.id, comparativaOc?.id, supabase]);
   
     // funcion para formatear las fechas
    function formatDate(dateString: string | null): string {
@@ -369,10 +424,35 @@ export default function ListaPedidosProductivosAdmin() {
   };
 
   const abrirComparativaPedido = async (p: Pedido) => {
-    await ensureOcVolver(p.numero_oc);
+    setOcFacturaForm({ fc: "", rt: "", fact_path: "" });
+    setOcFacturaImageUrl(null);
+    setOcFacturaUploadError(null);
+
+    const oc = await resolveOcParaPedido({ id: p.id, numero_oc: p.numero_oc });
+    setComparativaOc(oc);
+
     const pedidoEnriquecido = await enriquecerArticulosConCodProvSug(p);
     setComparativaPedido(pedidoEnriquecido);
     setFormData(pedidoEnriquecido);
+  };
+
+  const handleSubirImagenFacturaOc = async (file: File) => {
+    if (!comparativaOc?.id) return;
+
+    setOcFacturaUploading(true);
+    setOcFacturaUploadError(null);
+
+    const result = await uploadFacturaOrdenCompra(supabase, comparativaOc.id, file);
+
+    setOcFacturaUploading(false);
+
+    if ("error" in result) {
+      setOcFacturaUploadError(result.error);
+      return;
+    }
+
+    setOcFacturaForm((prev) => ({ ...prev, fact_path: result.storagePath }));
+    setOcFacturaImageUrl(result.viewUrl);
   };
 
   const eliminarPedido = async (p: Pedido) => {
@@ -397,14 +477,13 @@ export default function ListaPedidosProductivosAdmin() {
   // ✅ Función para actualizar pedido
  // ✅ Función para actualizar pedido
 const handleUpdatePedido = async () => {
-    // Si no hay modal abierto, no hace nada
     if (!editingPedido && !comparativaPedido) return;
 
-    // Define qué pedido se va a actualizar
     const pedidoToUpdate = editingPedido || comparativaPedido;
     if (!pedidoToUpdate) return;
-    
-    // Objeto con los datos que se van a actualizar
+
+    setGuardandoComparativa(true);
+
     const dataToUpdate: Partial<Pedido> = {
         estado: formData.estado,
         observ: formData.observ,
@@ -419,11 +498,9 @@ const handleUpdatePedido = async () => {
         fecha_prom: formData.fecha_prom,
         fecha_ent: formData.fecha_ent,
         fac: formData.fac,
-        rto: formData.rto
+        rto: formData.rto,
     };
 
-    // Solo actualiza la comparativa si estamos en el modal de edición completa
-    // donde el usuario tiene la capacidad de cambiar los precios.
     if (editingPedido) {
         dataToUpdate.comparativa_prov = comparativaForm;
         dataToUpdate.nota_comprador = formData.nota_comprador;
@@ -437,19 +514,39 @@ const handleUpdatePedido = async () => {
 
     if (error) {
         console.error("Error actualizando pedido:", error);
+        alert(`Error al guardar el pedido: ${error.message}`);
+        setGuardandoComparativa(false);
         return;
     }
 
-    // Actualiza la lista en memoria sin sobreescribir la comparativa si no es necesario
+    if (comparativaPedido && comparativaOc?.id) {
+      const { error: ocError } = await supabase
+        .from("ordenes_compra")
+        .update({
+          fc: parseOrdenCompraEntero(ocFacturaForm.fc),
+          rt: parseOrdenCompraEntero(ocFacturaForm.rt),
+          fact_path: ocFacturaForm.fact_path || null,
+        })
+        .eq("id", comparativaOc.id);
+
+      if (ocError) {
+        console.error("Error actualizando orden de compra:", ocError);
+        alert(`Pedido guardado, pero error en la orden de compra: ${ocError.message}`);
+        setGuardandoComparativa(false);
+        return;
+      }
+    }
+
     setPedidos((prev) =>
         prev.map((p) =>
             p.id === pedidoToUpdate.id ? { ...p, ...dataToUpdate } as Pedido : p
         )
     );
 
-    // Cierra los modales y resetea el estado
+    setGuardandoComparativa(false);
     setEditingPedido(null);
     setComparativaPedido(null);
+    setComparativaOc(null);
     setComparativaForm(null);
 };
 
@@ -1697,7 +1794,123 @@ const handleUpdatePedido = async () => {
                     onChange={(e) => setFormData({ ...formData, proveedor_seleccionado: e.target.value })}
                 />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de OC:</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    placeholder="Número de orden de compra"
+                    value={formData.numero_oc || ""}
+                    onChange={(e) => setFormData({ ...formData, numero_oc: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Factura (pedido):</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    placeholder="Nº de factura"
+                    value={formData.fac || ""}
+                    onChange={(e) => setFormData({ ...formData, fac: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Remito (pedido):</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    placeholder="Nº de remito"
+                    value={formData.rto || ""}
+                    onChange={(e) => setFormData({ ...formData, rto: e.target.value })}
+                  />
+                </div>
             </div>
+
+            {comparativaOc && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">
+                  📄 Factura y remito — Orden de compra
+                  {comparativaOc.noc ? ` #${comparativaOc.noc}` : ""}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Factura (FC)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                      placeholder="Nº de factura"
+                      value={ocFacturaForm.fc}
+                      onChange={(e) =>
+                        setOcFacturaForm((prev) => ({ ...prev, fc: e.target.value }))
+                      }
+                    />
+                    {ocFacturaImageUrl && ocFacturaForm.fc.trim() && (
+                      <p className="mt-2 text-sm">
+                        <a
+                          href={ocFacturaImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline font-medium"
+                        >
+                          Ver imagen de factura {ocFacturaForm.fc}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Remito (RT)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
+                      placeholder="Nº de remito"
+                      value={ocFacturaForm.rt}
+                      onChange={(e) =>
+                        setOcFacturaForm((prev) => ({ ...prev, rt: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Imagen de factura
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
+                      disabled={ocFacturaUploading || guardandoComparativa}
+                      className="w-full text-sm"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleSubirImagenFacturaOc(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    {ocFacturaUploading && (
+                      <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
+                    )}
+                    {ocFacturaUploadError && (
+                      <p className="text-sm text-red-600 mt-1">{ocFacturaUploadError}</p>
+                    )}
+                    {ocFacturaForm.fact_path && ocFacturaImageUrl && !ocFacturaForm.fc.trim() && (
+                      <p className="text-sm mt-2">
+                        <a
+                          href={ocFacturaImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          Ver imagen cargada
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
@@ -1708,16 +1921,20 @@ const handleUpdatePedido = async () => {
                   🖨️ Imprimir
                 </button>
                 <button
-                    onClick={() => setComparativaPedido(null)}
+                    onClick={() => {
+                      setComparativaPedido(null);
+                      setComparativaOc(null);
+                    }}
                   className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                 >
                   ❌ Cerrar
                 </button>
                 <button
                     onClick={handleUpdatePedido}
-                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200"
+                  disabled={guardandoComparativa || ocFacturaUploading}
+                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
                 >
-                  💾 Guardar
+                  {guardandoComparativa ? "Guardando..." : "💾 Guardar"}
                 </button>
               </div>
             </div>

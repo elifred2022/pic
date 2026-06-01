@@ -63,6 +63,7 @@ export default function ListaOrdenesCompra() {
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarPendientes, setOcultarPendientes] = useState(false);
   const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
+  const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [exportandoDetalle, setExportandoDetalle] = useState(false);
@@ -78,10 +79,12 @@ export default function ListaOrdenesCompra() {
     const savedCumplidos = localStorage.getItem("ocultarCumplidosOrdenes");
     const savedPendientes = localStorage.getItem("ocultarPendientesOrdenes");
     const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcialOrdenes");
+    const savedAnulados = localStorage.getItem("ocultarAnuladosOrdenes");
 
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedPendientes !== null) setOcultarPendientes(savedPendientes === "true");
     if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
+    if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
   }, []);
 
   // Cada vez que cambia, actualizá localStorage
@@ -102,6 +105,12 @@ export default function ListaOrdenesCompra() {
       localStorage.setItem("ocultarEntregoParcialOrdenes", String(ocultarEntregoParcial));
     }
   }, [ocultarEntregoParcial, hasMounted]);
+
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem("ocultarAnuladosOrdenes", String(ocultarAnulados));
+    }
+  }, [ocultarAnulados, hasMounted]);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -127,7 +136,7 @@ export default function ListaOrdenesCompra() {
     
     // Debug: mostrar estados y filtros
     console.log('Estados de las órdenes:', ordenes.map(o => o.estado));
-    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial });
+    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados });
     
     // Aplicar filtros de checkbox primero
     ordenesFiltradas = ordenesFiltradas.filter(orden => {
@@ -143,6 +152,9 @@ export default function ListaOrdenesCompra() {
       }
       if (ocultarEntregoParcial && orden.estado === 'entrego_parcial') {
         console.log('Ocultando entregó parcial');
+        return false;
+      }
+      if (ocultarAnulados && orden.estado === 'anulado') {
         return false;
       }
       return true;
@@ -224,7 +236,8 @@ export default function ListaOrdenesCompra() {
           'aprobada': ['aprobada', 'approved', 'a', 'apr'],
           'rechazada': ['rechazada', 'rejected', 'r', 'rech'],
           'cumplida': ['cumplida', 'completed', 'c', 'comp'],
-          'entrego_parcial': ['entrego_parcial', 'entrego parcial', 'parcial', 'ep']
+          'entrego_parcial': ['entrego_parcial', 'entrego parcial', 'parcial', 'ep'],
+          'anulado': ['anulado', 'anul', 'anulada']
         };
         
         // Buscar si el término de búsqueda coincide con algún alias del estado actual
@@ -266,7 +279,7 @@ export default function ListaOrdenesCompra() {
     });
     
     setOrdenesFiltradas(ordenesFiltradas);
-  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial]);
+  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados]);
 
   useEffect(() => {
     if (activeTab === 'ordenes') {
@@ -317,7 +330,8 @@ export default function ListaOrdenesCompra() {
       aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
       rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
       cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
-      entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" }
+      entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" },
+      anulado: { color: "bg-red-100 text-red-800", text: "Anulado" }
     };
     
     const estadoInfo = estados[estado as keyof typeof estados] || estados.pendiente;
@@ -681,6 +695,16 @@ export default function ListaOrdenesCompra() {
               className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
             <span className="text-gray-700 font-medium">Ocultar entregó parcial</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={ocultarAnulados}
+              onChange={() => setOcultarAnulados((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Ocultar anulados</span>
           </label>
         </div>
       </div>
