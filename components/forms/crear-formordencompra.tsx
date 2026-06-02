@@ -35,6 +35,9 @@ interface ArticuloAprobado {
   origen: 'productivo' | 'general'; // Nuevo campo para identificar el origen
   codint?: string;
   codprovsug?: string;
+  articulo_db_id?: string | null;
+  costunit?: string | null;
+  descuento?: string | null;
 }
 
 interface ItemOrden {
@@ -161,27 +164,39 @@ export function CrearFormOrdenCompra() {
       const descPorCodint = new Map<string, string>();
       const descPorNombre = new Map<string, string>();
       const codintPorNombre = new Map<string, string>();
+      const idPorCodint = new Map<string, string>();
+      const idPorNombre = new Map<string, string>();
+      const costunitPorCodint = new Map<string, string>();
+      const costunitPorNombre = new Map<string, string>();
+      const descuentoPorCodint = new Map<string, string>();
+      const descuentoPorNombre = new Map<string, string>();
 
       if (codints.length > 0) {
         const { data } = await supabase
           .from("articulos")
-          .select("codint, articulo, codprovsug, descripcion")
+          .select("id, codint, articulo, codprovsug, descripcion, costunit, descuento")
           .in("codint", codints);
         (data ?? []).forEach((row) => {
           codProvPorCodint.set(row.codint, row.codprovsug ?? "");
           if (row.descripcion) descPorCodint.set(row.codint, row.descripcion);
+          if (row.id) idPorCodint.set(row.codint, row.id);
+          if (row.costunit != null) costunitPorCodint.set(row.codint, String(row.costunit));
+          if (row.descuento != null) descuentoPorCodint.set(row.codint, String(row.descuento));
         });
       }
 
       if (nombres.length > 0) {
         const { data } = await supabase
           .from("articulos")
-          .select("codint, articulo, codprovsug, descripcion")
+          .select("id, codint, articulo, codprovsug, descripcion, costunit, descuento")
           .in("articulo", nombres);
         (data ?? []).forEach((row) => {
           codProvPorNombre.set(row.articulo, row.codprovsug ?? "");
           if (row.descripcion) descPorNombre.set(row.articulo, row.descripcion);
           if (row.codint) codintPorNombre.set(row.articulo, row.codint);
+          if (row.id) idPorNombre.set(row.articulo, row.id);
+          if (row.costunit != null) costunitPorNombre.set(row.articulo, String(row.costunit));
+          if (row.descuento != null) descuentoPorNombre.set(row.articulo, String(row.descuento));
         });
       }
 
@@ -198,8 +213,20 @@ export function CrearFormOrdenCompra() {
           (codint ? descPorCodint.get(codint) : undefined) ||
           descPorNombre.get(art.articulo) ||
           art.descripcion;
+        const articulo_db_id =
+          (codint ? idPorCodint.get(codint) : undefined) ||
+          idPorNombre.get(art.articulo) ||
+          null;
+        const costunit =
+          (codint ? costunitPorCodint.get(codint) : undefined) ||
+          costunitPorNombre.get(art.articulo) ||
+          null;
+        const descuento =
+          (codint ? descuentoPorCodint.get(codint) : undefined) ||
+          descuentoPorNombre.get(art.articulo) ||
+          null;
 
-        return { ...art, codint, codprovsug, descripcion };
+        return { ...art, codint, codprovsug, descripcion, articulo_db_id, costunit, descuento };
       });
     },
     [supabase]
@@ -445,26 +472,59 @@ export function CrearFormOrdenCompra() {
     }
   };
 
-  const handleAgregarArticulo = (articulo: ArticuloAprobado) => {
-    // Verificar si el artículo ya está en la orden
+  const obtenerPrecioCatalogo = async (
+    articulo: ArticuloAprobado
+  ): Promise<{ articulo_db_id: string | null; costunit: string | null; descuento: string | null }> => {
+    if (articulo.costunit != null || articulo.articulo_db_id) {
+      return {
+        articulo_db_id: articulo.articulo_db_id ?? null,
+        costunit: articulo.costunit ?? null,
+        descuento: articulo.descuento ?? null,
+      };
+    }
+
+    let query = supabase
+      .from("articulos")
+      .select("id, costunit, descuento");
+
+    if (articulo.codint) {
+      query = query.eq("codint", articulo.codint);
+    } else {
+      query = query.eq("articulo", articulo.articulo);
+    }
+
+    const { data } = await query.maybeSingle();
+    return {
+      articulo_db_id: data?.id ?? null,
+      costunit: data?.costunit != null ? String(data.costunit) : null,
+      descuento: data?.descuento != null ? String(data.descuento) : null,
+    };
+  };
+
+  const handleAgregarArticulo = async (articulo: ArticuloAprobado) => {
     if (itemsOrden.some(item => item.articulo_id === articulo.id)) {
       setError("Este artículo ya está en la orden");
       return;
     }
 
+    const catalogo = await obtenerPrecioCatalogo(articulo);
+    const precioUnit = parseNumero(String(catalogo.costunit ?? "0"));
+    const desc = parseNumero(String(catalogo.descuento ?? "0"));
+    const precioConDescuento = calcularPrecioConDescuento(precioUnit, desc);
+
     const nuevoItem: ItemOrden = {
       articulo_id: articulo.id,
       articulo_nombre: articulo.articulo,
-      articulo_db_id: null,
+      articulo_db_id: catalogo.articulo_db_id,
       codint: articulo.codint ?? null,
       descripcion: articulo.descripcion?.trim() || null,
       codprovsug: articulo.codprovsug?.trim() || null,
       cantidad: articulo.cantidad,
-      precio_unitario: 0, // Precio por defecto, se puede editar después
-      descuento: 0,
-      costunitcdesc: 0,
+      precio_unitario: precioUnit,
+      descuento: desc,
+      costunitcdesc: precioConDescuento,
       divisa: formData.divisa,
-      total: 0
+      total: articulo.cantidad * precioConDescuento,
     };
 
     setItemsOrden([...itemsOrden, nuevoItem]);
@@ -1107,6 +1167,14 @@ export function CrearFormOrdenCompra() {
                           <p className="text-xs text-gray-500 mt-0.5">
                             Cod. prov. sug.: {a.codprovsug?.trim() ? a.codprovsug : "-"}
                           </p>
+                          {a.costunit != null && (
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              Precio: {parseNumero(String(a.costunit)).toLocaleString("es-AR")}
+                              {a.descuento && parseNumero(String(a.descuento)) > 0
+                                ? ` (desc. ${a.descuento}%)`
+                                : ""}
+                            </p>
+                          )}
                         </div>
                         <Button
                           type="button"
@@ -1159,6 +1227,15 @@ export function CrearFormOrdenCompra() {
                          Cod. prov. sug.:{" "}
                          {articulo.codprovsug?.trim() ? articulo.codprovsug : "-"}
                        </p>
+                       {articulo.costunit != null && (
+                         <p className="text-xs text-gray-600 mt-0.5">
+                           Precio catálogo:{" "}
+                           {parseNumero(String(articulo.costunit)).toLocaleString("es-AR")}
+                           {articulo.descuento && parseNumero(String(articulo.descuento)) > 0
+                             ? ` (desc. ${articulo.descuento}%)`
+                             : ""}
+                         </p>
+                       )}
                        {articulo.observacion && (
                          <p className="text-xs text-gray-500 mt-1">
                            Observación: {articulo.observacion}
