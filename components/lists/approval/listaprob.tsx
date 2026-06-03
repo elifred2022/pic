@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useOcVolver } from "@/hooks/use-oc-volver";
+import {
+  useComparativaPresupuestoUrls,
+  useOcFacturaAdjunto,
+} from "@/hooks/use-adjuntos-compras-view";
+import { canViewAdjuntosCompras } from "@/lib/panol-access";
 
 type ArticuloComparativa = {
   articulo: string;
@@ -16,6 +23,7 @@ type ProveedorComparativa = {
   nombreProveedor: string;
   articulos: ArticuloComparativa[];
   total: number;
+  presupuesto_path?: string | null;
 };
 
 type Pedido = {
@@ -66,9 +74,14 @@ type Pedido = {
 };
 
 export default function ListAprob() {
+  const searchParams = useSearchParams();
+  const { resolveOcParaPedido } = useOcVolver();
+  const comparativaAbiertaRef = useRef<string | null>(null);
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
+  const [comparativaOcId, setComparativaOcId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarAprobados, setOcultarAprobados] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
@@ -76,6 +89,50 @@ export default function ListAprob() {
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
+
+  const puedeVerAdjuntos = canViewAdjuntosCompras(userEmail);
+  const presupuestoUrls = useComparativaPresupuestoUrls(
+    puedeVerAdjuntos ? editingPedido?.comparativa_prov : null
+  );
+  const { facturaViewUrl, facturaFc } = useOcFacturaAdjunto(
+    puedeVerAdjuntos ? comparativaOcId : null
+  );
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!editingPedido) {
+      setComparativaOcId(null);
+      return;
+    }
+    let cancelled = false;
+    void resolveOcParaPedido({
+      id: editingPedido.id,
+      numero_oc: editingPedido.oc,
+    }).then((oc) => {
+      if (!cancelled) setComparativaOcId(oc?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editingPedido?.id, editingPedido?.oc, resolveOcParaPedido]);
+
+  useEffect(() => {
+    const comparativaId = searchParams.get("comparativa");
+    if (!comparativaId || pedidos.length === 0) return;
+    if (comparativaAbiertaRef.current === comparativaId) return;
+
+    const pedido = pedidos.find((p) => String(p.id) === comparativaId);
+    if (!pedido) return;
+
+    comparativaAbiertaRef.current = comparativaId;
+    setEditingPedido(pedido);
+    setFormData(pedido);
+  }, [searchParams, pedidos]);
 
   // Para que no desactive checkbox al reset página - Al montar, leé localStorage
   useEffect(() => {
@@ -598,6 +655,22 @@ export default function ListAprob() {
                             <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-2 rounded border text-sm">
                               Total: ${(prov.total || 0).toLocaleString("es-AR")}
                             </div>
+                            {puedeVerAdjuntos && prov.presupuesto_path && (
+                              <p className="mt-2 text-center text-sm">
+                                {presupuestoUrls[provIndex] ? (
+                                  <a
+                                    href={presupuestoUrls[provIndex]!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline font-medium"
+                                  >
+                                    Ver presupuesto
+                                  </a>
+                                ) : (
+                                  <span className="text-gray-500 text-xs">Cargando presupuesto...</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -650,6 +723,20 @@ export default function ListAprob() {
                 </div>
                 </div>
               </div>
+
+              {puedeVerAdjuntos && comparativaOcId && facturaViewUrl && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">Factura — Orden de compra</p>
+                  <a
+                    href={facturaViewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline font-medium text-sm"
+                  >
+                    Ver factura{facturaFc.trim() ? ` (${facturaFc})` : ""}
+                  </a>
+                </div>
+              )}
 
               <hr className="my-6" />
 

@@ -12,6 +12,7 @@ type ArticuloComparativa = {
 };
 
 type ProveedorComparativa = {
+  presupuesto_path?: string | null;
   nombreProveedor: string;
   articulos: ArticuloComparativa[];
   total: number;

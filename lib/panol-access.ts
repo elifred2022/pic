@@ -60,6 +60,10 @@ export const isTabletEmail = (email?: string | null) =>
 export const isAprobEmail = (email?: string | null) =>
   !!email && aprobEmails.includes(email);
 
+/** Ver presupuestos (comparativa) y factura adjunta en OC. */
+export const canViewAdjuntosCompras = (email?: string | null) =>
+  !!email && (adminEmails.includes(email) || aprobEmails.includes(email));
+
 export const isProduccionEmail = (email?: string | null) =>
   !!email && produccionEmails.includes(email);
 

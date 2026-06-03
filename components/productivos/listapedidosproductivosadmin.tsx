@@ -14,6 +14,11 @@ import {
   parseOrdenCompraEntero,
   uploadFacturaOrdenCompra,
 } from "@/lib/fact-compras-storage";
+import {
+  getPresupuestoViewUrl,
+  removePresupuestoFromStorage,
+  uploadPresupuestoProveedor,
+} from "@/lib/presupuestos-storage";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -30,6 +35,7 @@ type ProveedorComparativa = {
   nombreProveedor: string;
   articulos: ArticuloComparativa[];
   total: number;
+  presupuesto_path?: string | null;
 };
 
 type Pedido = {
@@ -107,6 +113,14 @@ export default function ListaPedidosProductivosAdmin() {
     const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
     const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
     const [guardandoComparativa, setGuardandoComparativa] = useState(false);
+    const [presupuestoViewUrls, setPresupuestoViewUrls] = useState<Record<number, string | null>>({});
+    const [comparativaPresupuestoUrls, setComparativaPresupuestoUrls] = useState<
+      Record<number, string | null>
+    >({});
+    const [presupuestoUploading, setPresupuestoUploading] = useState<Record<number, boolean>>({});
+    const [presupuestoUploadErrors, setPresupuestoUploadErrors] = useState<
+      Record<number, string | null>
+    >({});
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const [fechaImpresion, setFechaImpresion] = useState("");
@@ -280,6 +294,62 @@ export default function ListaPedidosProductivosAdmin() {
       cancelled = true;
     };
   }, [comparativaPedido?.id, comparativaOc?.id, supabase]);
+
+  const presupuestoPathsKey =
+    comparativaForm?.map((p) => p.presupuesto_path ?? "").join("|") ?? "";
+
+  useEffect(() => {
+    if (!editingPedido || !comparativaForm?.length) {
+      setPresupuestoViewUrls({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const cargarUrls = async () => {
+      const urls: Record<number, string | null> = {};
+      await Promise.all(
+        comparativaForm.map(async (prov, i) => {
+          if (prov.presupuesto_path) {
+            urls[i] = await getPresupuestoViewUrl(supabase, prov.presupuesto_path);
+          }
+        })
+      );
+      if (!cancelled) setPresupuestoViewUrls(urls);
+    };
+
+    void cargarUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingPedido?.id, presupuestoPathsKey, supabase]);
+
+  useEffect(() => {
+    const provs = comparativaPedido?.comparativa_prov;
+    if (!comparativaPedido || !provs?.length) {
+      setComparativaPresupuestoUrls({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const cargarUrls = async () => {
+      const urls: Record<number, string | null> = {};
+      await Promise.all(
+        provs.map(async (prov, i) => {
+          if (prov.presupuesto_path) {
+            urls[i] = await getPresupuestoViewUrl(supabase, prov.presupuesto_path);
+          }
+        })
+      );
+      if (!cancelled) setComparativaPresupuestoUrls(urls);
+    };
+
+    void cargarUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [comparativaPedido?.id, comparativaPedido?.comparativa_prov, supabase]);
   
     // funcion para formatear las fechas
    function formatDate(dateString: string | null): string {
@@ -458,6 +528,108 @@ export default function ListaPedidosProductivosAdmin() {
     setOcFacturaImageUrl(result.viewUrl);
   };
 
+  const handleSubirPresupuestoProveedor = async (provIndex: number, file: File) => {
+    if (!editingPedido?.id || !comparativaForm) return;
+
+    setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: true }));
+    setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: null }));
+
+    const result = await uploadPresupuestoProveedor(
+      supabase,
+      editingPedido.id,
+      provIndex,
+      file
+    );
+
+    setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: false }));
+
+    if ("error" in result) {
+      setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: result.error }));
+      return;
+    }
+
+    const nuevaComparativa = comparativaForm.map((prov, i) =>
+      i === provIndex ? { ...prov, presupuesto_path: result.storagePath } : prov
+    );
+    setComparativaForm(nuevaComparativa);
+    setPresupuestoViewUrls((prev) => ({ ...prev, [provIndex]: result.viewUrl }));
+
+    const { error } = await supabase
+      .from("pedidos_productivos")
+      .update({ comparativa_prov: nuevaComparativa })
+      .eq("id", editingPedido.id);
+
+    if (error) {
+      setPresupuestoUploadErrors((prev) => ({
+        ...prev,
+        [provIndex]: `Archivo subido pero no se guardó en el pedido: ${error.message}`,
+      }));
+      return;
+    }
+
+    setPedidos((prev) =>
+      prev.map((p) =>
+        p.id === editingPedido.id ? { ...p, comparativa_prov: nuevaComparativa } : p
+      )
+    );
+    setEditingPedido((prev) =>
+      prev ? { ...prev, comparativa_prov: nuevaComparativa } : null
+    );
+  };
+
+  const handleQuitarPresupuestoProveedor = async (provIndex: number) => {
+    if (!editingPedido?.id || !comparativaForm) return;
+
+    const pathActual = comparativaForm[provIndex]?.presupuesto_path;
+    if (!pathActual) return;
+
+    if (!window.confirm("¿Quitar el presupuesto adjunto de este proveedor?")) return;
+
+    setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: true }));
+    setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: null }));
+
+    const removeResult = await removePresupuestoFromStorage(supabase, pathActual);
+    if ("error" in removeResult) {
+      setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: false }));
+      setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: removeResult.error }));
+      return;
+    }
+
+    const nuevaComparativa = comparativaForm.map((prov, i) =>
+      i === provIndex ? { ...prov, presupuesto_path: null } : prov
+    );
+    setComparativaForm(nuevaComparativa);
+    setPresupuestoViewUrls((prev) => {
+      const next = { ...prev };
+      delete next[provIndex];
+      return next;
+    });
+
+    const { error } = await supabase
+      .from("pedidos_productivos")
+      .update({ comparativa_prov: nuevaComparativa })
+      .eq("id", editingPedido.id);
+
+    setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: false }));
+
+    if (error) {
+      setPresupuestoUploadErrors((prev) => ({
+        ...prev,
+        [provIndex]: `No se pudo actualizar el pedido: ${error.message}`,
+      }));
+      return;
+    }
+
+    setPedidos((prev) =>
+      prev.map((p) =>
+        p.id === editingPedido.id ? { ...p, comparativa_prov: nuevaComparativa } : p
+      )
+    );
+    setEditingPedido((prev) =>
+      prev ? { ...prev, comparativa_prov: nuevaComparativa } : null
+    );
+  };
+
   const eliminarPedido = async (p: Pedido) => {
     const confirm = window.confirm(`¿Estás seguro de que querés eliminar el pedido ${p.id}?`);
     if (!confirm) return;
@@ -552,6 +724,9 @@ const handleUpdatePedido = async () => {
     setComparativaPedido(null);
     setComparativaOc(null);
     setComparativaForm(null);
+    setPresupuestoViewUrls({});
+    setComparativaPresupuestoUrls({});
+    setPresupuestoUploadErrors({});
 };
 
 // Estilos para la tabla (comentados por ahora)
@@ -1363,6 +1538,56 @@ const handleUpdatePedido = async () => {
                       <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
                         Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
+                      <div className="mt-3 border-t border-gray-200 pt-3">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Presupuesto (PDF o JPG)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,application/pdf"
+                          disabled={!!presupuestoUploading[provIndex] || guardandoComparativa}
+                          className="w-full text-xs"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void handleSubirPresupuestoProveedor(provIndex, file);
+                            e.target.value = "";
+                          }}
+                        />
+                        {presupuestoUploading[provIndex] && (
+                          <p className="text-xs text-blue-600 mt-1">Subiendo presupuesto...</p>
+                        )}
+                        {presupuestoUploadErrors[provIndex] && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {presupuestoUploadErrors[provIndex]}
+                          </p>
+                        )}
+                        {prov.presupuesto_path && (
+                          <p className="text-xs mt-2 flex items-center gap-2 flex-wrap">
+                            {presupuestoViewUrls[provIndex] ? (
+                              <a
+                                href={presupuestoViewUrls[provIndex]!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline font-medium"
+                              >
+                                Ver presupuesto
+                              </a>
+                            ) : (
+                              <span className="text-gray-500">Presupuesto adjunto</span>
+                            )}
+                            <button
+                              type="button"
+                              title="Quitar presupuesto"
+                              disabled={!!presupuestoUploading[provIndex] || guardandoComparativa}
+                              onClick={() => void handleQuitarPresupuestoProveedor(provIndex)}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 disabled:opacity-50"
+                              aria-label="Quitar presupuesto"
+                            >
+                              ×
+                            </button>
+                          </p>
+                        )}
+                      </div>
                           </div>
                         ))}
                     </div>
@@ -1757,6 +1982,18 @@ const handleUpdatePedido = async () => {
                       <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
                         Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
+                      {prov.presupuesto_path && comparativaPresupuestoUrls[provIndex] && (
+                        <p className="mt-2 text-center text-sm">
+                          <a
+                            href={comparativaPresupuestoUrls[provIndex]!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline font-medium"
+                          >
+                            Ver presupuesto
+                          </a>
+                        </p>
+                      )}
                             </div>
                         ))}
                   </div>

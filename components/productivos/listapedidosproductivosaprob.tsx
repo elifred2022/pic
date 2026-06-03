@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useOcVolver } from "@/hooks/use-oc-volver";
+import {
+  useComparativaPresupuestoUrls,
+  useOcFacturaAdjunto,
+} from "@/hooks/use-adjuntos-compras-view";
+import { canViewAdjuntosCompras } from "@/lib/panol-access";
 
 type ArticuloComparativa = {
   codint: string;
@@ -17,6 +24,7 @@ type ProveedorComparativa = {
   nombreProveedor: string;
   articulos: ArticuloComparativa[];
   total: number;
+  presupuesto_path?: string | null;
 };
 
 type Pedido = {
@@ -58,6 +66,9 @@ type Pedido = {
 };
 
 export default function ListaPedidosProductivosAprob() {
+   const searchParams = useSearchParams();
+   const { resolveOcParaPedido } = useOcVolver();
+   const comparativaAbiertaRef = useRef<string | null>(null);
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [editingPedido, setEditingPedido] = useState<Pedido | null>(null); //modal edicion
@@ -70,9 +81,44 @@ export default function ListaPedidosProductivosAprob() {
     
 
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
+    const [comparativaOcId, setComparativaOcId] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const supabase = createClient();
+
+    const puedeVerAdjuntos = canViewAdjuntosCompras(userEmail);
+    const presupuestoUrls = useComparativaPresupuestoUrls(
+      puedeVerAdjuntos ? comparativaPedido?.comparativa_prov : null
+    );
+    const { facturaViewUrl, facturaFc } = useOcFacturaAdjunto(
+      puedeVerAdjuntos ? comparativaOcId : null
+    );
+
+    useEffect(() => {
+      void supabase.auth.getUser().then(({ data }) => {
+        setUserEmail(data.user?.email ?? null);
+      });
+    }, [supabase]);
+
+    const abrirComparativaPedido = async (p: Pedido) => {
+      setComparativaPedido(p);
+      setFormData(p);
+      const oc = await resolveOcParaPedido({ id: p.id, numero_oc: p.numero_oc });
+      setComparativaOcId(oc?.id ?? null);
+    };
+
+    useEffect(() => {
+      const comparativaId = searchParams.get("comparativa");
+      if (!comparativaId || pedidos.length === 0) return;
+      if (comparativaAbiertaRef.current === comparativaId) return;
+
+      const pedido = pedidos.find((p) => String(p.id) === comparativaId);
+      if (!pedido) return;
+
+      comparativaAbiertaRef.current = comparativaId;
+      void abrirComparativaPedido(pedido);
+    }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
   
     /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
     useEffect(() => {
@@ -396,10 +442,7 @@ const handleUpdatePedido = async () => {
                      <div className="flex flex-col gap-2">
                       <button
                            className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                           onClick={() => {
-                               setComparativaPedido(p);
-                               setFormData(p);
-                           }}
+                           onClick={() => void abrirComparativaPedido(p)}
                        >
                            📊 Comparativa
                        </button>
@@ -610,9 +653,39 @@ const handleUpdatePedido = async () => {
                       <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-3 rounded border text-sm">
                         Total: ${(prov.total || 0).toFixed(0)}
                       </div>
+                      {puedeVerAdjuntos && prov.presupuesto_path && (
+                        <p className="mt-2 text-center text-sm">
+                          {presupuestoUrls[provIndex] ? (
+                            <a
+                              href={presupuestoUrls[provIndex]!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 underline font-medium"
+                            >
+                              Ver presupuesto
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 text-xs">Cargando presupuesto...</span>
+                          )}
+                        </p>
+                      )}
                     </div>
                   ))}
                   </div>
+
+                  {puedeVerAdjuntos && comparativaOcId && facturaViewUrl && (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">Factura — Orden de compra</p>
+                      <a
+                        href={facturaViewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline font-medium text-sm"
+                      >
+                        Ver factura{facturaFc.trim() ? ` (${facturaFc})` : ""}
+                      </a>
+                    </div>
+                  )}
 
                   <div className="mt-4 pt-4 border-t border-gray-300">
                     <p className="text-sm font-semibold text-gray-800 mb-2">Nota del comprador</p>
@@ -677,7 +750,10 @@ const handleUpdatePedido = async () => {
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
                 <button
-                  onClick={() => setComparativaPedido(null)}
+                  onClick={() => {
+                    setComparativaPedido(null);
+                    setComparativaOcId(null);
+                  }}
                   className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
                 >
                   ❌ Cerrar

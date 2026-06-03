@@ -29,6 +29,8 @@ export function extractPicDisplayNumber(articuloId: string): string {
 export type ComparativaLinkOptions = {
   ordenCompraId?: number | string;
   ordenCompraNoc?: number | string;
+  /** `aprob` abre la lista de aprobación (lectura + adjuntos). Por defecto: admin/compras. */
+  audience?: "admin" | "aprob";
 };
 
 export function getVerOrdenCompraUrl(ordenCompraId: number | string): string {
@@ -53,10 +55,18 @@ export function getComparativaPedidoUrl(
   const ocSuffix = ocQuery ? `&${ocQuery}` : "";
 
   if (parsed.tipo === "productivo") {
-    return `/auth/rutaproductivos/lista-pedidosproductivosadmin?comparativa=${parsed.pedidoId}${ocSuffix}`;
+    const base =
+      options?.audience === "aprob"
+        ? "/auth/list-aprobpedidosproductivos"
+        : "/auth/rutaproductivos/lista-pedidosproductivosadmin";
+    return `${base}?comparativa=${parsed.pedidoId}${ocSuffix}`;
   }
   if (parsed.tipo === "general") {
-    return `/auth/list-adminpedidosgenerales?comparativa=${parsed.pedidoId}${ocSuffix}`;
+    const base =
+      options?.audience === "aprob"
+        ? "/auth/list-aprobpedidosgenerales"
+        : "/auth/list-adminpedidosgenerales";
+    return `${base}?comparativa=${parsed.pedidoId}${ocSuffix}`;
   }
   return null;
 }
