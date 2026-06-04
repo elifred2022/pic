@@ -351,7 +351,6 @@ export default function CrearFormUs() {
             >
               <option value="">Seleccione responsable de area</option>
               <option value="Juan S.">Juan S.</option>
-              <option value="Julio A">Julio A.</option>
               <option value="Luciana L.">Luciana L.</option>
               <option value="Eduardo S.">Eduardo S.</option>
               <option value="Pedro S.">Pedro S.</option>

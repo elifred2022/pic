@@ -838,9 +838,6 @@ const cellClass =
                 <option value="Juan S." >
                   Juan S.
                 </option>
-                <option value="Julio A." >
-                  Julio A.
-                </option>
                 <option value="Luciana L." >
                   Luciana L.
                 </option>

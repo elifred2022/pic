@@ -26,13 +26,13 @@ export const adminEmails = [
 
 export const aprobEmails = [
   "juanstok@perfilesyservicios.com.ar",
-  "julio@perfilesyservicios.com.ar",
   "luciana.ledesma@perfilesyservicios.com.ar",
   "carolina@perfilesyservicios.com.ar",
   "eduardo@perfilesyservicios.com.ar",
   "pedro@perfilesyservicios.com.ar",
   "Sofia sofiastok@perfilesyservicios.com.ar",
   "elifredmason@gmail.com",
+  // "julio@perfilesyservicios.com.ar", se dio de baja el 04/06/2026
 ];
 
 export const tabletEmails = [
