@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 
 type Proveedor = {
@@ -27,6 +28,7 @@ export default function ListProveedores() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
   const [ocultarProvInactivo, setOcultarProvInactivo] = useState(false);
+  const [exportando, setExportando] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Proveedor>>({});
   const supabase = createClient();
@@ -124,6 +126,33 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
+const handleExportarExcel = () => {
+  setExportando(true);
+  try {
+    const rows = filteredProveedores.map((proveedor) => ({
+      Id: proveedor.id,
+      "Fecha de alta": formatDate(proveedor.created_at),
+      "Codigo interno": proveedor.codintprov ?? "",
+      Proveedor: proveedor.nombreprov ?? "",
+      Cuit: proveedor.cuitprov ?? "",
+      Direccion: proveedor.direccionprov ?? "",
+      Email: proveedor.emailprov ?? "",
+      Telefono: proveedor.telefonoprov ?? "",
+      Contacto: proveedor.contactoprov ?? "",
+      Situacion: proveedor.activoprov ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Proveedores");
+    XLSX.writeFile(wb, `proveedores_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (err) {
+    console.error("Error al exportar:", err);
+    alert("Error al exportar el archivo Excel.");
+  } finally {
+    setExportando(false);
+  }
+};
+
 const headerClass =
   "px-2 py-1 border text-xs font-semibold bg-gray-100 whitespace-nowrap"; // ← evita saltos de línea
 const cellClass =
@@ -148,6 +177,14 @@ const cellClass =
           >
             Crear nuevo proveedor
           </Link>
+          <button
+            type="button"
+            onClick={handleExportarExcel}
+            disabled={exportando || filteredProveedores.length === 0}
+            className="px-4 py-2 mb-4 bg-emerald-600 text-white font-semibold rounded-md shadow hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            {exportando ? "Exportando..." : "📥 Exportar Excel"}
+          </button>
             <input
             type="text"
             placeholder="Buscar proveedor..."
