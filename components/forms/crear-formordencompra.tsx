@@ -116,10 +116,12 @@ export function CrearFormOrdenCompra() {
   const [buscandoCatalogo, setBuscandoCatalogo] = useState(false);
   const [articuloSinPic, setArticuloSinPic] = useState({
     nombre: "",
-    cantidad: 1,
-    precio_unitario: 0,
+    cantidad: "1",
+    precio_unitario: "0",
     descuento: 0
   });
+  const [cantidadEdicion, setCantidadEdicion] = useState<Record<string, string>>({});
+  const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
@@ -143,6 +145,14 @@ export function CrearFormOrdenCompra() {
     const normalizado = valor.replace(",", ".");
     const numero = parseFloat(normalizado);
     return isNaN(numero) ? 0 : numero;
+  };
+
+  const esEntradaDecimalValida = (valor: string) =>
+    valor === "" || /^\d*[.,]?\d*$/.test(valor);
+
+  const parseCantidadDecimal = (valor: string) => {
+    if (valor === "" || valor === "." || valor === ",") return 0;
+    return parseNumero(valor);
   };
 
   const calcularPrecioConDescuento = (precio: number, descuento: number) => {
@@ -533,6 +543,16 @@ export function CrearFormOrdenCompra() {
 
   const handleRemoverArticulo = (articuloId: string) => {
     setItemsOrden(itemsOrden.filter(item => item.articulo_id !== articuloId));
+    setCantidadEdicion((prev) => {
+      const next = { ...prev };
+      delete next[articuloId];
+      return next;
+    });
+    setPrecioEdicion((prev) => {
+      const next = { ...prev };
+      delete next[articuloId];
+      return next;
+    });
   };
 
   const handleAgregarArticuloSinPic = () => {
@@ -541,26 +561,28 @@ export function CrearFormOrdenCompra() {
       setError("Debe ingresar el nombre del artículo");
       return;
     }
-    if (articuloSinPic.cantidad < 1) {
-      setError("La cantidad debe ser al menos 1");
+    const cantidad = parseCantidadDecimal(articuloSinPic.cantidad);
+    if (cantidad <= 0) {
+      setError("La cantidad debe ser mayor a 0");
       return;
     }
     const idUnico = `sin-pic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const precioConDescuento = calcularPrecioConDescuento(articuloSinPic.precio_unitario, articuloSinPic.descuento);
+    const precioUnitario = parseCantidadDecimal(articuloSinPic.precio_unitario);
+    const precioConDescuento = calcularPrecioConDescuento(precioUnitario, articuloSinPic.descuento);
     const nuevoItem: ItemOrden = {
       articulo_id: idUnico,
       articulo_nombre: nombre,
       articulo_db_id: null,
       codint: null,
-      cantidad: articuloSinPic.cantidad,
-      precio_unitario: articuloSinPic.precio_unitario,
+      cantidad,
+      precio_unitario: precioUnitario,
       descuento: articuloSinPic.descuento,
       costunitcdesc: precioConDescuento,
       divisa: formData.divisa,
-      total: articuloSinPic.cantidad * precioConDescuento
+      total: cantidad * precioConDescuento
     };
     setItemsOrden([...itemsOrden, nuevoItem]);
-    setArticuloSinPic({ nombre: "", cantidad: 1, precio_unitario: 0, descuento: 0 });
+    setArticuloSinPic({ nombre: "", cantidad: "1", precio_unitario: "0", descuento: 0 });
     setMostrarFormSinPic(false);
     setError(null);
   };
@@ -729,6 +751,11 @@ export function CrearFormOrdenCompra() {
 
     if (itemsOrden.length === 0) {
       setError("Debe agregar al menos un artículo a la orden");
+      return;
+    }
+
+    if (itemsOrden.some((item) => item.cantidad <= 0)) {
+      setError("Todos los artículos deben tener una cantidad mayor a 0");
       return;
     }
 
@@ -1075,21 +1102,42 @@ export function CrearFormOrdenCompra() {
                       <Label htmlFor="cant-sin-pic">Cantidad *</Label>
                       <Input
                         id="cant-sin-pic"
-                        type="number"
-                        min="1"
+                        type="text"
+                        inputMode="decimal"
                         value={articuloSinPic.cantidad}
-                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, cantidad: parseInt(e.target.value) || 1 }))}
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          if (!esEntradaDecimalValida(valor)) return;
+                          setArticuloSinPic(prev => ({ ...prev, cantidad: valor }));
+                        }}
+                        onBlur={() => {
+                          setArticuloSinPic(prev => ({
+                            ...prev,
+                            cantidad: String(parseCantidadDecimal(prev.cantidad) || ""),
+                          }));
+                        }}
+                        placeholder="Ej: 1.5"
                       />
                     </div>
                     <div>
                       <Label htmlFor="precio-sin-pic">Precio unitario</Label>
                       <Input
                         id="precio-sin-pic"
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={articuloSinPic.precio_unitario}
-                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, precio_unitario: parseNumero(e.target.value) }))}
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          if (!esEntradaDecimalValida(valor)) return;
+                          setArticuloSinPic(prev => ({ ...prev, precio_unitario: valor }));
+                        }}
+                        onBlur={() => {
+                          setArticuloSinPic(prev => ({
+                            ...prev,
+                            precio_unitario: String(parseCantidadDecimal(prev.precio_unitario)),
+                          }));
+                        }}
+                        placeholder="Ej: 10.50"
                       />
                     </div>
                     <div>
@@ -1288,21 +1336,56 @@ export function CrearFormOrdenCompra() {
                         <div>
                           <Label className="text-sm">Cantidad</Label>
                           <Input
-                            type="number"
-                            value={item.cantidad}
-                            onChange={(e) => handleCantidadChange(item.articulo_id, parseInt(e.target.value))}
-                            min="1"
-                            className="w-20"
+                            type="text"
+                            inputMode="decimal"
+                            value={cantidadEdicion[item.articulo_id] ?? String(item.cantidad)}
+                            onChange={(e) => {
+                              const valor = e.target.value;
+                              if (!esEntradaDecimalValida(valor)) return;
+                              setCantidadEdicion((prev) => ({ ...prev, [item.articulo_id]: valor }));
+                              handleCantidadChange(
+                                item.articulo_id,
+                                parseCantidadDecimal(valor)
+                              );
+                            }}
+                            onBlur={(e) => {
+                              const cantidad = parseCantidadDecimal(e.target.value);
+                              handleCantidadChange(item.articulo_id, cantidad);
+                              setCantidadEdicion((prev) => {
+                                const next = { ...prev };
+                                delete next[item.articulo_id];
+                                return next;
+                              });
+                            }}
+                            placeholder="0.00"
+                            className="w-24"
                           />
                         </div>
                         <div>
                           <Label className="text-sm">Precio Unit.</Label>
                           <Input
-                            type="number"
-                            value={item.precio_unitario}
-                            onChange={(e) => handlePrecioChange(item.articulo_id, parseNumero(e.target.value))}
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
+                            value={precioEdicion[item.articulo_id] ?? String(item.precio_unitario)}
+                            onChange={(e) => {
+                              const valor = e.target.value;
+                              if (!esEntradaDecimalValida(valor)) return;
+                              setPrecioEdicion((prev) => ({ ...prev, [item.articulo_id]: valor }));
+                              handlePrecioChange(
+                                item.articulo_id,
+                                parseCantidadDecimal(valor)
+                              );
+                            }}
+                            onBlur={(e) => {
+                              const precio = parseCantidadDecimal(e.target.value);
+                              handlePrecioChange(item.articulo_id, precio);
+                              setPrecioEdicion((prev) => {
+                                const next = { ...prev };
+                                delete next[item.articulo_id];
+                                return next;
+                              });
+                            }}
+                            placeholder="0.00"
                             className="w-24"
                           />
                         </div>
