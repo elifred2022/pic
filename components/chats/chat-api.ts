@@ -26,51 +26,17 @@ export async function listUsuarios(
 
 export async function getOrCreateDirectConversation(
   supabase: SupabaseClient,
-  currentUserUuid: string,
+  _currentUserUuid: string,
   otherUserUuid: string,
 ): Promise<string> {
-  const { data: myParticipations, error: myError } = await supabase
-    .from("conversacion_participantes")
-    .select("conversacion_id")
-    .eq("usuario_uuid", currentUserUuid);
+  const { data, error } = await supabase.rpc("crear_conversacion_directa", {
+    otro_usuario_uuid: otherUserUuid,
+  });
 
-  if (myError) throw myError;
+  if (error) throw error;
+  if (!data) throw new Error("No se pudo crear la conversación");
 
-  const myConversationIds =
-    myParticipations?.map((p) => p.conversacion_id) ?? [];
-
-  if (myConversationIds.length > 0) {
-    const { data: shared, error: sharedError } = await supabase
-      .from("conversacion_participantes")
-      .select("conversacion_id, conversaciones!inner(tipo)")
-      .eq("usuario_uuid", otherUserUuid)
-      .in("conversacion_id", myConversationIds)
-      .eq("conversaciones.tipo", "directo")
-      .limit(1)
-      .maybeSingle();
-
-    if (sharedError) throw sharedError;
-    if (shared?.conversacion_id) return shared.conversacion_id;
-  }
-
-  const { data: conversacion, error: convError } = await supabase
-    .from("conversaciones")
-    .insert({ tipo: "directo" })
-    .select("id")
-    .single();
-
-  if (convError) throw convError;
-
-  const { error: participantsError } = await supabase
-    .from("conversacion_participantes")
-    .insert([
-      { conversacion_id: conversacion.id, usuario_uuid: currentUserUuid },
-      { conversacion_id: conversacion.id, usuario_uuid: otherUserUuid },
-    ]);
-
-  if (participantsError) throw participantsError;
-
-  return conversacion.id;
+  return data as string;
 }
 
 export async function listConversaciones(

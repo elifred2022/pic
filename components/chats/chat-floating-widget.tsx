@@ -36,7 +36,7 @@ export function ChatFloatingWidget() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { onlineUuidSet, currentUserUuid, ready } =
+  const { onlineUuidSet, currentUserUuid, ready, presenceError } =
     useOnlinePresence(authenticated);
 
   useEffect(() => {
@@ -192,9 +192,11 @@ export function ChatFloatingWidget() {
                   </p>
                   {view === "users" && !loadingUsers && (
                     <p className="text-xs text-blue-100">
-                      {ready
-                        ? `${onlineCount} en línea · ${usuarios.length} total`
-                        : "Conectando presencia..."}
+                      {presenceError
+                        ? "Presencia no disponible"
+                        : ready
+                          ? `Tú en línea · ${onlineCount} contacto${onlineCount === 1 ? "" : "s"} en línea`
+                          : "Conectando presencia..."}
                     </p>
                   )}
                 </div>
