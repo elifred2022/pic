@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { ChatUsersIcon } from "./chat-users-icon";
 import { ConversationList, NewChatPanel } from "./conversation-list";
 import { ChatWindow } from "./chat-window";
+import { canUseChat } from "@/lib/panol-access";
 import {
-  getCurrentUserUuid,
   getOrCreateDirectConversation,
   listConversaciones,
   listUsuarios,
 } from "./chat-api";
 import { useOnlinePresence } from "./use-online-presence";
+import { CHAT_INCOMING_MESSAGE_EVENT } from "./chat-notification-state";
 import type { ConversacionResumen, UsuarioChat } from "./types";
 
 export function ChatApp() {
@@ -33,31 +34,54 @@ export function ChatApp() {
 
   const { onlineUuidSet } = useOnlinePresence(!!currentUserUuid);
 
-  const cargarConversaciones = useCallback(async () => {
-    if (!currentUserUuid) return;
-    setLoadingConv(true);
-    setError(null);
-    try {
-      const data = await listConversaciones(supabase, currentUserUuid);
-      setConversaciones(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error al cargar conversaciones",
-      );
-    } finally {
-      setLoadingConv(false);
-    }
-  }, [currentUserUuid, supabase]);
+  const cargarConversaciones = useCallback(
+    async (silent = false) => {
+      if (!currentUserUuid) return;
+      if (!silent) setLoadingConv(true);
+      if (!silent) setError(null);
+      try {
+        const data = await listConversaciones(supabase, currentUserUuid);
+        setConversaciones(data);
+      } catch (err) {
+        if (!silent) {
+          setError(
+            err instanceof Error ? err.message : "Error al cargar conversaciones",
+          );
+        }
+      } finally {
+        if (!silent) setLoadingConv(false);
+      }
+    },
+    [currentUserUuid, supabase],
+  );
+
+  const actualizarListaRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
+  const actualizarListaSilenciosa = useCallback(() => {
+    if (actualizarListaRef.current) clearTimeout(actualizarListaRef.current);
+    actualizarListaRef.current = setTimeout(() => {
+      cargarConversaciones(true);
+    }, 500);
+  }, [cargarConversaciones]);
 
   useEffect(() => {
     const init = async () => {
-      const uuid = await getCurrentUserUuid(supabase);
-      if (!uuid) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
         setError("Debés iniciar sesión para usar el chat.");
         setLoadingConv(false);
         return;
       }
-      setCurrentUserUuid(uuid);
+      if (!canUseChat(user.email)) {
+        setError("El chat no está disponible para usuarios tablet.");
+        setLoadingConv(false);
+        return;
+      }
+      setCurrentUserUuid(user.id);
     };
     init();
   }, [supabase]);
@@ -65,6 +89,18 @@ export function ChatApp() {
   useEffect(() => {
     if (currentUserUuid) cargarConversaciones();
   }, [cargarConversaciones, currentUserUuid]);
+
+  useEffect(() => {
+    const onIncomingMessage = () => {
+      actualizarListaSilenciosa();
+    };
+
+    window.addEventListener(CHAT_INCOMING_MESSAGE_EVENT, onIncomingMessage);
+    return () => {
+      window.removeEventListener(CHAT_INCOMING_MESSAGE_EVENT, onIncomingMessage);
+      if (actualizarListaRef.current) clearTimeout(actualizarListaRef.current);
+    };
+  }, [actualizarListaSilenciosa]);
 
   useEffect(() => {
     if (!currentUserUuid || !showNewChat) return;
@@ -189,7 +225,7 @@ export function ChatApp() {
               conversacion={conversacionSeleccionada}
               currentUserUuid={currentUserUuid ?? ""}
               onBack={() => setMobileShowChat(false)}
-              onMessageSent={cargarConversaciones}
+              onMessageSent={actualizarListaSilenciosa}
             />
           </div>
         </div>

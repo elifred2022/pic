@@ -3,12 +3,16 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { UsuarioChat } from "./types";
+
+const EMPTY_UNREAD = new Map<string, number>();
 
 type UserStatusListProps = {
   usuarios: UsuarioChat[];
   onlineUuids: Set<string>;
+  noLeidosPorUuid?: Map<string, number>;
   loading?: boolean;
   onSelectUser: (usuario: UsuarioChat) => void;
   disabled?: boolean;
@@ -19,8 +23,13 @@ type UserStatusListProps = {
 function sortUsuarios(
   usuarios: UsuarioChat[],
   onlineUuids: Set<string>,
+  noLeidosPorUuid: Map<string, number>,
 ): UsuarioChat[] {
   return [...usuarios].sort((a, b) => {
+    const aUnread = (noLeidosPorUuid.get(a.uuid) ?? 0) > 0 ? 0 : 1;
+    const bUnread = (noLeidosPorUuid.get(b.uuid) ?? 0) > 0 ? 0 : 1;
+    if (aUnread !== bUnread) return aUnread - bUnread;
+
     const aOnline = onlineUuids.has(a.uuid) ? 0 : 1;
     const bOnline = onlineUuids.has(b.uuid) ? 0 : 1;
     if (aOnline !== bOnline) return aOnline - bOnline;
@@ -31,6 +40,7 @@ function sortUsuarios(
 export function UserStatusList({
   usuarios,
   onlineUuids,
+  noLeidosPorUuid,
   loading = false,
   onSelectUser,
   disabled = false,
@@ -38,9 +48,10 @@ export function UserStatusList({
   showSearch = true,
 }: UserStatusListProps) {
   const [busqueda, setBusqueda] = useState("");
+  const unreadMap = noLeidosPorUuid ?? EMPTY_UNREAD;
 
   const filtrados = useMemo(() => {
-    const ordenados = sortUsuarios(usuarios, onlineUuids);
+    const ordenados = sortUsuarios(usuarios, onlineUuids, unreadMap);
     const q = busqueda.trim().toLowerCase();
     if (!q) return ordenados;
     return ordenados.filter(
@@ -48,7 +59,7 @@ export function UserStatusList({
         u.nombre.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q),
     );
-  }, [busqueda, onlineUuids, usuarios]);
+  }, [busqueda, onlineUuids, unreadMap, usuarios]);
 
   const onlineCount = useMemo(
     () => usuarios.filter((u) => onlineUuids.has(u.uuid)).length,
@@ -94,13 +105,17 @@ export function UserStatusList({
 
         {filtrados.map((usuario) => {
           const enLinea = onlineUuids.has(usuario.uuid);
+          const noLeidos = unreadMap.get(usuario.uuid) ?? 0;
           return (
             <button
               key={usuario.uuid}
               type="button"
               disabled={disabled}
               onClick={() => onSelectUser(usuario)}
-              className="flex w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-50"
+              className={cn(
+                "flex w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-50",
+                noLeidos > 0 && "bg-blue-50/60",
+              )}
             >
               <div className="relative shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
@@ -120,14 +135,21 @@ export function UserStatusList({
                   {usuario.email}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 text-xs font-medium",
-                  enLinea ? "text-green-600" : "text-red-500",
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                {noLeidos > 0 && (
+                  <Badge className="h-5 min-w-5 justify-center bg-red-500 px-1.5 text-[10px] hover:bg-red-500">
+                    {noLeidos > 99 ? "99+" : noLeidos}
+                  </Badge>
                 )}
-              >
-                {enLinea ? "En línea" : "Desconectado"}
-              </span>
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    enLinea ? "text-green-600" : "text-red-500",
+                  )}
+                >
+                  {enLinea ? "En línea" : "Desconectado"}
+                </span>
+              </div>
             </button>
           );
         })}

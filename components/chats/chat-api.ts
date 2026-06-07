@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { isTabletEmail } from "@/lib/panol-access";
 import type { ConversacionResumen, Mensaje, UsuarioChat } from "./types";
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -21,7 +22,7 @@ export async function listUsuarios(
     .order("nombre", { ascending: true });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).filter((u) => !isTabletEmail(u.email));
 }
 
 export async function getOrCreateDirectConversation(
@@ -29,6 +30,17 @@ export async function getOrCreateDirectConversation(
   _currentUserUuid: string,
   otherUserUuid: string,
 ): Promise<string> {
+  const { data: otroUsuario, error: otroError } = await supabase
+    .from("usuarios")
+    .select("email")
+    .eq("uuid", otherUserUuid)
+    .maybeSingle();
+
+  if (otroError) throw otroError;
+  if (!otroUsuario || isTabletEmail(otroUsuario.email)) {
+    throw new Error("No se puede iniciar chat con este usuario");
+  }
+
   const { data, error } = await supabase.rpc("crear_conversacion_directa", {
     otro_usuario_uuid: otherUserUuid,
   });
@@ -141,10 +153,14 @@ export async function listConversaciones(
     };
   });
 
-  return resumenes.sort(
-    (a, b) =>
-      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-  );
+  return resumenes
+    .filter(
+      (r) => !r.otro_usuario || !isTabletEmail(r.otro_usuario.email),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
 }
 
 export async function getMensajes(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, X } from "lucide-react";
 import { ChatUsersIcon } from "./chat-users-icon";
@@ -9,15 +9,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChatWindow } from "./chat-window";
+import { canUseChat } from "@/lib/panol-access";
 import {
-  getCurrentUserUuid,
   getOrCreateDirectConversation,
   listConversaciones,
   listUsuarios,
 } from "./chat-api";
 import { useOnlinePresence } from "./use-online-presence";
+import {
+  dispatchChatIncomingMessage,
+  getActiveChatConversationId,
+} from "./chat-notification-state";
+import { useChatIncomingMessages } from "./use-chat-incoming-messages";
+import { ChatIncomingToast } from "./chat-incoming-toast";
 import { UserStatusList } from "./user-status-list";
-import type { ConversacionResumen, UsuarioChat } from "./types";
+import type { ConversacionResumen, Mensaje, UsuarioChat } from "./types";
+
+type AvisoRemitente = {
+  conversacionId: string;
+  remitenteUuid: string;
+  nombre: string;
+  contenido: string;
+};
 
 type View = "users" | "chat";
 
@@ -35,14 +48,24 @@ export function ChatFloatingWidget() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userUuid, setUserUuid] = useState<string | null>(null);
+  const [badgePulse, setBadgePulse] = useState(false);
+  const [avisoRemitente, setAvisoRemitente] = useState<AvisoRemitente | null>(
+    null,
+  );
 
-  const { onlineUuidSet, currentUserUuid, ready, presenceError } =
+  const { onlineUuidSet, ready, presenceError } =
     useOnlinePresence(authenticated);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const uuid = await getCurrentUserUuid(supabase);
-      setAuthenticated(!!uuid);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const uuid = user?.id ?? null;
+      const puedeChatear = canUseChat(user?.email);
+      setUserUuid(puedeChatear ? uuid : null);
+      setAuthenticated(!!uuid && puedeChatear);
     };
 
     checkAuth();
@@ -50,12 +73,16 @@ export function ChatFloatingWidget() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthenticated(!!session?.user);
+      const uuid = session?.user?.id ?? null;
+      const puedeChatear = canUseChat(session?.user?.email);
+      setUserUuid(puedeChatear ? uuid : null);
+      setAuthenticated(!!session?.user && puedeChatear);
       if (!session?.user) {
         setOpen(false);
         setView("users");
         setConversacionActiva(null);
         setUsuarios([]);
+        setConversaciones([]);
       }
     });
 
@@ -63,20 +90,31 @@ export function ChatFloatingWidget() {
   }, [supabase]);
 
   const cargarConversaciones = useCallback(async () => {
-    if (!currentUserUuid) return;
+    if (!userUuid) return;
     try {
-      const data = await listConversaciones(supabase, currentUserUuid);
+      const data = await listConversaciones(supabase, userUuid);
       setConversaciones(data);
     } catch {
       // Silencioso: el badge se actualiza en el próximo intento
     }
-  }, [currentUserUuid, supabase]);
+  }, [userUuid, supabase]);
+
+  const actualizarBadgeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
+  const actualizarBadge = useCallback(() => {
+    if (actualizarBadgeRef.current) clearTimeout(actualizarBadgeRef.current);
+    actualizarBadgeRef.current = setTimeout(() => {
+      cargarConversaciones();
+    }, 500);
+  }, [cargarConversaciones]);
 
   const cargarUsuarios = useCallback(async () => {
-    if (!currentUserUuid) return;
+    if (!userUuid) return;
     setLoadingUsers(true);
     try {
-      const data = await listUsuarios(supabase, currentUserUuid);
+      const data = await listUsuarios(supabase, userUuid);
       setUsuarios(data);
     } catch (err) {
       setError(
@@ -85,22 +123,102 @@ export function ChatFloatingWidget() {
     } finally {
       setLoadingUsers(false);
     }
-  }, [currentUserUuid, supabase]);
+  }, [userUuid, supabase]);
 
   useEffect(() => {
-    if (authenticated && currentUserUuid) cargarConversaciones();
-  }, [authenticated, currentUserUuid, cargarConversaciones]);
+    if (authenticated && userUuid) cargarConversaciones();
+  }, [authenticated, userUuid, cargarConversaciones]);
 
   useEffect(() => {
-    if (open && currentUserUuid) {
+    if (open && userUuid) {
       cargarConversaciones();
       cargarUsuarios();
     }
-  }, [open, currentUserUuid, cargarConversaciones, cargarUsuarios]);
+  }, [open, userUuid, cargarConversaciones, cargarUsuarios]);
+
+  const handleMensajeEntrante = useCallback(
+    async (mensaje: Mensaje) => {
+      const conversacionId = mensaje.conversacion_id;
+      const viendoChat = getActiveChatConversationId() === conversacionId;
+
+      if (!viendoChat) {
+        setConversaciones((prev) => {
+          const existe = prev.some((c) => c.id === conversacionId);
+          if (!existe) return prev;
+          return prev.map((c) =>
+            c.id === conversacionId
+              ? { ...c, no_leidos: c.no_leidos + 1 }
+              : c,
+          );
+        });
+        setBadgePulse(true);
+        window.setTimeout(() => setBadgePulse(false), 2500);
+
+        const { data: remitente } = await supabase
+          .from("usuarios")
+          .select("nombre")
+          .eq("uuid", mensaje.remitente_uuid)
+          .maybeSingle();
+
+        setAvisoRemitente({
+          conversacionId,
+          remitenteUuid: mensaje.remitente_uuid,
+          nombre: remitente?.nombre ?? "Usuario",
+          contenido: mensaje.contenido,
+        });
+      }
+
+      if (!viendoChat) {
+        actualizarBadge();
+      }
+      dispatchChatIncomingMessage(conversacionId);
+    },
+    [actualizarBadge, supabase],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (actualizarBadgeRef.current) clearTimeout(actualizarBadgeRef.current);
+    };
+  }, []);
+
+  useChatIncomingMessages(userUuid, handleMensajeEntrante);
 
   const totalNoLeidos = useMemo(
     () => conversaciones.reduce((acc, c) => acc + c.no_leidos, 0),
     [conversaciones],
+  );
+
+  const noLeidosPorUuid = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const conv of conversaciones) {
+      if (conv.otro_usuario && conv.no_leidos > 0) {
+        map.set(conv.otro_usuario.uuid, conv.no_leidos);
+      }
+    }
+    return map;
+  }, [conversaciones]);
+
+  const abrirChatDesdeAviso = useCallback(
+    async (conversacionId: string) => {
+      if (!userUuid) return;
+
+      setOpen(true);
+      setView("chat");
+      setAvisoRemitente(null);
+
+      let conv = conversaciones.find((c) => c.id === conversacionId) ?? null;
+      if (!conv) {
+        const data = await listConversaciones(supabase, userUuid);
+        setConversaciones(data);
+        conv = data.find((c) => c.id === conversacionId) ?? null;
+      }
+
+      if (conv) {
+        setConversacionActiva(conv);
+      }
+    },
+    [conversaciones, supabase, userUuid],
   );
 
   const onlineCount = useMemo(
@@ -109,13 +227,14 @@ export function ChatFloatingWidget() {
   );
 
   const abrirChatConUsuario = async (usuario: UsuarioChat) => {
-    if (!currentUserUuid) return;
+    if (!userUuid) return;
+    setAvisoRemitente(null);
     setLoadingChat(true);
     setError(null);
     try {
       const conversacionId = await getOrCreateDirectConversation(
         supabase,
-        currentUserUuid,
+        userUuid,
         usuario.uuid,
       );
 
@@ -166,6 +285,15 @@ export function ChatFloatingWidget() {
       )}
 
       <div className="fixed bottom-5 right-5 z-[999] flex flex-col items-end gap-3">
+        {avisoRemitente && getActiveChatConversationId() !== avisoRemitente.conversacionId && (
+          <ChatIncomingToast
+            nombre={avisoRemitente.nombre}
+            contenido={avisoRemitente.contenido}
+            onClose={() => setAvisoRemitente(null)}
+            onClick={() => abrirChatDesdeAviso(avisoRemitente.conversacionId)}
+          />
+        )}
+
         {open && (
           <div
             className="flex h-[min(70vh,520px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
@@ -231,6 +359,7 @@ export function ChatFloatingWidget() {
               <UserStatusList
                 usuarios={usuarios}
                 onlineUuids={onlineUuidSet}
+                noLeidosPorUuid={noLeidosPorUuid}
                 loading={loadingUsers}
                 disabled={loadingChat}
                 onSelectUser={abrirChatConUsuario}
@@ -240,8 +369,8 @@ export function ChatFloatingWidget() {
               <div className="min-h-0 flex-1">
                 <ChatWindow
                   conversacion={conversacionActiva}
-                  currentUserUuid={currentUserUuid ?? ""}
-                  onMessageSent={cargarConversaciones}
+                  currentUserUuid={userUuid ?? ""}
+                  onMessageSent={actualizarBadge}
                 />
               </div>
             )}
@@ -254,8 +383,15 @@ export function ChatFloatingWidget() {
           className={cn(
             "relative flex items-center justify-center gap-2 rounded-full bg-blue-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2",
             open ? "h-14 w-14" : "h-14 px-4",
+            totalNoLeidos > 0 && !open && "ring-2 ring-red-400 ring-offset-2",
           )}
-          aria-label={open ? "Cerrar chats" : "Abrir chats"}
+          aria-label={
+            totalNoLeidos > 0
+              ? `Chats (${totalNoLeidos} mensaje${totalNoLeidos === 1 ? "" : "s"} sin leer)`
+              : open
+                ? "Cerrar chats"
+                : "Abrir chats"
+          }
         >
           {open ? (
             <X className="h-6 w-6" />
@@ -265,8 +401,13 @@ export function ChatFloatingWidget() {
               <span className="text-sm font-semibold">Chats</span>
             </>
           )}
-          {!open && totalNoLeidos > 0 && (
-            <Badge className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]">
+          {totalNoLeidos > 0 && (
+            <Badge
+              className={cn(
+                "absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold text-white hover:bg-red-500",
+                badgePulse && "animate-bounce",
+              )}
+            >
               {totalNoLeidos > 99 ? "99+" : totalNoLeidos}
             </Badge>
           )}

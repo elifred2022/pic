@@ -10,6 +10,7 @@ import {
   markConversacionAsRead,
   sendMensaje,
 } from "./chat-api";
+import { setActiveChatConversationId } from "./chat-notification-state";
 import type { ConversacionResumen, Mensaje } from "./types";
 
 type ChatWindowProps = {
@@ -32,35 +33,68 @@ export function ChatWindow({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const onMessageSentRef = useRef(onMessageSent);
+  const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const conversacionId = conversacion?.id ?? null;
+
+  onMessageSentRef.current = onMessageSent;
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  const cargarMensajes = useCallback(async () => {
-    if (!conversacionId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getMensajes(supabase, conversacionId);
-      setMensajes(data);
-      await markConversacionAsRead(supabase, conversacionId, currentUserUuid);
-      onMessageSent?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al cargar mensajes");
-    } finally {
-      setLoading(false);
-    }
-  }, [conversacionId, currentUserUuid, onMessageSent, supabase]);
+  const notificarPadre = useCallback(() => {
+    if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    notifyTimerRef.current = setTimeout(() => {
+      onMessageSentRef.current?.();
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    setActiveChatConversationId(conversacionId);
+    return () => setActiveChatConversationId(null);
+  }, [conversacionId]);
 
   useEffect(() => {
     if (!conversacionId) {
       setMensajes([]);
       return;
     }
-    cargarMensajes();
-  }, [cargarMensajes, conversacionId]);
+
+    let cancelled = false;
+
+    const cargarInicial = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getMensajes(supabase, conversacionId);
+        if (cancelled) return;
+        setMensajes(data);
+        await markConversacionAsRead(
+          supabase,
+          conversacionId,
+          currentUserUuid,
+        );
+        if (!cancelled) notificarPadre();
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Error al cargar mensajes",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    cargarInicial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversacionId, currentUserUuid, notificarPadre, supabase]);
 
   useEffect(() => {
     scrollToBottom();
@@ -91,7 +125,7 @@ export function ChatWindow({
               supabase,
               conversacionId,
               currentUserUuid,
-            ).then(() => onMessageSent?.());
+            ).then(() => notificarPadre());
           }
         },
       )
@@ -100,7 +134,13 @@ export function ChatWindow({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversacionId, currentUserUuid, onMessageSent, supabase]);
+  }, [conversacionId, currentUserUuid, notificarPadre, supabase]);
+
+  useEffect(() => {
+    return () => {
+      if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    };
+  }, []);
 
   const handleEnviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +160,7 @@ export function ChatWindow({
         if (prev.some((m) => m.id === mensaje.id)) return prev;
         return [...prev, mensaje];
       });
-      onMessageSent?.();
+      notificarPadre();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al enviar mensaje");
     } finally {
@@ -163,7 +203,7 @@ export function ChatWindow({
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto bg-muted/10 p-4">
-        {loading && (
+        {loading && mensajes.length === 0 && (
           <p className="text-center text-sm text-muted-foreground">
             Cargando mensajes...
           </p>
@@ -191,7 +231,7 @@ export function ChatWindow({
       </div>
 
       {error && (
-        <p className="border-t bg-red-50 px-4 py-2 text-sm text-red-600">
+        <p className="border-b bg-red-50 px-4 py-2 text-sm text-red-600">
           {error}
         </p>
       )}

@@ -75,7 +75,7 @@ export function ConversationList({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {loading && (
+        {loading && conversaciones.length === 0 && (
           <p className="p-4 text-center text-sm text-muted-foreground">
             Cargando conversaciones...
           </p>
