@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { ChatWindow } from "./chat-window";
 import { canUseChat } from "@/lib/panol-access";
 import {
+  findConversacionConUsuario,
   getOrCreateDirectConversation,
   listConversaciones,
   listUsuarios,
@@ -126,15 +127,10 @@ export function ChatFloatingWidget() {
   }, [userUuid, supabase]);
 
   useEffect(() => {
-    if (authenticated && userUuid) cargarConversaciones();
-  }, [authenticated, userUuid, cargarConversaciones]);
-
-  useEffect(() => {
-    if (open && userUuid) {
-      cargarConversaciones();
-      cargarUsuarios();
-    }
-  }, [open, userUuid, cargarConversaciones, cargarUsuarios]);
+    if (!authenticated || !userUuid) return;
+    cargarConversaciones();
+    cargarUsuarios();
+  }, [authenticated, userUuid, cargarConversaciones, cargarUsuarios]);
 
   const handleMensajeEntrante = useCallback(
     async (mensaje: Mensaje) => {
@@ -142,21 +138,12 @@ export function ChatFloatingWidget() {
       const viendoChat = getActiveChatConversationId() === conversacionId;
 
       if (!viendoChat) {
-        setConversaciones((prev) => {
-          const existe = prev.some((c) => c.id === conversacionId);
-          if (!existe) return prev;
-          return prev.map((c) =>
-            c.id === conversacionId
-              ? { ...c, no_leidos: c.no_leidos + 1 }
-              : c,
-          );
-        });
         setBadgePulse(true);
         window.setTimeout(() => setBadgePulse(false), 2500);
 
         const { data: remitente } = await supabase
           .from("usuarios")
-          .select("nombre")
+          .select("nombre, email")
           .eq("uuid", mensaje.remitente_uuid)
           .maybeSingle();
 
@@ -168,12 +155,10 @@ export function ChatFloatingWidget() {
         });
       }
 
-      if (!viendoChat) {
-        actualizarBadge();
-      }
+      await cargarConversaciones();
       dispatchChatIncomingMessage(conversacionId);
     },
-    [actualizarBadge, supabase],
+    [cargarConversaciones, supabase],
   );
 
   useEffect(() => {
@@ -192,33 +177,97 @@ export function ChatFloatingWidget() {
   const noLeidosPorUuid = useMemo(() => {
     const map = new Map<string, number>();
     for (const conv of conversaciones) {
-      if (conv.otro_usuario && conv.no_leidos > 0) {
-        map.set(conv.otro_usuario.uuid, conv.no_leidos);
-      }
+      if (conv.no_leidos <= 0) continue;
+      const uuid =
+        conv.otro_usuario?.uuid ??
+        (conv.ultimo_mensaje?.remitente_uuid !== userUuid
+          ? conv.ultimo_mensaje?.remitente_uuid
+          : null);
+      if (uuid) map.set(uuid, conv.no_leidos);
     }
     return map;
-  }, [conversaciones]);
+  }, [conversaciones, userUuid]);
+
+  const ultimoMensajePorUuid = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const conv of conversaciones) {
+      if (!conv.ultimo_mensaje) continue;
+      const uuid =
+        conv.otro_usuario?.uuid ??
+        (conv.ultimo_mensaje.remitente_uuid !== userUuid
+          ? conv.ultimo_mensaje.remitente_uuid
+          : null);
+      if (uuid) map.set(uuid, conv.ultimo_mensaje.contenido);
+    }
+    return map;
+  }, [conversaciones, userUuid]);
+
+  const usuariosVisibles = useMemo(() => {
+    const porUuid = new Map(usuarios.map((u) => [u.uuid, u]));
+
+    for (const conv of conversaciones) {
+      const uuid =
+        conv.otro_usuario?.uuid ??
+        (conv.ultimo_mensaje?.remitente_uuid !== userUuid
+          ? conv.ultimo_mensaje?.remitente_uuid
+          : null);
+      if (!uuid || porUuid.has(uuid)) continue;
+
+      porUuid.set(
+        uuid,
+        conv.otro_usuario ?? {
+          uuid,
+          nombre: "Usuario",
+          email: "",
+        },
+      );
+    }
+
+    return [...porUuid.values()].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es"),
+    );
+  }, [conversaciones, userUuid, usuarios]);
+
+  const abrirConversacion = useCallback((conv: ConversacionResumen) => {
+    setConversacionActiva(conv);
+    setView("chat");
+    setAvisoRemitente(null);
+    setError(null);
+  }, []);
 
   const abrirChatDesdeAviso = useCallback(
-    async (conversacionId: string) => {
+    async (aviso: AvisoRemitente) => {
       if (!userUuid) return;
 
       setOpen(true);
-      setView("chat");
       setAvisoRemitente(null);
 
-      let conv = conversaciones.find((c) => c.id === conversacionId) ?? null;
+      let conv =
+        conversaciones.find((c) => c.id === aviso.conversacionId) ?? null;
       if (!conv) {
         const data = await listConversaciones(supabase, userUuid);
         setConversaciones(data);
-        conv = data.find((c) => c.id === conversacionId) ?? null;
+        conv = data.find((c) => c.id === aviso.conversacionId) ?? null;
       }
 
-      if (conv) {
-        setConversacionActiva(conv);
+      if (!conv) {
+        conv = {
+          id: aviso.conversacionId,
+          tipo: "directo",
+          updated_at: new Date().toISOString(),
+          otro_usuario: {
+            uuid: aviso.remitenteUuid,
+            nombre: aviso.nombre,
+            email: "",
+          },
+          ultimo_mensaje: null,
+          no_leidos: 0,
+        };
       }
+
+      abrirConversacion(conv);
     },
-    [conversaciones, supabase, userUuid],
+    [abrirConversacion, conversaciones, supabase, userUuid],
   );
 
   const onlineCount = useMemo(
@@ -232,24 +281,34 @@ export function ChatFloatingWidget() {
     setLoadingChat(true);
     setError(null);
     try {
+      const existente = findConversacionConUsuario(conversaciones, usuario.uuid);
+
+      if (existente) {
+        abrirConversacion(existente);
+        return;
+      }
+
       const conversacionId = await getOrCreateDirectConversation(
         supabase,
         userUuid,
         usuario.uuid,
       );
 
-      const resumen: ConversacionResumen = {
-        id: conversacionId,
-        tipo: "directo",
-        updated_at: new Date().toISOString(),
-        otro_usuario: usuario,
-        ultimo_mensaje: null,
-        no_leidos: 0,
-      };
+      const data = await listConversaciones(supabase, userUuid);
+      setConversaciones(data);
 
-      setConversacionActiva(resumen);
-      setView("chat");
-      await cargarConversaciones();
+      const conv =
+        data.find((c) => c.id === conversacionId) ??
+        findConversacionConUsuario(data, usuario.uuid) ?? {
+          id: conversacionId,
+          tipo: "directo",
+          updated_at: new Date().toISOString(),
+          otro_usuario: usuario,
+          ultimo_mensaje: null,
+          no_leidos: 0,
+        };
+
+      abrirConversacion(conv);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo abrir la conversación",
@@ -290,7 +349,7 @@ export function ChatFloatingWidget() {
             nombre={avisoRemitente.nombre}
             contenido={avisoRemitente.contenido}
             onClose={() => setAvisoRemitente(null)}
-            onClick={() => abrirChatDesdeAviso(avisoRemitente.conversacionId)}
+            onClick={() => abrirChatDesdeAviso(avisoRemitente)}
           />
         )}
 
@@ -357,9 +416,10 @@ export function ChatFloatingWidget() {
 
             {view === "users" ? (
               <UserStatusList
-                usuarios={usuarios}
+                usuarios={usuariosVisibles}
                 onlineUuids={onlineUuidSet}
                 noLeidosPorUuid={noLeidosPorUuid}
+                ultimoMensajePorUuid={ultimoMensajePorUuid}
                 loading={loadingUsers}
                 disabled={loadingChat}
                 onSelectUser={abrirChatConUsuario}

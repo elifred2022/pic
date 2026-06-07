@@ -8,11 +8,13 @@ import { cn } from "@/lib/utils";
 import type { UsuarioChat } from "./types";
 
 const EMPTY_UNREAD = new Map<string, number>();
+const EMPTY_PREVIEW = new Map<string, string>();
 
 type UserStatusListProps = {
   usuarios: UsuarioChat[];
   onlineUuids: Set<string>;
   noLeidosPorUuid?: Map<string, number>;
+  ultimoMensajePorUuid?: Map<string, string>;
   loading?: boolean;
   onSelectUser: (usuario: UsuarioChat) => void;
   disabled?: boolean;
@@ -41,6 +43,7 @@ export function UserStatusList({
   usuarios,
   onlineUuids,
   noLeidosPorUuid,
+  ultimoMensajePorUuid,
   loading = false,
   onSelectUser,
   disabled = false,
@@ -49,6 +52,7 @@ export function UserStatusList({
 }: UserStatusListProps) {
   const [busqueda, setBusqueda] = useState("");
   const unreadMap = noLeidosPorUuid ?? EMPTY_UNREAD;
+  const previewMap = ultimoMensajePorUuid ?? EMPTY_PREVIEW;
 
   const filtrados = useMemo(() => {
     const ordenados = sortUsuarios(usuarios, onlineUuids, unreadMap);
@@ -106,6 +110,7 @@ export function UserStatusList({
         {filtrados.map((usuario) => {
           const enLinea = onlineUuids.has(usuario.uuid);
           const noLeidos = unreadMap.get(usuario.uuid) ?? 0;
+          const preview = previewMap.get(usuario.uuid);
           return (
             <button
               key={usuario.uuid}
@@ -131,8 +136,15 @@ export function UserStatusList({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{usuario.nombre}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {usuario.email}
+                <p
+                  className={cn(
+                    "truncate text-xs",
+                    noLeidos > 0
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {preview ?? usuario.email}
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isTabletEmail } from "@/lib/panol-access";
+import { isChatContactEmail } from "@/lib/panol-access";
 import type { UsuarioChat } from "./types";
 
 const HEARTBEAT_MS = 20_000;
@@ -73,7 +73,7 @@ export function useOnlinePresence(active: boolean) {
 
       setPresenceError(null);
       setOnlineUsers(
-        (onlineRows ?? []).filter((u) => !isTabletEmail(u.email)),
+        (onlineRows ?? []).filter((u) => isChatContactEmail(u.email)),
       );
       setReady(true);
     };

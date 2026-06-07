@@ -54,7 +54,7 @@ export function ConversationList({
   }, [busqueda, conversaciones]);
 
   return (
-    <div className="flex h-full flex-col border-r bg-card">
+    <div className="flex h-full flex-col bg-card">
       <div className="border-b p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">Mensajes</h2>

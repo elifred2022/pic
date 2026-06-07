@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { isTabletEmail } from "@/lib/panol-access";
+import { isChatContactEmail, isTabletEmail } from "@/lib/panol-access";
 import type { ConversacionResumen, Mensaje, UsuarioChat } from "./types";
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -22,7 +22,7 @@ export async function listUsuarios(
     .order("nombre", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []).filter((u) => !isTabletEmail(u.email));
+  return (data ?? []).filter((u) => isChatContactEmail(u.email));
 }
 
 export async function getOrCreateDirectConversation(
@@ -37,8 +37,8 @@ export async function getOrCreateDirectConversation(
     .maybeSingle();
 
   if (otroError) throw otroError;
-  if (!otroUsuario || isTabletEmail(otroUsuario.email)) {
-    throw new Error("No se puede iniciar chat con este usuario");
+  if (otroUsuario?.email && isTabletEmail(otroUsuario.email)) {
+    throw new Error("No se puede iniciar chat con usuarios tablet");
   }
 
   const { data, error } = await supabase.rpc("crear_conversacion_directa", {
@@ -143,11 +143,19 @@ export async function listConversaciones(
       }
     }
 
+    const otroUsuario = otroUuid
+      ? (usuariosMap.get(otroUuid) ?? {
+          uuid: otroUuid,
+          nombre: "Usuario",
+          email: "",
+        })
+      : null;
+
     return {
       id: conv?.id ?? p.conversacion_id,
       tipo: conv?.tipo ?? "directo",
       updated_at: conv?.updated_at ?? new Date().toISOString(),
-      otro_usuario: otroUuid ? (usuariosMap.get(otroUuid) ?? null) : null,
+      otro_usuario: otroUsuario,
       ultimo_mensaje: ultimoMensaje,
       no_leidos: noLeidos,
     };
@@ -155,12 +163,19 @@ export async function listConversaciones(
 
   return resumenes
     .filter(
-      (r) => !r.otro_usuario || !isTabletEmail(r.otro_usuario.email),
+      (r) => !r.otro_usuario?.email || isChatContactEmail(r.otro_usuario.email),
     )
     .sort(
       (a, b) =>
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
     );
+}
+
+export function findConversacionConUsuario(
+  conversaciones: ConversacionResumen[],
+  usuarioUuid: string,
+): ConversacionResumen | undefined {
+  return conversaciones.find((c) => c.otro_usuario?.uuid === usuarioUuid);
 }
 
 export async function getMensajes(
