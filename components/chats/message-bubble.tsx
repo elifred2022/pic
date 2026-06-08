@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Mensaje } from "./types";
 
@@ -7,6 +8,7 @@ type MessageBubbleProps = {
   mensaje: Mensaje;
   esPropio: boolean;
   nombreRemitente?: string;
+  leido?: boolean;
 };
 
 function formatHora(fecha: string) {
@@ -20,6 +22,7 @@ export function MessageBubble({
   mensaje,
   esPropio,
   nombreRemitente,
+  leido = false,
 }: MessageBubbleProps) {
   return (
     <div
@@ -44,14 +47,23 @@ export function MessageBubble({
         <p className="whitespace-pre-wrap break-words text-sm">
           {mensaje.contenido}
         </p>
-        <p
+        <div
           className={cn(
-            "mt-1 text-right text-[10px]",
+            "mt-1 flex items-center justify-end gap-1",
             esPropio ? "text-blue-100" : "text-muted-foreground",
           )}
         >
-          {formatHora(mensaje.created_at)}
-        </p>
+          <span className="text-[10px]">{formatHora(mensaje.created_at)}</span>
+          {esPropio &&
+            (leido ? (
+              <CheckCheck
+                className="h-3.5 w-3.5 shrink-0"
+                aria-label="Leído"
+              />
+            ) : (
+              <Check className="h-3.5 w-3.5 shrink-0" aria-label="Enviado" />
+            ))}
+        </div>
       </div>
     </div>
   );

@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./message-bubble";
 import {
   getMensajes,
+  getOtroParticipanteLastReadAt,
   markConversacionAsRead,
+  mensajeFueLeido,
   sendMensaje,
 } from "./chat-api";
 import { setActiveChatConversationId } from "./chat-notification-state";
@@ -28,6 +30,7 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const supabase = createClient();
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const [otroLastReadAt, setOtroLastReadAt] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -60,6 +63,7 @@ export function ChatWindow({
   useEffect(() => {
     if (!conversacionId) {
       setMensajes([]);
+      setOtroLastReadAt(null);
       return;
     }
 
@@ -69,9 +73,17 @@ export function ChatWindow({
       setLoading(true);
       setError(null);
       try {
-        const data = await getMensajes(supabase, conversacionId);
+        const [data, lastReadAt] = await Promise.all([
+          getMensajes(supabase, conversacionId),
+          getOtroParticipanteLastReadAt(
+            supabase,
+            conversacionId,
+            currentUserUuid,
+          ),
+        ]);
         if (cancelled) return;
         setMensajes(data);
+        setOtroLastReadAt(lastReadAt);
         await markConversacionAsRead(
           supabase,
           conversacionId,
@@ -126,6 +138,24 @@ export function ChatWindow({
               conversacionId,
               currentUserUuid,
             ).then(() => notificarPadre());
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversacion_participantes",
+          filter: `conversacion_id=eq.${conversacionId}`,
+        },
+        (payload) => {
+          const actualizado = payload.new as {
+            usuario_uuid: string;
+            last_read_at: string | null;
+          };
+          if (actualizado.usuario_uuid !== currentUserUuid) {
+            setOtroLastReadAt(actualizado.last_read_at);
           }
         },
       )
@@ -215,18 +245,24 @@ export function ChatWindow({
           </p>
         )}
 
-        {mensajes.map((mensaje) => (
-          <MessageBubble
-            key={mensaje.id}
-            mensaje={mensaje}
-            esPropio={mensaje.remitente_uuid === currentUserUuid}
-            nombreRemitente={
-              mensaje.remitente_uuid !== currentUserUuid
-                ? conversacion.otro_usuario?.nombre
-                : undefined
-            }
-          />
-        ))}
+        {mensajes.map((mensaje) => {
+          const esPropio = mensaje.remitente_uuid === currentUserUuid;
+          return (
+            <MessageBubble
+              key={mensaje.id}
+              mensaje={mensaje}
+              esPropio={esPropio}
+              leido={
+                esPropio
+                  ? mensajeFueLeido(mensaje.created_at, otroLastReadAt)
+                  : undefined
+              }
+              nombreRemitente={
+                !esPropio ? conversacion.otro_usuario?.nombre : undefined
+              }
+            />
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 

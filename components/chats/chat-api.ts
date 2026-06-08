@@ -228,3 +228,30 @@ export async function markConversacionAsRead(
 
   if (error) throw error;
 }
+
+export async function getOtroParticipanteLastReadAt(
+  supabase: SupabaseClient,
+  conversacionId: string,
+  currentUserUuid: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("conversacion_participantes")
+    .select("last_read_at")
+    .eq("conversacion_id", conversacionId)
+    .neq("usuario_uuid", currentUserUuid)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.last_read_at ?? null;
+}
+
+export function mensajeFueLeido(
+  mensajeCreatedAt: string,
+  otroLastReadAt: string | null,
+): boolean {
+  if (!otroLastReadAt) return false;
+  return (
+    new Date(otroLastReadAt).getTime() >= new Date(mensajeCreatedAt).getTime()
+  );
+}
