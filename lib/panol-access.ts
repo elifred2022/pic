@@ -3,7 +3,7 @@ export const panolesEmails = [
   "panolgascon@perfilesyservicios.com.ar",
   "asist.controlstock@perfilesyservicios.com.ar",
    "recepcioncardales@perfilesyservicios.com.ar",
- "elifred21@hotmail.com",
+  "elifred21@hotmail.com"
 ];
 
 export const produccionEmails = [
@@ -13,7 +13,7 @@ export const produccionEmails = [
   "pvcordenes@perfilesyservicios.com.ar",
   "supervisorpys@gmail.com",
   "gonzalo@perfilesyservicios.com.ar",
-  //"elifred21@hotmail.com",
+ 
 ];
 
 export const adminEmails = [
@@ -47,18 +47,22 @@ export const tabletEmails = [
 "tabletpysignacio@gmail.com",
 "tabletpyscardozo@gmail.com",
 "tabletpyssantini@gmail.com",
-//"elifred21@hotmail.com"
+
 
 ];
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 export const isPanolEmail = (email?: string | null) =>
   !!email && panolesEmails.includes(email);
 
-export const isTabletEmail = (email?: string | null) =>
-  !!email && tabletEmails.includes(email);
+export const isTabletEmail = (email?: string | null) => {
+  if (!email) return false;
+  const normalized = normalizeEmail(email);
+  return tabletEmails.some((e) => normalizeEmail(e) === normalized);
+};
 
-export const canUseChat = (email?: string | null) =>
-  !!email && !isTabletEmail(email);
+export const canUseChat = (email?: string | null) => !isTabletEmail(email);
 
 export const isChatContactEmail = (email?: string | null) =>
   !isTabletEmail(email);

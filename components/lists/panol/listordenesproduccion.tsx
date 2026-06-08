@@ -292,6 +292,7 @@ export default function ListOrdenesProduccion() {
   const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
   const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
   const [editingTipologiaIdx, setEditingTipologiaIdx] = useState<number | null>(null);
+  const [estadoObraFiltroTip, setEstadoObraFiltroTip] = useState("");
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const [showProgresoModal, setShowProgresoModal] = useState(false);
@@ -396,6 +397,7 @@ export default function ListOrdenesProduccion() {
 
   const handleOpenEstadoObra = async (orden: OrdenProduccion) => {
     setEstadoObraOrden(orden);
+    setEstadoObraFiltroTip("");
     setShowEstadoObraModal(true);
     // Obtener datos frescos de la DB para asegurar que estado_obra esté actualizado
     const { data: fresh } = await supabase
@@ -891,6 +893,7 @@ export default function ListOrdenesProduccion() {
         setShowEstadoObraModal(false);
         setEstadoObraOrden(null);
         setEditingTipologiaIdx(null);
+        setEstadoObraFiltroTip("");
       }
     }
     setUpdatingEstadoObra(false);
@@ -1410,6 +1413,14 @@ export default function ListOrdenesProduccion() {
     return true;
   });
 
+  const estadoObraTipologiasFiltradas = estadoObraTipologias
+    .map((tipologia, idx) => ({ tipologia, idx }))
+    .filter(({ tipologia }) => {
+      const q = estadoObraFiltroTip.trim().toLowerCase();
+      if (!q) return true;
+      return (tipologia.nombre || "").toLowerCase().includes(q);
+    });
+
   const headerClass =
     "px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center";
   const cellClass =
@@ -1598,7 +1609,7 @@ export default function ListOrdenesProduccion() {
       {showEstadoObraModal && estadoObraOrden && (
         <div
           className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); }}
+          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); setEstadoObraFiltroTip(""); }}
           role="presentation"
         >
           <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
@@ -1619,7 +1630,7 @@ export default function ListOrdenesProduccion() {
                 )}
                 <button
                   type="button"
-                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); }}
+                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); setEstadoObraFiltroTip(""); }}
                   disabled={updatingEstadoObra}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm"
                 >
@@ -1631,7 +1642,7 @@ export default function ListOrdenesProduccion() {
               {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {canEditFullModal && (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4 items-center">
                 <button
                   type="button"
                   onClick={() => estadoObraFileInputRef.current?.click()}
@@ -1641,15 +1652,24 @@ export default function ListOrdenesProduccion() {
                   {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
                 </button>
                 {estadoObraTipologias.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleEliminarTodasTipologias}
-                    disabled={updatingEstadoObra}
-                    className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
-                    title="Eliminar todas las tipologías"
-                  >
-                    🗑️ Eliminar todas
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleEliminarTodasTipologias}
+                      disabled={updatingEstadoObra}
+                      className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+                      title="Eliminar todas las tipologías"
+                    >
+                      🗑️ Eliminar todas
+                    </button>
+                    <input
+                      type="text"
+                      value={estadoObraFiltroTip}
+                      onChange={(e) => setEstadoObraFiltroTip(e.target.value)}
+                      placeholder="filt por tip"
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </>
                 )}
                 <input
                   ref={estadoObraFileInputRef}
@@ -1660,8 +1680,22 @@ export default function ListOrdenesProduccion() {
                 />
               </div>
             )}
+            {!canEditFullModal && estadoObraTipologias.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4 items-center">
+                <input
+                  type="text"
+                  value={estadoObraFiltroTip}
+                  onChange={(e) => setEstadoObraFiltroTip(e.target.value)}
+                  placeholder="filt por tip"
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            )}
             <div className="space-y-6 mb-6">
-              {estadoObraTipologias.map((tipologia, idx) => (
+              {estadoObraTipologiasFiltradas.length === 0 && estadoObraTipologias.length > 0 && estadoObraFiltroTip.trim() ? (
+                <p className="text-sm text-gray-500 text-center py-4">No hay tipologías que coincidan con el filtro.</p>
+              ) : null}
+              {estadoObraTipologiasFiltradas.map(({ tipologia, idx }) => (
                 <div key={idx} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50/50">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-3">
                     <div className="overflow-x-auto min-w-0 -mx-1 px-1">
@@ -1863,9 +1897,70 @@ export default function ListOrdenesProduccion() {
                               const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
                               return k in estadoObraFechas;
                             });
+                            const todosMarcados = items.length > 0 && items.every((item) => {
+                              const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                              return k in estadoObraFechas;
+                            });
                             const terminadoDisabled = !canEditParaTipologia || !alMenosUnoMarcado;
+                            const handleMarcarTodoCorte = (checked: boolean) => {
+                              if (checked) {
+                                const now = new Date().toISOString();
+                                const ini = userInicialesRef.current;
+                                setEstadoObraFechas((prev) => {
+                                  const next = { ...prev };
+                                  for (const item of items) {
+                                    const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                    if (!(k in next)) next[k] = now;
+                                  }
+                                  return next;
+                                });
+                                if (ini) {
+                                  setEstadoObraInicialesPorItem((prev) => {
+                                    const next = { ...prev };
+                                    for (const item of items) {
+                                      const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                      if (!(k in next)) next[k] = ini;
+                                    }
+                                    return next;
+                                  });
+                                }
+                              } else {
+                                if (isTabletEmail(userEmail)) return;
+                                setEstadoObraFechas((prev) => {
+                                  const next = { ...prev };
+                                  for (const item of items) {
+                                    const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                    delete next[k];
+                                  }
+                                  return next;
+                                });
+                                setEstadoObraInicialesPorItem((prev) => {
+                                  const next = { ...prev };
+                                  for (const item of items) {
+                                    const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                    delete next[k];
+                                  }
+                                  return next;
+                                });
+                              }
+                            };
                             return (
                             <>
+                          {proceso === "CORTE" && (
+                            <label
+                              className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                              title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : isTabletEmail(userEmail) ? "Marca todos los ítems; solo producción/supervisores pueden desmarcar" : undefined}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={todosMarcados}
+                                disabled={!canEditParaTipologia || items.length === 0}
+                                onChange={(e) => handleMarcarTodoCorte(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                              />
+                              <span className="text-xs font-medium">Marcar todo</span>
+                            </label>
+                          )}
                           <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : isTabletEmail(userEmail) ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                             <input
                               type="checkbox"
@@ -2044,6 +2139,7 @@ export default function ListOrdenesProduccion() {
                   setShowEstadoObraModal(false);
                   setEstadoObraOrden(null);
                   setEditingTipologiaIdx(null);
+                  setEstadoObraFiltroTip("");
                 }}
                 disabled={updatingEstadoObra}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"

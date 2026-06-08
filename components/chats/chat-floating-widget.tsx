@@ -37,6 +37,7 @@ type View = "users" | "chat";
 
 export function ChatFloatingWidget() {
   const supabase = createClient();
+  const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("users");
@@ -67,6 +68,7 @@ export function ChatFloatingWidget() {
       const puedeChatear = canUseChat(user?.email);
       setUserUuid(puedeChatear ? uuid : null);
       setAuthenticated(!!uuid && puedeChatear);
+      setAuthChecked(true);
     };
 
     checkAuth();
@@ -78,6 +80,7 @@ export function ChatFloatingWidget() {
       const puedeChatear = canUseChat(session?.user?.email);
       setUserUuid(puedeChatear ? uuid : null);
       setAuthenticated(!!session?.user && puedeChatear);
+      setAuthChecked(true);
       if (!session?.user) {
         setOpen(false);
         setView("users");
@@ -331,7 +334,7 @@ export function ChatFloatingWidget() {
     setError(null);
   };
 
-  if (!authenticated) return null;
+  if (!authChecked || !authenticated) return null;
 
   return (
     <>
