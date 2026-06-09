@@ -2513,7 +2513,7 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="shrink-0 text-sm text-gray-500 mb-4">
-              {soloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {soloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {(canEditFullModal || estadoObraTipologias.length > 0) && (
               <div className="shrink-0 mb-4 pb-3 border-b border-gray-200 bg-white">
@@ -2937,7 +2937,7 @@ export default function ListOrdenesProduccion() {
                         <div className="flex items-center gap-2">
                           <label
                             className="flex items-center gap-1.5 cursor-default"
-                            title={todosProcesosTerminados ? "Se activa automáticamente cuando todos los procesos están terminados" : "Marque todos los procesos como terminados"}
+                            title={todosProcesosTerminados ? "Se activa automáticamente cuando Armado y Junquillos están terminados" : "Marque Armado y Junquillos como procesos terminados"}
                           >
                             <input
                               type="checkbox"

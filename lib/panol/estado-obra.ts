@@ -8,6 +8,13 @@ export const ESTADOS_OBRA_STRUCTURE: Record<string, readonly string[]> = {
 
 export const ESTADO_OBRA_PROCESOS = Object.keys(ESTADOS_OBRA_STRUCTURE);
 
+/** Procesos que cuentan para marcar "Artículo terminado" (todos tienen "Proceso terminado"). */
+export const ESTADO_OBRA_PROCESOS_PARA_ARTICULO_TERMINADO = ["ARMADO", "JUNQUILLOS"] as const;
+
+export function procesoCuentaParaArticuloTerminado(proceso: string): boolean {
+  return (ESTADO_OBRA_PROCESOS_PARA_ARTICULO_TERMINADO as readonly string[]).includes(proceso);
+}
+
 export type EstadoObraData = Record<string, Record<string, string>>;
 
 export type TipologiaItem = {
@@ -199,7 +206,7 @@ export function areAllProcesosTerminadosParaTipologia(
   terminado: Record<string, boolean>,
   keySep: string
 ): boolean {
-  const procesos = getProcesosConItemsParaTipologia(tipologia);
+  const procesos = getProcesosConItemsParaTipologia(tipologia).filter(procesoCuentaParaArticuloTerminado);
   if (procesos.length === 0) return false;
   return procesos.every((proceso) => !!terminado[`${tipIdx}${keySep}${proceso}`]);
 }

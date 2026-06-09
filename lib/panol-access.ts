@@ -17,7 +17,7 @@ export const produccionEmails = [
 ];
 
 export const adminEmails = [
-  "asistentecompras@perfilesyservicios.com.ar",
+  //"asistentecompras@perfilesyservicios.com.ar",
   "victor@perfilesyservicios.com.ar",
   "joseluis@perfilesyservicios.com.ar",
   "recepcion@perfilesyservicios.com.ar", //fatima
@@ -46,7 +46,7 @@ export const tabletEmails = [
 "tabletpysignacio@gmail.com",
 "tabletpyscardozo@gmail.com",
 "tabletpyssantini@gmail.com",
-//"asistentecompras@perfilesyservicios.com.ar",
+"asistentecompras@perfilesyservicios.com.ar",
 
 ];
 
