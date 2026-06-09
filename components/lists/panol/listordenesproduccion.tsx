@@ -577,6 +577,32 @@ function mergeEstadoObraCheckboxMaps(
   };
 }
 
+function observacionObraFingerprint(key: string, item: ObservacionObraItem): string {
+  return `${key}::${item.fecha}::${item.texto}::${item.iniciales}`;
+}
+
+function mergeEstadoObraObservacionMaps(
+  remote: Record<string, ObservacionObraItem[]>,
+  local: Record<string, ObservacionObraItem[]>,
+  removedFingerprints: ReadonlySet<string>
+): Record<string, ObservacionObraItem[]> {
+  const merged: Record<string, ObservacionObraItem[]> = {};
+  const allKeys = new Set([...Object.keys(remote), ...Object.keys(local)]);
+  for (const key of allKeys) {
+    const seen = new Set<string>();
+    const items: ObservacionObraItem[] = [];
+    for (const item of [...(remote[key] ?? []), ...(local[key] ?? [])]) {
+      const fp = observacionObraFingerprint(key, item);
+      if (removedFingerprints.has(fp)) continue;
+      if (seen.has(fp)) continue;
+      seen.add(fp);
+      items.push(item);
+    }
+    if (items.length > 0) merged[key] = items;
+  }
+  return merged;
+}
+
 const ESTADO_OBRA_AUTOSAVE_MS = 450;
 
 function mapTipologiaForEstadoObraRef(t: TipologiaItem): TipologiaItem {
@@ -889,6 +915,7 @@ export default function ListOrdenesProduccion() {
   const estadoObraSkipRemoteRef = React.useRef(false);
   const estadoObraRemovedKeysRef = React.useRef<Set<string>>(new Set());
   const estadoObraUserEditedRef = React.useRef(false);
+  const estadoObraObservacionesRemovedRef = React.useRef<Set<string>>(new Set());
   const userInicialesRef = React.useRef("");
   const userIniciales = inicialesDesdeNombre(userNombre || userEmail?.split("@")[0] || "");
   userInicialesRef.current = userIniciales;
@@ -1138,6 +1165,7 @@ export default function ListOrdenesProduccion() {
   const handleOpenEstadoObra = async (orden: OrdenProduccion) => {
     estadoObraAutoSaveReadyRef.current = false;
     estadoObraUserEditedRef.current = false;
+    estadoObraObservacionesRemovedRef.current = new Set();
     setEstadoObraOrden(orden);
     setEstadoObraFiltroTip("");
     setShowEstadoObraModal(true);
@@ -1441,6 +1469,16 @@ export default function ListOrdenesProduccion() {
     const terminadoParaGuardar = merged.terminado;
     const inicialesParaGuardar = merged.iniciales;
     const inicialesPorItemParaGuardar = merged.inicialesPorItem;
+    const observacionesParaGuardar = mergeEstadoObraObservacionMaps(
+      remoteSession.observaciones,
+      observacionesActual,
+      estadoObraObservacionesRemovedRef.current
+    );
+    const articuloObservacionesParaGuardar = mergeEstadoObraObservacionMaps(
+      remoteSession.articuloObservaciones,
+      articuloObservacionesActual,
+      estadoObraObservacionesRemovedRef.current
+    );
     const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
       const estados: EstadoObraData = {};
       for (const proceso of ESTADO_OBRA_PROCESOS) {
@@ -1512,11 +1550,11 @@ export default function ListOrdenesProduccion() {
       }
     });
     const observacionesPorProceso: Record<string, ObservacionObraItem[]> = {};
-    for (const [key, val] of Object.entries(observacionesActual)) {
+    for (const [key, val] of Object.entries(observacionesParaGuardar)) {
       if (Array.isArray(val) && val.length > 0) observacionesPorProceso[key] = val;
     }
     const articuloObservaciones: Record<string, ObservacionObraItem[]> = {};
-    for (const [key, val] of Object.entries(articuloObservacionesActual)) {
+    for (const [key, val] of Object.entries(articuloObservacionesParaGuardar)) {
       if (Array.isArray(val) && val.length > 0) articuloObservaciones[key] = val;
     }
     const inicialesPorItem: Record<string, string> = {};
@@ -1553,6 +1591,7 @@ export default function ListOrdenesProduccion() {
       alert("No se pudo actualizar. Verifica que tienes permisos para modificar esta obra.");
     } else {
       estadoObraRemovedKeysRef.current = new Set();
+      estadoObraObservacionesRemovedRef.current = new Set();
       estadoObraUserEditedRef.current = false;
       estadoObraSkipRemoteRef.current = true;
       setTimeout(() => {
@@ -1590,11 +1629,14 @@ export default function ListOrdenesProduccion() {
       const session = buildEstadoObraCheckboxState(rawEstado);
       estadoObraHydratingRef.current = true;
       estadoObraRemovedKeysRef.current = new Set();
+      estadoObraObservacionesRemovedRef.current = new Set();
       setEstadoObraFechas(session.fechas);
       setEstadoObraTerminado(session.terminado);
       setEstadoObraIniciales(session.iniciales);
       setEstadoObraInicialesPorItem(session.inicialesPorItem);
       setEstadoObraArticuloTerminado(session.articuloTerminado);
+      setEstadoObraObservaciones(session.observaciones);
+      setEstadoObraArticuloObservaciones(session.articuloObservaciones);
       queueMicrotask(() => {
         estadoObraHydratingRef.current = false;
       });
@@ -1673,6 +1715,8 @@ export default function ListOrdenesProduccion() {
     estadoObraTerminado,
     estadoObraIniciales,
     estadoObraInicialesPorItem,
+    estadoObraObservaciones,
+    estadoObraArticuloObservaciones,
     showEstadoObraModal,
     estadoObraOrden,
     canEditCheckboxes,
@@ -2837,6 +2881,7 @@ export default function ListOrdenesProduccion() {
                               canDelete={canDeleteObservaciones}
                               className="mt-2"
                               onAdd={(texto) => {
+                                estadoObraUserEditedRef.current = true;
                                 const nueva = crearObservacionRegistro(texto, userInicialesRef.current);
                                 setEstadoObraObservaciones((prev) => ({
                                   ...prev,
@@ -2844,10 +2889,20 @@ export default function ListOrdenesProduccion() {
                                 }));
                               }}
                               onDelete={(obsIndex) => {
-                                setEstadoObraObservaciones((prev) => ({
-                                  ...prev,
-                                  [procesoObsKey]: (prev[procesoObsKey] ?? []).filter((_, i) => i !== obsIndex),
-                                }));
+                                estadoObraUserEditedRef.current = true;
+                                setEstadoObraObservaciones((prev) => {
+                                  const lista = prev[procesoObsKey] ?? [];
+                                  const item = lista[obsIndex];
+                                  if (item) {
+                                    estadoObraObservacionesRemovedRef.current.add(
+                                      observacionObraFingerprint(procesoObsKey, item)
+                                    );
+                                  }
+                                  return {
+                                    ...prev,
+                                    [procesoObsKey]: lista.filter((_, i) => i !== obsIndex),
+                                  };
+                                });
                               }}
                             />
                           );
@@ -2891,6 +2946,7 @@ export default function ListOrdenesProduccion() {
                           canDelete={canDeleteObservaciones}
                           className="mt-2"
                           onAdd={(texto) => {
+                            estadoObraUserEditedRef.current = true;
                             const nueva = crearObservacionRegistro(texto, userInicialesRef.current);
                             setEstadoObraArticuloObservaciones((prev) => ({
                               ...prev,
@@ -2898,10 +2954,20 @@ export default function ListOrdenesProduccion() {
                             }));
                           }}
                           onDelete={(obsIndex) => {
-                            setEstadoObraArticuloObservaciones((prev) => ({
-                              ...prev,
-                              [articuloKey]: (prev[articuloKey] ?? []).filter((_, i) => i !== obsIndex),
-                            }));
+                            estadoObraUserEditedRef.current = true;
+                            setEstadoObraArticuloObservaciones((prev) => {
+                              const lista = prev[articuloKey] ?? [];
+                              const item = lista[obsIndex];
+                              if (item) {
+                                estadoObraObservacionesRemovedRef.current.add(
+                                  observacionObraFingerprint(articuloKey, item)
+                                );
+                              }
+                              return {
+                                ...prev,
+                                [articuloKey]: lista.filter((_, i) => i !== obsIndex),
+                              };
+                            });
                           }}
                         />
                         </div>
