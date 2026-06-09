@@ -15,6 +15,7 @@ type OrdenProduccion = {
   usuario_id: string | null;
   estado_obra?: unknown;
   observaciones?: string | null;
+  observaciones_iniciales?: string | null;
 };
 
 type Props = {

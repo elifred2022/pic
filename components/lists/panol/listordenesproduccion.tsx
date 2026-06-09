@@ -3,7 +3,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { canAccessOrdenesProduccion, isAdminEmail, isAprobEmail, isPanolEmail, isProduccionEmail, isTabletEmail } from "@/lib/panol-access";
+import {
+  canAccessOrdenesProduccion,
+  canDeleteObservacionesObra,
+  isAdminEmail,
+  isAprobEmail,
+  isPanolEmail,
+  isProduccionEmail,
+  isTabletEmail,
+} from "@/lib/panol-access";
 import {
   areAllProcesosTerminadosParaTipologia,
   ESTADOS_OBRA_STRUCTURE,
@@ -261,6 +269,7 @@ type OrdenProduccion = {
   usuario_id: string | null;
   estado_obra?: unknown;
   observaciones?: string | null;
+  observaciones_iniciales?: string | null;
 };
 
 const MESES = [
@@ -335,54 +344,196 @@ function serializeImageItems(items: ImageItem[]): string {
   return JSON.stringify(items);
 }
 
-function ObraConObservaciones({
-  orden,
+type ObservacionObraItem = {
+  texto: string;
+  iniciales: string;
+  fecha: string;
+};
+
+function normalizarObservacionObraItem(val: unknown): ObservacionObraItem | null {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return null;
+  const item = val as Record<string, unknown>;
+  const texto = typeof item.texto === "string" ? item.texto.trim() : "";
+  if (!texto) return null;
+  const inicialesRaw =
+    typeof item.iniciales === "string"
+      ? item.iniciales
+      : typeof item.i === "string"
+        ? item.i
+        : "";
+  const fechaRaw =
+    typeof item.fecha === "string" ? item.fecha : typeof item.f === "string" ? item.f : "";
+  return {
+    texto,
+    iniciales: inicialesRaw.trim().slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase(),
+    fecha: fechaRaw,
+  };
+}
+
+function parseObservacionesObraDesdeJson(raw: unknown): ObservacionObraItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(normalizarObservacionObraItem)
+    .filter((item): item is ObservacionObraItem => item !== null);
+}
+
+function getObservacionesInicialesLegacy(estadoObra: unknown, orden: OrdenProduccion): string {
+  if (orden.observaciones_iniciales?.trim()) {
+    return orden.observaciones_iniciales.trim().slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase();
+  }
+  if (!estadoObra || typeof estadoObra !== "object" || Array.isArray(estadoObra)) return "";
+  const ini = (estadoObra as Record<string, unknown>).observacionesIniciales;
+  if (typeof ini !== "string" || !ini.trim()) return "";
+  return ini.trim().slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase();
+}
+
+function parseObservacionesObra(orden: OrdenProduccion): ObservacionObraItem[] {
+  const estadoObra = orden.estado_obra;
+  if (estadoObra && typeof estadoObra === "object" && !Array.isArray(estadoObra)) {
+    const desdeEstado = parseObservacionesObraDesdeJson(
+      (estadoObra as Record<string, unknown>).observacionesObra
+    );
+    if (desdeEstado.length > 0) return desdeEstado;
+  }
+
+  const columna = orden.observaciones?.trim() ?? "";
+  if (columna) {
+    try {
+      const parsed = JSON.parse(columna) as unknown;
+      const desdeJson = parseObservacionesObraDesdeJson(parsed);
+      if (desdeJson.length > 0) return desdeJson;
+    } catch {
+      /* texto plano legacy */
+    }
+    return [
+      {
+        texto: columna,
+        iniciales: getObservacionesInicialesLegacy(estadoObra, orden),
+        fecha: "",
+      },
+    ];
+  }
+
+  return [];
+}
+
+function mergeEstadoObraObservacionesObra(
+  estadoObra: unknown,
+  items: ObservacionObraItem[]
+): Record<string, unknown> {
+  const base =
+    estadoObra && typeof estadoObra === "object" && !Array.isArray(estadoObra)
+      ? { ...(estadoObra as Record<string, unknown>) }
+      : {};
+  if (items.length > 0) {
+    base.observacionesObra = items;
+  } else {
+    delete base.observacionesObra;
+  }
+  delete base.observacionesIniciales;
+  return base;
+}
+
+function serializeObservacionesColumna(items: ObservacionObraItem[]): string | null {
+  if (items.length === 0) return null;
+  return JSON.stringify(items);
+}
+
+function parseObservacionesRegistroDesdeValor(val: unknown): ObservacionObraItem[] {
+  if (typeof val === "string" && val.trim()) {
+    return [{ texto: val.trim(), iniciales: "", fecha: "" }];
+  }
+  return parseObservacionesObraDesdeJson(val);
+}
+
+function parseObservacionesRegistroMap(raw: unknown): Record<string, ObservacionObraItem[]> {
+  const result: Record<string, ObservacionObraItem[]> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const items = parseObservacionesRegistroDesdeValor(v);
+    if (items.length > 0) result[k] = items;
+  }
+  return result;
+}
+
+function crearObservacionRegistro(texto: string, iniciales: string): ObservacionObraItem {
+  return {
+    texto: texto.trim(),
+    iniciales: iniciales.slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase(),
+    fecha: new Date().toISOString(),
+  };
+}
+
+function ObservacionesAcumulativas({
+  items,
   canEdit,
-  onSave,
-  renderValue,
+  canDelete,
+  onAdd,
+  onDelete,
+  stopPropagationOnInteract = false,
+  className = "mt-1.5",
 }: {
-  orden: OrdenProduccion;
+  items: ObservacionObraItem[];
   canEdit: boolean;
-  onSave: (ordenId: string, observaciones: string) => Promise<void>;
-  renderValue: (value: unknown) => string;
+  canDelete: boolean;
+  onAdd: (texto: string) => void | Promise<void>;
+  onDelete: (index: number) => void | Promise<void>;
+  stopPropagationOnInteract?: boolean;
+  className?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(orden.observaciones ?? "");
+  const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!editing) setDraft(orden.observaciones ?? "");
-  }, [orden.observaciones, editing]);
+    if (!editing) setDraft("");
+  }, [editing]);
+
+  const wrapClick = (e: React.MouseEvent) => {
+    if (stopPropagationOnInteract) e.stopPropagation();
+  };
 
   const handleSave = async () => {
+    const texto = draft.trim();
+    if (!texto) return;
     setSaving(true);
     try {
-      await onSave(orden.id, draft.trim());
+      await onAdd(texto);
+      setDraft("");
       setEditing(false);
     } finally {
       setSaving(false);
     }
   };
 
-  const observacionesTexto = orden.observaciones?.trim() ?? "";
+  const handleDelete = async (index: number) => {
+    if (!canDelete) return;
+    if (!confirm("¿Eliminar esta observación?")) return;
+    setDeletingIndex(index);
+    try {
+      await onDelete(index);
+    } finally {
+      setDeletingIndex(null);
+    }
+  };
 
   return (
-    <div className="text-left min-w-[8rem]">
-      <div>{renderValue(orden.obra)}</div>
+    <div className={className}>
       {canEdit && !editing && (
         <button
           type="button"
           onClick={(e) => {
-            e.stopPropagation();
+            wrapClick(e);
             setEditing(true);
           }}
-          className="text-blue-600 hover:text-blue-800 hover:underline text-xs mt-1"
+          className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
         >
           observacion
         </button>
       )}
       {editing && (
-        <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-2 space-y-2" onClick={wrapClick}>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -394,17 +545,17 @@ function ObraConObservaciones({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={handleSave}
-              disabled={saving}
+              onClick={() => void handleSave()}
+              disabled={saving || !draft.trim()}
               className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? "Guardando..." : "Guardar"}
+              {saving ? "Guardando..." : "Agregar"}
             </button>
             <button
               type="button"
               onClick={() => {
                 setEditing(false);
-                setDraft(orden.observaciones ?? "");
+                setDraft("");
               }}
               disabled={saving}
               className="px-2 py-1 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
@@ -414,12 +565,85 @@ function ObraConObservaciones({
           </div>
         </div>
       )}
-      {observacionesTexto ? (
-        <div className="mt-1.5">
+      {items.length > 0 ? (
+        <div className={canEdit || editing ? "mt-1.5" : ""}>
           <span className="text-xs font-semibold text-gray-500">Observaciones:</span>
-          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words mt-0.5">{observacionesTexto}</p>
+          <ul className="mt-1 space-y-2">
+            {items.map((obs, idx) => (
+              <li
+                key={`${obs.fecha || "sin-fecha"}-${idx}-${obs.texto.slice(0, 24)}`}
+                className="flex items-start gap-2 flex-wrap"
+              >
+                <p className="text-xs text-gray-700 whitespace-pre-wrap break-words min-w-0 flex-1">
+                  {obs.texto}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {obs.fecha ? (
+                    <span className="text-[10px] text-gray-500 whitespace-nowrap" title={obs.fecha}>
+                      {formatFechaISO(obs.fecha)}
+                    </span>
+                  ) : null}
+                  {obs.iniciales ? (
+                    <span
+                      className="inline-flex min-w-[2.75rem] items-center justify-center px-1 py-0.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded uppercase"
+                      title="Observación por"
+                    >
+                      {obs.iniciales}
+                    </span>
+                  ) : null}
+                  {canDelete ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        wrapClick(e);
+                        void handleDelete(idx);
+                      }}
+                      disabled={deletingIndex === idx}
+                      className="text-red-500 hover:text-red-700 text-xs font-bold px-1 disabled:opacity-50"
+                      title="Eliminar observación"
+                    >
+                      {deletingIndex === idx ? "…" : "✕"}
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ObraConObservaciones({
+  orden,
+  canEdit,
+  canDelete,
+  onSave,
+  onDelete,
+  renderValue,
+}: {
+  orden: OrdenProduccion;
+  canEdit: boolean;
+  canDelete: boolean;
+  onSave: (ordenId: string, observaciones: string) => Promise<void>;
+  onDelete: (ordenId: string, index: number) => Promise<void>;
+  renderValue: (value: unknown) => string;
+}) {
+  const observacionesLista = parseObservacionesObra(orden);
+
+  return (
+    <div className="text-left min-w-[8rem]">
+      <div>{renderValue(orden.obra)}</div>
+      <ObservacionesAcumulativas
+        items={observacionesLista}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        stopPropagationOnInteract
+        className="mt-1"
+        onAdd={(texto) => onSave(orden.id, texto)}
+        onDelete={(index) => onDelete(orden.id, index)}
+      />
     </div>
   );
 }
@@ -461,8 +685,12 @@ export default function ListOrdenesProduccion() {
   const [estadoObraIniciales, setEstadoObraIniciales] = useState<Record<string, string>>({});
   const [estadoObraInicialesPorItem, setEstadoObraInicialesPorItem] = useState<Record<string, string>>({});
   const [estadoObraArticuloTerminado, setEstadoObraArticuloTerminado] = useState<Record<string, boolean>>({});
-  const [estadoObraArticuloObservaciones, setEstadoObraArticuloObservaciones] = useState<Record<string, string>>({});
-  const [estadoObraObservaciones, setEstadoObraObservaciones] = useState<Record<string, string>>({});
+  const [estadoObraArticuloObservaciones, setEstadoObraArticuloObservaciones] = useState<
+    Record<string, ObservacionObraItem[]>
+  >({});
+  const [estadoObraObservaciones, setEstadoObraObservaciones] = useState<
+    Record<string, ObservacionObraItem[]>
+  >({});
   const [nuevaTipologiaNombre, setNuevaTipologiaNombre] = useState("");
   const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
   const [editingTipologiaIdx, setEditingTipologiaIdx] = useState<number | null>(null);
@@ -497,6 +725,7 @@ export default function ListOrdenesProduccion() {
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
   const canEditObservaciones = canEditCheckboxes;
+  const canDeleteObservaciones = canDeleteObservacionesObra(userEmail);
   const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "") || isTabletEmail(userEmail);
   const supabase = createClient();
 
@@ -606,31 +835,84 @@ export default function ListOrdenesProduccion() {
     setFormSuccess("");
   };
 
-  const handleSaveObservaciones = async (ordenId: string, observaciones: string) => {
+  const persistObservacionesObra = async (
+    ordenId: string,
+    observacionesActualizadas: ObservacionObraItem[],
+    errorMensaje: string
+  ): Promise<boolean> => {
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      alert("Debes estar logueado para guardar observaciones.");
-      return;
+      alert("Debes estar logueado para modificar observaciones.");
+      return false;
     }
+
+    const ordenActual = ordenes.find((o) => o.id === ordenId);
+    if (!ordenActual) return false;
+
+    const estadoObraActualizado = mergeEstadoObraObservacionesObra(
+      ordenActual.estado_obra,
+      observacionesActualizadas
+    );
+    const observacionesColumna = serializeObservacionesColumna(observacionesActualizadas);
 
     let query = supabase
       .from("ordenes_produccion")
-      .update({ observaciones: observaciones || null })
+      .update({
+        observaciones: observacionesColumna,
+        estado_obra: estadoObraActualizado,
+      })
       .eq("id", ordenId);
     if (!canAccessOrdenesProduccion(user.email)) {
       query = query.eq("usuario_id", user.id);
     }
     const { error } = await query;
     if (error) {
-      alert(`Error al guardar observación: ${error.message}`);
-      return;
+      alert(`${errorMensaje}: ${error.message}`);
+      return false;
     }
     setOrdenes((prev) =>
-      prev.map((o) => (o.id === ordenId ? { ...o, observaciones: observaciones || null } : o))
+      prev.map((o) =>
+        o.id === ordenId
+          ? {
+              ...o,
+              observaciones: observacionesColumna,
+              estado_obra: estadoObraActualizado,
+            }
+          : o
+      )
     );
+    return true;
+  };
+
+  const handleSaveObservaciones = async (ordenId: string, observaciones: string) => {
+    const texto = observaciones.trim();
+    if (!texto) {
+      alert("Escribe una observación para agregar.");
+      return;
+    }
+
+    const ordenActual = ordenes.find((o) => o.id === ordenId);
+    if (!ordenActual) return;
+
+    const nuevaObservacion = crearObservacionRegistro(texto, userInicialesRef.current);
+    const observacionesActualizadas = [...parseObservacionesObra(ordenActual), nuevaObservacion];
+    await persistObservacionesObra(ordenId, observacionesActualizadas, "Error al guardar observación");
+  };
+
+  const handleDeleteObservacion = async (ordenId: string, index: number) => {
+    if (!canDeleteObservacionesObra(userEmail)) return;
+
+    const ordenActual = ordenes.find((o) => o.id === ordenId);
+    if (!ordenActual) return;
+
+    const lista = parseObservacionesObra(ordenActual);
+    if (index < 0 || index >= lista.length) return;
+
+    const observacionesActualizadas = lista.filter((_, i) => i !== index);
+    await persistObservacionesObra(ordenId, observacionesActualizadas, "Error al eliminar observación");
   };
 
   const handleEdit = (orden: OrdenProduccion) => {
@@ -689,7 +971,6 @@ export default function ListOrdenesProduccion() {
         }
       }
     }
-    const observaciones: Record<string, string> = {};
     const rawInicialesPorItem = rawEstado && typeof rawEstado === "object" && "inicialesPorItem" in rawEstado
       ? (rawEstado as Record<string, unknown>).inicialesPorItem
       : null;
@@ -701,20 +982,11 @@ export default function ListOrdenesProduccion() {
     const rawObservaciones = rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
       ? (rawEstado as Record<string, unknown>).observacionesPorProceso
       : null;
-    if (rawObservaciones && typeof rawObservaciones === "object" && !Array.isArray(rawObservaciones)) {
-      for (const [k, v] of Object.entries(rawObservaciones)) {
-        if (typeof v === "string") observaciones[k] = v;
-      }
-    }
-    const articuloObservaciones: Record<string, string> = {};
+    const observaciones = parseObservacionesRegistroMap(rawObservaciones);
     const rawArticuloObs = rawEstado && typeof rawEstado === "object" && "articuloObservaciones" in rawEstado
       ? (rawEstado as Record<string, unknown>).articuloObservaciones
       : null;
-    if (rawArticuloObs && typeof rawArticuloObs === "object" && !Array.isArray(rawArticuloObs)) {
-      for (const [k, v] of Object.entries(rawArticuloObs)) {
-        if (typeof v === "string") articuloObservaciones[k] = v;
-      }
-    }
+    const articuloObservaciones = parseObservacionesRegistroMap(rawArticuloObs);
     tipologias.forEach((t, idx) => {
       for (const proceso of ESTADO_OBRA_PROCESOS) {
         const items = getCheckboxItemsForTipologia(t, proceso);
@@ -1007,7 +1279,7 @@ export default function ListOrdenesProduccion() {
       return next;
     });
     setEstadoObraObservaciones((prev) => {
-      const next: Record<string, string> = {};
+      const next: Record<string, ObservacionObraItem[]> = {};
       const sep = ESTADO_OBRA_KEY_SEP;
       for (const [key, val] of Object.entries(prev)) {
         const parts = key.split(sep);
@@ -1019,7 +1291,7 @@ export default function ListOrdenesProduccion() {
       return next;
     });
     setEstadoObraArticuloObservaciones((prev) => {
-      const next: Record<string, string> = {};
+      const next: Record<string, ObservacionObraItem[]> = {};
       for (const [key, val] of Object.entries(prev)) {
         const keyIdx = parseInt(key, 10);
         if (Number.isNaN(keyIdx)) continue;
@@ -1115,20 +1387,34 @@ export default function ListOrdenesProduccion() {
         articuloTerminado[key] = { terminado: true, iniciales: "" };
       }
     });
-    const observacionesPorProceso: Record<string, string> = {};
+    const observacionesPorProceso: Record<string, ObservacionObraItem[]> = {};
     for (const [key, val] of Object.entries(observacionesActual)) {
-      observacionesPorProceso[key] = typeof val === "string" ? val.trim() : "";
+      if (Array.isArray(val) && val.length > 0) observacionesPorProceso[key] = val;
     }
-    const articuloObservaciones: Record<string, string> = {};
+    const articuloObservaciones: Record<string, ObservacionObraItem[]> = {};
     for (const [key, val] of Object.entries(articuloObservacionesActual)) {
-      articuloObservaciones[key] = typeof val === "string" ? val.trim() : "";
+      if (Array.isArray(val) && val.length > 0) articuloObservaciones[key] = val;
     }
     const inicialesPorItem: Record<string, string> = {};
     for (const [key, val] of Object.entries(inicialesPorItemActual)) {
       const s = typeof val === "string" ? val.slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase().trim() : "";
       if (s) inicialesPorItem[key] = s;
     }
-    const estadoObraPayload = { tipologias, _backup: backupTipologias, procesoTerminado, articuloTerminado, observacionesPorProceso, articuloObservaciones, inicialesPorItem };
+    const ordenParaPreservarObservaciones =
+      ordenes.find((o) => o.id === estadoObraOrden.id) ?? estadoObraOrden;
+    const observacionesObraPreservar = parseObservacionesObra(ordenParaPreservarObservaciones);
+    const estadoObraPayload = {
+      tipologias,
+      _backup: backupTipologias,
+      procesoTerminado,
+      articuloTerminado,
+      observacionesPorProceso,
+      articuloObservaciones,
+      inicialesPorItem,
+      ...(observacionesObraPreservar.length > 0
+        ? { observacionesObra: observacionesObraPreservar }
+        : {}),
+    };
     const baseQuery = supabase
       .from("ordenes_produccion")
       .update({ estado_obra: estadoObraPayload })
@@ -1909,8 +2195,8 @@ export default function ListOrdenesProduccion() {
           onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); setEstadoObraFiltroTip(""); }}
           role="presentation"
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10 pt-1 -mx-6 px-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-800">
                 Estado de obra: {estadoObraOrden.obra ?? estadoObraOrden.num_carpeta ?? "Obra"}
               </h3>
@@ -1935,46 +2221,48 @@ export default function ListOrdenesProduccion() {
                 </button>
               </div>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="shrink-0 text-sm text-gray-500 mb-4">
               {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
-            {canEditFullModal && (
-              <div className="flex flex-wrap gap-2 mb-4 items-center">
-                <button
-                  type="button"
-                  onClick={() => estadoObraFileInputRef.current?.click()}
-                  disabled={importandoEstadoObra}
-                  className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
-                </button>
-                {estadoObraTipologias.length > 0 && (
-                  <>
+            {(canEditFullModal || estadoObraTipologias.length > 0) && (
+              <div className="shrink-0 mb-4 pb-3 border-b border-gray-200 bg-white">
+                {canEditFullModal && (
+                  <div className="flex flex-wrap gap-2 items-center">
                     <button
                       type="button"
-                      onClick={handleEliminarTodasTipologias}
-                      disabled={updatingEstadoObra}
-                      className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
-                      title="Eliminar todas las tipologías"
+                      onClick={() => estadoObraFileInputRef.current?.click()}
+                      disabled={importandoEstadoObra}
+                      className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                     >
-                      🗑️ Eliminar todas
+                      {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
                     </button>
-                    {renderFiltroTipologiaControls()}
-                  </>
+                    {estadoObraTipologias.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleEliminarTodasTipologias}
+                          disabled={updatingEstadoObra}
+                          className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+                          title="Eliminar todas las tipologías"
+                        >
+                          🗑️ Eliminar todas
+                        </button>
+                        {renderFiltroTipologiaControls()}
+                      </>
+                    )}
+                    <input
+                      ref={estadoObraFileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleImportEstadoObraExcel}
+                      className="hidden"
+                    />
+                  </div>
                 )}
-                <input
-                  ref={estadoObraFileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleImportEstadoObraExcel}
-                  className="hidden"
-                />
+                {!canEditFullModal && estadoObraTipologias.length > 0 && renderFiltroTipologiaControls()}
               </div>
             )}
-            {!canEditFullModal && estadoObraTipologias.length > 0 && (
-              <div className="mb-4">{renderFiltroTipologiaControls()}</div>
-            )}
-            <div className="space-y-6 mb-6">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-6 mb-4 pr-1">
               {estadoObraTipologiasFiltradas.length === 0 && estadoObraTipologias.length > 0 && estadoObraFiltroTip.trim() ? (
                 <p className="text-sm text-gray-500 text-center py-4">No hay tipologías que coincidan con el filtro.</p>
               ) : null}
@@ -2291,23 +2579,31 @@ export default function ListOrdenesProduccion() {
                             );
                           })()}
                         </div>
-                        <div className="mt-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-0.5">Observación</label>
-                          <input
-                            type="text"
-                            disabled={soloVista}
-                            value={estadoObraObservaciones[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`] ?? ""}
-                            onChange={(e) => {
-                              const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
-                              setEstadoObraObservaciones((prev) => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }));
-                            }}
-                            placeholder="Observación del proceso"
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          />
-                        </div>
+                        {(() => {
+                          const procesoObsKey = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+                          const procesoObsItems = estadoObraObservaciones[procesoObsKey] ?? [];
+                          return (
+                            <ObservacionesAcumulativas
+                              items={procesoObsItems}
+                              canEdit={canEditParaTipologia && !soloVista}
+                              canDelete={canDeleteObservaciones}
+                              className="mt-2"
+                              onAdd={(texto) => {
+                                const nueva = crearObservacionRegistro(texto, userInicialesRef.current);
+                                setEstadoObraObservaciones((prev) => ({
+                                  ...prev,
+                                  [procesoObsKey]: [...(prev[procesoObsKey] ?? []), nueva],
+                                }));
+                              }}
+                              onDelete={(obsIndex) => {
+                                setEstadoObraObservaciones((prev) => ({
+                                  ...prev,
+                                  [procesoObsKey]: (prev[procesoObsKey] ?? []).filter((_, i) => i !== obsIndex),
+                                }));
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     );
                     })}
@@ -2341,22 +2637,25 @@ export default function ListOrdenesProduccion() {
                             <span className="text-xs font-semibold">Artículo terminado</span>
                           </label>
                         </div>
-                        <div className="mt-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-0.5">Observación</label>
-                          <input
-                            type="text"
-                            disabled={soloVista}
-                            value={estadoObraArticuloObservaciones[articuloKey] ?? ""}
-                            onChange={(e) => {
-                              setEstadoObraArticuloObservaciones((prev) => ({
-                                ...prev,
-                                [articuloKey]: e.target.value,
-                              }));
-                            }}
-                            placeholder="Observación del artículo terminado"
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          />
-                        </div>
+                        <ObservacionesAcumulativas
+                          items={estadoObraArticuloObservaciones[articuloKey] ?? []}
+                          canEdit={canEditCheckboxes && !soloVista}
+                          canDelete={canDeleteObservaciones}
+                          className="mt-2"
+                          onAdd={(texto) => {
+                            const nueva = crearObservacionRegistro(texto, userInicialesRef.current);
+                            setEstadoObraArticuloObservaciones((prev) => ({
+                              ...prev,
+                              [articuloKey]: [...(prev[articuloKey] ?? []), nueva],
+                            }));
+                          }}
+                          onDelete={(obsIndex) => {
+                            setEstadoObraArticuloObservaciones((prev) => ({
+                              ...prev,
+                              [articuloKey]: (prev[articuloKey] ?? []).filter((_, i) => i !== obsIndex),
+                            }));
+                          }}
+                        />
                         </div>
                       );
                     })()}
@@ -2407,7 +2706,7 @@ export default function ListOrdenesProduccion() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-3">
+            <div className="shrink-0 flex gap-3 pt-3 border-t border-gray-200 bg-white">
               {canEditCheckboxes && (
               <button
                 type="button"
@@ -2672,7 +2971,9 @@ export default function ListOrdenesProduccion() {
             <ObraConObservaciones
               orden={orden}
               canEdit={canEditObservaciones}
+              canDelete={canDeleteObservaciones}
               onSave={handleSaveObservaciones}
+              onDelete={handleDeleteObservacion}
               renderValue={renderValue}
             />
           )}
@@ -2756,7 +3057,9 @@ export default function ListOrdenesProduccion() {
                     <ObraConObservaciones
                       orden={orden}
                       canEdit={canEditObservaciones}
+                      canDelete={canDeleteObservaciones}
                       onSave={handleSaveObservaciones}
+                      onDelete={handleDeleteObservacion}
                       renderValue={renderValue}
                     />
                   </td>

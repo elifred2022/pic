@@ -82,3 +82,16 @@ export const isAdminEmail = (email?: string | null) =>
 
 export const canAccessOrdenesProduccion = (email?: string | null) =>
   !!email && (panolesEmails.includes(email) || produccionEmails.includes(email) || adminEmails.includes(email) || aprobEmails.includes(email) || tabletEmails.includes(email));
+
+const observacionesObraDeleteEmails = [
+  "asistentecompras@perfilesyservicios.com.ar",
+  "controldecalidad@perfilesyservicios.com.ar",
+  "asistordenes@perfilesyservicios.com.ar",
+  "juanstok@perfilesyservicios.com.ar",
+];
+
+export const canDeleteObservacionesObra = (email?: string | null) => {
+  if (!email) return false;
+  const normalized = normalizeEmail(email);
+  return observacionesObraDeleteEmails.some((e) => normalizeEmail(e) === normalized);
+};
