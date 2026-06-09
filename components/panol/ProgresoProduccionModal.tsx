@@ -17,6 +17,7 @@ type Props = {
   onClose: () => void;
   onVerOrdenCorte?: (orden: OrdenProgreso) => void;
   onVerMedicion?: (orden: OrdenProgreso) => void;
+  onVerEstadoObra?: (orden: OrdenProgreso) => void;
 };
 
 function tieneArchivos(url: string | null | undefined): boolean {
@@ -28,6 +29,7 @@ export default function ProgresoProduccionModal({
   onClose,
   onVerOrdenCorte,
   onVerMedicion,
+  onVerEstadoObra,
 }: Props) {
   const ordenesOrdenadas = [...ordenes].sort((a, b) => {
     const { percent: percentA } = getArticulosTerminadosProgress(a.estado_obra);
@@ -99,28 +101,35 @@ export default function ProgresoProduccionModal({
                         </div>
                       )}
                     </div>
-                    {(tieneArchivos(orden.url_imagen) || tieneArchivos(orden.url_medicion)) && (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {tieneArchivos(orden.url_imagen) && onVerOrdenCorte && (
-                          <button
-                            type="button"
-                            onClick={() => onVerOrdenCorte(orden)}
-                            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                          >
-                            Ver orden de corte
-                          </button>
-                        )}
-                        {tieneArchivos(orden.url_medicion) && onVerMedicion && (
-                          <button
-                            type="button"
-                            onClick={() => onVerMedicion(orden)}
-                            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                          >
-                            Ver medición
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {onVerEstadoObra && (
+                        <button
+                          type="button"
+                          onClick={() => onVerEstadoObra(orden)}
+                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                        >
+                          Ver estado de obra
+                        </button>
+                      )}
+                      {tieneArchivos(orden.url_imagen) && onVerOrdenCorte && (
+                        <button
+                          type="button"
+                          onClick={() => onVerOrdenCorte(orden)}
+                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                        >
+                          Ver orden de corte
+                        </button>
+                      )}
+                      {tieneArchivos(orden.url_medicion) && onVerMedicion && (
+                        <button
+                          type="button"
+                          onClick={() => onVerMedicion(orden)}
+                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                        >
+                          Ver medición
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

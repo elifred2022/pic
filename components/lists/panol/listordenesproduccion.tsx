@@ -24,7 +24,7 @@ import {
   getProcesosConItemsParaTipologia,
 } from "@/lib/panol/estado-obra";
 import { inicialesDesdeNombre, MARCA_OPERADOR_LONGITUD } from "@/lib/utils";
-import ProgresoProduccionModal from "@/components/panol/ProgresoProduccionModal";
+import ProgresoProduccionModal, { type OrdenProgreso } from "@/components/panol/ProgresoProduccionModal";
 import OrdenesProduccionMobileList from "@/components/lists/panol/OrdenesProduccionMobileList";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
@@ -881,6 +881,7 @@ export default function ListOrdenesProduccion() {
   const [excelDownloadTipo, setExcelDownloadTipo] = useState<string>("");
   const [descargandoExcel, setDescargandoExcel] = useState(false);
   const [showEstadoObraModal, setShowEstadoObraModal] = useState(false);
+  const [estadoObraModalSoloVista, setEstadoObraModalSoloVista] = useState(false);
   const [estadoObraOrden, setEstadoObraOrden] = useState<OrdenProduccion | null>(null);
   const [estadoObraTipologias, setEstadoObraTipologias] = useState<TipologiaItem[]>([]);
   const [estadoObraFechas, setEstadoObraFechas] = useState<Record<string, string>>({});
@@ -932,12 +933,17 @@ export default function ListOrdenesProduccion() {
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
+  const estadoObraSoloVista = soloVista || estadoObraModalSoloVista;
   const isTabletUser = isTabletEmail(userEmail);
   const tabletSoloMarcar = isTabletOnlyUser(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletUser;
+  const canEditCheckboxesEnModal = canEditCheckboxes && !estadoObraSoloVista;
   const showEstadoObraActualizarButton = canEditCheckboxes && !isTabletUser;
+  const showEstadoObraActualizarEnModal = showEstadoObraActualizarButton && !estadoObraSoloVista;
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
+  const canEditFullModalEnModal = canEditFullModal && !estadoObraSoloVista;
   const canEditObservaciones = canEditCheckboxes;
+  const canEditObservacionesEnModal = canEditObservaciones && !estadoObraSoloVista;
   const canDeleteObservaciones = canDeleteObservacionesObra(userEmail);
   const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "") || isTabletEmail(userEmail);
   const supabase = createClient();
@@ -1168,10 +1174,22 @@ export default function ListOrdenesProduccion() {
     []
   );
 
-  const handleOpenEstadoObra = async (orden: OrdenProduccion) => {
+  const closeEstadoObraModal = () => {
+    setShowEstadoObraModal(false);
+    setEstadoObraOrden(null);
+    setEditingTipologiaIdx(null);
+    setEstadoObraFiltroTip("");
+    setEstadoObraModalSoloVista(false);
+  };
+
+  const handleOpenEstadoObra = async (
+    orden: OrdenProduccion,
+    options?: { soloVista?: boolean }
+  ) => {
     estadoObraAutoSaveReadyRef.current = false;
     estadoObraUserEditedRef.current = false;
     estadoObraObservacionesRemovedRef.current = new Set();
+    setEstadoObraModalSoloVista(options?.soloVista ?? false);
     setEstadoObraOrden(orden);
     setEstadoObraFiltroTip("");
     setShowEstadoObraModal(true);
@@ -1701,7 +1719,7 @@ export default function ListOrdenesProduccion() {
   }, [showEstadoObraModal, estadoObraOrden?.id, supabase]);
 
   useEffect(() => {
-    if (!showEstadoObraModal || !estadoObraOrden || !canEditCheckboxes) return;
+    if (!showEstadoObraModal || !estadoObraOrden || !canEditCheckboxesEnModal) return;
     if (!estadoObraAutoSaveReadyRef.current || estadoObraHydratingRef.current) return;
 
     const timer = setTimeout(() => {
@@ -1725,7 +1743,7 @@ export default function ListOrdenesProduccion() {
     estadoObraArticuloObservaciones,
     showEstadoObraModal,
     estadoObraOrden,
-    canEditCheckboxes,
+    canEditCheckboxesEnModal,
     saveEstadoObraToSupabase,
   ]);
 
@@ -2495,13 +2513,17 @@ export default function ListOrdenesProduccion() {
               setShowArchivosModal(true);
             }
           }}
+          onVerEstadoObra={(orden: OrdenProgreso) => {
+            const fullOrden = filteredOrdenes.find((o) => o.id === orden.id);
+            if (fullOrden) void handleOpenEstadoObra(fullOrden, { soloVista: true });
+          }}
           onClose={() => setShowProgresoModal(false)}
         />
       )}
       {showEstadoObraModal && estadoObraOrden && (
         <div
-          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); setEstadoObraFiltroTip(""); }}
+          className={`fixed inset-0 flex items-center justify-center bg-black/50 p-4 ${estadoObraModalSoloVista ? "z-[70]" : "z-[55]"}`}
+          onClick={closeEstadoObraModal}
           role="presentation"
         >
           <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden p-6" onClick={(e) => e.stopPropagation()}>
@@ -2513,7 +2535,7 @@ export default function ListOrdenesProduccion() {
                 {isTabletUser && updatingEstadoObra ? (
                   <span className="text-xs font-medium text-amber-600 animate-pulse">Guardando...</span>
                 ) : null}
-                {showEstadoObraActualizarButton && (
+                {showEstadoObraActualizarEnModal && (
                 <button
                   type="button"
                   onClick={handleUpdateEstadoObra}
@@ -2525,7 +2547,7 @@ export default function ListOrdenesProduccion() {
                 )}
                 <button
                   type="button"
-                  onClick={() => { setShowEstadoObraModal(false); setEstadoObraOrden(null); setEditingTipologiaIdx(null); setEstadoObraFiltroTip(""); }}
+                  onClick={closeEstadoObraModal}
                   disabled={updatingEstadoObra}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm"
                 >
@@ -2534,11 +2556,11 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="shrink-0 text-sm text-gray-500 mb-4">
-              {soloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {estadoObraSoloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
-            {(canEditFullModal || estadoObraTipologias.length > 0) && (
+            {(canEditFullModalEnModal || estadoObraTipologias.length > 0) && (
               <div className="shrink-0 mb-4 pb-3 border-b border-gray-200 bg-white">
-                {canEditFullModal && (
+                {canEditFullModalEnModal && (
                   <div className="flex flex-wrap gap-2 items-center">
                     <button
                       type="button"
@@ -2571,7 +2593,7 @@ export default function ListOrdenesProduccion() {
                     />
                   </div>
                 )}
-                {!canEditFullModal && estadoObraTipologias.length > 0 && renderFiltroTipologiaControls()}
+                {!canEditFullModalEnModal && estadoObraTipologias.length > 0 && renderFiltroTipologiaControls()}
               </div>
             )}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-6 mb-4 pr-1">
@@ -2666,7 +2688,7 @@ export default function ListOrdenesProduccion() {
                       })}
                     </div>
                     </div>
-                    {canEditFullModal && (
+                    {canEditFullModalEnModal && (
                       <div className="flex flex-row sm:flex-col items-center gap-1 shrink-0">
                         <button
                           type="button"
@@ -2691,7 +2713,7 @@ export default function ListOrdenesProduccion() {
                     {(() => {
                       const articuloTerminadoParaTipologia = !!estadoObraArticuloTerminado[String(idx)];
                       const tabletBloqueadoPorArticulo = tabletSoloMarcar && articuloTerminadoParaTipologia;
-                      const canEditParaTipologia = canEditCheckboxes && !tabletBloqueadoPorArticulo;
+                      const canEditParaTipologia = canEditCheckboxesEnModal && !tabletBloqueadoPorArticulo;
                       return (
                     <>
                     {getProcesosConItemsParaTipologia(tipologia)
@@ -2718,7 +2740,7 @@ export default function ListOrdenesProduccion() {
                             return (
                               <li key={key} className="flex flex-col">
                                 <div className="flex items-center gap-1.5">
-                                  <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
+                                  <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={estadoObraSoloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                                     <input
                                       type="checkbox"
                                       checked={checked}
@@ -2842,7 +2864,7 @@ export default function ListOrdenesProduccion() {
                           {proceso === "CORTE" && (
                             <label
                               className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                              title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Marca todos los ítems; solo producción/supervisores pueden desmarcar" : undefined}
+                              title={estadoObraSoloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Marca todos los ítems; solo producción/supervisores pueden desmarcar" : undefined}
                             >
                               <input
                                 type="checkbox"
@@ -2854,7 +2876,7 @@ export default function ListOrdenesProduccion() {
                               <span className="text-xs font-medium">Marcar todo</span>
                             </label>
                           )}
-                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
+                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (estadoObraSoloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                             <input
                               type="checkbox"
                               checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
@@ -2907,8 +2929,8 @@ export default function ListOrdenesProduccion() {
                           return (
                             <ObservacionesAcumulativas
                               items={procesoObsItems}
-                              canEdit={canEditParaTipologia && !soloVista}
-                              canDelete={canDeleteObservaciones}
+                              canEdit={canEditParaTipologia && !estadoObraSoloVista}
+                              canDelete={canDeleteObservaciones && !estadoObraSoloVista}
                               className="mt-2"
                               onAdd={(texto) => {
                                 estadoObraUserEditedRef.current = true;
@@ -2972,8 +2994,8 @@ export default function ListOrdenesProduccion() {
                         </div>
                         <ObservacionesAcumulativas
                           items={estadoObraArticuloObservaciones[articuloKey] ?? []}
-                          canEdit={canEditCheckboxes && !soloVista}
-                          canDelete={canDeleteObservaciones}
+                          canEdit={canEditObservacionesEnModal}
+                          canDelete={canDeleteObservaciones && !estadoObraSoloVista}
                           className="mt-2"
                           onAdd={(texto) => {
                             estadoObraUserEditedRef.current = true;
@@ -3006,7 +3028,7 @@ export default function ListOrdenesProduccion() {
                   </div>
                 </div>
               ))}
-              {canEditFullModal && (mostrarAgregarTipologia ? (
+              {canEditFullModalEnModal && (mostrarAgregarTipologia ? (
                 <div className="border-2 border-dashed border-amber-400 rounded-lg p-3 bg-amber-50/50">
                   <input
                     type="text"
@@ -3051,7 +3073,7 @@ export default function ListOrdenesProduccion() {
               ))}
             </div>
             <div className="shrink-0 flex gap-3 pt-3 border-t border-gray-200 bg-white">
-              {showEstadoObraActualizarButton && (
+              {showEstadoObraActualizarEnModal && (
               <button
                 type="button"
                 onClick={handleUpdateEstadoObra}
@@ -3063,14 +3085,9 @@ export default function ListOrdenesProduccion() {
               )}
               <button
                 type="button"
-                onClick={() => {
-                  setShowEstadoObraModal(false);
-                  setEstadoObraOrden(null);
-                  setEditingTipologiaIdx(null);
-                  setEstadoObraFiltroTip("");
-                }}
+                onClick={closeEstadoObraModal}
                 disabled={updatingEstadoObra}
-                className={`px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 ${showEstadoObraActualizarButton ? "" : "flex-1"}`}
+                className={`px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 ${showEstadoObraActualizarEnModal ? "" : "flex-1"}`}
               >
                 Cerrar
               </button>
