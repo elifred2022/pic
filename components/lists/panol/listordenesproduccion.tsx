@@ -11,6 +11,7 @@ import {
   isPanolEmail,
   isProduccionEmail,
   isTabletEmail,
+  isTabletOnlyUser,
 } from "@/lib/panol-access";
 import {
   areAllProcesosTerminadosParaTipologia,
@@ -444,6 +445,10 @@ function parseObservacionesRegistroDesdeValor(val: unknown): ObservacionObraItem
     return [{ texto: val.trim(), iniciales: "", fecha: "" }];
   }
   return parseObservacionesObraDesdeJson(val);
+}
+
+function confirmActivarCheckboxEstadoObra(): boolean {
+  return window.confirm("¿ESTAS SEGURO CARNERO?");
 }
 
 function parseObservacionesRegistroMap(raw: unknown): Record<string, ObservacionObraItem[]> {
@@ -928,6 +933,7 @@ export default function ListOrdenesProduccion() {
   estadoObraObservacionesRef.current = estadoObraObservaciones;
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const isTabletUser = isTabletEmail(userEmail);
+  const tabletSoloMarcar = isTabletOnlyUser(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletUser;
   const showEstadoObraActualizarButton = canEditCheckboxes && !isTabletUser;
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
@@ -2507,7 +2513,7 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="shrink-0 text-sm text-gray-500 mb-4">
-              {soloVista ? "Vista de estados (solo visualización):" : isTabletEmail(userEmail) ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {soloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado. Artículo terminado se activa al completar todos los procesos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {(canEditFullModal || estadoObraTipologias.length > 0) && (
               <div className="shrink-0 mb-4 pb-3 border-b border-gray-200 bg-white">
@@ -2663,7 +2669,7 @@ export default function ListOrdenesProduccion() {
                   <div className="space-y-3">
                     {(() => {
                       const articuloTerminadoParaTipologia = !!estadoObraArticuloTerminado[String(idx)];
-                      const tabletBloqueadoPorArticulo = isTabletEmail(userEmail) && articuloTerminadoParaTipologia;
+                      const tabletBloqueadoPorArticulo = tabletSoloMarcar && articuloTerminadoParaTipologia;
                       const canEditParaTipologia = canEditCheckboxes && !tabletBloqueadoPorArticulo;
                       return (
                     <>
@@ -2691,12 +2697,13 @@ export default function ListOrdenesProduccion() {
                             return (
                               <li key={key} className="flex flex-col">
                                 <div className="flex items-center gap-1.5">
-                                  <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : isTabletEmail(userEmail) ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
+                                  <label className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                                     <input
                                       type="checkbox"
                                       checked={checked}
                                       disabled={!canEditParaTipologia}
                                       onChange={(e) => {
+                                        if (e.target.checked && !confirmActivarCheckboxEstadoObra()) return;
                                         estadoObraUserEditedRef.current = true;
                                         if (e.target.checked) {
                                           estadoObraRemovedKeysRef.current.delete(key);
@@ -2712,7 +2719,7 @@ export default function ListOrdenesProduccion() {
                                             }));
                                           }
                                         } else {
-                                          if (isTabletEmail(userEmail)) return;
+                                          if (tabletSoloMarcar) return;
                                           estadoObraRemovedKeysRef.current.add(key);
                                           setEstadoObraFechas((prev) => {
                                             const next = { ...prev };
@@ -2764,6 +2771,7 @@ export default function ListOrdenesProduccion() {
                             });
                             const terminadoDisabled = !canEditParaTipologia || !alMenosUnoMarcado;
                             const handleMarcarTodoCorte = (checked: boolean) => {
+                              if (checked && !confirmActivarCheckboxEstadoObra()) return;
                               estadoObraUserEditedRef.current = true;
                               if (checked) {
                                 const now = new Date().toISOString();
@@ -2788,7 +2796,7 @@ export default function ListOrdenesProduccion() {
                                   });
                                 }
                               } else {
-                                if (isTabletEmail(userEmail)) return;
+                                if (tabletSoloMarcar) return;
                                 setEstadoObraFechas((prev) => {
                                   const next = { ...prev };
                                   for (const item of items) {
@@ -2813,7 +2821,7 @@ export default function ListOrdenesProduccion() {
                           {proceso === "CORTE" && (
                             <label
                               className={`flex items-center gap-1.5 ${canEditParaTipologia ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                              title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : isTabletEmail(userEmail) ? "Marca todos los ítems; solo producción/supervisores pueden desmarcar" : undefined}
+                              title={soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : tabletSoloMarcar ? "Marca todos los ítems; solo producción/supervisores pueden desmarcar" : undefined}
                             >
                               <input
                                 type="checkbox"
@@ -2825,15 +2833,16 @@ export default function ListOrdenesProduccion() {
                               <span className="text-xs font-medium">Marcar todo</span>
                             </label>
                           )}
-                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : isTabletEmail(userEmail) ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
+                          <label className={`flex items-center gap-1.5 ${!terminadoDisabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`} title={terminadoDisabled ? (soloVista ? "Solo visualización" : tabletBloqueadoPorArticulo ? "Artículo ya marcado como terminado por supervisor" : canEditParaTipologia ? "Marque al menos un paso del proceso primero" : undefined) : tabletSoloMarcar ? "Puedes marcar; solo producción/supervisores pueden desmarcar" : undefined}>
                             <input
                               type="checkbox"
                               checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
                               disabled={terminadoDisabled}
                               onChange={(e) => {
+                                if (e.target.checked && !confirmActivarCheckboxEstadoObra()) return;
                                 estadoObraUserEditedRef.current = true;
                                 const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
-                                if (!e.target.checked && isTabletEmail(userEmail)) return;
+                                if (!e.target.checked && tabletSoloMarcar) return;
                                 setEstadoObraTerminado((prev) => ({
                                   ...prev,
                                   [key]: e.target.checked,

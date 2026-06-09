@@ -11,7 +11,7 @@ export const produccionEmails = [
   "controldecalidad@perfilesyservicios.com.ar",
   "asistordenes@perfilesyservicios.com.ar",
   "pvcordenes@perfilesyservicios.com.ar",
-  "supervisorpys@gmail.com",
+  "supervisorpys@gmail.com", //pablo cruz
   "gonzalo@perfilesyservicios.com.ar",
  
 ];
@@ -37,8 +37,7 @@ export const aprobEmails = [
 
 export const tabletEmails = [
   "tabletpys331@gmail.com",
-    "supervisorpys@gmail.com", 
-"tabletpyspaez@gmail.com", 
+   "tabletpyspaez@gmail.com", 
 "tabletpysherrera@gmail.com",
 "tabletpysfleitas@gmail.com",
 "tabletpyscruz@gmail.com",
@@ -61,6 +60,10 @@ export const isTabletEmail = (email?: string | null) => {
   const normalized = normalizeEmail(email);
   return tabletEmails.some((e) => normalizeEmail(e) === normalized);
 };
+
+/** Tablet sin rol producción/admin: solo puede marcar checkboxes, no desmarcar. */
+export const isTabletOnlyUser = (email?: string | null) =>
+  isTabletEmail(email) && !isProduccionEmail(email) && !isAdminEmail(email);
 
 export const canUseChat = (email?: string | null) => !isTabletEmail(email);
 
