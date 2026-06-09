@@ -456,6 +456,178 @@ function parseObservacionesRegistroMap(raw: unknown): Record<string, Observacion
   return result;
 }
 
+type EstadoObraCheckboxSession = {
+  tipologias: TipologiaItem[];
+  backupTipologias: TipologiaItem[];
+  fechas: Record<string, string>;
+  terminado: Record<string, boolean>;
+  iniciales: Record<string, string>;
+  inicialesPorItem: Record<string, string>;
+  articuloTerminado: Record<string, boolean>;
+  observaciones: Record<string, ObservacionObraItem[]>;
+  articuloObservaciones: Record<string, ObservacionObraItem[]>;
+};
+
+function buildEstadoObraCheckboxState(rawEstado: unknown): EstadoObraCheckboxSession {
+  const parsed = parseEstadoObra(rawEstado);
+  const { tipologias, _backup } = parsed;
+  const fechas: Record<string, string> = {};
+  const terminado: Record<string, boolean> = {};
+  const iniciales: Record<string, string> = {};
+  const inicialesPorItem: Record<string, string> = {};
+  const articuloTerminado: Record<string, boolean> = {};
+  const rawTerminado =
+    rawEstado && typeof rawEstado === "object" && "procesoTerminado" in rawEstado
+      ? (rawEstado as Record<string, unknown>).procesoTerminado
+      : null;
+  if (rawTerminado && typeof rawTerminado === "object" && !Array.isArray(rawTerminado)) {
+    for (const [k, v] of Object.entries(rawTerminado)) {
+      if (v && typeof v === "object" && "terminado" in v) {
+        terminado[k] = !!(v as Record<string, unknown>).terminado;
+        const ini = (v as Record<string, unknown>).iniciales;
+        if (typeof ini === "string" && ini.trim()) {
+          iniciales[k] = ini.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
+        }
+      }
+    }
+  }
+  const rawArticulo =
+    rawEstado && typeof rawEstado === "object" && "articuloTerminado" in rawEstado
+      ? (rawEstado as Record<string, unknown>).articuloTerminado
+      : null;
+  if (rawArticulo && typeof rawArticulo === "object" && !Array.isArray(rawArticulo)) {
+    for (const [k, v] of Object.entries(rawArticulo)) {
+      if (v && typeof v === "object" && "terminado" in v) {
+        articuloTerminado[k] = !!(v as Record<string, unknown>).terminado;
+      }
+    }
+  }
+  const rawInicialesPorItem =
+    rawEstado && typeof rawEstado === "object" && "inicialesPorItem" in rawEstado
+      ? (rawEstado as Record<string, unknown>).inicialesPorItem
+      : null;
+  if (rawInicialesPorItem && typeof rawInicialesPorItem === "object" && !Array.isArray(rawInicialesPorItem)) {
+    for (const [k, v] of Object.entries(rawInicialesPorItem)) {
+      if (typeof v === "string" && v.trim()) {
+        inicialesPorItem[k] = v.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
+      }
+    }
+  }
+  const rawObservaciones =
+    rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
+      ? (rawEstado as Record<string, unknown>).observacionesPorProceso
+      : null;
+  const observaciones = parseObservacionesRegistroMap(rawObservaciones);
+  const rawArticuloObs =
+    rawEstado && typeof rawEstado === "object" && "articuloObservaciones" in rawEstado
+      ? (rawEstado as Record<string, unknown>).articuloObservaciones
+      : null;
+  const articuloObservaciones = parseObservacionesRegistroMap(rawArticuloObs);
+  tipologias.forEach((t, idx) => {
+    for (const proceso of ESTADO_OBRA_PROCESOS) {
+      const items = getCheckboxItemsForTipologia(t, proceso);
+      const itemData = t.estados[proceso];
+      for (const item of items) {
+        const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
+        if (fechaGuardada !== undefined) {
+          const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+          fechas[key] = fechaGuardada;
+        }
+      }
+    }
+  });
+  const backupTipologias = _backup ?? tipologias;
+  return {
+    tipologias,
+    backupTipologias,
+    fechas,
+    terminado,
+    iniciales,
+    inicialesPorItem,
+    articuloTerminado,
+    observaciones,
+    articuloObservaciones,
+  };
+}
+
+function mergeEstadoObraCheckboxMaps(
+  remote: Pick<
+    EstadoObraCheckboxSession,
+    "fechas" | "terminado" | "iniciales" | "inicialesPorItem" | "articuloTerminado"
+  >,
+  local: Pick<
+    EstadoObraCheckboxSession,
+    "fechas" | "terminado" | "iniciales" | "inicialesPorItem" | "articuloTerminado"
+  >,
+  removedKeys: ReadonlySet<string>
+): Pick<
+  EstadoObraCheckboxSession,
+  "fechas" | "terminado" | "iniciales" | "inicialesPorItem" | "articuloTerminado"
+> {
+  const fechas = { ...remote.fechas, ...local.fechas };
+  for (const k of removedKeys) {
+    delete fechas[k];
+  }
+  return {
+    fechas,
+    terminado: { ...remote.terminado, ...local.terminado },
+    iniciales: { ...remote.iniciales, ...local.iniciales },
+    inicialesPorItem: { ...remote.inicialesPorItem, ...local.inicialesPorItem },
+    articuloTerminado: { ...remote.articuloTerminado, ...local.articuloTerminado },
+  };
+}
+
+const ESTADO_OBRA_AUTOSAVE_MS = 450;
+
+function mapTipologiaForEstadoObraRef(t: TipologiaItem): TipologiaItem {
+  return {
+    nombre: t.nombre,
+    estados: Object.fromEntries(
+      Object.entries(t.estados).map(([proceso, items]) => [proceso, { ...items }])
+    ),
+    descripcion: t.descripcion ?? null,
+    marco: t.marco ?? null,
+    hojas: t.hojas ?? null,
+    guias: t.guias ?? null,
+    guia_mosquitero: t.guia_mosquitero ?? null,
+    mosq_comun: t.mosq_comun ?? null,
+    mosq_riel: t.mosq_riel ?? null,
+    mosquitero_fijo: t.mosquitero_fijo ?? null,
+    unidades_mq: t.unidades_mq ?? null,
+    guia_emb: t.guia_emb ?? null,
+    umbral_pvc: t.umbral_pvc ?? null,
+    umbral_aluminio: t.umbral_aluminio ?? null,
+    hojas_mosq: t.hojas_mosq ?? null,
+    umbral: t.umbral ?? null,
+    ancho: t.ancho ?? null,
+    alto: t.alto ?? null,
+  };
+}
+
+function buildEstadoObraInicialRefPayload(session: EstadoObraCheckboxSession): {
+  tipologias: TipologiaItem[];
+  fechas: Record<string, string>;
+} {
+  const fechasParaRef: Record<string, string> = {};
+  session.backupTipologias.forEach((t, idx) => {
+    for (const proceso of ESTADO_OBRA_PROCESOS) {
+      const items = getCheckboxItemsForTipologia(t, proceso);
+      const itemData = t.estados[proceso];
+      for (const item of items) {
+        const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
+        if (fechaGuardada !== undefined) {
+          const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+          fechasParaRef[key] = fechaGuardada;
+        }
+      }
+    }
+  });
+  return {
+    tipologias: session.backupTipologias.map(mapTipologiaForEstadoObraRef),
+    fechas: { ...fechasParaRef },
+  };
+}
+
 function crearObservacionRegistro(texto: string, iniciales: string): ObservacionObraItem {
   return {
     texto: texto.trim(),
@@ -711,6 +883,12 @@ export default function ListOrdenesProduccion() {
   const estadoObraInicialesPorItemRef = React.useRef(estadoObraInicialesPorItem);
   const estadoObraArticuloObservacionesRef = React.useRef(estadoObraArticuloObservaciones);
   const estadoObraObservacionesRef = React.useRef(estadoObraObservaciones);
+  const estadoObraHydratingRef = React.useRef(false);
+  const estadoObraAutoSaveReadyRef = React.useRef(false);
+  const estadoObraSavingRef = React.useRef(false);
+  const estadoObraSkipRemoteRef = React.useRef(false);
+  const estadoObraRemovedKeysRef = React.useRef<Set<string>>(new Set());
+  const estadoObraUserEditedRef = React.useRef(false);
   const userInicialesRef = React.useRef("");
   const userIniciales = inicialesDesdeNombre(userNombre || userEmail?.split("@")[0] || "");
   userInicialesRef.current = userIniciales;
@@ -931,123 +1109,44 @@ export default function ListOrdenesProduccion() {
     setShowModal(true);
   };
 
+  const applyEstadoObraCheckboxSession = useCallback(
+    (session: EstadoObraCheckboxSession, options?: { resetRemovedKeys?: boolean; updateInicialRef?: boolean }) => {
+      estadoObraHydratingRef.current = true;
+      if (options?.resetRemovedKeys !== false) {
+        estadoObraRemovedKeysRef.current = new Set();
+      }
+      setEstadoObraTipologias(session.tipologias);
+      setEstadoObraFechas(session.fechas);
+      setEstadoObraTerminado(session.terminado);
+      setEstadoObraIniciales(session.iniciales);
+      setEstadoObraInicialesPorItem(session.inicialesPorItem);
+      setEstadoObraArticuloTerminado(session.articuloTerminado);
+      setEstadoObraArticuloObservaciones(session.articuloObservaciones);
+      setEstadoObraObservaciones(session.observaciones);
+      if (options?.updateInicialRef !== false) {
+        estadoObraInicialRef.current = buildEstadoObraInicialRefPayload(session);
+      }
+      queueMicrotask(() => {
+        estadoObraHydratingRef.current = false;
+      });
+    },
+    []
+  );
+
   const handleOpenEstadoObra = async (orden: OrdenProduccion) => {
+    estadoObraAutoSaveReadyRef.current = false;
+    estadoObraUserEditedRef.current = false;
     setEstadoObraOrden(orden);
     setEstadoObraFiltroTip("");
     setShowEstadoObraModal(true);
-    // Obtener datos frescos de la DB para asegurar que estado_obra esté actualizado
     const { data: fresh } = await supabase
       .from("ordenes_produccion")
       .select("estado_obra")
       .eq("id", orden.id)
       .single();
-    const rawEstado = fresh?.estado_obra ?? orden.estado_obra;
-    const parsed = parseEstadoObra(rawEstado);
-    const { tipologias, _backup } = parsed;
-    const fechas: Record<string, string> = {};
-    const terminado: Record<string, boolean> = {};
-    const iniciales: Record<string, string> = {};
-    const inicialesPorItem: Record<string, string> = {};
-    const articuloTerminado: Record<string, boolean> = {};
-    const rawTerminado = rawEstado && typeof rawEstado === "object" && "procesoTerminado" in rawEstado
-      ? (rawEstado as Record<string, unknown>).procesoTerminado
-      : null;
-    if (rawTerminado && typeof rawTerminado === "object" && !Array.isArray(rawTerminado)) {
-      for (const [k, v] of Object.entries(rawTerminado)) {
-        if (v && typeof v === "object" && "terminado" in v) {
-          terminado[k] = !!(v as Record<string, unknown>).terminado;
-          const ini = (v as Record<string, unknown>).iniciales;
-          if (typeof ini === "string" && ini.trim()) iniciales[k] = ini.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
-        }
-      }
-    }
-    const rawArticulo = rawEstado && typeof rawEstado === "object" && "articuloTerminado" in rawEstado
-      ? (rawEstado as Record<string, unknown>).articuloTerminado
-      : null;
-    if (rawArticulo && typeof rawArticulo === "object" && !Array.isArray(rawArticulo)) {
-      for (const [k, v] of Object.entries(rawArticulo)) {
-        if (v && typeof v === "object" && "terminado" in v) {
-          articuloTerminado[k] = !!(v as Record<string, unknown>).terminado;
-        }
-      }
-    }
-    const rawInicialesPorItem = rawEstado && typeof rawEstado === "object" && "inicialesPorItem" in rawEstado
-      ? (rawEstado as Record<string, unknown>).inicialesPorItem
-      : null;
-    if (rawInicialesPorItem && typeof rawInicialesPorItem === "object" && !Array.isArray(rawInicialesPorItem)) {
-      for (const [k, v] of Object.entries(rawInicialesPorItem)) {
-        if (typeof v === "string" && v.trim()) inicialesPorItem[k] = v.toUpperCase().slice(0, MARCA_OPERADOR_LONGITUD);
-      }
-    }
-    const rawObservaciones = rawEstado && typeof rawEstado === "object" && "observacionesPorProceso" in rawEstado
-      ? (rawEstado as Record<string, unknown>).observacionesPorProceso
-      : null;
-    const observaciones = parseObservacionesRegistroMap(rawObservaciones);
-    const rawArticuloObs = rawEstado && typeof rawEstado === "object" && "articuloObservaciones" in rawEstado
-      ? (rawEstado as Record<string, unknown>).articuloObservaciones
-      : null;
-    const articuloObservaciones = parseObservacionesRegistroMap(rawArticuloObs);
-    tipologias.forEach((t, idx) => {
-      for (const proceso of ESTADO_OBRA_PROCESOS) {
-        const items = getCheckboxItemsForTipologia(t, proceso);
-        const itemData = t.estados[proceso];
-        for (const item of items) {
-          const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
-          if (fechaGuardada !== undefined) {
-            const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-            fechas[key] = fechaGuardada;
-          }
-        }
-      }
-    });
-    setEstadoObraTipologias(tipologias);
-    setEstadoObraFechas(fechas);
-    setEstadoObraTerminado(terminado);
-    setEstadoObraIniciales(iniciales);
-    setEstadoObraInicialesPorItem(inicialesPorItem);
-    setEstadoObraArticuloTerminado(articuloTerminado);
-    setEstadoObraArticuloObservaciones(articuloObservaciones);
-    setEstadoObraObservaciones(observaciones);
-    const tipologiasParaRef = _backup !== undefined ? _backup : tipologias;
-    const fechasParaRef: Record<string, string> = {};
-    tipologiasParaRef.forEach((t, idx) => {
-      for (const proceso of ESTADO_OBRA_PROCESOS) {
-        const items = getCheckboxItemsForTipologia(t, proceso);
-        const itemData = t.estados[proceso];
-        for (const item of items) {
-          const fechaGuardada = getFechaGuardadaParaItem(itemData, item);
-          if (fechaGuardada !== undefined) {
-            const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-            fechasParaRef[key] = fechaGuardada;
-          }
-        }
-      }
-    });
-    estadoObraInicialRef.current = {
-      tipologias: tipologiasParaRef.map((t) => ({
-        nombre: t.nombre,
-        estados: Object.fromEntries(
-          Object.entries(t.estados).map(([proceso, items]) => [proceso, { ...items }])
-        ),
-        descripcion: t.descripcion ?? null,
-        marco: t.marco ?? null,
-        hojas: t.hojas ?? null,
-        guias: t.guias ?? null,
-        guia_mosquitero: t.guia_mosquitero ?? null,
-        mosq_comun: t.mosq_comun ?? null,
-        mosq_riel: t.mosq_riel ?? null,
-        mosquitero_fijo: t.mosquitero_fijo ?? null,
-        unidades_mq: t.unidades_mq ?? null,
-        guia_emb: t.guia_emb ?? null,
-        umbral_pvc: t.umbral_pvc ?? null,
-        umbral_aluminio: t.umbral_aluminio ?? null,
-        hojas_mosq: t.hojas_mosq ?? null,
-        umbral: t.umbral ?? null,
-        ancho: t.ancho ?? null,
-        alto: t.alto ?? null,
-      })),
-      fechas: { ...fechasParaRef },
-    };
+    const session = buildEstadoObraCheckboxState(fresh?.estado_obra ?? orden.estado_obra);
+    applyEstadoObraCheckboxSession(session);
+    estadoObraAutoSaveReadyRef.current = true;
     setNuevaTipologiaNombre("");
     setMostrarAgregarTipologia(false);
   };
@@ -1302,11 +1401,13 @@ export default function ListOrdenesProduccion() {
     });
   };
 
-  const saveEstadoObraToSupabase = useCallback(async (closeModal = false) => {
-    if (!estadoObraOrden) return;
+  const saveEstadoObraToSupabase = useCallback(async (closeModal = false, refreshList = true) => {
+    if (!estadoObraOrden || estadoObraSavingRef.current) return;
+    estadoObraSavingRef.current = true;
     setUpdatingEstadoObra(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      estadoObraSavingRef.current = false;
       setUpdatingEstadoObra(false);
       return;
     }
@@ -1317,6 +1418,27 @@ export default function ListOrdenesProduccion() {
     const inicialesPorItemActual = estadoObraInicialesPorItemRef.current;
     const articuloObservacionesActual = estadoObraArticuloObservacionesRef.current;
     const observacionesActual = estadoObraObservacionesRef.current;
+    const { data: freshRow } = await supabase
+      .from("ordenes_produccion")
+      .select("estado_obra")
+      .eq("id", estadoObraOrden.id)
+      .single();
+    const remoteSession = buildEstadoObraCheckboxState(freshRow?.estado_obra);
+    const merged = mergeEstadoObraCheckboxMaps(
+      remoteSession,
+      {
+        fechas: fechasActuales,
+        terminado: terminadoActual,
+        iniciales: inicialesActual,
+        inicialesPorItem: inicialesPorItemActual,
+        articuloTerminado: {},
+      },
+      estadoObraRemovedKeysRef.current
+    );
+    const fechasParaGuardar = merged.fechas;
+    const terminadoParaGuardar = merged.terminado;
+    const inicialesParaGuardar = merged.iniciales;
+    const inicialesPorItemParaGuardar = merged.inicialesPorItem;
     const tipologias: TipologiaItem[] = tipologiasActuales.map((t, idx) => {
       const estados: EstadoObraData = {};
       for (const proceso of ESTADO_OBRA_PROCESOS) {
@@ -1324,7 +1446,7 @@ export default function ListOrdenesProduccion() {
         const map: Record<string, string> = {};
         for (const item of items) {
           const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
-          if (key in fechasActuales) map[item] = fechasActuales[key] ?? "";
+          if (key in fechasParaGuardar) map[item] = fechasParaGuardar[key] ?? "";
         }
         if (Object.keys(map).length > 0) estados[proceso] = map;
       }
@@ -1373,8 +1495,8 @@ export default function ListOrdenesProduccion() {
     for (const [proceso] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
       tipologiasActuales.forEach((_, tipIdx) => {
         const key = `${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
-        const term = terminadoActual[key];
-        const ini = (inicialesActual[key] ?? "").slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase();
+        const term = terminadoParaGuardar[key];
+        const ini = (inicialesParaGuardar[key] ?? "").slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase();
         if (term || ini) {
           procesoTerminado[key] = { terminado: !!term, iniciales: ini };
         }
@@ -1383,7 +1505,7 @@ export default function ListOrdenesProduccion() {
     const articuloTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
     tipologiasActuales.forEach((t, tipIdx) => {
       const key = String(tipIdx);
-      if (areAllProcesosTerminadosParaTipologia(tipIdx, t, terminadoActual, ESTADO_OBRA_KEY_SEP)) {
+      if (areAllProcesosTerminadosParaTipologia(tipIdx, t, terminadoParaGuardar, ESTADO_OBRA_KEY_SEP)) {
         articuloTerminado[key] = { terminado: true, iniciales: "" };
       }
     });
@@ -1396,7 +1518,7 @@ export default function ListOrdenesProduccion() {
       if (Array.isArray(val) && val.length > 0) articuloObservaciones[key] = val;
     }
     const inicialesPorItem: Record<string, string> = {};
-    for (const [key, val] of Object.entries(inicialesPorItemActual)) {
+    for (const [key, val] of Object.entries(inicialesPorItemParaGuardar)) {
       const s = typeof val === "string" ? val.slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase().trim() : "";
       if (s) inicialesPorItem[key] = s;
     }
@@ -1428,18 +1550,132 @@ export default function ListOrdenesProduccion() {
     } else if (!data) {
       alert("No se pudo actualizar. Verifica que tienes permisos para modificar esta obra.");
     } else {
-      await fetchOrdenes();
+      estadoObraRemovedKeysRef.current = new Set();
+      estadoObraUserEditedRef.current = false;
+      estadoObraSkipRemoteRef.current = true;
+      setTimeout(() => {
+        estadoObraSkipRemoteRef.current = false;
+      }, 800);
+      if (refreshList) {
+        await fetchOrdenes();
+      } else {
+        setOrdenes((prev) =>
+          prev.map((o) => (o.id === estadoObraOrden.id ? { ...o, estado_obra: data.estado_obra } : o))
+        );
+      }
       if (closeModal) {
         setShowEstadoObraModal(false);
         setEstadoObraOrden(null);
         setEditingTipologiaIdx(null);
         setEstadoObraFiltroTip("");
+        estadoObraAutoSaveReadyRef.current = false;
       }
     }
+    estadoObraSavingRef.current = false;
     setUpdatingEstadoObra(false);
-  }, [estadoObraOrden, supabase]);
+  }, [estadoObraOrden, supabase, fetchOrdenes, ordenes]);
 
-  const handleUpdateEstadoObra = () => saveEstadoObraToSupabase(true);
+  const handleUpdateEstadoObra = () => saveEstadoObraToSupabase(true, true);
+
+  useEffect(() => {
+    if (!showEstadoObraModal || !estadoObraOrden?.id) return;
+    const ordenId = estadoObraOrden.id;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const applyRemoteEstadoObra = (rawEstado: unknown) => {
+      if (cancelled || estadoObraSavingRef.current || estadoObraSkipRemoteRef.current) return;
+      const session = buildEstadoObraCheckboxState(rawEstado);
+      estadoObraHydratingRef.current = true;
+      estadoObraRemovedKeysRef.current = new Set();
+      setEstadoObraFechas(session.fechas);
+      setEstadoObraTerminado(session.terminado);
+      setEstadoObraIniciales(session.iniciales);
+      setEstadoObraInicialesPorItem(session.inicialesPorItem);
+      setEstadoObraArticuloTerminado(session.articuloTerminado);
+      queueMicrotask(() => {
+        estadoObraHydratingRef.current = false;
+      });
+    };
+
+    const setup = async () => {
+      const { data: authData } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (authData.session?.access_token) {
+        await supabase.realtime.setAuth(authData.session.access_token);
+      }
+      if (channel) {
+        await supabase.removeChannel(channel);
+        channel = null;
+      }
+      channel = supabase
+        .channel(`estado-obra-sync:${ordenId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "ordenes_produccion",
+            filter: `id=eq.${ordenId}`,
+          },
+          (payload) => {
+            const newRow = payload.new as { estado_obra?: unknown };
+            if (newRow?.estado_obra !== undefined) {
+              applyRemoteEstadoObra(newRow.estado_obra);
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    void setup();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      if (cancelled) return;
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      }
+      void setup();
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [showEstadoObraModal, estadoObraOrden?.id, supabase]);
+
+  useEffect(() => {
+    if (!showEstadoObraModal || !estadoObraOrden || !canEditCheckboxes) return;
+    if (!estadoObraAutoSaveReadyRef.current || estadoObraHydratingRef.current) return;
+
+    const timer = setTimeout(() => {
+      if (
+        estadoObraHydratingRef.current ||
+        estadoObraSavingRef.current ||
+        !estadoObraUserEditedRef.current
+      ) {
+        return;
+      }
+      void saveEstadoObraToSupabase(false, false);
+    }, ESTADO_OBRA_AUTOSAVE_MS);
+
+    return () => clearTimeout(timer);
+  }, [
+    estadoObraFechas,
+    estadoObraTerminado,
+    estadoObraIniciales,
+    estadoObraInicialesPorItem,
+    showEstadoObraModal,
+    estadoObraOrden,
+    canEditCheckboxes,
+    saveEstadoObraToSupabase,
+  ]);
 
   const handleDelete = async (orden: OrdenProduccion) => {
     if (!confirm("¿Estás seguro de que deseas eliminar esta obra?")) return;
@@ -2412,7 +2648,9 @@ export default function ListOrdenesProduccion() {
                                       checked={checked}
                                       disabled={!canEditParaTipologia}
                                       onChange={(e) => {
+                                        estadoObraUserEditedRef.current = true;
                                         if (e.target.checked) {
+                                          estadoObraRemovedKeysRef.current.delete(key);
                                           setEstadoObraFechas((prev) => ({
                                             ...prev,
                                             [key]: new Date().toISOString(),
@@ -2426,6 +2664,7 @@ export default function ListOrdenesProduccion() {
                                           }
                                         } else {
                                           if (isTabletEmail(userEmail)) return;
+                                          estadoObraRemovedKeysRef.current.add(key);
                                           setEstadoObraFechas((prev) => {
                                             const next = { ...prev };
                                             delete next[key];
@@ -2476,6 +2715,7 @@ export default function ListOrdenesProduccion() {
                             });
                             const terminadoDisabled = !canEditParaTipologia || !alMenosUnoMarcado;
                             const handleMarcarTodoCorte = (checked: boolean) => {
+                              estadoObraUserEditedRef.current = true;
                               if (checked) {
                                 const now = new Date().toISOString();
                                 const ini = userInicialesRef.current;
@@ -2483,6 +2723,7 @@ export default function ListOrdenesProduccion() {
                                   const next = { ...prev };
                                   for (const item of items) {
                                     const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                    estadoObraRemovedKeysRef.current.delete(k);
                                     if (!(k in next)) next[k] = now;
                                   }
                                   return next;
@@ -2503,6 +2744,7 @@ export default function ListOrdenesProduccion() {
                                   const next = { ...prev };
                                   for (const item of items) {
                                     const k = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}${ESTADO_OBRA_KEY_SEP}${item}`;
+                                    estadoObraRemovedKeysRef.current.add(k);
                                     delete next[k];
                                   }
                                   return next;
@@ -2540,6 +2782,7 @@ export default function ListOrdenesProduccion() {
                               checked={!!estadoObraTerminado[`${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`]}
                               disabled={terminadoDisabled}
                               onChange={(e) => {
+                                estadoObraUserEditedRef.current = true;
                                 const key = `${idx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
                                 if (!e.target.checked && isTabletEmail(userEmail)) return;
                                 setEstadoObraTerminado((prev) => ({
