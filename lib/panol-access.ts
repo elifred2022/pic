@@ -47,7 +47,7 @@ export const tabletEmails = [
 "tabletpysignacio@gmail.com",
 "tabletpyscardozo@gmail.com",
 "tabletpyssantini@gmail.com",
-
+//"asistentecompras@perfilesyservicios.com.ar",
 
 ];
 

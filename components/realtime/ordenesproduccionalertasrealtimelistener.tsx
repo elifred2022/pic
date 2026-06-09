@@ -51,31 +51,27 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
   const [alertToShow, setAlertToShow] = useState<AlertToShow | null>(null);
 
   useEffect(() => {
-    console.log("[Alertas OP] Iniciando listener");
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
     const checkAndShow = async (payload: OrdenProduccionPayload) => {
       const { data } = await supabase.auth.getUser();
       const email = data?.user?.email;
       if (!email || !canAccessOrdenesProduccion(email)) {
-        console.log("[Alertas OP] checkAndShow: sin acceso");
         return;
       }
 
       const alertas = (payload?.alertas ?? "").toString().trim();
       if (!alertas) {
-        console.log("[Alertas OP] checkAndShow: alertas vacío");
         return;
       }
 
       const dismissKey = makeDismissKey(payload.id, alertas);
       if (getDismissedSet().has(dismissKey)) {
-        console.log("[Alertas OP] checkAndShow: ya cerrada por usuario");
         return;
       }
 
-      console.log("[Alertas OP] Mostrando alerta:", payload.obra, payload.num_carpeta);
       setAlertToShow({
         ordenId: payload.id,
         obra: (payload.obra ?? "").trim() || "—",
@@ -84,12 +80,23 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
       });
     };
 
+    const teardownChannel = () => {
+      if (!channel) return;
+      const activeChannel = channel;
+      channel = null;
+      void activeChannel.unsubscribe().finally(() => {
+        supabase.removeChannel(activeChannel);
+      });
+    };
+
     const setup = async () => {
+      teardownChannel();
+
       const { data } = await supabase.auth.getUser();
+      if (cancelled) return;
+
       const email = data?.user?.email;
-      console.log("[Alertas OP] Usuario:", email, "Tiene acceso:", !!email && canAccessOrdenesProduccion(email));
       if (!email || !canAccessOrdenesProduccion(email)) {
-        console.log("[Alertas OP] No se suscribe: usuario sin acceso");
         return;
       }
 
@@ -99,7 +106,6 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "ordenes_produccion" },
         (payload) => {
-          console.log("[Alertas OP] INSERT recibido:", payload);
           const newRow = payload.new as OrdenProduccionPayload;
           checkAndShow(newRow);
         }
@@ -108,7 +114,6 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "ordenes_produccion" },
         (payload) => {
-          console.log("[Alertas OP] UPDATE recibido:", payload);
           const newRow = payload.new as OrdenProduccionPayload;
           const oldRow = payload.old as OrdenProduccionPayload | undefined;
           const alertasNew = (newRow?.alertas ?? "").toString().trim();
@@ -118,22 +123,21 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
           checkAndShow(newRow);
         }
       )
-      .subscribe((status) => console.log("[Alertas OP] Canal estado:", status));
+      .subscribe();
     };
 
-    setup();
+    void setup();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      if (channel) {
-        supabase.removeChannel(channel);
-        channel = null;
-      }
-      setup();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // INITIAL_SESSION dispara al montar; setup() ya corre arriba.
+      if (event === "INITIAL_SESSION") return;
+      void setup();
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
-      if (channel) supabase.removeChannel(channel);
+      teardownChannel();
     };
   }, []);
 

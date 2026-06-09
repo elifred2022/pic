@@ -11,8 +11,10 @@ type OrdenProduccion = {
   semana: string | null;
   alertas: string | null;
   url_imagen: string | null;
+  url_medicion?: string | null;
   usuario_id: string | null;
   estado_obra?: unknown;
+  observaciones?: string | null;
 };
 
 type Props = {
@@ -31,14 +33,17 @@ type Props = {
   renderProgress: (orden: OrdenProduccion) => ReactNode;
   renderImagenButtons: (orden: OrdenProduccion) => ReactNode;
   estadoSummary: (orden: OrdenProduccion) => string;
+  renderObraCell: (orden: OrdenProduccion) => ReactNode;
 };
 
 function ResumenOrden({
   orden,
   renderValue,
+  renderObraCell,
 }: {
   orden: OrdenProduccion;
   renderValue: (value: unknown) => string;
+  renderObraCell: (orden: OrdenProduccion) => ReactNode;
 }) {
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -52,9 +57,7 @@ function ResumenOrden({
       </div>
       <div className="col-span-2">
         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Obra</span>
-        <p className="text-sm font-medium text-gray-800 mt-0.5 break-words leading-snug">
-          {renderValue(orden.obra)}
-        </p>
+        <div className="mt-0.5">{renderObraCell(orden)}</div>
       </div>
       <div>
         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Semana</span>
@@ -82,6 +85,7 @@ export default function OrdenesProduccionMobileList({
   renderProgress,
   renderImagenButtons,
   estadoSummary,
+  renderObraCell,
 }: Props) {
   if (ordenes.length === 0) {
     return (
@@ -105,7 +109,7 @@ export default function OrdenesProduccionMobileList({
           >
             ← Volver a la lista
           </button>
-          <ResumenOrden orden={selected} renderValue={renderValue} />
+          <ResumenOrden orden={selected} renderValue={renderValue} renderObraCell={renderObraCell} />
         </div>
         <div className="px-4 py-4 space-y-4">
           <div className="grid grid-cols-1 gap-2 text-sm bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -178,14 +182,21 @@ export default function OrdenesProduccionMobileList({
         Tocá una carpeta para ver el detalle
       </p>
       {ordenes.map((orden) => (
-        <button
+        <div
           key={orden.id}
-          type="button"
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(orden.id)}
-          className="w-full text-left p-4 bg-white active:bg-blue-50 touch-manipulation transition-colors"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect(orden.id);
+            }
+          }}
+          className="w-full text-left p-4 bg-white active:bg-blue-50 touch-manipulation transition-colors cursor-pointer"
         >
-          <ResumenOrden orden={orden} renderValue={renderValue} />
-        </button>
+          <ResumenOrden orden={orden} renderValue={renderValue} renderObraCell={renderObraCell} />
+        </div>
       ))}
     </div>
   );

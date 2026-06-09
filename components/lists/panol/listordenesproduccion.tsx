@@ -83,6 +83,23 @@ const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
   { k: "alto", title: "Alto", abbrev: "Alt" },
 ];
 
+const ESTADO_OBRA_MOSTRAR_LS_KEY = "estadoObraMostrarProcesos";
+const PROCESOS_FILTRO_ESTADO_OBRA = [
+  { key: "CORTE", label: "Corte" },
+  { key: "MECANIZADO", label: "Mecanizado" },
+  { key: "SOLDADURA", label: "Soldadura" },
+  { key: "ARMADO", label: "Armado" },
+  { key: "JUNQUILLOS", label: "Junquillos" },
+] as const;
+
+type MostrarProcesosEstadoObra = Record<(typeof PROCESOS_FILTRO_ESTADO_OBRA)[number]["key"], boolean>;
+
+function defaultMostrarProcesosEstadoObra(): MostrarProcesosEstadoObra {
+  return Object.fromEntries(
+    PROCESOS_FILTRO_ESTADO_OBRA.map(({ key }) => [key, true])
+  ) as MostrarProcesosEstadoObra;
+}
+
 type EstadoObraConTipologias = { tipologias: TipologiaItem[] };
 
 function parseNumExcel(val: unknown): number | null {
@@ -240,8 +257,10 @@ type OrdenProduccion = {
   semana: string | null;
   alertas: string | null;
   url_imagen: string | null;
+  url_medicion?: string | null;
   usuario_id: string | null;
   estado_obra?: unknown;
+  observaciones?: string | null;
 };
 
 const MESES = [
@@ -250,6 +269,160 @@ const MESES = [
 ];
 
 const SEMANAS = ["1", "2", "3", "4", "5"];
+
+type ImageItem = { url: string; name: string };
+
+function filterImageFiles(files: File[]): File[] {
+  return files.filter((f) => /^image\//.test(f.type));
+}
+
+function filterMedicionFiles(files: File[]): File[] {
+  return files.filter((f) => {
+    const ext = f.name.split(".").pop()?.toLowerCase() || "";
+    return /^(jpg|jpeg|pdf)$/i.test(ext) || f.type === "application/pdf" || /^image\/(jpeg|jpg)$/i.test(f.type);
+  });
+}
+
+function isAllowedUploadFile(file: File, tipo: "corte" | "medicion"): boolean {
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
+  if (tipo === "medicion") {
+    return /^(jpg|jpeg|pdf)$/i.test(fileExt);
+  }
+  return /^(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileExt);
+}
+
+async function uploadImageFolder(
+  supabase: ReturnType<typeof createClient>,
+  files: File[],
+  userId: string,
+  tipo: "corte" | "medicion"
+): Promise<{ items: ImageItem[]; error: string | null }> {
+  const bucket = tipo === "medicion" ? "mediciones" : "ordenes";
+  const uploadedItems: ImageItem[] = [];
+  const basePath = `${userId}/${Date.now()}`;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    if (!isAllowedUploadFile(file, tipo)) continue;
+
+    const filePath = `${basePath}-${i}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, { upsert: false });
+
+    if (uploadError) {
+      return { items: [], error: `Error al subir "${file.name}": ${uploadError.message}` };
+    }
+
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    const fileName = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    uploadedItems.push({ url: urlData.publicUrl, name: fileName });
+  }
+
+  if (uploadedItems.length === 0) {
+    const errorMsg = tipo === "medicion"
+      ? "No se encontraron archivos PDF o JPG válidos."
+      : "No se encontraron archivos de imagen válidos en la carpeta.";
+    return { items: [], error: errorMsg };
+  }
+
+  return { items: uploadedItems, error: null };
+}
+
+function serializeImageItems(items: ImageItem[]): string {
+  return JSON.stringify(items);
+}
+
+function ObraConObservaciones({
+  orden,
+  canEdit,
+  onSave,
+  renderValue,
+}: {
+  orden: OrdenProduccion;
+  canEdit: boolean;
+  onSave: (ordenId: string, observaciones: string) => Promise<void>;
+  renderValue: (value: unknown) => string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(orden.observaciones ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(orden.observaciones ?? "");
+  }, [orden.observaciones, editing]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(orden.id, draft.trim());
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const observacionesTexto = orden.observaciones?.trim() ?? "";
+
+  return (
+    <div className="text-left min-w-[8rem]">
+      <div>{renderValue(orden.obra)}</div>
+      {canEdit && !editing && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="text-blue-600 hover:text-blue-800 hover:underline text-xs mt-1"
+        >
+          observacion
+        </button>
+      )}
+      {editing && (
+        <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            className="w-full min-w-[12rem] px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Escribir observación..."
+            autoFocus
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setDraft(orden.observaciones ?? "");
+              }}
+              disabled={saving}
+              className="px-2 py-1 text-xs font-medium border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+      {observacionesTexto ? (
+        <div className="mt-1.5">
+          <span className="text-xs font-semibold text-gray-500">Observaciones:</span>
+          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words mt-0.5">{observacionesTexto}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function ListOrdenesProduccion() {
   const [search, setSearch] = useState("");
@@ -270,6 +443,7 @@ export default function ListOrdenesProduccion() {
     alertas: "",
   });
   const [imagenFiles, setImagenFiles] = useState<File[]>([]);
+  const [medicionFiles, setMedicionFiles] = useState<File[]>([]);
   const [showArchivosModal, setShowArchivosModal] = useState(false);
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -293,6 +467,9 @@ export default function ListOrdenesProduccion() {
   const [mostrarAgregarTipologia, setMostrarAgregarTipologia] = useState(false);
   const [editingTipologiaIdx, setEditingTipologiaIdx] = useState<number | null>(null);
   const [estadoObraFiltroTip, setEstadoObraFiltroTip] = useState("");
+  const [mostrarProcesosEstadoObra, setMostrarProcesosEstadoObra] = useState<MostrarProcesosEstadoObra>(
+    defaultMostrarProcesosEstadoObra
+  );
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const [showProgresoModal, setShowProgresoModal] = useState(false);
@@ -319,6 +496,7 @@ export default function ListOrdenesProduccion() {
   const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
   const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletEmail(userEmail);
   const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
+  const canEditObservaciones = canEditCheckboxes;
   const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "") || isTabletEmail(userEmail);
   const supabase = createClient();
 
@@ -371,13 +549,88 @@ export default function ListOrdenesProduccion() {
     fetchOrdenes();
   }, [fetchOrdenes]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ESTADO_OBRA_MOSTRAR_LS_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Partial<MostrarProcesosEstadoObra>;
+      setMostrarProcesosEstadoObra((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      /* ignorar JSON inválido */
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(ESTADO_OBRA_MOSTRAR_LS_KEY, JSON.stringify(mostrarProcesosEstadoObra));
+  }, [mostrarProcesosEstadoObra]);
+
+  const handleImagenFilesChange = (files: File[]) => {
+    setImagenFiles(filterImageFiles(files));
+  };
+
+  const handleMedicionFilesChange = (files: File[]) => {
+    setMedicionFiles(filterMedicionFiles(files));
+  };
+
+  const handleImagenesSueltasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    handleImagenFilesChange(files);
+    e.target.value = "";
+  };
+
+  const handleCarpetaOrdenCorteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    handleImagenFilesChange(files);
+    e.target.value = "";
+  };
+
+  const handleMedicionArchivosSueltosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    handleMedicionFilesChange(files);
+    e.target.value = "";
+  };
+
+  const handleCarpetaMedicionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    handleMedicionFilesChange(files);
+    e.target.value = "";
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingOrden(null);
     setFormData({ num_carpeta: "", obra: "", mes: "", semana: "", alertas: "" });
     setImagenFiles([]);
+    setMedicionFiles([]);
     setFormError("");
     setFormSuccess("");
+  };
+
+  const handleSaveObservaciones = async (ordenId: string, observaciones: string) => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      alert("Debes estar logueado para guardar observaciones.");
+      return;
+    }
+
+    let query = supabase
+      .from("ordenes_produccion")
+      .update({ observaciones: observaciones || null })
+      .eq("id", ordenId);
+    if (!canAccessOrdenesProduccion(user.email)) {
+      query = query.eq("usuario_id", user.id);
+    }
+    const { error } = await query;
+    if (error) {
+      alert(`Error al guardar observación: ${error.message}`);
+      return;
+    }
+    setOrdenes((prev) =>
+      prev.map((o) => (o.id === ordenId ? { ...o, observaciones: observaciones || null } : o))
+    );
   };
 
   const handleEdit = (orden: OrdenProduccion) => {
@@ -390,6 +643,7 @@ export default function ListOrdenesProduccion() {
       alertas: orden.alertas ?? "",
     });
     setImagenFiles([]);
+    setMedicionFiles([]);
     setFormError("");
     setFormSuccess("");
     setShowModal(true);
@@ -1257,45 +1511,26 @@ export default function ListOrdenesProduccion() {
     }
 
     let urlImagen: string | null = editingOrden?.url_imagen ?? null;
+    let urlMedicion: string | null = editingOrden?.url_medicion ?? null;
 
     if (imagenFiles.length > 0) {
-      const uploadedItems: { url: string; name: string }[] = [];
-      const basePath = `${user.id}/${Date.now()}`;
-
-      for (let i = 0; i < imagenFiles.length; i++) {
-        const file = imagenFiles[i];
-        const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const isImage = /^(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileExt);
-        if (!isImage) continue;
-
-        const filePath = `${basePath}-${i}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("ordenes")
-          .upload(filePath, file, { upsert: false });
-
-        if (uploadError) {
-          setFormError(`Error al subir "${file.name}": ${uploadError.message}`);
-          setSubmitting(false);
-          return;
-        }
-
-        const { data: urlData } = supabase.storage
-          .from("ordenes")
-          .getPublicUrl(filePath);
-        const fileName = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-        uploadedItems.push({ url: urlData.publicUrl, name: fileName });
-      }
-
-      if (uploadedItems.length === 0) {
-        setFormError("No se encontraron archivos de imagen válidos en la carpeta.");
+      const { items, error } = await uploadImageFolder(supabase, imagenFiles, user.id, "corte");
+      if (error) {
+        setFormError(error);
         setSubmitting(false);
         return;
       }
+      urlImagen = serializeImageItems(items);
+    }
 
-      urlImagen = uploadedItems.length === 1
-        ? JSON.stringify([{ url: uploadedItems[0].url, name: uploadedItems[0].name }])
-        : JSON.stringify(uploadedItems);
+    if (medicionFiles.length > 0) {
+      const { items, error } = await uploadImageFolder(supabase, medicionFiles, user.id, "medicion");
+      if (error) {
+        setFormError(error);
+        setSubmitting(false);
+        return;
+      }
+      urlMedicion = serializeImageItems(items);
     }
 
     if (editingOrden) {
@@ -1308,6 +1543,7 @@ export default function ListOrdenesProduccion() {
           semana: formData.semana,
           alertas: formData.alertas.trim() || null,
           url_imagen: urlImagen,
+          url_medicion: urlMedicion,
         })
         .eq("id", editingOrden.id);
       if (!canAccessOrdenesProduccion(user.email)) {
@@ -1331,6 +1567,7 @@ export default function ListOrdenesProduccion() {
           semana: formData.semana,
           alertas: formData.alertas.trim() || null,
           url_imagen: urlImagen,
+          url_medicion: urlMedicion,
           usuario_id: user.id,
         });
 
@@ -1421,6 +1658,33 @@ export default function ListOrdenesProduccion() {
       return (tipologia.nombre || "").toLowerCase().includes(q);
     });
 
+  const renderFiltroTipologiaControls = () => (
+    <div className="flex flex-wrap gap-x-3 gap-y-2 items-center">
+      <input
+        type="text"
+        value={estadoObraFiltroTip}
+        onChange={(e) => setEstadoObraFiltroTip(e.target.value)}
+        placeholder="filt por tip"
+        className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
+      />
+      {PROCESOS_FILTRO_ESTADO_OBRA.map(({ key, label }) => (
+        <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={mostrarProcesosEstadoObra[key]}
+            onChange={() =>
+              setMostrarProcesosEstadoObra((prev) => ({ ...prev, [key]: !prev[key] }))
+            }
+            className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+          />
+          <span className="text-gray-600 whitespace-nowrap" title={`Mostrar ${label}`}>
+            {label}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+
   const headerClass =
     "px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center";
   const cellClass =
@@ -1454,41 +1718,73 @@ export default function ListOrdenesProduccion() {
   };
 
   const renderOrdenImagenButtons = (orden: OrdenProduccion, mobile = false) => {
-    const items = parseImageItems(orden.url_imagen);
-    if (items.length === 0) {
-      return <span className="text-sm text-gray-400">Sin imágenes</span>;
+    const corteItems = parseImageItems(orden.url_imagen);
+    const medicionItems = parseImageItems(orden.url_medicion ?? null);
+
+    if (corteItems.length === 0 && medicionItems.length === 0) {
+      return mobile ? (
+        <span className="text-sm text-gray-400">Sin archivos</span>
+      ) : (
+        <span>-</span>
+      );
     }
+
     const btn = mobile
       ? mobileBtnBase
       : "inline-block px-3 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-200";
+
+    const openArchivosModal = (items: ImageItem[]) => {
+      setArchivosModalItems(items);
+      setShowArchivosModal(true);
+    };
+
     return (
       <div className={mobile ? "flex flex-col gap-2" : "flex flex-col gap-2 items-center"}>
-        <button
-          type="button"
-          onClick={() => {
-            setArchivosModalItems(items);
-            setShowArchivosModal(true);
-          }}
-          className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
-        >
-          Ver imágenes
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDownloadCarpeta(orden)}
-          disabled={downloadingOrdenId === orden.id}
-          className={mobile ? `${btn} bg-emerald-600 text-white hover:bg-emerald-700` : `${btn} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
-        </button>
-        {!isTabletEmail(userEmail) && (
+        {corteItems.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => openArchivosModal(corteItems)}
+              className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+            >
+              {mobile ? "Ver imágenes" : "Ver orden de corte"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownloadCarpeta(orden)}
+              disabled={downloadingOrdenId === orden.id}
+              className={mobile ? `${btn} bg-emerald-600 text-white hover:bg-emerald-700` : `${btn} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
+            </button>
+            {medicionItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => openArchivosModal(medicionItems)}
+                className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+              >
+                Ver medición
+              </button>
+            )}
+            {!isTabletEmail(userEmail) && (
+              <button
+                type="button"
+                onClick={() => handleEliminarCarpeta(orden)}
+                disabled={deletingOrdenId === orden.id}
+                className={mobile ? `${btn} bg-red-600 text-white hover:bg-red-700` : `${btn} bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
+              </button>
+            )}
+          </>
+        )}
+        {corteItems.length === 0 && medicionItems.length > 0 && (
           <button
             type="button"
-            onClick={() => handleEliminarCarpeta(orden)}
-            disabled={deletingOrdenId === orden.id}
-            className={mobile ? `${btn} bg-red-600 text-white hover:bg-red-700` : `${btn} bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+            onClick={() => openArchivosModal(medicionItems)}
+            className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
           >
-            {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
+            Ver medición
           </button>
         )}
       </div>
@@ -1524,6 +1820,7 @@ export default function ListOrdenesProduccion() {
                 setEditingOrden(null);
                 setFormData({ num_carpeta: "", obra: "", mes: "", semana: "", alertas: "" });
                 setImagenFiles([]);
+                setMedicionFiles([]);
                 setFormError("");
                 setFormSuccess("");
                 setShowModal(true);
@@ -1662,13 +1959,7 @@ export default function ListOrdenesProduccion() {
                     >
                       🗑️ Eliminar todas
                     </button>
-                    <input
-                      type="text"
-                      value={estadoObraFiltroTip}
-                      onChange={(e) => setEstadoObraFiltroTip(e.target.value)}
-                      placeholder="filt por tip"
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    {renderFiltroTipologiaControls()}
                   </>
                 )}
                 <input
@@ -1681,15 +1972,7 @@ export default function ListOrdenesProduccion() {
               </div>
             )}
             {!canEditFullModal && estadoObraTipologias.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4 items-center">
-                <input
-                  type="text"
-                  value={estadoObraFiltroTip}
-                  onChange={(e) => setEstadoObraFiltroTip(e.target.value)}
-                  placeholder="filt por tip"
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
+              <div className="mb-4">{renderFiltroTipologiaControls()}</div>
             )}
             <div className="space-y-6 mb-6">
               {estadoObraTipologiasFiltradas.length === 0 && estadoObraTipologias.length > 0 && estadoObraFiltroTip.trim() ? (
@@ -1811,7 +2094,9 @@ export default function ListOrdenesProduccion() {
                       const canEditParaTipologia = canEditCheckboxes && !tabletBloqueadoPorArticulo;
                       return (
                     <>
-                    {getProcesosConItemsParaTipologia(tipologia).map((proceso) => {
+                    {getProcesosConItemsParaTipologia(tipologia)
+                      .filter((proceso) => mostrarProcesosEstadoObra[proceso as keyof MostrarProcesosEstadoObra])
+                      .map((proceso) => {
                       const items = getCheckboxItemsForTipologia(tipologia, proceso);
                       const itemGroups = getCheckboxItemGroupsForTipologia(tipologia, proceso);
                       return (
@@ -2275,7 +2560,7 @@ export default function ListOrdenesProduccion() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Imágenes (carpeta o varios archivos) {editingOrden && "(dejar vacío para mantener las actuales)"}
+                    Orden de corte (carpeta o varios archivos) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
@@ -2283,12 +2568,7 @@ export default function ListOrdenesProduccion() {
                         type="file"
                         accept="image/*"
                         multiple
-                        onChange={(e) => {
-                          const files = e.target.files ? Array.from(e.target.files) : [];
-                          const imageFiles = files.filter((f) => /^image\//.test(f.type));
-                          setImagenFiles(imageFiles);
-                          e.target.value = "";
-                        }}
+                        onChange={handleImagenesSueltasChange}
                         className="hidden"
                       />
                       📁 Seleccionar archivos
@@ -2298,20 +2578,47 @@ export default function ListOrdenesProduccion() {
                         type="file"
                         accept="image/*"
                         {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
-                        onChange={(e) => {
-                          const files = e.target.files ? Array.from(e.target.files) : [];
-                          const imageFiles = files.filter((f) => /^image\//.test(f.type));
-                          setImagenFiles(imageFiles);
-                          e.target.value = "";
-                        }}
+                        onChange={handleCarpetaOrdenCorteChange}
                         className="hidden"
                       />
-                      📂 Cargar carpeta completa
+                      📂 Cargar carpeta orden de corte
                     </label>
                   </div>
                   {imagenFiles.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {imagenFiles.length} imagen{imagenFiles.length !== 1 ? "es" : ""} seleccionada{imagenFiles.length !== 1 ? "s" : ""}
+                      {imagenFiles.length} imagen{imagenFiles.length !== 1 ? "es" : ""} de corte seleccionada{imagenFiles.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Medición (PDF o JPG) {editingOrden && "(dejar vacío para mantener las actuales)"}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-purple-100 file:text-purple-800">
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                        multiple
+                        onChange={handleMedicionArchivosSueltosChange}
+                        className="hidden"
+                      />
+                      📁 Seleccionar archivos
+                    </label>
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-purple-100 file:text-purple-800">
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                        {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                        onChange={handleCarpetaMedicionChange}
+                        className="hidden"
+                      />
+                      📂 Cargar carpeta de medición
+                    </label>
+                  </div>
+                  {medicionFiles.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {medicionFiles.length} archivo{medicionFiles.length !== 1 ? "s" : ""} de medición seleccionado{medicionFiles.length !== 1 ? "s" : ""}
                     </p>
                   )}
                 </div>
@@ -2361,6 +2668,14 @@ export default function ListOrdenesProduccion() {
           renderProgress={renderArticulosProgress}
           renderImagenButtons={(orden) => renderOrdenImagenButtons(orden, true)}
           estadoSummary={(orden) => formatEstadoObraSummary(parseEstadoObra(orden.estado_obra))}
+          renderObraCell={(orden) => (
+            <ObraConObservaciones
+              orden={orden}
+              canEdit={canEditObservaciones}
+              onSave={handleSaveObservaciones}
+              renderValue={renderValue}
+            />
+          )}
         />
         <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full table-auto border-collapse">
@@ -2437,7 +2752,14 @@ export default function ListOrdenesProduccion() {
                   <td className={cellClass}>
                     {renderValue(orden.num_carpeta)}
                   </td>
-                  <td className={cellClass}>{renderValue(orden.obra)}</td>
+                  <td className={cellClass}>
+                    <ObraConObservaciones
+                      orden={orden}
+                      canEdit={canEditObservaciones}
+                      onSave={handleSaveObservaciones}
+                      renderValue={renderValue}
+                    />
+                  </td>
                   <td className={cellClass}>{renderValue(orden.mes)}</td>
                   <td className={cellClass}>{renderValue(orden.semana)}</td>
                   <td className={cellClass}>
@@ -2467,42 +2789,7 @@ export default function ListOrdenesProduccion() {
                     })()}
                   </td>
                   <td className={cellClass}>
-                    {(() => {
-                      const items = parseImageItems(orden.url_imagen);
-                      if (items.length === 0) return "-";
-                      return (
-                        <div className="flex flex-col gap-2 items-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setArchivosModalItems(items);
-                              setShowArchivosModal(true);
-                            }}
-                            className="inline-block px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
-                          >
-                            Ver
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadCarpeta(orden)}
-                            disabled={downloadingOrdenId === orden.id}
-                            className="inline-block px-3 py-2 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
-                          >
-                            {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
-                          </button>
-                          {!isTabletEmail(userEmail) && (
-                            <button
-                              type="button"
-                              onClick={() => handleEliminarCarpeta(orden)}
-                              disabled={deletingOrdenId === orden.id}
-                              className="inline-block px-3 py-2 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
-                            >
-                              {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {renderOrdenImagenButtons(orden, false)}
                   </td>
                 </tr>
               ))
