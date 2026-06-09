@@ -2473,7 +2473,28 @@ export default function ListOrdenesProduccion() {
 
       {showProgresoModal && (
         <ProgresoProduccionModal
-          ordenes={filteredOrdenes.map((o) => ({ id: o.id, num_carpeta: o.num_carpeta, obra: o.obra, estado_obra: o.estado_obra }))}
+          ordenes={filteredOrdenes.map((o) => ({
+            id: o.id,
+            num_carpeta: o.num_carpeta,
+            obra: o.obra,
+            estado_obra: o.estado_obra,
+            url_imagen: o.url_imagen,
+            url_medicion: o.url_medicion,
+          }))}
+          onVerOrdenCorte={(orden) => {
+            const items = parseImageItems(orden.url_imagen ?? null);
+            if (items.length > 0) {
+              setArchivosModalItems(items);
+              setShowArchivosModal(true);
+            }
+          }}
+          onVerMedicion={(orden) => {
+            const items = parseImageItems(orden.url_medicion ?? null);
+            if (items.length > 0) {
+              setArchivosModalItems(items);
+              setShowArchivosModal(true);
+            }
+          }}
           onClose={() => setShowProgresoModal(false)}
         />
       )}
@@ -3060,7 +3081,7 @@ export default function ListOrdenesProduccion() {
 
       {showArchivosModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setShowArchivosModal(false)}
           role="presentation"
         >

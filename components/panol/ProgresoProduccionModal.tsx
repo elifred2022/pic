@@ -8,14 +8,27 @@ export type OrdenProgreso = {
   num_carpeta: string | null;
   obra: string | null;
   estado_obra?: unknown;
+  url_imagen?: string | null;
+  url_medicion?: string | null;
 };
 
 type Props = {
   ordenes: OrdenProgreso[];
   onClose: () => void;
+  onVerOrdenCorte?: (orden: OrdenProgreso) => void;
+  onVerMedicion?: (orden: OrdenProgreso) => void;
 };
 
-export default function ProgresoProduccionModal({ ordenes, onClose }: Props) {
+function tieneArchivos(url: string | null | undefined): boolean {
+  return !!url?.trim();
+}
+
+export default function ProgresoProduccionModal({
+  ordenes,
+  onClose,
+  onVerOrdenCorte,
+  onVerMedicion,
+}: Props) {
   const ordenesOrdenadas = [...ordenes].sort((a, b) => {
     const { percent: percentA } = getArticulosTerminadosProgress(a.estado_obra);
     const { percent: percentB } = getArticulosTerminadosProgress(b.estado_obra);
@@ -86,6 +99,28 @@ export default function ProgresoProduccionModal({ ordenes, onClose }: Props) {
                         </div>
                       )}
                     </div>
+                    {(tieneArchivos(orden.url_imagen) || tieneArchivos(orden.url_medicion)) && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {tieneArchivos(orden.url_imagen) && onVerOrdenCorte && (
+                          <button
+                            type="button"
+                            onClick={() => onVerOrdenCorte(orden)}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          >
+                            Ver orden de corte
+                          </button>
+                        )}
+                        {tieneArchivos(orden.url_medicion) && onVerMedicion && (
+                          <button
+                            type="button"
+                            onClick={() => onVerMedicion(orden)}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          >
+                            Ver medición
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
