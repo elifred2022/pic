@@ -23,6 +23,7 @@ import {
   getFechaGuardadaParaItem,
   getProcesosConItemsParaTipologia,
 } from "@/lib/panol/estado-obra";
+import { describeExcelImportFormat, parseEstadoObraExcelBuffer } from "@/lib/panol/estado-obra-excel-import";
 import { inicialesDesdeNombre, MARCA_OPERADOR_LONGITUD } from "@/lib/utils";
 import ProgresoProduccionModal, { type OrdenProgreso } from "@/components/panol/ProgresoProduccionModal";
 import OrdenesProduccionMobileList from "@/components/lists/panol/OrdenesProduccionMobileList";
@@ -53,11 +54,8 @@ type TipologiaItem = {
   umbral?: number | null; // numerico (legacy umbral único)
   ancho?: number | null; // numerico
   alto?: number | null; // numerico
+  columnas_extra?: Record<string, string | number | null>;
 };
-
-/** Orden de columnas al importar Excel (índice 0 = columna A). */
-const ESTADO_OBRA_EXCEL_IMPORT_COLS = 14;
-const EXCEL_COL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
   k: keyof Pick<
@@ -72,8 +70,7 @@ const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
     | "guia_emb"
     | "umbral_pvc"
     | "umbral_aluminio"
-    | "ancho"
-    | "alto"
+    | "unidades_mq"
   >;
   title: string;
   abbrev: string;
@@ -88,9 +85,28 @@ const TIPOLOGIA_NUM_METRIC_COLS: ReadonlyArray<{
   { k: "guia_emb", title: "Guía emb.", abbrev: "G.e" },
   { k: "umbral_pvc", title: "Umbral PVC", abbrev: "U.P" },
   { k: "umbral_aluminio", title: "Umbral aluminio", abbrev: "U.Al" },
+  { k: "unidades_mq", title: "Unid. mq", abbrev: "U.Mq" },
+];
+
+const TIPOLOGIA_DIMENSION_COLS: ReadonlyArray<{
+  k: "ancho" | "alto";
+  title: string;
+  abbrev: string;
+}> = [
   { k: "ancho", title: "Ancho", abbrev: "Anc" },
   { k: "alto", title: "Alto", abbrev: "Alt" },
 ];
+
+function parseColumnasExtra(val: unknown): Record<string, string | number | null> | undefined {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return undefined;
+  const result: Record<string, string | number | null> = {};
+  for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+    if (v === null || v === undefined) continue;
+    const num = parseNumFromDb(v);
+    result[k] = num != null ? num : String(v);
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 const ESTADO_OBRA_MOSTRAR_LS_KEY = "estadoObraMostrarProcesos";
 const PROCESOS_FILTRO_ESTADO_OBRA = [
@@ -197,6 +213,7 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
           umbral: parseNumFromDb(t.umbral),
           ancho: parseNumFromDb(t.ancho),
           alto: parseNumFromDb(t.alto),
+          columnas_extra: parseColumnasExtra(t.columnas_extra),
         }));
       const result: EstadoObraParsed = { tipologias };
       if (Array.isArray(obj._backup)) {
@@ -221,6 +238,7 @@ function parseEstadoObra(val: unknown): EstadoObraParsed {
             umbral: parseNumFromDb(t.umbral),
             ancho: parseNumFromDb(t.ancho),
             alto: parseNumFromDb(t.alto),
+            columnas_extra: parseColumnasExtra(t.columnas_extra),
           }));
       }
       return result;
@@ -632,6 +650,7 @@ function mapTipologiaForEstadoObraRef(t: TipologiaItem): TipologiaItem {
     umbral: t.umbral ?? null,
     ancho: t.ancho ?? null,
     alto: t.alto ?? null,
+    columnas_extra: t.columnas_extra,
   };
 }
 
@@ -1212,141 +1231,19 @@ export default function ListOrdenesProduccion() {
     setMostrarAgregarTipologia(false);
   };
 
-  const normExcelLabel = (s: string) =>
-    s
-      .toLowerCase()
-      .trim()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, " ");
-
-  /** Fila cuyo valor en tipología es el texto del encabezado (p. ej. planilla sin header en sheet_to_json). */
-  const isExcelHeaderDataRow = (nombre: string, synonyms: string[][]): boolean => {
-    const n = normExcelLabel(nombre);
-    if (!n) return false;
-    if (/^(tipolog(ias?|ia)?|descripciones?|marco|hojas|ancho|alto)$/.test(n)) return true;
-    return synonyms[0].some((k) => normExcelLabel(k) === n);
-  };
-
-  const getExcelVal = (row: Record<string, unknown>, keys: string[], colIdx?: number, firstKeys?: string[]): unknown => {
-    if (colIdx !== undefined && colIdx >= 0) {
-      const letter = EXCEL_COL_LETTERS[colIdx];
-      const colKeys: string[] = [String(colIdx), letter].filter(Boolean) as string[];
-      if (firstKeys?.[colIdx]) colKeys.push(firstKeys[colIdx]);
-      for (const k of colKeys) {
-        const val = row[k];
-        if (val !== undefined && val !== null && String(val).trim() !== "") return val;
-      }
-    }
-    const norm = (s: string) => String(s).toLowerCase().trim().replace(/\s+/g, " ").replace(/[íìîï]/g, "i").replace(/[áàâä]/g, "a").replace(/[óòôö]/g, "o");
-    for (const [excelKey, val] of Object.entries(row)) {
-      const excelNorm = norm(excelKey);
-      for (const k of keys) {
-        if (!k) continue;
-        const kn = norm(k);
-        const match = excelNorm === kn || excelNorm.includes(kn) || kn.includes(excelNorm) ||
-          (keys.some((x) => x.toLowerCase().includes("tipolog")) && excelNorm.includes("tipolog"));
-        if (match && val !== undefined && val !== null && String(val).trim() !== "") return val;
-      }
-    }
-    return undefined;
-  };
-
   const handleImportEstadoObraExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setImportandoEstadoObra(true);
-    const colSynonyms: string[][] = [
-      ["tipologia", "tipología", "tipologias", "tipologías", "Tipología", "Tipologías"],
-      ["descripcion", "descripción", "descripciones", "Descripciones", "Descripción"],
-      ["marco", "Marco"],
-      ["hojas", "Hojas"],
-      ["guia aluminio", "guía aluminio", "Guía aluminio", "guias", "guías"],
-      ["guia mosquitero", "guía mosquitero", "Guía mosquitero"],
-      ["mosq comun", "mosquitero comun", "mosquitero común", "Mosquitero común", "Mosquitero comun"],
-      ["mosq riel", "mosquitero riel", "Mosquitero riel"],
-      ["mosquitero fijo", "Mosquitero fijo"],
-      ["guia emb", "guía emb", "Guía emb"],
-      ["umbral pvc", "Umbral pvc", "Umbral PVC"],
-      ["umbral aluminio", "umbral alum", "Umbral aluminio", "Umbral Aluminio"],
-      ["ancho", "Ancho"],
-      ["alto", "Alto"],
-    ];
     try {
       const data = await file.arrayBuffer();
-      const wb = XLSX.read(data, { type: "array" });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "", raw: true });
-      let firstKeys: string[] = [];
-      if (rows.length > 0) {
-        firstKeys = Object.keys(rows[0]);
-        const hasHeader = firstKeys.some((k) =>
-          /tipolog|descripcion|descripciones|marco|hojas|guia|mosq|umbral|ancho|alto|mosquitero/i.test(String(k))
-        );
-        if (!hasHeader) {
-          rows = rows.map((r) => {
-            const o: Record<string, unknown> = { ...r };
-            for (let i = 0; i < ESTADO_OBRA_EXCEL_IMPORT_COLS; i++) {
-              const L = EXCEL_COL_LETTERS[i];
-              o[L] = r[String(i)] ?? r[L] ?? (firstKeys[i] !== undefined ? r[firstKeys[i]] : undefined);
-            }
-            return o;
-          });
-        }
-      }
-      const nuevas: TipologiaItem[] = [];
-      for (let ri = 0; ri < rows.length; ri++) {
-        const row = rows[ri];
-        let nombreRaw = getExcelVal(row, colSynonyms[0], 0, firstKeys) ?? getExcelVal(row, [], 0, firstKeys);
-        if (nombreRaw === undefined) {
-          const firstCol = row[firstKeys[0]] ?? row["0"] ?? row["A"];
-          if (firstCol !== undefined && firstCol !== null && String(firstCol).trim()) nombreRaw = firstCol;
-        }
-        const nombre = String(nombreRaw ?? "").trim();
-        if (!nombre) continue;
-        if (isExcelHeaderDataRow(nombre, colSynonyms)) continue;
-        const descripcionRaw = getExcelVal(row, colSynonyms[1], 1, firstKeys) ?? getExcelVal(row, [], 1, firstKeys);
-        const descripcion = String(descripcionRaw ?? "").trim() || null;
-        const marco = parseNumExcel(getExcelVal(row, colSynonyms[2], 2, firstKeys) ?? getExcelVal(row, [], 2, firstKeys));
-        const hojas = parseNumExcel(getExcelVal(row, colSynonyms[3], 3, firstKeys) ?? getExcelVal(row, [], 3, firstKeys));
-        const guias = parseNumExcel(getExcelVal(row, colSynonyms[4], 4, firstKeys) ?? getExcelVal(row, [], 4, firstKeys));
-        const guia_mosquitero = parseNumExcel(getExcelVal(row, colSynonyms[5], 5, firstKeys) ?? getExcelVal(row, [], 5, firstKeys));
-        const mosq_comun = parseNumExcel(getExcelVal(row, colSynonyms[6], 6, firstKeys) ?? getExcelVal(row, [], 6, firstKeys));
-        const mosq_riel = parseNumExcel(getExcelVal(row, colSynonyms[7], 7, firstKeys) ?? getExcelVal(row, [], 7, firstKeys));
-        const mosquitero_fijo = parseNumExcel(getExcelVal(row, colSynonyms[8], 8, firstKeys) ?? getExcelVal(row, [], 8, firstKeys));
-        const guia_emb = parseNumExcel(getExcelVal(row, colSynonyms[9], 9, firstKeys) ?? getExcelVal(row, [], 9, firstKeys));
-        const umbral_pvc = parseNumExcel(getExcelVal(row, colSynonyms[10], 10, firstKeys) ?? getExcelVal(row, [], 10, firstKeys));
-        const umbral_aluminio = parseNumExcel(getExcelVal(row, colSynonyms[11], 11, firstKeys) ?? getExcelVal(row, [], 11, firstKeys));
-        const ancho = parseNumExcel(getExcelVal(row, colSynonyms[12], 12, firstKeys) ?? getExcelVal(row, [], 12, firstKeys));
-        const alto = parseNumExcel(getExcelVal(row, colSynonyms[13], 13, firstKeys) ?? getExcelVal(row, [], 13, firstKeys));
-        nuevas.push({
-          nombre,
-          descripcion,
-          marco,
-          hojas,
-          guias,
-          guia_mosquitero,
-          mosq_comun,
-          mosq_riel,
-          mosquitero_fijo,
-          guia_emb,
-          umbral_pvc,
-          umbral_aluminio,
-          hojas_mosq: null,
-          umbral: null,
-          ancho,
-          alto,
-          estados: {},
-        });
-      }
+      const nuevas = parseEstadoObraExcelBuffer(data);
       setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
       if (nuevas.length > 0) {
         alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
       } else {
-        alert(
-          "No se encontraron filas con datos. El Excel debe tener columnas en este orden: Tipologías, Descripciones, Marco, Hojas, Guía aluminio, Guía mosquitero, Mosquitero común, Mosquitero riel, Mosquitero fijo, Guía emb, Umbral PVC, Umbral aluminio, Ancho, Alto."
-        );
+        alert(`No se encontraron filas con datos. ${describeExcelImportFormat()}`);
       }
     } catch (ex) {
       console.error("Error al importar:", ex);
@@ -1533,6 +1430,7 @@ export default function ListOrdenesProduccion() {
         umbral: t.umbral ?? null,
         ancho: t.ancho ?? null,
         alto: t.alto ?? null,
+        columnas_extra: t.columnas_extra,
       };
     });
     const backupTipologias = estadoObraInicialRef.current?.tipologias.map((t) => ({
@@ -1554,6 +1452,7 @@ export default function ListOrdenesProduccion() {
       umbral: t.umbral ?? null,
       ancho: t.ancho ?? null,
       alto: t.alto ?? null,
+      columnas_extra: t.columnas_extra,
     })) ?? tipologias;
     const procesoTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
     for (const [proceso] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
@@ -2674,6 +2573,43 @@ export default function ListOrdenesProduccion() {
                                       (cur as unknown as Record<string, number | null | undefined>)[k] = v;
                                     }
                                     next[idx] = cur;
+                                    return next;
+                                  });
+                                }}
+                                className="w-full px-1.5 py-1 text-sm border border-gray-300 rounded mt-0.5"
+                                placeholder="—"
+                              />
+                            ) : (
+                              <p className="text-sm text-gray-700 mt-0.5">{viewVal}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {tipologia.columnas_extra &&
+                        Object.entries(tipologia.columnas_extra).map(([colKey, colVal]) => (
+                          <div key={colKey} className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-500 uppercase truncate" title={colKey}>
+                              {colKey}
+                            </p>
+                            <p className="text-sm text-gray-700 mt-0.5">{colVal ?? "—"}</p>
+                          </div>
+                        ))}
+                      {TIPOLOGIA_DIMENSION_COLS.map(({ k, title, abbrev }) => {
+                        const v = tipologia[k];
+                        const inputVal = v != null && typeof v === "number" && !Number.isNaN(v) ? String(v) : "";
+                        const viewVal = inputVal || "—";
+                        return (
+                          <div key={k} className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap" title={title}>{abbrev}</p>
+                            {editingTipologiaIdx === idx ? (
+                              <input
+                                type="text"
+                                value={inputVal}
+                                onChange={(e) => {
+                                  const num = parseNumExcel(e.target.value);
+                                  setEstadoObraTipologias((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = { ...next[idx], [k]: num };
                                     return next;
                                   });
                                 }}

@@ -36,6 +36,8 @@ export type TipologiaItem = {
   umbral?: number | null;
   ancho?: number | null;
   alto?: number | null;
+  /** Columnas del Excel sin campo conocido; se conservan al importar planillas nuevas. */
+  columnas_extra?: Record<string, string | number | null>;
 };
 
 /** Máximo de checkboxes por métrica (evita listas enormes por error de carga). */
@@ -103,9 +105,43 @@ function checkboxCountForQty(qty: number): number {
   return Math.min(Math.max(1, Math.floor(qty)), MAX_CHECKBOXES_POR_METRICA);
 }
 
+function parseMetricQtyFromExtra(val: string | number | null | undefined): number | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "number") return Number.isNaN(val) ? null : val;
+  const str = String(val).trim();
+  if (str === "" || str === "-" || str === "—") return null;
+  const s = str.replace(/\s/g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+/** Métricas numéricas de columnas_extra del Excel (ej. Tapas) que generan checkboxes. */
+function getExtraCheckboxMetrics(tipologia: TipologiaItem): { groupKey: string; groupLabel: string; qty: number }[] {
+  if (!tipologia.columnas_extra) return [];
+  const metrics: { groupKey: string; groupLabel: string; qty: number }[] = [];
+  for (const [label, val] of Object.entries(tipologia.columnas_extra)) {
+    const qty = parseMetricQtyFromExtra(val);
+    if (!hasMetricQty(qty)) continue;
+    metrics.push({ groupKey: `extra:${label}`, groupLabel: label, qty: qty! });
+  }
+  return metrics;
+}
+
+function buildNumberedCheckboxItems(groupLabel: string, qty: number): string[] {
+  const count = checkboxCountForQty(qty);
+  const items: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    items.push(numberedItemLabel(groupLabel, i));
+  }
+  return items;
+}
+
 /** True si la tipología trae cantidades del Excel (columnas numéricas con valor > 0). */
 export function tipologiaHasImportedMetrics(tipologia: TipologiaItem): boolean {
-  return TIPOLOGIA_CHECKBOX_METRICS.some((m) => hasMetricQty(metricQty(tipologia, m.metricKey)));
+  if (TIPOLOGIA_CHECKBOX_METRICS.some((m) => hasMetricQty(metricQty(tipologia, m.metricKey)))) {
+    return true;
+  }
+  return getExtraCheckboxMetrics(tipologia).length > 0;
 }
 
 /** Ítems de checkbox para un proceso según métricas del Excel; si no hay métricas, estructura legacy por proceso. */
@@ -115,10 +151,10 @@ export function getCheckboxItemsForTipologia(tipologia: TipologiaItem, proceso: 
     for (const m of TIPOLOGIA_CHECKBOX_METRICS) {
       const qty = metricQty(tipologia, m.metricKey);
       if (qty == null || !hasMetricQty(qty)) continue;
-      const count = checkboxCountForQty(qty);
-      for (let i = 1; i <= count; i++) {
-        items.push(numberedItemLabel(m.numberedBase, i));
-      }
+      items.push(...buildNumberedCheckboxItems(m.numberedBase, qty));
+    }
+    for (const extra of getExtraCheckboxMetrics(tipologia)) {
+      items.push(...buildNumberedCheckboxItems(extra.groupLabel, extra.qty));
     }
     return items;
   }
@@ -143,13 +179,15 @@ export function getCheckboxItemGroupsForTipologia(tipologia: TipologiaItem, proc
     for (const m of TIPOLOGIA_CHECKBOX_METRICS) {
       const qty = metricQty(tipologia, m.metricKey);
       if (qty == null || !hasMetricQty(qty)) continue;
-      const count = checkboxCountForQty(qty);
-      const items: string[] = [];
-      for (let i = 1; i <= count; i++) {
-        items.push(numberedItemLabel(m.numberedBase, i));
-      }
+      const items = buildNumberedCheckboxItems(m.numberedBase, qty);
       if (items.length > 0) {
         groups.push({ groupKey: m.metricKey, groupLabel: m.numberedBase, items });
+      }
+    }
+    for (const extra of getExtraCheckboxMetrics(tipologia)) {
+      const items = buildNumberedCheckboxItems(extra.groupLabel, extra.qty);
+      if (items.length > 0) {
+        groups.push({ groupKey: extra.groupKey, groupLabel: extra.groupLabel, items });
       }
     }
     return groups;
@@ -160,11 +198,17 @@ export function getCheckboxItemGroupsForTipologia(tipologia: TipologiaItem, proc
 
 function findMetricByNumberedLabel(itemLabel: string) {
   const match = itemLabel.match(/^(.+?)\s+(\d+)$/);
-  if (!match) return { metric: undefined as (typeof TIPOLOGIA_CHECKBOX_METRICS)[number] | undefined, index: 0 };
+  if (!match) {
+    return {
+      metric: undefined as (typeof TIPOLOGIA_CHECKBOX_METRICS)[number] | undefined,
+      index: 0,
+      base: undefined as string | undefined,
+    };
+  }
   const base = match[1].trim();
   const index = parseInt(match[2], 10);
   const metric = TIPOLOGIA_CHECKBOX_METRICS.find((m) => m.numberedBase === base);
-  return { metric, index: Number.isNaN(index) ? 0 : index };
+  return { metric, index: Number.isNaN(index) ? 0 : index, base };
 }
 
 export function getFechaGuardadaParaItem(
@@ -174,7 +218,12 @@ export function getFechaGuardadaParaItem(
   if (!itemData) return undefined;
   if (itemLabel in itemData) return itemData[itemLabel];
 
-  const { metric, index } = findMetricByNumberedLabel(itemLabel);
+  const { metric, index, base } = findMetricByNumberedLabel(itemLabel);
+  if (base && index > 0 && !metric) {
+    const compact = `${base}${index}`;
+    if (compact in itemData) return itemData[compact];
+    if (index === 1 && base in itemData) return itemData[base];
+  }
   if (metric && index > 0) {
     const compact = `${metric.numberedBase}${index}`;
     if (compact in itemData) return itemData[compact];
