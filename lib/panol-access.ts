@@ -138,6 +138,11 @@ export const canViewAdjuntosCompras = (
 ) =>
   isAdminEmail(email, rol) || isAprobEmail(email, rol);
 
+export const canAccessUsuarios = (
+  email?: string | null,
+  rol?: string | null,
+) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+
 export const isProduccionEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
   if (isProduccionRol(rol)) return true;

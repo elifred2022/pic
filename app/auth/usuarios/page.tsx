@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/panol-access";
+import { canAccessUsuarios } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListUsuarios from "@/components/lists/listusuarios";
 
@@ -14,7 +14,7 @@ export default async function Page() {
 
   const rol = await fetchUserRolByUuid(supabase, authData.user.id);
 
-  if (!isAdminEmail(authData.user.email, rol)) {
+  if (!canAccessUsuarios(authData.user.email, rol)) {
     redirect("/protected");
   }
 
