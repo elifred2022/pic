@@ -75,6 +75,18 @@ function ListBiComponentAdmin() {
           </Link>
 
           <Link
+            href="/auth/usuarios"
+            className="group relative overflow-hidden bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-indigo-600 hover:to-indigo-700"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="text-3xl mb-3">👥</div>
+              <h3 className="text-lg font-bold mb-2">Usuarios</h3>
+              <p className="text-indigo-100 text-sm">Consulta usuarios y roles</p>
+            </div>
+          </Link>
+
+          <Link
             href="/auth/lista-articulos"
             className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-green-600 hover:to-green-700"
           >

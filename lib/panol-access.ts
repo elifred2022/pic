@@ -21,7 +21,7 @@ export const adminEmails = [
   "victor@perfilesyservicios.com.ar",
   "joseluis@perfilesyservicios.com.ar",
   "recepcion@perfilesyservicios.com.ar", //fatima
-  "recepcioncardales@perfilesyservicios.com.ar"
+  "recepcioncardales@perfilesyservicios.com.ar" //luciana torres
 ];
 
 export const aprobEmails = [
@@ -34,6 +34,14 @@ export const aprobEmails = [
   "elifredmason@gmail.com",
   // "julio@perfilesyservicios.com.ar", se dio de baja el 04/06/2026
 ];
+
+export const rolOpciones = [
+  { value: "panolesEmails", label: "Pañol" },
+  { value: "produccionEmails", label: "Producción" },
+  { value: "adminEmails", label: "Administrador" },
+  { value: "aprobEmails", label: "Aprobación" },
+  { value: "tabletEmails", label: "Tablet" },
+] as const;
 
 export const tabletEmails = [
   "tabletpys331@gmail.com",
