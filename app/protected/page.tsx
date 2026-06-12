@@ -1,24 +1,18 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  adminEmails,
-  aprobEmails,
+  hasRolAsignado,
   isAdminRol,
   isAprobRol,
   isPanolRol,
   isProduccionRol,
-  isSinRol,
   isTabletRol,
-  panolesEmails,
-  produccionEmails,
-  tabletEmails,
+  soloPedidosGeneralesPorRol,
 } from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
-import ListConsultas from "@/components/lists/listconsultas";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
 import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
-import ListBiComponenteSupervisor from "@/components/panels/listabicomponentesupervisor";
 import ListBiComponenteProduccion from "@/components/panels/listbicomponenteproduccion";
 import ListBiComponenteTablet from "@/components/panels/listbicomponentetablet";
 
@@ -27,16 +21,12 @@ export const revalidate = 0; // 🔄 Forzar siempre dinámico (server fetch en c
 export default async function ProtectedPage() {
   const supabase = await createClient();
 
-  // ✅ Obtener usuario autenticado desde el server
   const { data: authData, error } = await supabase.auth.getUser();
 
   if (error || !authData?.user || !authData.user.email) {
-    redirect("/auth/login"); // 🔒 Redirección si no hay sesión
+    redirect("/auth/login");
   }
 
-  const email = authData.user.email;
-
-  // ✅ Verificar si el usuario tiene un perfil completo
   const { data: userProfile, error: profileError } = await supabase
     .from("usuarios")
     .select("id, rol")
@@ -47,46 +37,38 @@ export default async function ProtectedPage() {
     console.error("Error checking user profile:", profileError);
   }
 
-  // Si el usuario no tiene perfil completo, redirigir a completarlo
   if (!userProfile) {
     redirect("/auth/complete-profile");
   }
 
   const rol = userProfile.rol;
 
-  const supervisorEmails = ["orlandojosemartinez1946@gmail.com"];
-
-  const consultasEmails = [
-   // "gestioncalidad@perfilesyservicios.com.ar",
-    "biancaccc@perfilesyservicios.com.ar",
-    
-  ];
-
-  const sinRolExplicito = isSinRol(rol);
-  const usarFallbackEmail = rol === null || rol === undefined;
-
-  // ✅ Selección de componente según rol (DB) con fallback por email si rol es null
-  let ComponentToRender = <ListUs />;
-
-  if (sinRolExplicito) {
-    ComponentToRender = <ListUs />;
-  } else if (isAdminRol(rol) || (usarFallbackEmail && adminEmails.includes(email))) {
-    ComponentToRender = <ListBiComponentAdmin />;
-  } else if (isAprobRol(rol) || (usarFallbackEmail && aprobEmails.includes(email))) {
-    ComponentToRender = <ListBiComponentAprob />;
-  } else if (usarFallbackEmail && consultasEmails.includes(email)) {
-    ComponentToRender = <ListConsultas />;
-  } else if (usarFallbackEmail && supervisorEmails.includes(email)) {
-    ComponentToRender = <ListBiComponenteSupervisor />;
-  } else if (isProduccionRol(rol) || (usarFallbackEmail && produccionEmails.includes(email))) {
-    ComponentToRender = <ListBiComponenteProduccion />;
-  } else if (isPanolRol(rol) || (usarFallbackEmail && panolesEmails.includes(email))) {
-    ComponentToRender = <ListBiComponentePanol />;
-  } else if (isTabletRol(rol) || (usarFallbackEmail && tabletEmails.includes(email))) {
-    ComponentToRender = <ListBiComponenteTablet />;
+  if (soloPedidosGeneralesPorRol(rol)) {
+    return (
+      <div className="flex-1 w-full flex flex-col gap-12">
+        <div className="flex flex-col gap-2 items-start">
+          <ListUs soloPedidosGenerales />
+        </div>
+      </div>
+    );
   }
 
-  // ✅ Render dinámico basado en server fetch
+  let ComponentToRender = <ListUs soloPedidosGenerales />;
+
+  if (hasRolAsignado(rol)) {
+    if (isAdminRol(rol)) {
+      ComponentToRender = <ListBiComponentAdmin />;
+    } else if (isAprobRol(rol)) {
+      ComponentToRender = <ListBiComponentAprob />;
+    } else if (isProduccionRol(rol)) {
+      ComponentToRender = <ListBiComponenteProduccion />;
+    } else if (isPanolRol(rol)) {
+      ComponentToRender = <ListBiComponentePanol />;
+    } else if (isTabletRol(rol)) {
+      ComponentToRender = <ListBiComponenteTablet />;
+    }
+  }
+
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
       <div className="flex flex-col gap-2 items-start">{ComponentToRender}</div>

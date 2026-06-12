@@ -56,8 +56,11 @@ export const rolOpcionesForm = [
 export const isSinRol = (rol?: string | null) =>
   rol === SIN_ROL || rol === "";
 
-const hasRolAsignado = (rol?: string | null): rol is RolKey =>
+export const hasRolAsignado = (rol?: string | null): rol is RolKey =>
   !!rol && rol !== SIN_ROL && rolOpciones.some((opcion) => opcion.value === rol);
+
+export const soloPedidosGeneralesPorRol = (rol?: string | null) =>
+  isSinRol(rol) || !hasRolAsignado(rol);
 
 /** Fallback por email solo cuando el rol en BD no está definido (null). */
 const useEmailFallback = (rol?: string | null) =>

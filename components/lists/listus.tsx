@@ -47,7 +47,11 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-export default function ListUs() {
+type ListUsProps = {
+  soloPedidosGenerales?: boolean;
+};
+
+export default function ListUs({ soloPedidosGenerales = false }: ListUsProps) {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -225,13 +229,15 @@ function renderValue(value: unknown): string {
       {/* Header con navegación */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
-          <Link
-            href="/protected"
-            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
-          >
-            ← Home
-          </Link>
-          
+          {!soloPedidosGenerales && (
+            <Link
+              href="/protected"
+              className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+            >
+              ← Home
+            </Link>
+          )}
+
           <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos de Compras No Productivas</h1>
         </div>
         
