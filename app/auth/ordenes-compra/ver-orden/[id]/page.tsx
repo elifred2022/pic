@@ -22,78 +22,217 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Estilos para impresión A4
+// Estilos para impresión A4 — layout compacto para aprovechar toda la hoja
 const printStyles = `
   @media print {
     @page {
-      size: A4;
-      margin: 1cm;
+      size: A4 portrait;
+      margin: 6mm 8mm;
     }
-    
-    body {
-      font-size: 12px !important;
-      line-height: 1.3 !important;
+
+    html, body {
+      width: 100% !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 9px !important;
+      line-height: 1.2 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    
+
     .print-container {
       max-width: none !important;
+      width: 100% !important;
       margin: 0 !important;
       padding: 0 !important;
     }
-    
+
     .print-header {
-      margin-bottom: 15px !important;
-      border-bottom: 2px solid #000 !important;
-      padding-bottom: 10px !important;
-    }
-    
-    .print-section {
-      margin-bottom: 10px !important;
+      margin-bottom: 4px !important;
+      padding-bottom: 4px !important;
+      border-bottom: 1.5px solid #000 !important;
       page-break-inside: avoid;
+      page-break-after: avoid;
     }
-    
-    .print-grid {
+
+    .print-header h1,
+    .print-header h2 {
+      margin: 0 !important;
+      line-height: 1.15 !important;
+    }
+
+    .print-header-meta {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 2px 14px !important;
+      margin-top: 3px !important;
+      font-size: 8.5px !important;
+    }
+
+    .print-header-meta span {
+      white-space: nowrap;
+    }
+
+    .print-info-top {
       display: grid !important;
       grid-template-columns: 1fr 1fr !important;
-      gap: 10px !important;
-      margin-bottom: 10px !important;
+      gap: 4px !important;
+      margin-bottom: 4px !important;
+      page-break-inside: avoid;
+      page-break-after: avoid;
     }
-    
-    .print-items {
-      font-size: 11px !important;
+
+    .print-section {
+      margin-bottom: 0 !important;
+      box-shadow: none !important;
+      border: 1px solid #999 !important;
+      border-radius: 0 !important;
+      page-break-inside: avoid;
     }
-    
-    .print-total {
-      border-top: 2px solid #000 !important;
-      padding-top: 10px !important;
-      margin-top: 10px !important;
-      font-weight: bold !important;
+
+    .print-section-items {
+      page-break-inside: auto !important;
+      margin-top: 4px !important;
     }
-    
+
+    .print-section-header {
+      padding: 2px 6px !important;
+      border-bottom: 1px solid #ccc !important;
+      background: #f0f0f0 !important;
+    }
+
+    .print-section-header [class*="CardTitle"],
+    .print-section-title {
+      font-size: 9px !important;
+      font-weight: 700 !important;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .print-section-body {
+      padding: 3px 6px !important;
+    }
+
+    .print-info-grid {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 1px 10px !important;
+      align-items: baseline !important;
+    }
+
+    .print-field {
+      display: block;
+    }
+
+    .print-field-label {
+      display: block;
+    }
+
+    .print-field-value {
+      display: block;
+    }
+
+    .print-field {
+      display: inline !important;
+      line-height: 1.25 !important;
+    }
+
+    .print-field-label {
+      display: inline !important;
+      font-weight: 600 !important;
+      color: #333 !important;
+      font-size: 8px !important;
+    }
+
+    .print-field-label::after {
+      content: ": ";
+    }
+
+    .print-field-value {
+      display: inline !important;
+      font-size: 8.5px !important;
+    }
+
+    .print-field-block {
+      display: block !important;
+      width: 100% !important;
+      margin-top: 2px !important;
+    }
+
+    .print-field-block .print-field-value {
+      display: inline !important;
+    }
+
+    .print-estado-badge {
+      display: none !important;
+    }
+
+    .print-estado-text {
+      display: inline !important;
+      font-weight: 600 !important;
+    }
+
     .print-table {
       border-collapse: collapse !important;
       width: 100% !important;
-      font-size: 10px !important;
+      font-size: 8px !important;
+      table-layout: fixed !important;
     }
-    
+
+    .print-table thead {
+      display: table-header-group;
+    }
+
+    .print-table tfoot {
+      display: table-footer-group;
+    }
+
     .print-table th,
     .print-table td {
-      border: 1px solid #000 !important;
-      padding: 4px !important;
-      text-align: left !important;
+      border: 0.5px solid #666 !important;
+      padding: 1px 3px !important;
+      vertical-align: top !important;
+      word-wrap: break-word !important;
+      overflow-wrap: anywhere !important;
     }
-    
+
     .print-table th {
-      background-color: #f0f0f0 !important;
-      font-weight: bold !important;
+      background-color: #e8e8e8 !important;
+      font-weight: 700 !important;
+      font-size: 7.5px !important;
+      padding: 2px 3px !important;
     }
-    
+
+    .print-table tbody tr {
+      page-break-inside: avoid;
+    }
+
     .print-table tfoot td {
       background-color: #e0e0e0 !important;
-      font-weight: bold !important;
+      font-weight: 700 !important;
+      font-size: 9px !important;
+      padding: 2px 4px !important;
     }
-    
+
+    .print-articulo-cell .print-articulo-extra {
+      font-size: 7px !important;
+      line-height: 1.15 !important;
+      color: #444 !important;
+    }
+
+    .print-articulo-cell .print-articulo-nombre {
+      font-size: 8px !important;
+      font-weight: 600 !important;
+      line-height: 1.15 !important;
+    }
+
     .print-hidden {
+      display: none !important;
+    }
+
+    /* Ocultar widget de chat flotante al imprimir */
+    body > div.fixed {
       display: none !important;
     }
   }
@@ -351,18 +490,46 @@ export default function VerOrdenCompraPage() {
     }
   }, [editData.divisa, showEditModal]);
 
+  const ESTADOS_ORDEN = {
+    pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
+    aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
+    rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
+    cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
+    entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" },
+    anulado: { color: "bg-red-100 text-red-800", text: "Anulado" },
+  } as const;
+
+  const getEstadoText = (estado: string) =>
+    ESTADOS_ORDEN[estado as keyof typeof ESTADOS_ORDEN]?.text ?? ESTADOS_ORDEN.pendiente.text;
+
   const getEstadoBadge = (estado: string) => {
-    const estados = {
-      pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
-      aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
-      rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
-      cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
-      entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" },
-      anulado: { color: "bg-red-100 text-red-800", text: "Anulado" }
-    };
-    
-    const estadoInfo = estados[estado as keyof typeof estados] || estados.pendiente;
-    return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
+    const estadoInfo = ESTADOS_ORDEN[estado as keyof typeof ESTADOS_ORDEN] || ESTADOS_ORDEN.pendiente;
+    return (
+      <>
+        <Badge className={`${estadoInfo.color} print-estado-badge`}>{estadoInfo.text}</Badge>
+        <span className="hidden print-estado-text">{estadoInfo.text}</span>
+      </>
+    );
+  };
+
+  const formatFechaOrden = (fecha: string, compact = false) => {
+    const d = new Date(fecha);
+    if (compact) {
+      return d.toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return d.toLocaleDateString("es-AR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const formatDateLocal = (dateStr: string | null | undefined) => {
@@ -840,15 +1007,44 @@ export default function VerOrdenCompraPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       <div className="w-full max-w-6xl mx-auto p-6 print-container">
-        {/* Encabezado de la empresa */}
-        <div className="text-center mb-6 print-header">
-          <h1 className="text-2xl font-bold text-gray-800 print:text-xl">
-            Perfiles y Servicios SRL
-          </h1>
+        {/* Encabezado compacto en impresión */}
+        <div className="mb-6 print-header">
+          <div className="text-center print:text-left print:flex print:justify-between print:items-start print:gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800 print:text-sm">
+                Perfiles y Servicios SRL
+              </h1>
+              <p className="hidden print:block text-[8px] text-gray-600 mt-0.5">
+                Orden de Compra
+              </p>
+            </div>
+            <div className="hidden print:block print:text-right">
+              <h2 className="text-base font-bold text-gray-900">
+                Orden de Compra #{orden.noc}
+              </h2>
+              <p className="font-semibold text-[9px] mt-0.5">
+                {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
+              </p>
+            </div>
+          </div>
+          <div className="hidden print-header-meta print:flex">
+            <span><strong>Estado:</strong> {getEstadoText(orden.estado)}</span>
+            <span><strong>Fecha:</strong> {formatFechaOrden(orden.fecha, true)}</span>
+            {orden.condicion_pago && (
+              <span><strong>Pago:</strong> {orden.condicion_pago}</span>
+            )}
+            {orden.fecha_entrega && (
+              <span><strong>Entrega:</strong> {formatDateLocal(orden.fecha_entrega)}</span>
+            )}
+            {orden.cod_cta && <span><strong>Cta:</strong> {orden.cod_cta}</span>}
+            {orden.sector && <span><strong>Sector:</strong> {orden.sector}</span>}
+            {orden.fc != null && <span><strong>FC:</strong> {orden.fc}</span>}
+            {orden.rt != null && <span><strong>RT:</strong> {orden.rt}</span>}
+          </div>
         </div>
-        
-        <div className="flex justify-between items-center mb-6 print-header">
-          <h2 className="text-3xl font-bold text-gray-900 print:text-2xl">
+
+        <div className="flex justify-between items-center mb-6 print:hidden">
+          <h2 className="text-3xl font-bold text-gray-900">
             📋 Orden de Compra #{orden.noc}
           </h2>
           <div className="flex flex-wrap gap-2 print-hidden">
@@ -882,179 +1078,172 @@ export default function VerOrdenCompraPage() {
           </div>
         </div>
 
-      <div className="grid gap-4 print:gap-2">
-
+      <div className="grid gap-4 print:gap-1">
+        <div className="print-info-top grid gap-4">
           {/* Información del Proveedor */}
           <Card className="print-section">
-          <CardHeader className="print:py-2">
-            <CardTitle className="text-xl print:text-lg">Proveedor</CardTitle>
-          </CardHeader>
-          <CardContent className="print:py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 print-grid">
-              
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Nombre</p>
-                <p className="font-medium print:text-sm">{orden.proveedor}</p>
+            <CardHeader className="print-section-header print:py-2">
+              <CardTitle className="text-xl print:text-[9px]">Proveedor</CardTitle>
+            </CardHeader>
+            <CardContent className="print-section-body print:py-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-info-grid">
+                <div className="print-field">
+                  <p className="text-sm text-gray-600 print-field-label">Nombre</p>
+                  <p className="font-medium print-field-value">{orden.proveedor}</p>
+                </div>
+                <div className="print-field">
+                  <p className="text-sm text-gray-600 print-field-label">CUIT</p>
+                  <p className="font-medium print-field-value">{orden.cuit}</p>
+                </div>
+                <div className="print-field">
+                  <p className="text-sm text-gray-600 print-field-label">Teléfono</p>
+                  <p className="font-medium print-field-value">{orden.telefono}</p>
+                </div>
+                <div className="print-field">
+                  <p className="text-sm text-gray-600 print-field-label">Email</p>
+                  <p className="font-medium print-field-value">{orden.email}</p>
+                </div>
+                <div className="print-field print-field-block md:col-span-2">
+                  <p className="text-sm text-gray-600 print-field-label">Dirección</p>
+                  <p className="font-medium print-field-value">{orden.direccion}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">CUIT</p>
-                <p className="font-medium print:text-sm">{orden.cuit}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Dirección</p>
-                <p className="font-medium print:text-sm">{orden.direccion}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Teléfono</p>
-                <p className="font-medium print:text-sm">{orden.telefono}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Email</p>
-                <p className="font-medium print:text-sm">{orden.email}</p>
-              </div>
-             
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Información Principal */}
-        <Card className="print-section">
-          <CardHeader className="print:py-2">
-            <CardTitle className="text-xl print:text-lg">Información General</CardTitle>
-          </CardHeader>
-          <CardContent className="print:py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 print-grid">
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Estado</p>
-                <div className="mt-1 print:text-sm">{getEstadoBadge(orden.estado)}</div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Fecha de Creación</p>
-                <p className="font-medium print:text-sm">
-                  {new Date(orden.fecha).toLocaleDateString('es-AR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Total de la Orden</p>
-                <p className="text-2xl font-bold text-green-600 print:text-lg">
-                  {orden.divisa || 'USD'} ${totalOrdenCalculado.toLocaleString('es-AR')}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Observaciones</p>
-                <p className="font-medium print:text-sm">
-                  {orden.observaciones || "Sin observaciones"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Condición de Pago</p>
-                <p className="font-medium print:text-sm">
-                  {orden.condicion_pago || "No especificada"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 print:text-xs">Dirección de Entrega</p>
-                <p className="font-medium print:text-sm">{orden.lugar_entrega}</p>
-              </div>
-              {orden.cod_cta && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Código de Cuenta</p>
-                  <p className="font-medium print:text-sm">{orden.cod_cta}</p>
+          {/* Información Principal */}
+          <Card className="print-section">
+            <CardHeader className="print-section-header print:py-2">
+              <CardTitle className="text-xl print:text-[9px]">Información General</CardTitle>
+            </CardHeader>
+            <CardContent className="print-section-body print:py-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-info-grid">
+                <div className="print-field print:hidden">
+                  <p className="text-sm text-gray-600 print-field-label">Estado</p>
+                  <div className="mt-1">{getEstadoBadge(orden.estado)}</div>
                 </div>
-              )}
-              {orden.sector && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Sector</p>
-                  <p className="font-medium print:text-sm">{orden.sector}</p>
+                <div className="print-field print:hidden">
+                  <p className="text-sm text-gray-600 print-field-label">Fecha de Creación</p>
+                  <p className="font-medium print-field-value">
+                    {formatFechaOrden(orden.fecha)}
+                  </p>
                 </div>
-              )}
-              {orden.fc != null && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Factura (FC)</p>
-                  {facturaImageUrl ? (
+                <div className="print-field print:hidden">
+                  <p className="text-sm text-gray-600 print-field-label">Total de la Orden</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
+                  </p>
+                </div>
+                <div className="print-field">
+                  <p className="text-sm text-gray-600 print-field-label">Condición de Pago</p>
+                  <p className="font-medium print-field-value">
+                    {orden.condicion_pago || "No especificada"}
+                  </p>
+                </div>
+                <div className="print-field print-field-block">
+                  <p className="text-sm text-gray-600 print-field-label">Dirección de Entrega</p>
+                  <p className="font-medium print-field-value">{orden.lugar_entrega}</p>
+                </div>
+                <div className={`print-field print-field-block md:col-span-2${!orden.observaciones?.trim() ? " print:hidden" : ""}`}>
+                  <p className="text-sm text-gray-600 print-field-label">Observaciones</p>
+                  <p className="font-medium print-field-value">
+                    {orden.observaciones?.trim() || "Sin observaciones"}
+                  </p>
+                </div>
+                {orden.cod_cta && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Código de Cuenta</p>
+                    <p className="font-medium print-field-value">{orden.cod_cta}</p>
+                  </div>
+                )}
+                {orden.sector && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Sector</p>
+                    <p className="font-medium print-field-value">{orden.sector}</p>
+                  </div>
+                )}
+                {orden.fc != null && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Factura (FC)</p>
+                    {facturaImageUrl ? (
+                      <a
+                        href={facturaImageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:text-blue-800 underline"
+                        title="Ver imagen de la factura"
+                      >
+                        {orden.fc}
+                      </a>
+                    ) : (
+                      <p className="font-medium print-field-value">{orden.fc}</p>
+                    )}
+                  </div>
+                )}
+                {orden.fact_path && orden.fc == null && facturaImageUrl && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Imagen de factura</p>
                     <a
                       href={facturaImageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-blue-600 hover:text-blue-800 underline print:text-gray-900 print:no-underline"
-                      title="Ver imagen de la factura"
+                      className="font-medium text-blue-600 hover:text-blue-800 underline"
                     >
-                      {orden.fc}
+                      Ver factura
                     </a>
-                  ) : (
-                    <p className="font-medium print:text-sm">{orden.fc}</p>
-                  )}
-                </div>
-              )}
-              {orden.fact_path && orden.fc == null && facturaImageUrl && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Imagen de factura</p>
-                  <a
-                    href={facturaImageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-blue-600 hover:text-blue-800 underline print:text-gray-900 print:no-underline"
-                  >
-                    Ver factura
-                  </a>
-                </div>
-              )}
-              {orden.rt != null && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Remitos (RT)</p>
-                  <p className="font-medium print:text-sm">{orden.rt}</p>
-                </div>
-              )}
-              {orden.fecha_entrega && (
-                <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Fecha de Entrega</p>
-                  <p className="font-medium print:text-sm">
-                    {formatDateLocal(orden.fecha_entrega)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+                )}
+                {orden.rt != null && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Remitos (RT)</p>
+                    <p className="font-medium print-field-value">{orden.rt}</p>
+                  </div>
+                )}
+                {orden.fecha_entrega && (
+                  <div className="print-field print:hidden">
+                    <p className="text-sm text-gray-600 print-field-label">Fecha de Entrega</p>
+                    <p className="font-medium print-field-value">
+                      {formatDateLocal(orden.fecha_entrega)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
       
 
         {/* Artículos de la Orden */}
-        <Card className="print-section">
-          <CardHeader className="print:py-2">
-            <CardTitle className="text-xl print:text-lg">Artículos de la Orden</CardTitle>
+        <Card className="print-section print-section-items">
+          <CardHeader className="print-section-header print:py-2">
+            <CardTitle className="text-xl print:text-[9px]">Artículos de la Orden</CardTitle>
           </CardHeader>
-          <CardContent className="print:py-2">
+          <CardContent className="print-section-body print:py-2 print:px-0">
             {orden.articulos && orden.articulos.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full border-collapse border border-gray-300 print:border-gray-500 print-table">
                   <thead className="bg-gray-100 print:bg-gray-200">
                     <tr>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[7%]">
                         PIC
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs min-w-[200px]">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] min-w-[200px] print:min-w-0 print:w-[32%]">
                         Artículo
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                        Cantidad
+                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[8%]">
+                        Cant.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                        Precio Unitario
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[12%]">
+                        P. Unit.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                        Descuento %
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[8%]">
+                        Desc. %
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                        Precio Unit. c/ desc.
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[13%]">
+                        P. c/ desc.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[12%]">
                         Total
                       </th>
                     </tr>
@@ -1098,17 +1287,23 @@ export default function VerOrdenCompraPage() {
                             return picLabel;
                           })()}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm print:px-2 print:py-1 print:text-xs align-top">
-                          <div className="flex flex-col gap-1.5">
-                            <span className="font-medium text-gray-900">{item.articulo_nombre}</span>
-                            <span className="text-gray-600 leading-snug">
-                              <span className="text-gray-500">Descripción: </span>
-                              {item.descripcion?.trim() ? item.descripcion : "-"}
-                            </span>
-                            <span className="text-gray-600 leading-snug">
-                              <span className="text-gray-500">Cod. prov. sug.: </span>
-                              {item.codprovsug?.trim() ? item.codprovsug : "-"}
-                            </span>
+                        <td className="border border-gray-300 px-3 py-2 text-sm print:px-1 print:py-0.5 print:text-[8px] align-top print-articulo-cell">
+                          <div className="flex flex-col gap-1.5 print:gap-0">
+                            <span className="font-medium text-gray-900 print-articulo-nombre">{item.articulo_nombre}</span>
+                            {item.descripcion?.trim() && (
+                              <span className="text-gray-600 leading-snug print-articulo-extra">
+                                <span className="text-gray-500 print:hidden">Descripción: </span>
+                                <span className="hidden print:inline">Desc: </span>
+                                {item.descripcion}
+                              </span>
+                            )}
+                            {item.codprovsug?.trim() && (
+                              <span className="text-gray-600 leading-snug print-articulo-extra">
+                                <span className="text-gray-500 print:hidden">Cod. prov. sug.: </span>
+                                <span className="hidden print:inline">Cód: </span>
+                                {item.codprovsug}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-center text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
