@@ -2,6 +2,7 @@ export type UsuarioChat = {
   uuid: string;
   nombre: string;
   email: string;
+  rol?: string | null;
 };
 
 export type Mensaje = {

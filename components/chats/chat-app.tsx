@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { ChatUsersIcon } from "./chat-users-icon";
 import { ConversationList, NewChatPanel } from "./conversation-list";
 import { ChatWindow } from "./chat-window";
-import { canUseChat } from "@/lib/panol-access";
 import {
   getOrCreateDirectConversation,
   listConversaciones,
@@ -73,11 +72,6 @@ export function ChatApp() {
       } = await supabase.auth.getUser();
       if (!user) {
         setError("Debés iniciar sesión para usar el chat.");
-        setLoadingConv(false);
-        return;
-      }
-      if (!canUseChat(user.email)) {
-        setError("El chat no está disponible para usuarios tablet.");
         setLoadingConv(false);
         return;
       }

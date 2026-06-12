@@ -894,6 +894,7 @@ export default function ListOrdenesProduccion() {
   const [archivosModalItems, setArchivosModalItems] = useState<{ url: string; name: string }[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRol, setUserRol] = useState<string | null>(null);
   const [userNombre, setUserNombre] = useState("");
   const [downloadingOrdenId, setDownloadingOrdenId] = useState<string | null>(null);
   const [deletingOrdenId, setDeletingOrdenId] = useState<string | null>(null);
@@ -951,20 +952,27 @@ export default function ListOrdenesProduccion() {
   estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
-  const soloVista = isPanolEmail(userEmail) || isAprobEmail(userEmail);
+  const soloVista = isPanolEmail(userEmail, userRol) || isAprobEmail(userEmail, userRol);
   const estadoObraSoloVista = soloVista || estadoObraModalSoloVista;
-  const isTabletUser = isTabletEmail(userEmail);
-  const tabletSoloMarcar = isTabletOnlyUser(userEmail);
-  const canEditCheckboxes = isProduccionEmail(userEmail) || isAdminEmail(userEmail) || isTabletUser;
+  const isTabletUser = isTabletEmail(userEmail, userRol);
+  const tabletSoloMarcar = isTabletOnlyUser(userEmail, userRol);
+  const canEditCheckboxes =
+    isProduccionEmail(userEmail, userRol) ||
+    isAdminEmail(userEmail, userRol) ||
+    isTabletUser;
   const canEditCheckboxesEnModal = canEditCheckboxes && !estadoObraSoloVista;
   const showEstadoObraActualizarButton = canEditCheckboxes && !isTabletUser;
   const showEstadoObraActualizarEnModal = showEstadoObraActualizarButton && !estadoObraSoloVista;
-  const canEditFullModal = isProduccionEmail(userEmail) || isAdminEmail(userEmail);
+  const canEditFullModal =
+    isProduccionEmail(userEmail, userRol) || isAdminEmail(userEmail, userRol);
   const canEditFullModalEnModal = canEditFullModal && !estadoObraSoloVista;
   const canEditObservaciones = canEditCheckboxes;
   const canEditObservacionesEnModal = canEditObservaciones && !estadoObraSoloVista;
-  const canDeleteObservaciones = canDeleteObservacionesObra(userEmail);
-  const showAccionesColumn = !isReadOnly || isAprobEmail(userEmail ?? "") || isTabletEmail(userEmail);
+  const canDeleteObservaciones = canDeleteObservacionesObra(userEmail, userRol);
+  const showAccionesColumn =
+    !isReadOnly ||
+    isAprobEmail(userEmail ?? "", userRol) ||
+    isTabletEmail(userEmail, userRol);
   const supabase = createClient();
 
   const fetchOrdenes = useCallback(async () => {
@@ -985,21 +993,27 @@ export default function ListOrdenesProduccion() {
       return;
     }
 
-    setIsReadOnly(isPanolEmail(user.email) || isAprobEmail(user.email) || isTabletEmail(user.email));
-    setUserEmail(user.email ?? null);
-
     const { data: perfil } = await supabase
       .from("usuarios")
-      .select("nombre")
+      .select("nombre, rol")
       .eq("uuid", user.id)
       .single();
+    const rol = perfil?.rol ?? null;
+
+    setIsReadOnly(
+      isPanolEmail(user.email, rol) ||
+        isAprobEmail(user.email, rol) ||
+        isTabletEmail(user.email, rol),
+    );
+    setUserEmail(user.email ?? null);
+    setUserRol(rol);
     setUserNombre(perfil?.nombre?.trim() ?? "");
 
     let query = supabase
       .from("ordenes_produccion")
       .select("*")
       .order("created_at", { ascending: false });
-    if (!canAccessOrdenesProduccion(user.email)) {
+    if (!canAccessOrdenesProduccion(user.email, rol)) {
       query = query.eq("usuario_id", user.id);
     }
     const { data, error } = await query;
@@ -1103,7 +1117,7 @@ export default function ListOrdenesProduccion() {
         estado_obra: estadoObraActualizado,
       })
       .eq("id", ordenId);
-    if (!canAccessOrdenesProduccion(user.email)) {
+    if (!canAccessOrdenesProduccion(user.email, userRol)) {
       query = query.eq("usuario_id", user.id);
     }
     const { error } = await query;
@@ -1141,7 +1155,7 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleDeleteObservacion = async (ordenId: string, index: number) => {
-    if (!canDeleteObservacionesObra(userEmail)) return;
+    if (!canDeleteObservacionesObra(userEmail, userRol)) return;
 
     const ordenActual = ordenes.find((o) => o.id === ordenId);
     if (!ordenActual) return;
@@ -1504,7 +1518,7 @@ export default function ListOrdenesProduccion() {
       .from("ordenes_produccion")
       .update({ estado_obra: estadoObraPayload })
       .eq("id", estadoObraOrden.id);
-    const finalQuery = canAccessOrdenesProduccion(user.email)
+    const finalQuery = canAccessOrdenesProduccion(user.email, userRol)
       ? baseQuery
       : baseQuery.eq("usuario_id", user.id);
     const { data, error } = await finalQuery.select("id, estado_obra").single();
@@ -1651,7 +1665,7 @@ export default function ListOrdenesProduccion() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     let query = supabase.from("ordenes_produccion").delete().eq("id", orden.id);
-    if (!canAccessOrdenesProduccion(user.email)) {
+    if (!canAccessOrdenesProduccion(user.email, userRol)) {
       query = query.eq("usuario_id", user.id);
     }
     const { error } = await query;
@@ -1721,7 +1735,7 @@ export default function ListOrdenesProduccion() {
         .from("ordenes_produccion")
         .update({ url_imagen: null })
         .eq("id", orden.id);
-      if (!canAccessOrdenesProduccion(user.email)) {
+      if (!canAccessOrdenesProduccion(user.email, userRol)) {
         updateQuery = updateQuery.eq("usuario_id", user.id);
       }
       const { error } = await updateQuery;
@@ -2037,7 +2051,7 @@ export default function ListOrdenesProduccion() {
           url_medicion: urlMedicion,
         })
         .eq("id", editingOrden.id);
-      if (!canAccessOrdenesProduccion(user.email)) {
+      if (!canAccessOrdenesProduccion(user.email, userRol)) {
         updateQuery = updateQuery.eq("usuario_id", user.id);
       }
       const { error: updateError } = await updateQuery;
@@ -2257,7 +2271,7 @@ export default function ListOrdenesProduccion() {
                 Ver medición
               </button>
             )}
-            {!isTabletEmail(userEmail) && (
+            {!isTabletEmail(userEmail, userRol) && (
               <button
                 type="button"
                 onClick={() => handleEliminarCarpeta(orden)}
@@ -2361,7 +2375,7 @@ export default function ListOrdenesProduccion() {
           >
             📊 Ver progreso de producción
           </button>
-          {!isTabletEmail(userEmail) && (
+          {!isTabletEmail(userEmail, userRol) && (
             <div className="flex items-center gap-2">
               <select
                 value={excelDownloadTipo}
@@ -3256,7 +3270,7 @@ export default function ListOrdenesProduccion() {
           renderValue={renderValue}
           formatDate={formatDate}
           showAccionesColumn={showAccionesColumn}
-          isTabletUser={isTabletEmail(userEmail)}
+          isTabletUser={isTabletEmail(userEmail, userRol)}
           mobileBtnBase={mobileBtnBase}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -3306,7 +3320,7 @@ export default function ListOrdenesProduccion() {
                   {showAccionesColumn && (
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2 items-center">
-                        {!isTabletEmail(userEmail) && (
+                        {!isTabletEmail(userEmail, userRol) && (
                           <>
                             <button
                               type="button"

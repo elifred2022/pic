@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isChatContactEmail } from "@/lib/panol-access";
 import type { UsuarioChat } from "./types";
 
 const HEARTBEAT_MS = 20_000;
@@ -58,7 +57,7 @@ export function useOnlinePresence(active: boolean) {
       const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS).toISOString();
       const { data: onlineRows, error: fetchError } = await supabase
         .from("usuarios")
-        .select("uuid, nombre, email")
+        .select("uuid, nombre, email, rol")
         .neq("uuid", userId)
         .gte("last_seen_at", cutoff)
         .order("nombre", { ascending: true });
@@ -72,9 +71,7 @@ export function useOnlinePresence(active: boolean) {
       }
 
       setPresenceError(null);
-      setOnlineUsers(
-        (onlineRows ?? []).filter((u) => isChatContactEmail(u.email)),
-      );
+      setOnlineUsers(onlineRows ?? []);
       setReady(true);
     };
 

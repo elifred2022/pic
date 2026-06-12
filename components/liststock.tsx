@@ -105,8 +105,14 @@ export default function ListStock() {
       return;
     }
 
+    const { data: perfil } = await supabase
+      .from("usuarios")
+      .select("rol")
+      .eq("uuid", user.id)
+      .maybeSingle();
+
     let query = supabase.from("picstock").select("*");
-    if (!isPanolEmail(user.email)) {
+    if (!isPanolEmail(user.email, perfil?.rol)) {
       query = query.eq("uuid", user.id);
     }
     const { data, error } = await query;
@@ -495,8 +501,13 @@ function renderValue(value: unknown): string {
                         } = await supabase.auth.getUser();
 
                         if (user) {
+                          const { data: perfil } = await supabase
+                            .from("usuarios")
+                            .select("rol")
+                            .eq("uuid", user.id)
+                            .maybeSingle();
                           let q = supabase.from("picstock").select("*");
-                          if (!isPanolEmail(user.email)) {
+                          if (!isPanolEmail(user.email, perfil?.rol)) {
                             q = q.eq("uuid", user.id);
                           }
                           const { data } = await q;

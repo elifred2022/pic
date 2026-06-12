@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPanolEmail, isProduccionEmail } from "@/lib/panol-access";
+import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListPanolProductosGenerales from "@/components/lists/panol/listpanolproductosgenerales";
 
 
@@ -16,7 +17,12 @@ export default async function Page() {
     redirect("/auth/login");
   }
 
-  if (!isPanolEmail(authData.user.email) && !isProduccionEmail(authData.user.email)) {
+  const rol = await fetchUserRolByUuid(supabase, authData.user.id);
+
+  if (
+    !isPanolEmail(authData.user.email, rol) &&
+    !isProduccionEmail(authData.user.email, rol)
+  ) {
     redirect("/protected");
   }
 

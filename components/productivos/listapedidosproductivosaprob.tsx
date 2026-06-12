@@ -10,6 +10,7 @@ import {
   useOcFacturaAdjunto,
 } from "@/hooks/use-adjuntos-compras-view";
 import { canViewAdjuntosCompras } from "@/lib/panol-access";
+import { fetchUserRolByUuid } from "@/lib/user-rol";
 
 type ArticuloComparativa = {
   codint: string;
@@ -83,11 +84,12 @@ export default function ListaPedidosProductivosAprob() {
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
     const [comparativaOcId, setComparativaOcId] = useState<string | null>(null);
     const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [userRol, setUserRol] = useState<string | null>(null);
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const supabase = createClient();
 
-    const puedeVerAdjuntos = canViewAdjuntosCompras(userEmail);
+    const puedeVerAdjuntos = canViewAdjuntosCompras(userEmail, userRol);
     const presupuestoUrls = useComparativaPresupuestoUrls(
       puedeVerAdjuntos ? comparativaPedido?.comparativa_prov : null
     );
@@ -96,8 +98,13 @@ export default function ListaPedidosProductivosAprob() {
     );
 
     useEffect(() => {
-      void supabase.auth.getUser().then(({ data }) => {
-        setUserEmail(data.user?.email ?? null);
+      void supabase.auth.getUser().then(async ({ data }) => {
+        const user = data.user;
+        setUserEmail(user?.email ?? null);
+        if (user) {
+          const rol = await fetchUserRolByUuid(supabase, user.id);
+          setUserRol(rol);
+        }
       });
     }, [supabase]);
 

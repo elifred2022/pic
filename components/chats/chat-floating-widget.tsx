@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChatWindow } from "./chat-window";
-import { canUseChat } from "@/lib/panol-access";
 import {
   findConversacionConUsuario,
   getOrCreateDirectConversation,
@@ -65,9 +64,8 @@ export function ChatFloatingWidget() {
         data: { user },
       } = await supabase.auth.getUser();
       const uuid = user?.id ?? null;
-      const puedeChatear = canUseChat(user?.email);
-      setUserUuid(puedeChatear ? uuid : null);
-      setAuthenticated(!!uuid && puedeChatear);
+      setUserUuid(uuid);
+      setAuthenticated(!!uuid);
       setAuthChecked(true);
     };
 
@@ -77,9 +75,8 @@ export function ChatFloatingWidget() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const uuid = session?.user?.id ?? null;
-      const puedeChatear = canUseChat(session?.user?.email);
-      setUserUuid(puedeChatear ? uuid : null);
-      setAuthenticated(!!session?.user && puedeChatear);
+      setUserUuid(uuid);
+      setAuthenticated(!!session?.user);
       setAuthChecked(true);
       if (!session?.user) {
         setOpen(false);

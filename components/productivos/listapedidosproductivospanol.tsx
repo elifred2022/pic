@@ -45,6 +45,7 @@ export default function ListaPedidosProductivos() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+    const [currentUserRol, setCurrentUserRol] = useState<string | null>(null);
     const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
     const [formData, setFormData] = useState<Partial<Pedido>>({});
 
@@ -138,10 +139,18 @@ export default function ListaPedidosProductivos() {
         return;
       }
 
+      const { data: perfil } = await supabase
+        .from("usuarios")
+        .select("rol")
+        .eq("uuid", user.id)
+        .maybeSingle();
+      const rol = perfil?.rol ?? null;
+
       setCurrentUserEmail(user.email ?? null);
+      setCurrentUserRol(rol);
   
       let query = supabase.from("pedidos_productivos").select("*");
-      if (!isPanolEmail(user.email)) {
+      if (!isPanolEmail(user.email, rol)) {
         query = query.eq("uuid", user.id); // 👈 Filtra por usuario logueado
       }
 
@@ -255,7 +264,7 @@ export default function ListaPedidosProductivos() {
     return dateString.split("T")[0];
   }
 
-  const isPanolUser = isPanolEmail(currentUserEmail);
+  const isPanolUser = isPanolEmail(currentUserEmail, currentUserRol);
 
   const handleSaveEdit = async () => {
     if (!editingPedido) return;

@@ -1,6 +1,18 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { adminEmails, aprobEmails, panolesEmails, produccionEmails, tabletEmails } from "@/lib/panol-access";
+import {
+  adminEmails,
+  aprobEmails,
+  isAdminRol,
+  isAprobRol,
+  isPanolRol,
+  isProduccionRol,
+  isSinRol,
+  isTabletRol,
+  panolesEmails,
+  produccionEmails,
+  tabletEmails,
+} from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
 import ListConsultas from "@/components/lists/listconsultas";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
@@ -27,7 +39,7 @@ export default async function ProtectedPage() {
   // ✅ Verificar si el usuario tiene un perfil completo
   const { data: userProfile, error: profileError } = await supabase
     .from("usuarios")
-    .select("id")
+    .select("id, rol")
     .eq("uuid", authData.user.id)
     .single();
 
@@ -40,7 +52,7 @@ export default async function ProtectedPage() {
     redirect("/auth/complete-profile");
   }
 
-  // ✅ Listas de emails por roles (desde lib centralizada)
+  const rol = userProfile.rol;
 
   const supervisorEmails = ["orlandojosemartinez1946@gmail.com"];
 
@@ -50,22 +62,27 @@ export default async function ProtectedPage() {
     
   ];
 
-  // ✅ Selección de componente según rol
+  const sinRolExplicito = isSinRol(rol);
+  const usarFallbackEmail = rol === null || rol === undefined;
+
+  // ✅ Selección de componente según rol (DB) con fallback por email si rol es null
   let ComponentToRender = <ListUs />;
 
-  if (adminEmails.includes(email)) {
+  if (sinRolExplicito) {
+    ComponentToRender = <ListUs />;
+  } else if (isAdminRol(rol) || (usarFallbackEmail && adminEmails.includes(email))) {
     ComponentToRender = <ListBiComponentAdmin />;
-  } else if (aprobEmails.includes(email)) {
+  } else if (isAprobRol(rol) || (usarFallbackEmail && aprobEmails.includes(email))) {
     ComponentToRender = <ListBiComponentAprob />;
-  } else if (consultasEmails.includes(email)) {
+  } else if (usarFallbackEmail && consultasEmails.includes(email)) {
     ComponentToRender = <ListConsultas />;
-  } else if (supervisorEmails.includes(email)) {
+  } else if (usarFallbackEmail && supervisorEmails.includes(email)) {
     ComponentToRender = <ListBiComponenteSupervisor />;
-  } else if (produccionEmails.includes(email)) {
+  } else if (isProduccionRol(rol) || (usarFallbackEmail && produccionEmails.includes(email))) {
     ComponentToRender = <ListBiComponenteProduccion />;
-  } else if (panolesEmails.includes(email)) {
+  } else if (isPanolRol(rol) || (usarFallbackEmail && panolesEmails.includes(email))) {
     ComponentToRender = <ListBiComponentePanol />;
-  } else if (tabletEmails.includes(email)) {
+  } else if (isTabletRol(rol) || (usarFallbackEmail && tabletEmails.includes(email))) {
     ComponentToRender = <ListBiComponenteTablet />;
   }
 

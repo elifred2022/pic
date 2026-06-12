@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { canAccessOrdenesProduccion } from "@/lib/panol-access";
+import { fetchUserRolByUuid } from "@/lib/user-rol";
 
 const STORAGE_KEY = "ordenes_produccion_alertas_dismissed";
 
@@ -57,8 +58,10 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
 
     const checkAndShow = async (payload: OrdenProduccionPayload) => {
       const { data } = await supabase.auth.getUser();
-      const email = data?.user?.email;
-      if (!email || !canAccessOrdenesProduccion(email)) {
+      const user = data?.user;
+      const email = user?.email;
+      const rol = user ? await fetchUserRolByUuid(supabase, user.id) : null;
+      if (!email || !canAccessOrdenesProduccion(email, rol)) {
         return;
       }
 
@@ -95,8 +98,10 @@ export default function OrdenesProduccionAlertasRealtimeListener() {
       const { data } = await supabase.auth.getUser();
       if (cancelled) return;
 
-      const email = data?.user?.email;
-      if (!email || !canAccessOrdenesProduccion(email)) {
+      const user = data?.user;
+      const email = user?.email;
+      const rol = user ? await fetchUserRolByUuid(supabase, user.id) : null;
+      if (!email || !canAccessOrdenesProduccion(email, rol)) {
         return;
       }
 

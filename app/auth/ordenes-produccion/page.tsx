@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessOrdenesProduccion } from "@/lib/panol-access";
+import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListOrdenesProduccion from "@/components/lists/panol/listordenesproduccion";
 import OrdenesProduccionAlertasRealtimeListener from "@/components/realtime/ordenesproduccionalertasrealtimelistener";
 
@@ -12,7 +13,9 @@ export default async function Page() {
     redirect("/auth/login");
   }
 
-  if (!canAccessOrdenesProduccion(authData.user.email)) {
+  const rol = await fetchUserRolByUuid(supabase, authData.user.id);
+
+  if (!canAccessOrdenesProduccion(authData.user.email, rol)) {
     redirect("/protected");
   }
 

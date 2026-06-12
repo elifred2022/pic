@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { rolOpciones } from "@/lib/panol-access";
+import { rolOpcionesForm, SIN_ROL } from "@/lib/panol-access";
 
 type Usuario = {
   id: number;
@@ -18,8 +18,8 @@ const cellClass =
   "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
 const getRolLabel = (rol: string | null) => {
-  if (!rol) return "-";
-  const opcion = rolOpciones.find((o) => o.value === rol);
+  if (!rol || rol === SIN_ROL) return "Sin rol";
+  const opcion = rolOpcionesForm.find((o) => o.value === rol);
   return opcion ? opcion.label : rol;
 };
 
@@ -67,7 +67,7 @@ export default function ListUsuarios() {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
-      rol: usuario.rol,
+      rol: usuario.rol ?? SIN_ROL,
     });
   };
 
@@ -205,13 +205,12 @@ export default function ListUsuarios() {
               <p className="text-black">Rol</p>
               <select
                 className="w-full border p-2 rounded mt-1"
-                value={formData.rol ?? ""}
+                value={formData.rol ?? SIN_ROL}
                 onChange={(e) =>
                   setFormData({ ...formData, rol: e.target.value })
                 }
               >
-                <option value="">Seleccionar rol...</option>
-                {rolOpciones.map((opcion) => (
+                {rolOpcionesForm.map((opcion) => (
                   <option key={opcion.value} value={opcion.value}>
                     {opcion.label}
                   </option>

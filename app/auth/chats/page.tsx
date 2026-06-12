@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isTabletEmail } from "@/lib/panol-access";
 import { ChatApp } from "@/components/chats";
 
 export default async function ChatsPage() {
@@ -10,10 +9,6 @@ export default async function ChatsPage() {
 
   if (!authData?.user) {
     redirect("/auth/login");
-  }
-
-  if (isTabletEmail(authData.user.email)) {
-    redirect("/protected");
   }
 
   return (

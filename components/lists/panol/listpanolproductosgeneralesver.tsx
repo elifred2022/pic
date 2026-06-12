@@ -103,8 +103,14 @@ export default function ListPanolProductosGeneralesVer() {
       return;
     }
 
+    const { data: perfil } = await supabase
+      .from("usuarios")
+      .select("rol")
+      .eq("uuid", user.id)
+      .maybeSingle();
+
     let query = supabase.from("pic").select("*");
-    if (!isPanolEmail(user.email)) {
+    if (!isPanolEmail(user.email, perfil?.rol)) {
       query = query.eq("uuid", user.id);
     }
     const { data, error } = await query;

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import { isChatContactEmail, isTabletEmail } from "@/lib/panol-access";
 import type { ConversacionResumen, Mensaje, UsuarioChat } from "./types";
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -17,12 +16,12 @@ export async function listUsuarios(
 ): Promise<UsuarioChat[]> {
   const { data, error } = await supabase
     .from("usuarios")
-    .select("uuid, nombre, email")
+    .select("uuid, nombre, email, rol")
     .neq("uuid", currentUserUuid)
     .order("nombre", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []).filter((u) => isChatContactEmail(u.email));
+  return data ?? [];
 }
 
 export async function getOrCreateDirectConversation(
@@ -30,17 +29,6 @@ export async function getOrCreateDirectConversation(
   _currentUserUuid: string,
   otherUserUuid: string,
 ): Promise<string> {
-  const { data: otroUsuario, error: otroError } = await supabase
-    .from("usuarios")
-    .select("email")
-    .eq("uuid", otherUserUuid)
-    .maybeSingle();
-
-  if (otroError) throw otroError;
-  if (otroUsuario?.email && isTabletEmail(otroUsuario.email)) {
-    throw new Error("No se puede iniciar chat con usuarios tablet");
-  }
-
   const { data, error } = await supabase.rpc("crear_conversacion_directa", {
     otro_usuario_uuid: otherUserUuid,
   });
@@ -95,7 +83,7 @@ export async function listConversaciones(
 
   const { data: usuarios, error: usuariosError } = await supabase
     .from("usuarios")
-    .select("uuid, nombre, email")
+    .select("uuid, nombre, email, rol")
     .in("uuid", [...otherUuids]);
 
   if (usuariosError) throw usuariosError;
@@ -161,11 +149,7 @@ export async function listConversaciones(
     };
   });
 
-  return resumenes
-    .filter(
-      (r) => !r.otro_usuario?.email || isChatContactEmail(r.otro_usuario.email),
-    )
-    .sort(
+  return resumenes.sort(
       (a, b) =>
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
     );

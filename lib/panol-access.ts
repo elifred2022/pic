@@ -35,6 +35,8 @@ export const aprobEmails = [
   // "julio@perfilesyservicios.com.ar", se dio de baja el 04/06/2026
 ];
 
+export const SIN_ROL = "sin_rol";
+
 export const rolOpciones = [
   { value: "panolesEmails", label: "Pañol" },
   { value: "produccionEmails", label: "Producción" },
@@ -42,6 +44,24 @@ export const rolOpciones = [
   { value: "aprobEmails", label: "Aprobación" },
   { value: "tabletEmails", label: "Tablet" },
 ] as const;
+
+export type RolKey = (typeof rolOpciones)[number]["value"];
+
+/** Opciones del formulario de usuarios (incluye sin rol). */
+export const rolOpcionesForm = [
+  { value: SIN_ROL, label: "Sin rol" },
+  ...rolOpciones,
+] as const;
+
+export const isSinRol = (rol?: string | null) =>
+  rol === SIN_ROL || rol === "";
+
+const hasRolAsignado = (rol?: string | null): rol is RolKey =>
+  !!rol && rol !== SIN_ROL && rolOpciones.some((opcion) => opcion.value === rol);
+
+/** Fallback por email solo cuando el rol en BD no está definido (null). */
+const useEmailFallback = (rol?: string | null) =>
+  rol === null || rol === undefined;
 
 export const tabletEmails = [
   "tabletpys331@gmail.com",
@@ -60,39 +80,91 @@ export const tabletEmails = [
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-export const isPanolEmail = (email?: string | null) =>
-  !!email && panolesEmails.includes(email);
+const hasRol = (rol: string | null | undefined, expected: RolKey) =>
+  rol === expected;
 
-export const isTabletEmail = (email?: string | null) => {
+const emailInList = (email: string | null | undefined, list: string[]) => {
   if (!email) return false;
   const normalized = normalizeEmail(email);
-  return tabletEmails.some((e) => normalizeEmail(e) === normalized);
+  return list.some((e) => normalizeEmail(e) === normalized);
+};
+
+export const isPanolRol = (rol?: string | null) => hasRol(rol, "panolesEmails");
+export const isProduccionRol = (rol?: string | null) =>
+  hasRol(rol, "produccionEmails");
+export const isAdminRol = (rol?: string | null) => hasRol(rol, "adminEmails");
+export const isAprobRol = (rol?: string | null) => hasRol(rol, "aprobEmails");
+export const isTabletRol = (rol?: string | null) => hasRol(rol, "tabletEmails");
+
+export const isPanolEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isPanolRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, panolesEmails);
+  return false;
+};
+
+export const isTabletEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isTabletRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, tabletEmails);
+  return false;
 };
 
 /** Tablet sin rol producción/admin: solo puede marcar checkboxes, no desmarcar. */
-export const isTabletOnlyUser = (email?: string | null) =>
-  isTabletEmail(email) && !isProduccionEmail(email) && !isAdminEmail(email);
+export const isTabletOnlyUser = (email?: string | null, rol?: string | null) =>
+  isTabletEmail(email, rol) &&
+  !isProduccionEmail(email, rol) &&
+  !isAdminEmail(email, rol);
 
-export const canUseChat = (email?: string | null) => !isTabletEmail(email);
+export const canUseChat = (_email?: string | null, _rol?: string | null) => true;
 
-export const isChatContactEmail = (email?: string | null) =>
-  !isTabletEmail(email);
+export const isChatContactEmail = (_email?: string | null, _rol?: string | null) =>
+  true;
 
-export const isAprobEmail = (email?: string | null) =>
-  !!email && aprobEmails.includes(email);
+export const isAprobEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isAprobRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, aprobEmails);
+  return false;
+};
 
 /** Ver presupuestos (comparativa) y factura adjunta en OC. */
-export const canViewAdjuntosCompras = (email?: string | null) =>
-  !!email && (adminEmails.includes(email) || aprobEmails.includes(email));
+export const canViewAdjuntosCompras = (
+  email?: string | null,
+  rol?: string | null,
+) =>
+  isAdminEmail(email, rol) || isAprobEmail(email, rol);
 
-export const isProduccionEmail = (email?: string | null) =>
-  !!email && produccionEmails.includes(email);
+export const isProduccionEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isProduccionRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, produccionEmails);
+  return false;
+};
 
-export const isAdminEmail = (email?: string | null) =>
-  !!email && adminEmails.includes(email);
+export const isAdminEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isAdminRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, adminEmails);
+  return false;
+};
 
-export const canAccessOrdenesProduccion = (email?: string | null) =>
-  !!email && (panolesEmails.includes(email) || produccionEmails.includes(email) || adminEmails.includes(email) || aprobEmails.includes(email) || tabletEmails.includes(email));
+export const canAccessOrdenesProduccion = (
+  email?: string | null,
+  rol?: string | null,
+) => {
+  if (isSinRol(rol)) return false;
+  if (hasRolAsignado(rol)) return true;
+  if (!useEmailFallback(rol)) return false;
+
+  return (
+    emailInList(email, panolesEmails) ||
+    emailInList(email, produccionEmails) ||
+    emailInList(email, adminEmails) ||
+    emailInList(email, aprobEmails) ||
+    emailInList(email, tabletEmails)
+  );
+};
 
 const observacionesObraDeleteEmails = [
   "asistentecompras@perfilesyservicios.com.ar",
@@ -101,8 +173,20 @@ const observacionesObraDeleteEmails = [
   "juanstok@perfilesyservicios.com.ar",
 ];
 
-export const canDeleteObservacionesObra = (email?: string | null) => {
+export const canDeleteObservacionesObra = (
+  email?: string | null,
+  rol?: string | null,
+) => {
+  if (isSinRol(rol)) return false;
+
+  if (isAdminRol(rol) || isProduccionRol(rol) || isAprobRol(rol)) {
+    return true;
+  }
+
+  if (!useEmailFallback(rol)) return false;
   if (!email) return false;
   const normalized = normalizeEmail(email);
-  return observacionesObraDeleteEmails.some((e) => normalizeEmail(e) === normalized);
+  return observacionesObraDeleteEmails.some(
+    (e) => normalizeEmail(e) === normalized,
+  );
 };
