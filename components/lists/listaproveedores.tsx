@@ -308,7 +308,7 @@ const cellClass =
       {editingProveedor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-black font-bold mb-4">Aprobar pedido #{editingProveedor.id}</h2>
+            <h2 className="text-black font-bold mb-4">Editar proveedor #{editingProveedor.id}</h2>
            
             
             
@@ -330,6 +330,23 @@ const cellClass =
                         </label>
 
                 <label className="block mb-4">
+                    <p className="text-black">CUIT</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={formData.cuitprov ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (/^\d*$/.test(value)) {
+                                setFormData({ ...formData, cuitprov: value });
+                              }
+                            }}
+                        />
+                </label>
+
+                <label className="block mb-4">
                     <p className="text-black">Direccion</p>
                         <input
                             className="w-full border p-2 rounded mt-1"
@@ -337,6 +354,43 @@ const cellClass =
                             value={formData.direccionprov ?? ""}
                             onChange={(e) =>
                             setFormData({ ...formData, direccionprov: e.target.value})
+                            }
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Email</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="email"
+                            value={formData.emailprov ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, emailprov: e.target.value})
+                            }
+                            placeholder="ejemplo@proveedor.com"
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Telefono</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.telefonoprov ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, telefonoprov: e.target.value})
+                            }
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Contacto</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.contactoprov ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, contactoprov: e.target.value})
                             }
                         />
                 </label>
