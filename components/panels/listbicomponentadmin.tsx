@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { UserCog } from "lucide-react";
 
 import PicRealtimeListenerAdmin from "../realtime/picrealtimelisteneradmin";
 
@@ -80,7 +81,9 @@ function ListBiComponentAdmin() {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10">
-              <div className="text-3xl mb-3">👥</div>
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 shadow-inner ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110">
+                <UserCog className="h-7 w-7 text-white" strokeWidth={2} aria-hidden />
+              </div>
               <h3 className="text-lg font-bold mb-2">Usuarios</h3>
               <p className="text-indigo-100 text-sm">Consulta usuarios y roles</p>
             </div>
