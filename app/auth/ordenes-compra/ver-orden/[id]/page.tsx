@@ -62,9 +62,34 @@ const printStyles = `
       line-height: 1.15 !important;
     }
 
+    .print-header-company {
+      text-align: center !important;
+      font-size: 9px !important;
+      font-weight: 600 !important;
+      color: #333 !important;
+      margin-bottom: 2px !important;
+    }
+
+    .print-header-title {
+      text-align: center !important;
+      font-size: 20px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.02em !important;
+      margin: 2px 0 4px !important;
+      line-height: 1.1 !important;
+    }
+
+    .print-header-total {
+      text-align: center !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      margin-bottom: 4px !important;
+    }
+
     .print-header-meta {
       display: flex !important;
       flex-wrap: wrap !important;
+      justify-content: center !important;
       gap: 2px 14px !important;
       margin-top: 3px !important;
       font-size: 8.5px !important;
@@ -1009,25 +1034,18 @@ export default function VerOrdenCompraPage() {
       <div className="w-full max-w-6xl mx-auto p-6 print-container">
         {/* Encabezado compacto en impresión */}
         <div className="mb-6 print-header">
-          <div className="text-center print:text-left print:flex print:justify-between print:items-start print:gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800 print:text-sm">
-                Perfiles y Servicios SRL
-              </h1>
-              <p className="hidden print:block text-[8px] text-gray-600 mt-0.5">
-                Orden de Compra
-              </p>
-            </div>
-            <div className="hidden print:block print:text-right">
-              <h2 className="text-base font-bold text-gray-900">
-                Orden de Compra #{orden.noc}
-              </h2>
-              <p className="font-semibold text-[9px] mt-0.5">
-                {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
-              </p>
-            </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-800 print-header-company">
+              Perfiles y Servicios SRL
+            </h1>
+            <h2 className="hidden print:block print-header-title text-gray-900">
+              Orden de Compra #{orden.noc}
+            </h2>
+            <p className="hidden print-header-total print:block text-gray-800">
+              Total: {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
+            </p>
           </div>
-          <div className="hidden print-header-meta print:flex">
+          <div className="hidden print-header-meta print:flex print:justify-center">
             <span><strong>Estado:</strong> {getEstadoText(orden.estado)}</span>
             <span><strong>Fecha:</strong> {formatFechaOrden(orden.fecha, true)}</span>
             {orden.condicion_pago && (
