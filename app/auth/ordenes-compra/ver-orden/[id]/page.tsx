@@ -82,7 +82,7 @@ const printStyles = `
 
     .print-header-total {
       text-align: center !important;
-      font-size: 11px !important;
+      font-size: 12px !important;
       font-weight: 700 !important;
       margin-bottom: 4px !important;
     }
@@ -93,7 +93,7 @@ const printStyles = `
       justify-content: center !important;
       gap: 2px 14px !important;
       margin-top: 3px !important;
-      font-size: 8.5px !important;
+      font-size: 9.5px !important;
     }
 
     .print-header-meta span {
@@ -190,6 +190,28 @@ const printStyles = `
       display: inline !important;
     }
 
+    .print-info-top .print-section-header [class*="CardTitle"],
+    .print-info-top .print-section-title {
+      font-size: 10.5px !important;
+    }
+
+    .print-info-top .print-field-label {
+      font-size: 9.5px !important;
+    }
+
+    .print-info-top .print-field-value {
+      font-size: 10.5px !important;
+    }
+
+    .print-info-top .print-field-value.text-3xl {
+      font-size: 14px !important;
+    }
+
+    .print-section-items .print-section-header [class*="CardTitle"],
+    .print-section-items .print-section-title {
+      font-size: 10.5px !important;
+    }
+
     .print-estado-badge {
       display: none !important;
     }
@@ -202,7 +224,7 @@ const printStyles = `
     .print-table {
       border-collapse: collapse !important;
       width: 100% !important;
-      font-size: 8px !important;
+      font-size: 10.5px !important;
       table-layout: fixed !important;
     }
 
@@ -226,7 +248,7 @@ const printStyles = `
     .print-table th {
       background-color: #e8e8e8 !important;
       font-weight: 700 !important;
-      font-size: 7.5px !important;
+      font-size: 9.5px !important;
       padding: 2px 3px !important;
     }
 
@@ -237,24 +259,59 @@ const printStyles = `
     .print-table tfoot td {
       background-color: #e0e0e0 !important;
       font-weight: 700 !important;
-      font-size: 9px !important;
+      font-size: 10.5px !important;
       padding: 2px 4px !important;
     }
 
+    .print-table tfoot td:last-child {
+      font-size: 12px !important;
+    }
+
     .print-articulo-cell .print-articulo-extra {
-      font-size: 7px !important;
+      font-size: 9.5px !important;
       line-height: 1.15 !important;
       color: #444 !important;
     }
 
     .print-articulo-cell .print-articulo-nombre {
-      font-size: 8px !important;
+      font-size: 10.5px !important;
       font-weight: 600 !important;
       line-height: 1.15 !important;
     }
 
     .print-hidden {
       display: none !important;
+    }
+
+    .print-title-or {
+      display: none !important;
+    }
+
+    .print-sin-importes .print-header-total,
+    .print-sin-importes .print-col-importe,
+    .print-sin-importes .print-field-importe,
+    .print-sin-importes .print-table tfoot {
+      display: none !important;
+    }
+
+    .print-sin-importes .print-title-oc {
+      display: none !important;
+    }
+
+    .print-sin-importes .print-title-or {
+      display: block !important;
+    }
+
+    .print-sin-importes .print-col-articulo {
+      width: 72% !important;
+    }
+
+    .print-sin-importes .print-col-pic {
+      width: 10% !important;
+    }
+
+    .print-sin-importes .print-col-cant {
+      width: 18% !important;
     }
 
     /* Ocultar widget de chat flotante al imprimir */
@@ -349,6 +406,7 @@ export default function VerOrdenCompraPage() {
   const [facturaImageUrl, setFacturaImageUrl] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
+  const [printSinImportes, setPrintSinImportes] = useState(false);
   const [showArticuloModal, setShowArticuloModal] = useState(false);
   const [nuevoArticulo, setNuevoArticulo] = useState({
     articulo_nombre: '',
@@ -490,6 +548,12 @@ export default function VerOrdenCompraPage() {
   useEffect(() => {
     filtrarProveedores();
   }, [filtrarProveedores]);
+
+  useEffect(() => {
+    const resetPrintMode = () => setPrintSinImportes(false);
+    window.addEventListener("afterprint", resetPrintMode);
+    return () => window.removeEventListener("afterprint", resetPrintMode);
+  }, []);
 
   useEffect(() => {
     if (!orden?.fact_path) {
@@ -988,22 +1052,23 @@ export default function VerOrdenCompraPage() {
     });
   };
 
-  const handleImprimir = () => {
+  const handleImprimir = (sinImportes = false) => {
     try {
-      // Pequeño delay para asegurar que el DOM esté listo
+      setPrintSinImportes(sinImportes);
       setTimeout(() => {
         window.print();
-      }, 100);
+      }, 150);
     } catch (error) {
       console.error("Error al imprimir:", error);
-      // Fallback: abrir en nueva ventana
+      setPrintSinImportes(false);
+      const titulo = sinImportes ? "Orden de Recepción" : "Orden de Compra";
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(`
           <html>
-            <head><title>Orden de Compra #${orden?.noc}</title></head>
+            <head><title>${titulo} #${orden?.noc}</title></head>
             <body>
-              <h1>Orden de Compra #${orden?.noc}</h1>
+              <h1>${titulo} #${orden?.noc}</h1>
               <p>Use Ctrl+P para imprimir esta página</p>
             </body>
           </html>
@@ -1038,15 +1103,18 @@ export default function VerOrdenCompraPage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      <div className="w-full max-w-6xl mx-auto p-6 print-container">
+      <div className={`w-full max-w-6xl mx-auto p-6 print-container${printSinImportes ? " print-sin-importes" : ""}`}>
         {/* Encabezado compacto en impresión */}
         <div className="mb-6 print-header">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 print-header-company">
               Perfiles y Servicios SRL
             </h1>
-            <h2 className="hidden print:block print-header-title text-gray-900">
+            <h2 className="hidden print:block print-header-title print-title-oc text-gray-900">
               Orden de Compra #{orden.noc}
+            </h2>
+            <h2 className="hidden print-header-title print-title-or text-gray-900">
+              Orden de Recepción #{orden.noc}
             </h2>
             <p className="hidden print-header-total print:block text-gray-800">
               Total: {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
@@ -1108,29 +1176,29 @@ export default function VerOrdenCompraPage() {
           {/* Información del Proveedor */}
           <Card className="print-section">
             <CardHeader className="print-section-header print:py-2">
-              <CardTitle className="text-xl print:text-[9px]">Proveedor</CardTitle>
+              <CardTitle className="text-2xl print:text-[10px]">Proveedor</CardTitle>
             </CardHeader>
             <CardContent className="print-section-body print:py-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-info-grid">
                 <div className="print-field">
-                  <p className="text-sm text-gray-600 print-field-label">Nombre</p>
-                  <p className="font-medium print-field-value">{orden.proveedor}</p>
+                  <p className="text-base text-gray-600 print-field-label">Nombre</p>
+                  <p className="text-base font-medium print-field-value">{orden.proveedor}</p>
                 </div>
                 <div className="print-field">
-                  <p className="text-sm text-gray-600 print-field-label">CUIT</p>
-                  <p className="font-medium print-field-value">{orden.cuit}</p>
+                  <p className="text-base text-gray-600 print-field-label">CUIT</p>
+                  <p className="text-base font-medium print-field-value">{orden.cuit}</p>
                 </div>
                 <div className="print-field">
-                  <p className="text-sm text-gray-600 print-field-label">Teléfono</p>
-                  <p className="font-medium print-field-value">{orden.telefono}</p>
+                  <p className="text-base text-gray-600 print-field-label">Teléfono</p>
+                  <p className="text-base font-medium print-field-value">{orden.telefono}</p>
                 </div>
                 <div className="print-field">
-                  <p className="text-sm text-gray-600 print-field-label">Email</p>
-                  <p className="font-medium print-field-value">{orden.email}</p>
+                  <p className="text-base text-gray-600 print-field-label">Email</p>
+                  <p className="text-base font-medium print-field-value">{orden.email}</p>
                 </div>
                 <div className="print-field print-field-block md:col-span-2">
-                  <p className="text-sm text-gray-600 print-field-label">Dirección</p>
-                  <p className="font-medium print-field-value">{orden.direccion}</p>
+                  <p className="text-base text-gray-600 print-field-label">Dirección</p>
+                  <p className="text-base font-medium print-field-value">{orden.direccion}</p>
                 </div>
               </div>
             </CardContent>
@@ -1139,57 +1207,57 @@ export default function VerOrdenCompraPage() {
           {/* Información Principal */}
           <Card className="print-section">
             <CardHeader className="print-section-header print:py-2">
-              <CardTitle className="text-xl print:text-[9px]">Información General</CardTitle>
+              <CardTitle className="text-2xl print:text-[10px]">Información General</CardTitle>
             </CardHeader>
             <CardContent className="print-section-body print:py-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-info-grid">
                 <div className="print-field print:hidden">
-                  <p className="text-sm text-gray-600 print-field-label">Estado</p>
+                  <p className="text-base text-gray-600 print-field-label">Estado</p>
                   <div className="mt-1">{getEstadoBadge(orden.estado)}</div>
                 </div>
                 <div className="print-field print:hidden">
-                  <p className="text-sm text-gray-600 print-field-label">Fecha de Creación</p>
-                  <p className="font-medium print-field-value">
+                  <p className="text-base text-gray-600 print-field-label">Fecha de Creación</p>
+                  <p className="text-base font-medium print-field-value">
                     {formatFechaOrden(orden.fecha)}
                   </p>
                 </div>
-                <div className="print-field print:hidden">
-                  <p className="text-sm text-gray-600 print-field-label">Total de la Orden</p>
-                  <p className="text-2xl font-bold text-green-600">
+                <div className="print-field print-field-importe print:hidden">
+                  <p className="text-base text-gray-600 print-field-label">Total de la Orden</p>
+                  <p className="text-3xl font-bold text-green-600 print-field-value">
                     {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
                   </p>
                 </div>
                 <div className="print-field">
-                  <p className="text-sm text-gray-600 print-field-label">Condición de Pago</p>
-                  <p className="font-medium print-field-value">
+                  <p className="text-base text-gray-600 print-field-label">Condición de Pago</p>
+                  <p className="text-base font-medium print-field-value">
                     {orden.condicion_pago || "No especificada"}
                   </p>
                 </div>
                 <div className="print-field print-field-block">
-                  <p className="text-sm text-gray-600 print-field-label">Dirección de Entrega</p>
-                  <p className="font-medium print-field-value">{orden.lugar_entrega}</p>
+                  <p className="text-base text-gray-600 print-field-label">Dirección de Entrega</p>
+                  <p className="text-base font-medium print-field-value">{orden.lugar_entrega}</p>
                 </div>
                 <div className={`print-field print-field-block md:col-span-2${!orden.observaciones?.trim() ? " print:hidden" : ""}`}>
-                  <p className="text-sm text-gray-600 print-field-label">Observaciones</p>
-                  <p className="font-medium print-field-value">
+                  <p className="text-base text-gray-600 print-field-label">Observaciones</p>
+                  <p className="text-base font-medium print-field-value">
                     {orden.observaciones?.trim() || "Sin observaciones"}
                   </p>
                 </div>
                 {orden.cod_cta && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Código de Cuenta</p>
-                    <p className="font-medium print-field-value">{orden.cod_cta}</p>
+                    <p className="text-base text-gray-600 print-field-label">Código de Cuenta</p>
+                    <p className="text-base font-medium print-field-value">{orden.cod_cta}</p>
                   </div>
                 )}
                 {orden.sector && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Sector</p>
-                    <p className="font-medium print-field-value">{orden.sector}</p>
+                    <p className="text-base text-gray-600 print-field-label">Sector</p>
+                    <p className="text-base font-medium print-field-value">{orden.sector}</p>
                   </div>
                 )}
                 {orden.fc != null && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Factura (FC)</p>
+                    <p className="text-base text-gray-600 print-field-label">Factura (FC)</p>
                     {facturaImageUrl ? (
                       <a
                         href={facturaImageUrl}
@@ -1201,13 +1269,13 @@ export default function VerOrdenCompraPage() {
                         {orden.fc}
                       </a>
                     ) : (
-                      <p className="font-medium print-field-value">{orden.fc}</p>
+                      <p className="text-base font-medium print-field-value">{orden.fc}</p>
                     )}
                   </div>
                 )}
                 {orden.fact_path && orden.fc == null && facturaImageUrl && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Imagen de factura</p>
+                    <p className="text-base text-gray-600 print-field-label">Imagen de factura</p>
                     <a
                       href={facturaImageUrl}
                       target="_blank"
@@ -1220,14 +1288,14 @@ export default function VerOrdenCompraPage() {
                 )}
                 {orden.rt != null && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Remitos (RT)</p>
-                    <p className="font-medium print-field-value">{orden.rt}</p>
+                    <p className="text-base text-gray-600 print-field-label">Remitos (RT)</p>
+                    <p className="text-base font-medium print-field-value">{orden.rt}</p>
                   </div>
                 )}
                 {orden.fecha_entrega && (
                   <div className="print-field print:hidden">
-                    <p className="text-sm text-gray-600 print-field-label">Fecha de Entrega</p>
-                    <p className="font-medium print-field-value">
+                    <p className="text-base text-gray-600 print-field-label">Fecha de Entrega</p>
+                    <p className="text-base font-medium print-field-value">
                       {formatDateLocal(orden.fecha_entrega)}
                     </p>
                   </div>
@@ -1242,7 +1310,7 @@ export default function VerOrdenCompraPage() {
         {/* Artículos de la Orden */}
         <Card className="print-section print-section-items">
           <CardHeader className="print-section-header print:py-2">
-            <CardTitle className="text-xl print:text-[9px]">Artículos de la Orden</CardTitle>
+            <CardTitle className="text-2xl print:text-[10px]">Artículos de la Orden</CardTitle>
           </CardHeader>
           <CardContent className="print-section-body print:py-2 print:px-0">
             {orden.articulos && orden.articulos.length > 0 ? (
@@ -1250,25 +1318,25 @@ export default function VerOrdenCompraPage() {
                 <table className="w-full border-collapse border border-gray-300 print:border-gray-500 print-table">
                   <thead className="bg-gray-100 print:bg-gray-200">
                     <tr>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[7%]">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-pic w-[7%]">
                         PIC
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] min-w-[200px] print:min-w-0 print:w-[32%]">
+                      <th className="border border-gray-300 px-3 py-2 text-left text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-articulo min-w-[200px] print:min-w-0 print:w-[32%]">
                         Artículo
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[8%]">
+                      <th className="border border-gray-300 px-3 py-2 text-center text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-cant w-[8%]">
                         Cant.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[12%]">
+                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[12%]">
                         P. Unit.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[8%]">
+                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[8%]">
                         Desc. %
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[13%]">
+                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[13%]">
                         P. c/ desc.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[7.5px] w-[12%]">
+                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[12%]">
                         Total
                       </th>
                     </tr>
@@ -1283,7 +1351,7 @@ export default function VerOrdenCompraPage() {
                         const totalFila = getRowTotal(item);
                         return (
                       <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-gray-600 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-base text-gray-600 print:px-2 print:py-1 print:text-[10.5px]">
                           {(() => {
                             const comparativaUrl = getComparativaPedidoUrl(item.articulo_id, {
                               ordenCompraId: orden.id,
@@ -1312,7 +1380,7 @@ export default function VerOrdenCompraPage() {
                             return picLabel;
                           })()}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm print:px-1 print:py-0.5 print:text-[8px] align-top print-articulo-cell">
+                        <td className="border border-gray-300 px-3 py-2 text-base print:px-1 print:py-0.5 print:text-[10.5px] align-top print-articulo-cell">
                           <div className="flex flex-col gap-1.5 print:gap-0">
                             <span className="font-medium text-gray-900 print-articulo-nombre">{item.articulo_nombre}</span>
                             {item.descripcion?.trim() && (
@@ -1331,19 +1399,19 @@ export default function VerOrdenCompraPage() {
                             )}
                           </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-center text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-center text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
                           {item.cantidad}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
                           ${item.precio_unitario?.toLocaleString('es-AR')}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
                           {(item.descuento ?? 0).toLocaleString('es-AR')}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-sm text-gray-700 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
                           ${precioConDescuento.toLocaleString('es-AR')}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-900 print:px-2 print:py-1 print:text-xs">
+                        <td className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-900 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
                           ${totalFila.toLocaleString('es-AR')}
                         </td>
                       </tr>
@@ -1351,12 +1419,12 @@ export default function VerOrdenCompraPage() {
                       })()
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 print:bg-gray-100">
+                  <tfoot className="bg-gray-50 print:bg-gray-100 print-col-importe">
                     <tr>
-                      <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
+                      <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
                         TOTAL:
                       </td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-lg font-bold text-gray-900 print:px-2 print:py-1 print:text-sm">
+                      <td className="border border-gray-300 px-3 py-2 text-right text-2xl font-bold text-gray-900 print:px-2 print:py-1 print:text-[12px]">
                         ${totalOrdenCalculado.toLocaleString('es-AR')}
                       </td>
                     </tr>
@@ -1374,10 +1442,16 @@ export default function VerOrdenCompraPage() {
         {/* Acciones */}
         <div className="flex justify-center gap-4 print-hidden">
           <Button
-            onClick={handleImprimir}
+            onClick={() => handleImprimir(false)}
             className="px-8 bg-blue-600 hover:bg-blue-700"
           >
-            🖨️ Imprimir
+            🖨️ Imprimir OC
+          </Button>
+          <Button
+            onClick={() => handleImprimir(true)}
+            className="px-8 bg-emerald-600 hover:bg-emerald-700"
+          >
+            🖨️ Imprimir OR
           </Button>
           <Button
             onClick={() => router.push("/auth/ordenes-compra")}
