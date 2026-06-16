@@ -466,7 +466,7 @@ function parseObservacionesRegistroDesdeValor(val: unknown): ObservacionObraItem
 }
 
 function confirmActivarCheckboxEstadoObra(): boolean {
-  return window.confirm("¿ESTAS SEGURO CARNERO?");
+  return window.confirm("¿ACEPTAR PARA CONFIRMAR TAREA REALIZADA?");
 }
 
 function parseObservacionesRegistroMap(raw: unknown): Record<string, ObservacionObraItem[]> {
@@ -952,13 +952,14 @@ export default function ListOrdenesProduccion() {
   estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
-  const soloVista = isPanolEmail(userEmail, userRol) || isAprobEmail(userEmail, userRol);
+  const soloVista = isPanolEmail(userEmail, userRol);
   const estadoObraSoloVista = soloVista || estadoObraModalSoloVista;
   const isTabletUser = isTabletEmail(userEmail, userRol);
   const tabletSoloMarcar = isTabletOnlyUser(userEmail, userRol);
   const canEditCheckboxes =
     isProduccionEmail(userEmail, userRol) ||
     isAdminEmail(userEmail, userRol) ||
+    isAprobEmail(userEmail, userRol) ||
     isTabletUser;
   const canEditCheckboxesEnModal = canEditCheckboxes && !estadoObraSoloVista;
   const showEstadoObraActualizarButton = canEditCheckboxes && !isTabletUser;
@@ -2428,7 +2429,11 @@ export default function ListOrdenesProduccion() {
           }}
           onVerEstadoObra={(orden: OrdenProgreso) => {
             const fullOrden = filteredOrdenes.find((o) => o.id === orden.id);
-            if (fullOrden) void handleOpenEstadoObra(fullOrden, { soloVista: true });
+            if (fullOrden) {
+              void handleOpenEstadoObra(fullOrden, {
+                soloVista: isPanolEmail(userEmail, userRol),
+              });
+            }
           }}
           onClose={() => setShowProgresoModal(false)}
         />
