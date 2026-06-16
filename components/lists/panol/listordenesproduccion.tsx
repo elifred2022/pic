@@ -300,23 +300,17 @@ const SEMANAS = ["1", "2", "3", "4", "5"];
 
 type ImageItem = { url: string; name: string };
 
-function filterImageFiles(files: File[]): File[] {
-  return files.filter((f) => /^image\//.test(f.type));
+function filterPdfJpgFiles(files: File[]): File[] {
+  return files.filter((f) => isAllowedUploadFile(f));
 }
 
-function filterMedicionFiles(files: File[]): File[] {
-  return files.filter((f) => {
-    const ext = f.name.split(".").pop()?.toLowerCase() || "";
-    return /^(jpg|jpeg|pdf)$/i.test(ext) || f.type === "application/pdf" || /^image\/(jpeg|jpg)$/i.test(f.type);
-  });
-}
-
-function isAllowedUploadFile(file: File, tipo: "corte" | "medicion"): boolean {
+function isAllowedUploadFile(file: File): boolean {
   const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
-  if (tipo === "medicion") {
-    return /^(jpg|jpeg|pdf)$/i.test(fileExt);
-  }
-  return /^(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileExt);
+  return (
+    /^(jpg|jpeg|pdf)$/i.test(fileExt) ||
+    file.type === "application/pdf" ||
+    /^image\/(jpeg|jpg)$/i.test(file.type)
+  );
 }
 
 async function uploadImageFolder(
@@ -332,7 +326,7 @@ async function uploadImageFolder(
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    if (!isAllowedUploadFile(file, tipo)) continue;
+    if (!isAllowedUploadFile(file)) continue;
 
     const filePath = `${basePath}-${i}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
 
@@ -350,10 +344,7 @@ async function uploadImageFolder(
   }
 
   if (uploadedItems.length === 0) {
-    const errorMsg = tipo === "medicion"
-      ? "No se encontraron archivos PDF o JPG válidos."
-      : "No se encontraron archivos de imagen válidos en la carpeta.";
-    return { items: [], error: errorMsg };
+    return { items: [], error: "No se encontraron archivos PDF o JPG válidos." };
   }
 
   return { items: uploadedItems, error: null };
@@ -1047,11 +1038,11 @@ export default function ListOrdenesProduccion() {
   }, [mostrarProcesosEstadoObra]);
 
   const handleImagenFilesChange = (files: File[]) => {
-    setImagenFiles(filterImageFiles(files));
+    setImagenFiles(filterPdfJpgFiles(files));
   };
 
   const handleMedicionFilesChange = (files: File[]) => {
-    setMedicionFiles(filterMedicionFiles(files));
+    setMedicionFiles(filterPdfJpgFiles(files));
   };
 
   const handleImagenesSueltasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3175,13 +3166,13 @@ export default function ListOrdenesProduccion() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Orden de corte (carpeta o varios archivos) {editingOrden && "(dejar vacío para mantener las actuales)"}
+                    Orden de corte (PDF o JPG) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
                         multiple
                         onChange={handleImagenesSueltasChange}
                         className="hidden"
@@ -3191,7 +3182,7 @@ export default function ListOrdenesProduccion() {
                     <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
                         {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
                         onChange={handleCarpetaOrdenCorteChange}
                         className="hidden"
@@ -3201,7 +3192,7 @@ export default function ListOrdenesProduccion() {
                   </div>
                   {imagenFiles.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {imagenFiles.length} imagen{imagenFiles.length !== 1 ? "es" : ""} de corte seleccionada{imagenFiles.length !== 1 ? "s" : ""}
+                      {imagenFiles.length} archivo{imagenFiles.length !== 1 ? "s" : ""} de corte seleccionado{imagenFiles.length !== 1 ? "s" : ""}
                     </p>
                   )}
                 </div>
