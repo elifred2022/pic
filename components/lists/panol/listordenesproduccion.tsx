@@ -8,6 +8,7 @@ import {
   canDeleteObservacionesObra,
   isAdminEmail,
   isAprobEmail,
+  isInventarioPvcEmail,
   isPanolEmail,
   isProduccionEmail,
   isTabletEmail,
@@ -943,9 +944,12 @@ export default function ListOrdenesProduccion() {
   estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
-  const soloVista = isPanolEmail(userEmail, userRol);
+  const soloVista =
+    isPanolEmail(userEmail, userRol) || isInventarioPvcEmail(userEmail, userRol);
   const estadoObraSoloVista = soloVista || estadoObraModalSoloVista;
   const isTabletUser = isTabletEmail(userEmail, userRol);
+  const isInventarioPvcUser = isInventarioPvcEmail(userEmail, userRol);
+  const sinGestionCarpetaExcel = isTabletUser || isInventarioPvcUser;
   const tabletSoloMarcar = isTabletOnlyUser(userEmail, userRol);
   const canEditCheckboxes =
     isProduccionEmail(userEmail, userRol) ||
@@ -995,7 +999,8 @@ export default function ListOrdenesProduccion() {
     setIsReadOnly(
       isPanolEmail(user.email, rol) ||
         isAprobEmail(user.email, rol) ||
-        isTabletEmail(user.email, rol),
+        isTabletEmail(user.email, rol) ||
+        isInventarioPvcEmail(user.email, rol),
     );
     setUserEmail(user.email ?? null);
     setUserRol(rol);
@@ -2263,7 +2268,7 @@ export default function ListOrdenesProduccion() {
                 Ver medición
               </button>
             )}
-            {!isTabletEmail(userEmail, userRol) && (
+            {!sinGestionCarpetaExcel && (
               <button
                 type="button"
                 onClick={() => handleEliminarCarpeta(orden)}
@@ -2367,7 +2372,7 @@ export default function ListOrdenesProduccion() {
           >
             📊 Ver progreso de producción
           </button>
-          {!isTabletEmail(userEmail, userRol) && (
+          {!sinGestionCarpetaExcel && (
             <div className="flex items-center gap-2">
               <select
                 value={excelDownloadTipo}
@@ -2422,7 +2427,9 @@ export default function ListOrdenesProduccion() {
             const fullOrden = filteredOrdenes.find((o) => o.id === orden.id);
             if (fullOrden) {
               void handleOpenEstadoObra(fullOrden, {
-                soloVista: isPanolEmail(userEmail, userRol),
+                soloVista:
+                  isPanolEmail(userEmail, userRol) ||
+                  isInventarioPvcEmail(userEmail, userRol),
               });
             }
           }}
@@ -3316,7 +3323,7 @@ export default function ListOrdenesProduccion() {
                   {showAccionesColumn && (
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2 items-center">
-                        {!isTabletEmail(userEmail, userRol) && (
+                        {!sinGestionCarpetaExcel && (
                           <>
                             <button
                               type="button"

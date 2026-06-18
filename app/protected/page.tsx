@@ -6,6 +6,7 @@ import {
   isAprobRol,
   isPanolRol,
   isProduccionRol,
+  isInventarioPvcRol,
   isTabletRol,
   soloPedidosGeneralesPorRol,
 } from "@/lib/panol-access";
@@ -15,6 +16,7 @@ import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
 import ListBiComponenteProduccion from "@/components/panels/listbicomponenteproduccion";
 import ListBiComponenteTablet from "@/components/panels/listbicomponentetablet";
+import ListBiComponenteInventarioPvc from "@/components/panels/listbicomponenteinventariopvc";
 
 export const revalidate = 0; // 🔄 Forzar siempre dinámico (server fetch en cada request)
 
@@ -66,6 +68,8 @@ export default async function ProtectedPage() {
       ComponentToRender = <ListBiComponentePanol />;
     } else if (isTabletRol(rol)) {
       ComponentToRender = <ListBiComponenteTablet />;
+    } else if (isInventarioPvcRol(rol)) {
+      ComponentToRender = <ListBiComponenteInventarioPvc />;
     }
   }
 

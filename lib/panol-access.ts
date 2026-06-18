@@ -43,6 +43,7 @@ export const rolOpciones = [
   { value: "adminEmails", label: "Administrador" },
   { value: "aprobEmails", label: "Aprobación" },
   { value: "tabletEmails", label: "Tablet" },
+  { value: "inventariopvc", label: "Inventario PVC" },
 ] as const;
 
 export type RolKey = (typeof rolOpciones)[number]["value"];
@@ -81,6 +82,8 @@ export const tabletEmails = [
 
 ];
 
+export const inventariopvcEmails: string[] = [];
+
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const hasRol = (rol: string | null | undefined, expected: RolKey) =>
@@ -98,6 +101,8 @@ export const isProduccionRol = (rol?: string | null) =>
 export const isAdminRol = (rol?: string | null) => hasRol(rol, "adminEmails");
 export const isAprobRol = (rol?: string | null) => hasRol(rol, "aprobEmails");
 export const isTabletRol = (rol?: string | null) => hasRol(rol, "tabletEmails");
+export const isInventarioPvcRol = (rol?: string | null) =>
+  hasRol(rol, "inventariopvc");
 
 export const isPanolEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
@@ -110,6 +115,16 @@ export const isTabletEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
   if (isTabletRol(rol)) return true;
   if (useEmailFallback(rol)) return emailInList(email, tabletEmails);
+  return false;
+};
+
+export const isInventarioPvcEmail = (
+  email?: string | null,
+  rol?: string | null,
+) => {
+  if (isSinRol(rol)) return false;
+  if (isInventarioPvcRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, inventariopvcEmails);
   return false;
 };
 
@@ -170,7 +185,8 @@ export const canAccessOrdenesProduccion = (
     emailInList(email, produccionEmails) ||
     emailInList(email, adminEmails) ||
     emailInList(email, aprobEmails) ||
-    emailInList(email, tabletEmails)
+    emailInList(email, tabletEmails) ||
+    emailInList(email, inventariopvcEmails)
   );
 };
 
