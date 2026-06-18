@@ -314,6 +314,14 @@ const printStyles = `
       width: 18% !important;
     }
 
+    .print-or-codint {
+      display: none !important;
+    }
+
+    .print-sin-importes .print-or-codint {
+      display: block !important;
+    }
+
     /* Ocultar widget de chat flotante al imprimir */
     body > div.fixed {
       display: none !important;
@@ -433,6 +441,7 @@ export default function VerOrdenCompraPage() {
 
       const codProvPorCodint = new Map<string, string>();
       const codProvPorNombre = new Map<string, string>();
+      const codintPorNombre = new Map<string, string>();
       const descPorCodint = new Map<string, string>();
       const descPorNombre = new Map<string, string>();
 
@@ -454,12 +463,16 @@ export default function VerOrdenCompraPage() {
           .in("articulo", nombres);
         (data ?? []).forEach((row) => {
           codProvPorNombre.set(row.articulo, row.codprovsug ?? "");
+          if (row.codint) codintPorNombre.set(row.articulo, row.codint);
           if (row.descripcion) descPorNombre.set(row.articulo, row.descripcion);
         });
       }
 
       return articulos.map((art) => {
-        const codint = art.codint ?? undefined;
+        const codint =
+          art.codint?.trim() ||
+          codintPorNombre.get(art.articulo_nombre) ||
+          null;
         const descripcion =
           art.descripcion?.trim() ||
           (codint ? descPorCodint.get(codint) : undefined) ||
@@ -471,7 +484,7 @@ export default function VerOrdenCompraPage() {
           codProvPorNombre.get(art.articulo_nombre) ||
           null;
 
-        return { ...art, descripcion, codprovsug };
+        return { ...art, codint, descripcion, codprovsug };
       });
     },
     [supabase]
@@ -1395,6 +1408,11 @@ export default function VerOrdenCompraPage() {
                                 <span className="text-gray-500 print:hidden">Cod. prov. sug.: </span>
                                 <span className="hidden print:inline">Cód: </span>
                                 {item.codprovsug}
+                              </span>
+                            )}
+                            {item.codint?.trim() && (
+                              <span className="text-gray-600 leading-snug print-articulo-extra print-or-codint">
+                                Cod. Int.: {item.codint}
                               </span>
                             )}
                           </div>
