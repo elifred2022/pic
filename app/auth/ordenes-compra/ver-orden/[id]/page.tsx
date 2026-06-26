@@ -340,6 +340,7 @@ type ArticuloOrdenItem = {
   total: number;
   codint?: string | null;
   descripcion?: string | null;
+  presentacion?: string | null;
   codprovsug?: string | null;
 };
 
@@ -444,27 +445,31 @@ export default function VerOrdenCompraPage() {
       const codintPorNombre = new Map<string, string>();
       const descPorCodint = new Map<string, string>();
       const descPorNombre = new Map<string, string>();
+      const presPorCodint = new Map<string, string>();
+      const presPorNombre = new Map<string, string>();
 
       if (codints.length > 0) {
         const { data } = await supabase
           .from("articulos")
-          .select("codint, articulo, codprovsug, descripcion")
+          .select("codint, articulo, codprovsug, descripcion, presentacion")
           .in("codint", codints);
         (data ?? []).forEach((row) => {
           codProvPorCodint.set(row.codint, row.codprovsug ?? "");
           if (row.descripcion) descPorCodint.set(row.codint, row.descripcion);
+          if (row.presentacion) presPorCodint.set(row.codint, row.presentacion);
         });
       }
 
       if (nombres.length > 0) {
         const { data } = await supabase
           .from("articulos")
-          .select("codint, articulo, codprovsug, descripcion")
+          .select("codint, articulo, codprovsug, descripcion, presentacion")
           .in("articulo", nombres);
         (data ?? []).forEach((row) => {
           codProvPorNombre.set(row.articulo, row.codprovsug ?? "");
           if (row.codint) codintPorNombre.set(row.articulo, row.codint);
           if (row.descripcion) descPorNombre.set(row.articulo, row.descripcion);
+          if (row.presentacion) presPorNombre.set(row.articulo, row.presentacion);
         });
       }
 
@@ -478,13 +483,18 @@ export default function VerOrdenCompraPage() {
           (codint ? descPorCodint.get(codint) : undefined) ||
           descPorNombre.get(art.articulo_nombre) ||
           null;
+        const presentacion =
+          art.presentacion?.trim() ||
+          (codint ? presPorCodint.get(codint) : undefined) ||
+          presPorNombre.get(art.articulo_nombre) ||
+          null;
         const codprovsug =
           art.codprovsug?.trim() ||
           (codint ? codProvPorCodint.get(codint) : undefined) ||
           codProvPorNombre.get(art.articulo_nombre) ||
           null;
 
-        return { ...art, codint, descripcion, codprovsug };
+        return { ...art, codint, descripcion, presentacion, codprovsug };
       });
     },
     [supabase]
@@ -1403,6 +1413,13 @@ export default function VerOrdenCompraPage() {
                                 {item.descripcion}
                               </span>
                             )}
+                            {item.presentacion?.trim() && (
+                              <span className="font-bold text-red-600 leading-snug print-articulo-extra">
+                                <span className="print:hidden">Presentacion: </span>
+                                <span className="hidden print:inline">Pres: </span>
+                                {item.presentacion}
+                              </span>
+                            )}
                             {item.codprovsug?.trim() && (
                               <span className="text-gray-600 leading-snug print-articulo-extra">
                                 <span className="text-gray-500 print:hidden">Cod. prov. sug.: </span>
@@ -1864,6 +1881,10 @@ export default function VerOrdenCompraPage() {
                               <p className="leading-snug">
                                 <span className="text-gray-500">Descripción: </span>
                                 {articulo.descripcion?.trim() ? articulo.descripcion : "-"}
+                              </p>
+                              <p className="leading-snug font-bold text-red-600">
+                                <span className="text-gray-500 font-normal">Presentacion: </span>
+                                {articulo.presentacion?.trim() ? articulo.presentacion : "-"}
                               </p>
                               <p className="leading-snug">
                                 <span className="text-gray-500">Cod. prov. sug.: </span>
