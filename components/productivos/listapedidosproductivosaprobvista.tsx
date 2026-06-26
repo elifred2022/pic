@@ -27,6 +27,7 @@ type Pedido = {
     codint: string;
     articulo: string;
     descripcion: string;
+    presentacion?: string;
     existencia: number;
     cant: number;
     provsug: string;
@@ -46,6 +47,35 @@ export default function ListaPedidosProductivosAprobVista() {
   
     
     const supabase = createClient();
+
+    const enriquecerPedidosConArticulos = async (pedidos: Pedido[]): Promise<Pedido[]> => {
+      const codints = [
+        ...new Set(
+          pedidos.flatMap((p) => (p.articulos ?? []).map((a) => a.codint).filter(Boolean))
+        ),
+      ];
+      if (codints.length === 0) return pedidos;
+
+      const { data } = await supabase
+        .from("articulos")
+        .select("codint, presentacion")
+        .in("codint", codints);
+
+      const datosPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a])
+      );
+
+      return pedidos.map((p) => ({
+        ...p,
+        articulos: (p.articulos ?? []).map((art) => {
+          const desdeBd = datosPorCodint.get(art.codint);
+          return {
+            ...art,
+            presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+          };
+        }),
+      }));
+    };
   
   /* para que no desactive checkbox al reset pagia  Al montar, leé localStorage (solo se ejecuta en el navegador) */
         useEffect(() => {
@@ -109,7 +139,10 @@ export default function ListaPedidosProductivosAprobVista() {
         //.eq("uuid", user.id); // 👈 Filtra por usuario logueado
   
       if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
+      else if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConArticulos(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     };
   
     fetchPedidos();
@@ -275,7 +308,12 @@ const cellClass =
                         <tr key={idx}>
                         <td className="border px-1 py-1 text-xs">{a.codint}</td>
                         <td className="border px-1 py-1 text-xs">{a.articulo}</td>
-                        <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
+                        <td className="border px-1 py-1 text-xs">
+                          <div>{a.descripcion}</div>
+                          <div className="text-[10px] text-gray-500">
+                            Presentacion: {a.presentacion?.trim() ? a.presentacion : "-"}
+                          </div>
+                        </td>
                         <td className="border px-1 py-1 text-xs">{a.cant}</td>
                         <td className="border px-1 py-1 text-xs">{a.existencia}</td>
                         </tr>

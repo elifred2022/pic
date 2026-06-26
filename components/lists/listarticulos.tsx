@@ -24,6 +24,7 @@ type Articulo = {
   provsug: string;
   codprovsug: string;
   familia: string;
+  presentacion: string;
   situacion: string;
   
   
@@ -494,6 +495,7 @@ const mobileHidden = "hidden md:table-cell";
             <th className={`${headerClass} ${mobileHidden}`}>Fecha de alta</th>
             <th className={`${headerClass} print-report`}>Articulo</th>
             <th className={`${headerClass} ${mobileHidden}`}>Descripcion</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Presentacion</th>
             <th className={`${headerClass} print-report`}>Cod int</th>
             <th className={`${headerClass} print-report`}>Cost. unit.</th>
             <th className={`${headerClass} print-report`}>% Desc</th>
@@ -529,6 +531,7 @@ const mobileHidden = "hidden md:table-cell";
                         codint: articulo.codint,
                         articulo: articulo.articulo,
                         descripcion: articulo.descripcion,
+                        presentacion: articulo.presentacion,
                         existencia: articulo.existencia,
                         provsug: articulo.provsug,
                         codprovsug: articulo.codprovsug,
@@ -561,6 +564,7 @@ const mobileHidden = "hidden md:table-cell";
                         codint: articulo.codint,
                         articulo: articulo.articulo,
                         descripcion: articulo.descripcion,
+                        presentacion: articulo.presentacion,
                         existencia: articulo.existencia,
                         provsug: articulo.provsug,
                         codprovsug: articulo.codprovsug,
@@ -590,6 +594,7 @@ const mobileHidden = "hidden md:table-cell";
                         codint: articulo.codint,
                         articulo: articulo.articulo,
                         descripcion: articulo.descripcion,
+                        presentacion: articulo.presentacion,
                         existencia: articulo.existencia,
                         provsug: articulo.provsug,
                         codprovsug: articulo.codprovsug,
@@ -637,6 +642,7 @@ const mobileHidden = "hidden md:table-cell";
                 <td className={`${cellClass} ${mobileHidden}`}>{formatDate(articulo.created_at) || "-"}</td>
                 <td className={`${cellClass} print-report`}>{articulo.articulo}</td>
                 <td className={`${cellClass} ${mobileHidden}`}>{articulo.descripcion}</td>
+                <td className={`${cellClass} ${mobileHidden}`}>{renderValue(articulo.presentacion)}</td>
                 <td className={`${cellClass} print-report`}>{articulo.codint}</td>
                 <td className={`${cellClass} print-report`}>{articulo.costunit}</td>
                 <td className={`${cellClass} print-report`}>{articulo.descuento}</td>
@@ -729,6 +735,18 @@ const mobileHidden = "hidden md:table-cell";
                             value={formData.descripcion ?? ""}
                             onChange={(e) =>
                             setFormData({ ...formData, descripcion: e.target.value})
+                            }
+                        />
+                </label>
+
+                <label className="block mb-4">
+                    <p className="text-black">Presentacion</p>
+                        <input
+                            className="w-full border p-2 rounded mt-1"
+                            type="text"
+                            value={formData.presentacion ?? ""}
+                            onChange={(e) =>
+                            setFormData({ ...formData, presentacion: e.target.value})
                             }
                         />
                 </label>

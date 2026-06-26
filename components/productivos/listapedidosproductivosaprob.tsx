@@ -59,6 +59,7 @@ type Pedido = {
     codint: string;
     articulo: string;
     descripcion: string;
+    presentacion?: string;
     observacion: string;
     existencia: number;
     cant: number;
@@ -88,6 +89,35 @@ export default function ListaPedidosProductivosAprob() {
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
     const supabase = createClient();
+
+    const enriquecerPedidosConArticulos = async (pedidos: Pedido[]): Promise<Pedido[]> => {
+      const codints = [
+        ...new Set(
+          pedidos.flatMap((p) => (p.articulos ?? []).map((a) => a.codint).filter(Boolean))
+        ),
+      ];
+      if (codints.length === 0) return pedidos;
+
+      const { data } = await supabase
+        .from("articulos")
+        .select("codint, presentacion")
+        .in("codint", codints);
+
+      const datosPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a])
+      );
+
+      return pedidos.map((p) => ({
+        ...p,
+        articulos: (p.articulos ?? []).map((art) => {
+          const desdeBd = datosPorCodint.get(art.codint);
+          return {
+            ...art,
+            presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+          };
+        }),
+      }));
+    };
 
     const puedeVerAdjuntos = canViewAdjuntosCompras(userEmail, userRol);
     const presupuestoUrls = useComparativaPresupuestoUrls(
@@ -190,7 +220,10 @@ export default function ListaPedidosProductivosAprob() {
         //.eq("uuid", user.id); // 👈 Filtra por usuario logueado
   
       if (error) console.error("Error cargando pedidos:", error);
-      else setPedidos(data);
+      else if (data) {
+        const pedidosEnriquecidos = await enriquecerPedidosConArticulos(data);
+        setPedidos(pedidosEnriquecidos);
+      }
     };
   
     fetchPedidos();
@@ -504,6 +537,8 @@ const handleUpdatePedido = async () => {
                          {p.articulos.map((a, idx) => (
                            <div key={idx} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
                              <div className="font-medium text-gray-800">{a.articulo}</div>
+                             <div className="text-gray-600 text-xs">Desc: {a.descripcion || "-"}</div>
+                             <div className="text-gray-600 text-xs">Presentacion: {a.presentacion?.trim() ? a.presentacion : "-"}</div>
                              <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded">Código: {a.codint}</div>
                              <div className="text-gray-600 text-xs">Cant: {a.cant}</div>
                              <div className="text-gray-600 text-xs">Stock: {a.existencia}</div>

@@ -32,6 +32,7 @@ type Pedido = {
     cant: number;
     provsug: string;
     codprovsug?: string;
+    presentacion?: string;
   }[];
 };
 
@@ -59,19 +60,23 @@ export default function ListaPedidosProductivosVista() {
 
       const { data } = await supabase
         .from("articulos")
-        .select("codint, codprovsug")
+        .select("codint, codprovsug, presentacion")
         .in("codint", codints);
 
-      const codProvPorCodint = new Map(
-        (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+      const datosPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a])
       );
 
       return pedidos.map((p) => ({
         ...p,
-        articulos: (p.articulos ?? []).map((art) => ({
-          ...art,
-          codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
-        })),
+        articulos: (p.articulos ?? []).map((art) => {
+          const desdeBd = datosPorCodint.get(art.codint);
+          return {
+            ...art,
+            codprovsug: art.codprovsug ?? desdeBd?.codprovsug ?? "",
+            presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+          };
+        }),
       }));
     };
   
@@ -314,7 +319,12 @@ const cellClass =
                         <tr key={idx}>
                         <td className="border px-1 py-1 text-xs">{a.codint}</td>
                         <td className="border px-1 py-1 text-xs">{a.articulo}</td>
-                        <td className="border px-1 py-1 text-xs">{a.descripcion}</td>
+                        <td className="border px-1 py-1 text-xs">
+                          <div>{a.descripcion}</div>
+                          <div className="text-[10px] text-gray-500">
+                            Presentacion: {a.presentacion?.trim() ? a.presentacion : "-"}
+                          </div>
+                        </td>
                         <td className="border px-1 py-1 text-xs">{a.cant}</td>
                         <td className="border px-1 py-1 text-xs">{a.existencia}</td>
                         <td className="border px-1 py-1 text-xs font-mono">

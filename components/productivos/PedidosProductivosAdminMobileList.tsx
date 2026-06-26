@@ -26,6 +26,7 @@ type ArticuloPedido = {
   cant: number;
   provsug: string;
   codprovsug?: string;
+  presentacion?: string;
   observacion: string;
 };
 
@@ -190,6 +191,7 @@ export default function PedidosProductivosAdminMobileList({
                   <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
                     <div className="font-medium text-gray-800">{art.articulo}</div>
                     <p className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</p>
+                    <p className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : "-"}</p>
                     <p className="text-gray-600">Cant: {art.cant}</p>
                     <p className="text-gray-600">Stock: {art.existencia ?? "-"}</p>
                     <p className="text-gray-600">Prov: {art.provsug || "-"}</p>

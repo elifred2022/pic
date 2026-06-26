@@ -13,6 +13,7 @@ export default function FormularioCrearArticulo() {
   const [codint, setCodint] = useState("");
   const [articulo, setArticulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [presentacion, setPresentacion] = useState("");
   const [existencia, setExistencia] = useState<number>(0);
   const [provsug, setProvsug] = useState("");
   const [codprovsug, setCodprovsug] = useState("");
@@ -20,9 +21,11 @@ export default function FormularioCrearArticulo() {
   const [situacion, setSituacion] = useState("activo");
   const [cc, setCc] = useState<number>(0);
   const [costunit, setCostunit] = useState<number>(0);
+  const [descuento, setDescuento] = useState("");
   const [divisa, setDivisa] = useState("");
   const [articuloCommaWarning, setArticuloCommaWarning] = useState("");
   const [descripcionCommaWarning, setDescripcionCommaWarning] = useState("");
+  const [descuentoCommaWarning, setDescuentoCommaWarning] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -31,6 +34,7 @@ export default function FormularioCrearArticulo() {
     codint: string;
     articulo: string;
     descripcion: string;
+    presentacion: string | null;
     existencia: number;
     provsug: string | null;
     codprovsug: string | null;
@@ -38,9 +42,25 @@ export default function FormularioCrearArticulo() {
     situacion: string;
     cc: number;
     costunit: number;
+    descuento: string | null;
+    costunitcdesc: string | null;
     divisa: string | null;
   } | null>(null);
 
+
+  const parseNumero = (valor?: string | number) => {
+    if (valor === undefined || valor === null || valor === "") return 0;
+    const normalizado = String(valor).replace(",", ".");
+    const numero = parseFloat(normalizado);
+    return Number.isNaN(numero) ? 0 : numero;
+  };
+
+  const calcularCostunitcdesc = () => {
+    const cost = costunit || 0;
+    const porcentaje = parseNumero(descuento);
+    if (!cost || !descuento.trim()) return null;
+    return (cost - (cost * porcentaje) / 100).toFixed(2);
+  };
 
   // El código interno se ingresa manualmente
 
@@ -60,6 +80,7 @@ export default function FormularioCrearArticulo() {
         setCodint("");
         setArticulo("");
         setDescripcion("");
+        setPresentacion("");
         setExistencia(0);
         setProvsug("");
         setCodprovsug("");
@@ -67,6 +88,7 @@ export default function FormularioCrearArticulo() {
         setSituacion("activo");
         setCc(0);
         setCostunit(0);
+        setDescuento("");
         setDivisa("");
 
         // Redirigir después de 2 segundos
@@ -142,6 +164,7 @@ export default function FormularioCrearArticulo() {
           codint: codint.trim(),
           articulo: articulo.trim(),
           descripcion: descripcion.trim(),
+          presentacion: presentacion.trim() || null,
           existencia: existencia || 0,
           provsug: provsug.trim() || null,
           codprovsug: codprovsug.trim() || null,
@@ -149,6 +172,8 @@ export default function FormularioCrearArticulo() {
           situacion: situacion,
           cc: cc || 0,
           costunit: costunit || 0,
+          descuento: descuento.trim() || null,
+          costunitcdesc: calcularCostunitcdesc(),
           divisa: divisa.trim() || null,
         });
 
@@ -161,6 +186,7 @@ export default function FormularioCrearArticulo() {
         codint: codint, // Código interno para uso del usuario
         articulo: articulo.trim(),
         descripcion: descripcion.trim(),
+        presentacion: presentacion.trim() || null,
         existencia: existencia || 0,
         provsug: provsug.trim() || null,
         codprovsug: codprovsug.trim() || null,
@@ -169,6 +195,8 @@ export default function FormularioCrearArticulo() {
         uuid: user.id, // ID del usuario que crea el artículo
         cc: cc || 0,
         costunit: costunit || 0,
+        descuento: descuento.trim() || null,
+        costunitcdesc: calcularCostunitcdesc(),
         divisa: divisa.trim() || null,
         // ID y fecha de creación se generan automáticamente en Supabase
       };
@@ -268,6 +296,20 @@ export default function FormularioCrearArticulo() {
                <p className="text-xs text-red-600 mt-1">{descripcionCommaWarning}</p>
              )}
            </div>
+
+           <div>
+             <Label htmlFor="presentacion" className="text-sm font-medium text-gray-700">
+               Presentacion
+             </Label>
+             <input
+               type="text"
+               id="presentacion"
+               value={presentacion}
+               onChange={(e) => setPresentacion(e.target.value)}
+               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+               placeholder="Presentacion del articulo (opcional)"
+             />
+           </div>
         </div>
 
         {/* Existencia y Familia */}
@@ -335,7 +377,7 @@ export default function FormularioCrearArticulo() {
         </div>
 
         {/* Costos y Divisa */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="cc" className="text-sm font-medium text-gray-700">
               Centro de Costo
@@ -364,6 +406,46 @@ export default function FormularioCrearArticulo() {
               min="0"
               step="0.01"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="descuento" className="text-sm font-medium text-gray-700">
+              % Desc
+            </Label>
+            <input
+              type="text"
+              id="descuento"
+              value={descuento}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.includes(",")) {
+                  setDescuentoCommaWarning("No se permiten comas, use punto.");
+                  setDescuento(value.replace(/,/g, ""));
+                  return;
+                }
+                setDescuentoCommaWarning("");
+                setDescuento(value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="0"
+            />
+            {descuentoCommaWarning && (
+              <p className="text-xs text-red-600 mt-1">{descuentoCommaWarning}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="costunitcdesc" className="text-sm font-medium text-gray-700">
+              Cost. unit. c/ desc.
+            </Label>
+            <input
+              type="text"
+              id="costunitcdesc"
+              readOnly
+              value={calcularCostunitcdesc() ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700"
               placeholder="0.00"
             />
           </div>

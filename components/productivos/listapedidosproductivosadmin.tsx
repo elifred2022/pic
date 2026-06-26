@@ -75,6 +75,7 @@ type Pedido = {
     cant: number;
     provsug: string;
     codprovsug?: string;
+    presentacion?: string;
     observacion: string;
   }[];
 };
@@ -89,6 +90,7 @@ export default function ListaPedidosProductivosAdmin() {
     cant: number;
     provsug: string;
     codprovsug?: string;
+    presentacion?: string;
     observacion: string;
   }
 
@@ -208,18 +210,11 @@ export default function ListaPedidosProductivosAdmin() {
     useEffect(() => {
     const fetchPedidos = async () => {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-  
-  
-      if (userError) {
-        console.error("Error obteniendo el usuario:", userError);
-        return;
-      }
-  
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+
       if (!user) {
-        console.warn("No hay usuario logueado");
         return;
       }
   
@@ -397,7 +392,7 @@ export default function ListaPedidosProductivosAdmin() {
 
       // Verificar en los artículos
       const matchArticulos = pedido.articulos?.some((art: Articulo) =>
-        ['codint', 'articulo', 'descripcion', 'provsug', 'codprovsug', 'existencia'].some((campo) => {
+        ['codint', 'articulo', 'descripcion', 'presentacion', 'provsug', 'codprovsug', 'existencia'].some((campo) => {
           const val = art[campo as keyof Articulo];
           return val !== null && val !== undefined && String(val).toLowerCase().includes(s);
         })
@@ -475,19 +470,23 @@ export default function ListaPedidosProductivosAdmin() {
 
     const { data } = await supabase
       .from("articulos")
-      .select("codint, codprovsug")
+      .select("codint, codprovsug, presentacion")
       .in("codint", codints);
 
-    const codProvPorCodint = new Map(
-      (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+    const datosPorCodint = new Map(
+      (data ?? []).map((a) => [a.codint, a])
     );
 
     return pedidos.map((p) => ({
       ...p,
-      articulos: (p.articulos ?? []).map((art) => ({
-        ...art,
-        codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
-      })),
+      articulos: (p.articulos ?? []).map((art) => {
+        const desdeBd = datosPorCodint.get(art.codint);
+        return {
+          ...art,
+          codprovsug: art.codprovsug ?? desdeBd?.codprovsug ?? "",
+          presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+        };
+      }),
     }));
   };
 
@@ -949,6 +948,9 @@ const handleUpdatePedido = async () => {
                 <div class="info-item" style="margin-bottom: 4px;">
                   <span style="font-size: 9px; color: #4b5563;">Desc: ${art.descripcion != null && String(art.descripcion).trim() !== '' ? art.descripcion : '-'}</span>
                 </div>
+                <div class="info-item" style="margin-bottom: 4px;">
+                  <span style="font-size: 9px; color: #4b5563;">Presentacion: ${art.presentacion != null && String(art.presentacion).trim() !== '' ? art.presentacion : '-'}</span>
+                </div>
                 <div class="info-item">
                   <span>Cant: ${art.cant} · Stock: ${art.existencia ?? '-'} · Cod. prov. sug.: ${art.codprovsug?.trim() ? art.codprovsug : '-'}</span>
                 </div>
@@ -1247,6 +1249,7 @@ const handleUpdatePedido = async () => {
                           <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
                             <div className="font-medium text-gray-800">{art.articulo}</div>
                             <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
+                            <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
                             <div className="text-gray-600">Cant: {art.cant}</div>
                             <div className="text-gray-600">Stock: {art.existencia ?? '-'}</div>
                             <div className="text-gray-600">Prov: {art.provsug || '-'}</div>
@@ -1342,6 +1345,7 @@ const handleUpdatePedido = async () => {
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
                            <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
+                           <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
                            <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
                            <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
                            <div className="text-gray-600 text-xs">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>
@@ -1901,6 +1905,7 @@ const handleUpdatePedido = async () => {
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
                            <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
+                           <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
                            <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
                            <div className="text-gray-600 text-xs">Stock: {art.existencia ?? '-'}</div>
                            <div className="text-gray-600 text-xs">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>

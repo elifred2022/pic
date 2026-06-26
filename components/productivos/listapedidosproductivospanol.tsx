@@ -38,6 +38,7 @@ type Pedido = {
     cant: number;
     provsug: string;
     codprovsug?: string;
+    presentacion?: string;
   }[];
 };
 
@@ -66,19 +67,23 @@ export default function ListaPedidosProductivos() {
 
       const { data } = await supabase
         .from("articulos")
-        .select("codint, codprovsug")
+        .select("codint, codprovsug, presentacion")
         .in("codint", codints);
 
-      const codProvPorCodint = new Map(
-        (data ?? []).map((a) => [a.codint, a.codprovsug ?? ""])
+      const datosPorCodint = new Map(
+        (data ?? []).map((a) => [a.codint, a])
       );
 
       return pedidos.map((p) => ({
         ...p,
-        articulos: (p.articulos ?? []).map((art) => ({
-          ...art,
-          codprovsug: art.codprovsug ?? codProvPorCodint.get(art.codint) ?? "",
-        })),
+        articulos: (p.articulos ?? []).map((art) => {
+          const desdeBd = datosPorCodint.get(art.codint);
+          return {
+            ...art,
+            codprovsug: art.codprovsug ?? desdeBd?.codprovsug ?? "",
+            presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+          };
+        }),
       }));
     };
   
@@ -498,36 +503,24 @@ export default function ListaPedidosProductivos() {
                   </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="bg-gray-50 rounded-lg p-3 max-w-xs">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cód. Int.</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Artículo</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Descripción</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cant.</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Stock</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Cod. prov. sug.</th>
-                            <th className="px-2 py-1 text-left text-gray-600 font-semibold">Observ.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {p.articulos?.map((a, idx) => (
-                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                              <td className="px-2 py-1 font-mono text-blue-600">{a.codint}</td>
-                              <td className="px-2 py-1 font-medium">{a.articulo}</td>
-                              <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
-                              <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
-                              <td className="px-2 py-1 text-center">{a.existencia}</td>
-                              <td className="px-2 py-1 font-mono text-gray-700">
-                                {a.codprovsug?.trim() ? a.codprovsug : "-"}
-                              </td>
-                              <td className="px-2 py-1 text-gray-600">{a.observacion}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    {p.articulos && p.articulos.length > 0 ? (
+                      <div className="space-y-2">
+                        {p.articulos.map((art, index) => (
+                          <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div className="font-medium text-gray-800">{art.articulo}</div>
+                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
+                            <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : "-"}</div>
+                            <div className="text-gray-600">Cant: {art.cant}</div>
+                            <div className="text-gray-600">Stock: {art.existencia ?? "-"}</div>
+                            <div className="text-gray-600">Prov: {art.provsug || "-"}</div>
+                            <div className="text-gray-600">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : "-"}</div>
+                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">- Sin artículos -</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                     <div className="max-w-xs">

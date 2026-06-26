@@ -15,6 +15,8 @@ type Articulo = {
   existencia: number;
   costo_compra: number;
   provsug: string;
+  codprovsug?: string;
+  presentacion?: string;
   aprueba: string;
   
 };
@@ -188,9 +190,11 @@ export default function CrearFormPedidoProductivo() {
         codint: a.codint,
         articulo: a.articulo,
         descripcion: a.descripcion,
+        presentacion: a.presentacion?.trim() || null,
         existencia: a.existencia,
         costo_compra: a.costo_compra,
         provsug: a.provsug,
+        codprovsug: a.codprovsug?.trim() || null,
         cc: a.cc,
         cant: a.cant,
         observacion: a.observacion,
@@ -411,7 +415,11 @@ export default function CrearFormPedidoProductivo() {
               <p><strong>Código:</strong> {articuloEncontrado.codint}</p>
               <p><strong>Artículo:</strong> {articuloEncontrado.articulo}</p>
               <p><strong>Descripción:</strong> {articuloEncontrado.descripcion}</p>
+              <p className="font-bold text-red-600">
+                Presentacion: {articuloEncontrado.presentacion?.trim() ? articuloEncontrado.presentacion : "-"}
+              </p>
               <p><strong>Proveedor sugerido:</strong> {articuloEncontrado.provsug}</p>
+              <p><strong>Cod. prov. sug.:</strong> {articuloEncontrado.codprovsug?.trim() ? articuloEncontrado.codprovsug : "-"}</p>
 
             <div className="mt-2 flex flex-col gap-2">
   {/* Existencia */}
@@ -474,6 +482,9 @@ export default function CrearFormPedidoProductivo() {
                 <tr className="bg-gray-100">
                   <th className="border p-2">Código</th>
                   <th className="border p-2">Artículo</th>
+                  <th className="border p-2">Descripción</th>
+                  <th className="border p-2">Presentacion</th>
+                  <th className="border p-2">Cod. prov. sug.</th>
                   <th className="border p-2">Existencia</th>
                   <th className="border p-2">Observ</th>
                   <th className="border p-2">Cantidad</th>
@@ -485,6 +496,11 @@ export default function CrearFormPedidoProductivo() {
                   <tr key={a.codint}>
                     <td className="border p-2">{a.codint}</td>
                     <td className="border p-2">{a.articulo}</td>
+                    <td className="border p-2">{a.descripcion?.trim() ? a.descripcion : "-"}</td>
+                    <td className="border p-2 font-bold text-red-600">
+                      {a.presentacion?.trim() ? a.presentacion : "-"}
+                    </td>
+                    <td className="border p-2">{a.codprovsug?.trim() ? a.codprovsug : "-"}</td>
                     <td className="border p-2">{a.existencia}</td>
                     <td className="border p-2">{a.observacion}</td>
                     <td className="border p-2">{a.cant}</td>
