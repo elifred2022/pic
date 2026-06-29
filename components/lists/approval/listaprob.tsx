@@ -265,10 +265,10 @@ export default function ListAprob() {
         <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
           <div className="flex gap-4">
             <Link
-              href="/protected"
+              href="/auth/modulo-compras"
               className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
             >
-              ← Home
+              Volver
             </Link>
             
             <Link

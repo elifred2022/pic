@@ -9,7 +9,7 @@ import {
   isAdminEmail,
   isAprobEmail,
   isInventarioPvcEmail,
-  isPanolEmail,
+  isOrdenesProduccionSoloVista,
   isProduccionEmail,
   isTabletEmail,
   isTabletOnlyUser,
@@ -944,12 +944,11 @@ export default function ListOrdenesProduccion() {
   estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
-  const soloVista =
-    isPanolEmail(userEmail, userRol) || isInventarioPvcEmail(userEmail, userRol);
+  const soloVista = isOrdenesProduccionSoloVista(userEmail, userRol);
   const estadoObraSoloVista = soloVista || estadoObraModalSoloVista;
   const isTabletUser = isTabletEmail(userEmail, userRol);
   const isInventarioPvcUser = isInventarioPvcEmail(userEmail, userRol);
-  const sinGestionCarpetaExcel = isTabletUser || isInventarioPvcUser;
+  const sinGestionCarpetaExcel = isTabletUser || soloVista;
   const tabletSoloMarcar = isTabletOnlyUser(userEmail, userRol);
   const canEditCheckboxes =
     isProduccionEmail(userEmail, userRol) ||
@@ -997,10 +996,9 @@ export default function ListOrdenesProduccion() {
     const rol = perfil?.rol ?? null;
 
     setIsReadOnly(
-      isPanolEmail(user.email, rol) ||
+      isOrdenesProduccionSoloVista(user.email, rol) ||
         isAprobEmail(user.email, rol) ||
-        isTabletEmail(user.email, rol) ||
-        isInventarioPvcEmail(user.email, rol),
+        isTabletEmail(user.email, rol),
     );
     setUserEmail(user.email ?? null);
     setUserRol(rol);
@@ -1137,6 +1135,7 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleSaveObservaciones = async (ordenId: string, observaciones: string) => {
+    if (soloVista) return;
     const texto = observaciones.trim();
     if (!texto) {
       alert("Escribe una observación para agregar.");
@@ -1165,6 +1164,7 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleEdit = (orden: OrdenProduccion) => {
+    if (soloVista) return;
     setEditingOrden(orden);
     setFormData({
       num_carpeta: orden.num_carpeta ?? "",
@@ -1219,7 +1219,9 @@ export default function ListOrdenesProduccion() {
     estadoObraAutoSaveReadyRef.current = false;
     estadoObraUserEditedRef.current = false;
     estadoObraObservacionesRemovedRef.current = new Set();
-    setEstadoObraModalSoloVista(options?.soloVista ?? false);
+    setEstadoObraModalSoloVista(
+      options?.soloVista ?? isOrdenesProduccionSoloVista(userEmail, userRol),
+    );
     setEstadoObraOrden(orden);
     setEstadoObraFiltroTip("");
     setShowEstadoObraModal(true);
@@ -1365,6 +1367,7 @@ export default function ListOrdenesProduccion() {
 
   const saveEstadoObraToSupabase = useCallback(async (closeModal = false, refreshList = true) => {
     if (!estadoObraOrden || estadoObraSavingRef.current) return;
+    if (isOrdenesProduccionSoloVista(userEmail, userRol)) return;
     estadoObraSavingRef.current = true;
     setUpdatingEstadoObra(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -1548,7 +1551,7 @@ export default function ListOrdenesProduccion() {
     }
     estadoObraSavingRef.current = false;
     setUpdatingEstadoObra(false);
-  }, [estadoObraOrden, supabase, fetchOrdenes, ordenes]);
+  }, [estadoObraOrden, supabase, fetchOrdenes, ordenes, userEmail, userRol]);
 
   const handleUpdateEstadoObra = () => saveEstadoObraToSupabase(true, true);
 
@@ -1658,6 +1661,7 @@ export default function ListOrdenesProduccion() {
   ]);
 
   const handleDelete = async (orden: OrdenProduccion) => {
+    if (soloVista) return;
     if (!confirm("¿Estás seguro de que deseas eliminar esta obra?")) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -1715,6 +1719,7 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleEliminarCarpeta = async (orden: OrdenProduccion) => {
+    if (soloVista) return;
     const numCarpeta = orden.num_carpeta ?? "(sin número)";
     const nombreObra = orden.obra ?? "(sin nombre)";
     const confirmado = window.confirm(
@@ -2310,9 +2315,11 @@ export default function ListOrdenesProduccion() {
             href="/protected"
             className="inline-block px-4 sm:px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 text-center touch-manipulation"
           >
-            ← Home
+            Volver a panel
           </Link>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">🏭 Órdenes de Producción</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">
+            🏭 Órdenes de Producción{soloVista ? " (solo visualización)" : ""}
+          </h1>
         </div>
         <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
           {!isReadOnly && (
@@ -2427,9 +2434,7 @@ export default function ListOrdenesProduccion() {
             const fullOrden = filteredOrdenes.find((o) => o.id === orden.id);
             if (fullOrden) {
               void handleOpenEstadoObra(fullOrden, {
-                soloVista:
-                  isPanolEmail(userEmail, userRol) ||
-                  isInventarioPvcEmail(userEmail, userRol),
+                soloVista: isOrdenesProduccionSoloVista(userEmail, userRol),
               });
             }
           }}
@@ -3284,8 +3289,8 @@ export default function ListOrdenesProduccion() {
           renderObraCell={(orden) => (
             <ObraConObservaciones
               orden={orden}
-              canEdit={canEditObservaciones}
-              canDelete={canDeleteObservaciones}
+              canEdit={canEditObservaciones && !soloVista}
+              canDelete={canDeleteObservaciones && !soloVista}
               onSave={handleSaveObservaciones}
               onDelete={handleDeleteObservacion}
               renderValue={renderValue}
@@ -3370,8 +3375,8 @@ export default function ListOrdenesProduccion() {
                   <td className={cellClass}>
                     <ObraConObservaciones
                       orden={orden}
-                      canEdit={canEditObservaciones}
-                      canDelete={canDeleteObservaciones}
+                      canEdit={canEditObservaciones && !soloVista}
+                      canDelete={canDeleteObservaciones && !soloVista}
                       onSave={handleSaveObservaciones}
                       onDelete={handleDeleteObservacion}
                       renderValue={renderValue}

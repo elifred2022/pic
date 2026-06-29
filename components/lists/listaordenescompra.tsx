@@ -892,14 +892,14 @@ export default function ListaOrdenesCompra() {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
-      {/* Botón de Home */}
+      {/* Botón de volver */}
       <div className="mb-6">
         <Button 
-          onClick={() => router.push("/protected")}
+          onClick={() => router.push("/auth/modulo-compras")}
           variant="outline"
           className="border-gray-300 text-gray-700 hover:bg-gray-50"
         >
-          🏠 Volver al Inicio
+          Volver
         </Button>
       </div>
       

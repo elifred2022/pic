@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { UserCog } from "lucide-react";
 
 import PicRealtimeListenerAdmin from "../realtime/picrealtimelisteneradmin";
+import { DashboardModuleCards } from "@/components/panels/dashboard-module-cards";
 
 function ListBiComponentAdmin() {
   const [showListAdmin, setShowListAdmin] = useState(true);
@@ -61,94 +60,7 @@ function ListBiComponentAdmin() {
           <PicRealtimeListenerAdmin />
         </div>
 
-        {/* Navegación principal con diseño mejorado */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-          <Link
-            href="/auth/listaproveedores"
-            className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-blue-600 hover:to-blue-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">🏢</div>
-              <h3 className="text-lg font-bold mb-2">Sección Proveedores</h3>
-              <p className="text-blue-100 text-sm">Gestiona proveedores y contactos</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/usuarios"
-            className="group relative overflow-hidden bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-indigo-600 hover:to-indigo-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 shadow-inner ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-110">
-                <UserCog className="h-7 w-7 text-white" strokeWidth={2} aria-hidden />
-              </div>
-              <h3 className="text-lg font-bold mb-2">Usuarios</h3>
-              <p className="text-indigo-100 text-sm">Consulta usuarios y roles</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/lista-articulos"
-            className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-green-600 hover:to-green-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">📦</div>
-              <h3 className="text-lg font-bold mb-2">Sección Artículos</h3>
-              <p className="text-green-100 text-sm">Administra inventario y productos</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/list-adminpedidosgenerales"
-            className="group relative overflow-hidden bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-purple-600 hover:to-purple-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">📋</div>
-              <h3 className="text-lg font-bold mb-2">Pedidos Generales</h3>
-              <p className="text-purple-100 text-sm">Gestiona pedidos generales</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/rutaproductivos/lista-pedidosproductivosadmin"
-            className="group relative overflow-hidden bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-orange-600 hover:to-orange-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">⚙️</div>
-              <h3 className="text-lg font-bold mb-2">Pedidos Productivos</h3>
-              <p className="text-orange-100 text-sm">Administra pedidos productivos</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/ordenes-compra"
-            className="group relative overflow-hidden bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-red-600 hover:to-red-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">📋</div>
-              <h3 className="text-lg font-bold mb-2">Órdenes de Compra</h3>
-              <p className="text-red-100 text-sm">Gestiona órdenes de compra</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/ordenes-produccion"
-            className="group relative overflow-hidden bg-gradient-to-r from-teal-500 to-teal-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:from-teal-600 hover:to-teal-700"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="text-3xl mb-3">🏭</div>
-              <h3 className="text-lg font-bold mb-2">Órdenes de Producción</h3>
-              <p className="text-teal-100 text-sm">Administra órdenes de producción</p>
-            </div>
-          </Link>
-        </div>
+        <DashboardModuleCards />
 
         {/* Controles de visualización con diseño mejorado */}
        

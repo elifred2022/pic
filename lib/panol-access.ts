@@ -111,6 +111,12 @@ export const isPanolEmail = (email?: string | null, rol?: string | null) => {
   return false;
 };
 
+/** Órdenes de producción: solo consulta, sin edición ni carga de datos. */
+export const isOrdenesProduccionSoloVista = (
+  email?: string | null,
+  rol?: string | null,
+) => isPanolEmail(email, rol) || isInventarioPvcEmail(email, rol);
+
 export const isTabletEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
   if (isTabletRol(rol)) return true;
@@ -154,6 +160,11 @@ export const canViewAdjuntosCompras = (
   isAdminEmail(email, rol) || isAprobEmail(email, rol);
 
 export const canAccessUsuarios = (
+  email?: string | null,
+  rol?: string | null,
+) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+
+export const canAccessModuloCompras = (
   email?: string | null,
   rol?: string | null,
 ) => isAdminEmail(email, rol) || isAprobEmail(email, rol);

@@ -127,10 +127,10 @@ function ListBiComponentePanol() {
                 <span className="text-2xl text-white">🏭</span>
               </div>
               <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-amber-600 transition-colors duration-300">
-                Órdenes de Producción
+                Órdenes de Producción PVC
               </h3>
               <p className="text-gray-600 text-sm">
-                Administrar órdenes de producción
+                Consulta de órdenes de producción (solo visualización)
               </p>
             </div>
           </Link>
