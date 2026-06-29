@@ -10,16 +10,43 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calcularAhorrosAlcanzados,
   calcularAhorrosAlcanzadosPorDivisa,
+  calcularImportePorModalidadPago,
+  calcularImportePorModalidadPagoPorDivisa,
+  calcularImportePorCondicionProceso,
+  calcularImportePorCondicionProcesoPorDivisa,
+  calcularSolicitudesPorSector,
+  calcularSolicitudesPorSectorPorDivisa,
+  calcularSolicitudesPorEstado,
+  calcularSolicitudesPorEstadoPorDivisa,
+  calcularImportePorCodCta,
+  calcularImportePorCodCtaPorDivisa,
+  calcularImportePorProveedor,
+  calcularImportePorProveedorPorDivisa,
   consolidarAhorrosEnArs,
+  consolidarImporteModalidadEnArs,
+  consolidarImporteCondicionProcesoEnArs,
+  consolidarSolicitudesPorSectorEnArs,
+  consolidarSolicitudesPorEstadoEnArs,
+  consolidarImportePorCodCtaEnArs,
+  consolidarImportePorProveedorEnArs,
+  ordenarSectoresPorImporte,
   DIVISA_LABELS,
   DIVISAS_INDICADOR,
   filtrarOrdenesParaIndicadores,
+  filtrarOrdenesPorFecha,
   getRangoFechasPorDefecto,
   parseTipoCambio,
   type FiltroDivisaIndicador,
   type OrdenCompraIndicador,
 } from "@/lib/indicadores-compras";
 import { AhorrosAlcanzadosChart } from "@/components/indicadores/ahorros-alcanzados-chart";
+import { ImporteModalidadPagoChart } from "@/components/indicadores/importe-modalidad-pago-chart";
+import { ImporteCondicionProcesoChart } from "@/components/indicadores/importe-condicion-proceso-chart";
+import { SolicitudesPorSectorChart } from "@/components/indicadores/solicitudes-por-sector-chart";
+import { ImportePorSectorChart } from "@/components/indicadores/importe-por-sector-chart";
+import { EstadoSolicitudesChart } from "@/components/indicadores/estado-solicitudes-chart";
+import { ImporteArticuloCcChart } from "@/components/indicadores/importe-articulo-cc-chart";
+import { ImportePorProveedorChart } from "@/components/indicadores/importe-por-proveedor-chart";
 
 export function IndicadoresComprasDashboard() {
   const supabase = useMemo(() => createClient(), []);
@@ -42,7 +69,7 @@ export function IndicadoresComprasDashboard() {
 
       const { data, error: fetchError } = await supabase
         .from("ordenes_compra")
-        .select("id, noc, fecha, estado, total, divisa, importe_competencia, ahorro, articulos")
+        .select("id, noc, fecha, estado, total, divisa, importe_competencia, ahorro, tipo_pago, condi_proceso, sector, cod_cta, proveedor, articulos")
         .order("fecha", { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -64,8 +91,43 @@ export function IndicadoresComprasDashboard() {
     [ordenes, fechaDesde, fechaHasta]
   );
 
+  const ordenesFiltradasPorFecha = useMemo(
+    () => filtrarOrdenesPorFecha(ordenes, fechaDesde, fechaHasta),
+    [ordenes, fechaDesde, fechaHasta]
+  );
+
   const ahorrosPorDivisa = useMemo(
     () => calcularAhorrosAlcanzadosPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const importeModalidadPorDivisa = useMemo(
+    () => calcularImportePorModalidadPagoPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const importeCondicionProcesoPorDivisa = useMemo(
+    () => calcularImportePorCondicionProcesoPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const solicitudesPorSectorPorDivisa = useMemo(
+    () => calcularSolicitudesPorSectorPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const solicitudesPorEstadoPorDivisa = useMemo(
+    () => calcularSolicitudesPorEstadoPorDivisa(ordenesFiltradasPorFecha),
+    [ordenesFiltradasPorFecha]
+  );
+
+  const importePorCodCtaPorDivisa = useMemo(
+    () => calcularImportePorCodCtaPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const importePorProveedorPorDivisa = useMemo(
+    () => calcularImportePorProveedorPorDivisa(ordenesFiltradas),
     [ordenesFiltradas]
   );
 
@@ -96,6 +158,268 @@ export function IndicadoresComprasDashboard() {
     tipoCambioUsd,
     tipoCambioEur,
     ahorrosPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const gruposModalidadPago = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          modalidades: consolidarImporteModalidadEnArs(importeModalidadPorDivisa, {
+            usd: tipoCambioUsd!,
+            eur: tipoCambioEur!,
+          }),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        modalidades: importeModalidadPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        modalidades: calcularImportePorModalidadPago(ordenesFiltradas, filtroDivisa),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    importeModalidadPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const gruposCondicionProceso = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          condiciones: consolidarImporteCondicionProcesoEnArs(
+            importeCondicionProcesoPorDivisa,
+            {
+              usd: tipoCambioUsd!,
+              eur: tipoCambioEur!,
+            }
+          ),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        condiciones: importeCondicionProcesoPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        condiciones: calcularImportePorCondicionProceso(
+          ordenesFiltradas,
+          filtroDivisa
+        ),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    importeCondicionProcesoPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const gruposSolicitudesPorSector = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          sectores: consolidarSolicitudesPorSectorEnArs(
+            solicitudesPorSectorPorDivisa,
+            {
+              usd: tipoCambioUsd!,
+              eur: tipoCambioEur!,
+            }
+          ),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        sectores: solicitudesPorSectorPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        sectores: calcularSolicitudesPorSector(ordenesFiltradas, filtroDivisa),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    solicitudesPorSectorPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const gruposImportePorSector = useMemo(
+    () =>
+      gruposSolicitudesPorSector.map((grupo) => ({
+        ...grupo,
+        sectores: ordenarSectoresPorImporte(grupo.sectores),
+      })),
+    [gruposSolicitudesPorSector]
+  );
+
+  const gruposEstadoSolicitudes = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          estados: consolidarSolicitudesPorEstadoEnArs(
+            solicitudesPorEstadoPorDivisa,
+            {
+              usd: tipoCambioUsd!,
+              eur: tipoCambioEur!,
+            }
+          ),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        estados: solicitudesPorEstadoPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        estados: calcularSolicitudesPorEstado(
+          ordenesFiltradasPorFecha,
+          filtroDivisa
+        ),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    solicitudesPorEstadoPorDivisa,
+    filtroDivisa,
+    ordenesFiltradasPorFecha,
+  ]);
+
+  const gruposImportePorCodCta = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          items: consolidarImportePorCodCtaEnArs(importePorCodCtaPorDivisa, {
+            usd: tipoCambioUsd!,
+            eur: tipoCambioEur!,
+          }),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        items: importePorCodCtaPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        items: calcularImportePorCodCta(ordenesFiltradas, filtroDivisa),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    importePorCodCtaPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const tituloComparativaImporte =
+    totalizarEnArs
+      ? "Total consolidado en ARS"
+      : filtroDivisa === "todas"
+        ? "Comparativa por divisa"
+        : `Total en ${DIVISA_LABELS[filtroDivisa]}`;
+
+  const gruposImportePorProveedor = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          proveedores: consolidarImportePorProveedorEnArs(
+            importePorProveedorPorDivisa,
+            {
+              usd: tipoCambioUsd!,
+              eur: tipoCambioEur!,
+            }
+          ),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        proveedores: importePorProveedorPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        proveedores: calcularImportePorProveedor(ordenesFiltradas, filtroDivisa),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    importePorProveedorPorDivisa,
     filtroDivisa,
     ordenesFiltradas,
   ]);
@@ -252,6 +576,7 @@ export function IndicadoresComprasDashboard() {
       )}
 
       {!loading && !error && (
+        <>
         <Card className="border-gray-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl text-gray-800">Ahorros alcanzados</CardTitle>
@@ -279,6 +604,223 @@ export function IndicadoresComprasDashboard() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Importe por modalidad de pago
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Total confirmado por Cta A, Cta B y Mercado libre, consolidado en ARS."
+                : "Total confirmado de órdenes según tipo de pago (Cta A, Cta B, Mercado libre)."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImporteModalidadPagoChart
+                grupos={gruposModalidadPago}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado en ARS"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Condición de proceso
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Total confirmado por Bajo proceso, Fuera de proceso y Urgente, consolidado en ARS."
+                : "Total confirmado de órdenes según condición de proceso."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImporteCondicionProcesoChart
+                grupos={gruposCondicionProceso}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado en ARS"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Solicitudes por sectores
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              Cantidad de órdenes de compra agrupadas por sector solicitante.
+              {totalizarEnArs
+                ? " Importes consolidados en ARS al pasar el cursor."
+                : " Al pasar el cursor se muestra el importe confirmado."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <SolicitudesPorSectorChart
+                grupos={gruposSolicitudesPorSector}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Importe por sector
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Importe confirmado por sector, consolidado en ARS."
+                : "Importe confirmado total de órdenes agrupado por sector solicitante."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImportePorSectorChart
+                grupos={gruposImportePorSector}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado en ARS"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Estado de solicitudes
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              Cantidad de órdenes por estado (incluye anuladas).
+              {totalizarEnArs
+                ? " Importes consolidados en ARS al pasar el cursor."
+                : " Al pasar el cursor se muestra el importe confirmado."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <EstadoSolicitudesChart
+                grupos={gruposEstadoSolicitudes}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Importe por código de cuenta (CC)
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Valor confirmado de líneas de artículo agrupado por código de cuenta, consolidado en ARS."
+                : "Valor confirmado de cada línea de artículo agrupado por código de cuenta (CC)."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImporteArticuloCcChart
+                secciones={[
+                  {
+                    tituloSeccion: "Por código de cuenta (CC)",
+                    descripcion:
+                      "Suma del valor de cada línea según el código de cuenta de la orden.",
+                    grupos: gruposImportePorCodCta,
+                    tituloComparativa: tituloComparativaImporte,
+                    mensajeVacio:
+                      "No hay importes con código de cuenta en el rango seleccionado.",
+                  },
+                ]}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Importe por proveedor
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Importe confirmado por proveedor, consolidado en ARS."
+                : "Importe confirmado total de órdenes agrupado por proveedor."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImportePorProveedorChart
+                grupos={gruposImportePorProveedor}
+                tituloComparativa={tituloComparativaImporte}
+              />
+            )}
+          </CardContent>
+        </Card>
+        </>
       )}
     </div>
   );
