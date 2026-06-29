@@ -27,14 +27,14 @@ export function ComprasModuleCard({
 }: ComprasModuleCardProps) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
-      <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 px-8 py-6">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
             <HeaderIcon className="h-7 w-7 text-white" strokeWidth={2} aria-hidden />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">{title}</h2>
-            <p className="text-slate-300 text-sm mt-1">{description}</p>
+            <p className="text-blue-100 text-sm mt-1">{description}</p>
           </div>
         </div>
       </div>

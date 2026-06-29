@@ -134,7 +134,7 @@ export function CrearFormOrdenCompra() {
     condicion_pago: "",
     tipo_pago: "",
     condi_proceso: "",
-    importe_competencia: "",
+    importe_competencia: "0",
     divisa: "USD" as "USD" | "EUR" | "ARS"
   });
 
@@ -778,8 +778,8 @@ export function CrearFormOrdenCompra() {
         condi_proceso: formData.condi_proceso || null,
         noc: formData.noc,
         total: totalOrden,
-        importe_competencia: formData.importe_competencia ? parseNumero(formData.importe_competencia) : null,
-        ahorro: ahorroCalculado !== null ? ahorroCalculado : null,
+        importe_competencia: parseNumero(formData.importe_competencia),
+        ahorro: ahorroCalculado ?? 0,
         observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
         articulos: itemsOrden,
         estado: formData.estado,

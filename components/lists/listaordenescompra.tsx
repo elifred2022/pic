@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
 
 interface OrdenCompra {
   id: number;
@@ -34,6 +35,7 @@ interface OrdenCompra {
     descuento: number;
     costunitcdesc: number;
     total: number;
+    divisa?: string | null;
   }>;
   estado: string;
   total: number;
@@ -164,15 +166,18 @@ export default function ListaOrdenesCompra() {
     if (fechaDesde || fechaHasta) {
       ordenesFiltradas = ordenesFiltradas.filter(orden => {
         if (!orden.fecha) return false;
-        const fechaOrden = new Date(orden.fecha);
+        const fechaOrden = parseFechaOrdenLocal(orden.fecha);
+        if (!fechaOrden) return false;
         fechaOrden.setHours(0, 0, 0, 0);
         if (fechaDesde) {
-          const desde = new Date(fechaDesde);
+          const desde = parseFechaOrdenLocal(fechaDesde);
+          if (!desde) return false;
           desde.setHours(0, 0, 0, 0);
           if (fechaOrden < desde) return false;
         }
         if (fechaHasta) {
-          const hasta = new Date(fechaHasta);
+          const hasta = parseFechaOrdenLocal(fechaHasta);
+          if (!hasta) return false;
           hasta.setHours(23, 59, 59, 999);
           if (fechaOrden > hasta) return false;
         }
@@ -390,7 +395,15 @@ export default function ListaOrdenesCompra() {
         importe_competencia: o.importe_competencia ?? "",
         ahorro: o.ahorro ?? "",
         tipo_pago: o.tipo_pago ?? "",
-        divisa: o.divisa ?? "USD",
+        divisa: inferirDivisaOrden({
+          id: o.id,
+          noc: o.noc,
+          fecha: o.fecha,
+          estado: o.estado,
+          total: o.total,
+          divisa: o.divisa,
+          articulos: o.articulos,
+        }),
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();

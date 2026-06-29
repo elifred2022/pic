@@ -1,5 +1,20 @@
-import { UserCog } from "lucide-react";
+import { BarChart3, UserCog } from "lucide-react";
 import type { ComprasModuleItem } from "@/components/panels/compras-module-card";
+
+const indicadoresComprasIcon = (
+  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30">
+    <BarChart3 className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
+  </div>
+);
+
+const indicadoresComprasItem: ComprasModuleItem = {
+  href: "/auth/indicadores-compras",
+  title: "Indicadores de compras",
+  description: "Métricas y análisis del área de compras",
+  icon: indicadoresComprasIcon,
+  linkClassName:
+    "bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700",
+};
 
 export const adminComprasModuleItems: ComprasModuleItem[] = [
   {
@@ -54,6 +69,7 @@ export const adminComprasModuleItems: ComprasModuleItem[] = [
     linkClassName:
       "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
   },
+  indicadoresComprasItem,
 ];
 
 export const aprobComprasModuleItems: ComprasModuleItem[] = [
@@ -109,4 +125,5 @@ export const aprobComprasModuleItems: ComprasModuleItem[] = [
     linkClassName:
       "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
   },
+  indicadoresComprasItem,
 ];
