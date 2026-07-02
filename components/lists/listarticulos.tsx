@@ -400,7 +400,7 @@ const mobileHidden = "hidden md:table-cell";
         <div className="flex flex-wrap gap-4 items-center print-hidden">
           {canEdit && (
              <Link
-            href="/auth/crear-formarticulo"
+            href="/auth/crear-articulo"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo articulo
@@ -462,19 +462,6 @@ const mobileHidden = "hidden md:table-cell";
             </button>
           </div>
 
-           <Link
-              href="/auth/list-egresoart"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Registros de Egresos
-            </Link>
-
-             <Link
-              href="/auth/list-ingresoart"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Registros de ingresos
-            </Link>
         </div>
 
        <div className="flex flex-wrap gap-4 items-center">

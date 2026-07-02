@@ -5,8 +5,8 @@ export default async function Page() {
   await requireAdminEditAccess();
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
+    <div className="min-h-svh w-full bg-muted/30 p-4 md:p-8">
+      <div className="mx-auto w-full max-w-4xl">
         <FormularioCrearArticulo />
       </div>
     </div>
