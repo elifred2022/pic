@@ -1,21 +1,14 @@
-import FormularioCrearArticulo from "@/components/forms/formulario-creararticulo";
+import { requireAdminEditAccess } from "@/lib/require-admin-edit";
+import CrearFormArticulo from "@/components/forms/crear-formarticulo";
 
-export default function CrearFormArticuloPage() {
+export default async function Page() {
+  await requireAdminEditAccess();
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <FormularioCrearArticulo />
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <CrearFormArticulo />
+      </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

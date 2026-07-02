@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 
 
 
@@ -53,6 +54,7 @@ type Pedido = {
 
 
 export default function ListAdminStock() {
+  const { canEdit } = useCanEditAsAdmin();
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -211,13 +213,14 @@ const cellClass =
       
         <h1 className="text-xl font-bold mb-4">Pedidos productivos</h1>
         <div className="flex flex-wrap gap-4 items-center">
-          
+          {canEdit && (
           <Link
             href="/auth/crear-formstock"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo pedido productivo
           </Link>
+          )}
           
           <input
             type="text"
@@ -377,6 +380,8 @@ const cellClass =
                   >
                     Info
                   </button>
+                  {canEdit && (
+                  <>
                    <button
                     className="px-4 py-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
                     onClick={() => {
@@ -448,6 +453,8 @@ const cellClass =
                   >
                     Elim
                   </button>
+                  </>
+                  )}
                 </div></td>
              
                <td className={cellClass}>

@@ -72,6 +72,62 @@ export const adminComprasModuleItems: ComprasModuleItem[] = [
   indicadoresComprasItem,
 ];
 
+export const finanzasComprasModuleItems: ComprasModuleItem[] = [
+  {
+    href: "/auth/listaproveedores",
+    title: "Sección Proveedores",
+    description: "Consulta proveedores y contactos",
+    icon: <span className="text-2xl">🏢</span>,
+    linkClassName:
+      "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+  },
+  {
+    href: "/auth/usuarios",
+    title: "Usuarios",
+    description: "Consulta usuarios y roles",
+    icon: (
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30">
+        <UserCog className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
+      </div>
+    ),
+    linkClassName:
+      "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+  },
+  {
+    href: "/auth/lista-articulos",
+    title: "Sección Artículos",
+    description: "Consulta inventario y productos",
+    icon: <span className="text-2xl">📦</span>,
+    linkClassName:
+      "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
+  },
+  {
+    href: "/auth/list-adminpedidosgenerales",
+    title: "Pedidos Generales",
+    description: "Consulta pedidos generales",
+    icon: <span className="text-2xl">📋</span>,
+    linkClassName:
+      "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+  },
+  {
+    href: "/auth/rutaproductivos/lista-pedidosproductivosadmin",
+    title: "Pedidos Productivos",
+    description: "Consulta pedidos productivos",
+    icon: <span className="text-2xl">⚙️</span>,
+    linkClassName:
+      "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
+  },
+  {
+    href: "/auth/ordenes-compra",
+    title: "Órdenes de Compra",
+    description: "Consulta órdenes de compra",
+    icon: <span className="text-2xl">🛒</span>,
+    linkClassName:
+      "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+  },
+  indicadoresComprasItem,
+];
+
 export const aprobComprasModuleItems: ComprasModuleItem[] = [
   {
     href: "/auth/listaproveedores",

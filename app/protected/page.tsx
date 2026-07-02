@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   hasRolAsignado,
   isAdminRol,
+  isFinanzasRol,
   isAprobRol,
   isPanolRol,
   isProduccionRol,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
+import ListBiComponentFinanzas from "@/components/panels/listbicomponentfinanzas";
 import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
 import ListBiComponentePanol from "@/components/panels/listbicomponentepanol";
 import ListBiComponenteProduccion from "@/components/panels/listbicomponenteproduccion";
@@ -60,6 +62,8 @@ export default async function ProtectedPage() {
   if (hasRolAsignado(rol)) {
     if (isAdminRol(rol)) {
       ComponentToRender = <ListBiComponentAdmin />;
+    } else if (isFinanzasRol(rol)) {
+      ComponentToRender = <ListBiComponentFinanzas />;
     } else if (isAprobRol(rol)) {
       ComponentToRender = <ListBiComponentAprob />;
     } else if (isProduccionRol(rol)) {

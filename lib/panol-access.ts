@@ -35,12 +35,15 @@ export const aprobEmails = [
   // "julio@perfilesyservicios.com.ar", se dio de baja el 04/06/2026
 ];
 
+export const finanzasEmails: string[] = [];
+
 export const SIN_ROL = "sin_rol";
 
 export const rolOpciones = [
   { value: "panolesEmails", label: "Pañol" },
   { value: "produccionEmails", label: "Producción" },
   { value: "adminEmails", label: "Administrador" },
+  { value: "finanzasEmails", label: "Finanzas" },
   { value: "aprobEmails", label: "Aprobación" },
   { value: "tabletEmails", label: "Tablet" },
   { value: "inventariopvc", label: "Inventario PVC" },
@@ -99,6 +102,7 @@ export const isPanolRol = (rol?: string | null) => hasRol(rol, "panolesEmails");
 export const isProduccionRol = (rol?: string | null) =>
   hasRol(rol, "produccionEmails");
 export const isAdminRol = (rol?: string | null) => hasRol(rol, "adminEmails");
+export const isFinanzasRol = (rol?: string | null) => hasRol(rol, "finanzasEmails");
 export const isAprobRol = (rol?: string | null) => hasRol(rol, "aprobEmails");
 export const isTabletRol = (rol?: string | null) => hasRol(rol, "tabletEmails");
 export const isInventarioPvcRol = (rol?: string | null) =>
@@ -115,7 +119,10 @@ export const isPanolEmail = (email?: string | null, rol?: string | null) => {
 export const isOrdenesProduccionSoloVista = (
   email?: string | null,
   rol?: string | null,
-) => isPanolEmail(email, rol) || isInventarioPvcEmail(email, rol);
+) =>
+  isPanolEmail(email, rol) ||
+  isInventarioPvcEmail(email, rol) ||
+  isFinanzasEmail(email, rol);
 
 export const isTabletEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
@@ -157,17 +164,25 @@ export const canViewAdjuntosCompras = (
   email?: string | null,
   rol?: string | null,
 ) =>
-  isAdminEmail(email, rol) || isAprobEmail(email, rol);
+  isAdminEmail(email, rol) ||
+  isFinanzasEmail(email, rol) ||
+  isAprobEmail(email, rol);
 
 export const canAccessUsuarios = (
   email?: string | null,
   rol?: string | null,
-) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+) =>
+  isAdminEmail(email, rol) ||
+  isFinanzasEmail(email, rol) ||
+  isAprobEmail(email, rol);
 
 export const canAccessModuloCompras = (
   email?: string | null,
   rol?: string | null,
-) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+) =>
+  isAdminEmail(email, rol) ||
+  isFinanzasEmail(email, rol) ||
+  isAprobEmail(email, rol);
 
 export const isProduccionEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;
@@ -182,6 +197,29 @@ export const isAdminEmail = (email?: string | null, rol?: string | null) => {
   if (useEmailFallback(rol)) return emailInList(email, adminEmails);
   return false;
 };
+
+export const isFinanzasEmail = (email?: string | null, rol?: string | null) => {
+  if (isSinRol(rol)) return false;
+  if (isFinanzasRol(rol)) return true;
+  if (useEmailFallback(rol)) return emailInList(email, finanzasEmails);
+  return false;
+};
+
+/** Misma visibilidad que administrador (listas, módulos, adjuntos). */
+export const isAdminOrFinanzasEmail = (
+  email?: string | null,
+  rol?: string | null,
+) => isAdminEmail(email, rol) || isFinanzasEmail(email, rol);
+
+/** Solo administrador puede crear, editar o eliminar datos. */
+export const canEditAsAdmin = (email?: string | null, rol?: string | null) =>
+  isAdminEmail(email, rol);
+
+/** Administrador y finanzas pueden crear pedidos generales. */
+export const canCreatePedidosGenerales = (
+  email?: string | null,
+  rol?: string | null,
+) => isAdminEmail(email, rol) || isFinanzasEmail(email, rol);
 
 export const canAccessOrdenesProduccion = (
   email?: string | null,

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 
 interface OrdenCompra {
   id: number;
@@ -52,6 +53,7 @@ interface OrdenCompra {
 } 
 
 export default function ListaOrdenesCompra() {
+  const { canEdit } = useCanEditAsAdmin();
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
   const [ordenesFiltradas, setOrdenesFiltradas] = useState<OrdenCompra[]>([]);
   const [filtroBusqueda, setFiltroBusqueda] = useState("");
@@ -617,9 +619,11 @@ export default function ListaOrdenesCompra() {
           >
             {exportando || exportandoDetalle ? "⏳ Exportando..." : "📥 Descargar"}
           </Button>
+          {canEdit && (
           <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
             ➕ Crear Nueva Orden
           </Button>
+          )}
         </div>
       </div>
 
@@ -739,7 +743,7 @@ export default function ListaOrdenesCompra() {
                 : "No hay órdenes de compra registradas"
               }
             </p>
-            {!filtroBusqueda && (
+            {!filtroBusqueda && canEdit && (
               <Button onClick={handleCrearOrden} className="mt-4 bg-blue-600 hover:bg-blue-700">
                 Crear la primera orden
               </Button>
@@ -844,6 +848,7 @@ export default function ListaOrdenesCompra() {
                   >
                     👁️ Ver Detalles
                   </Button>
+                  {canEdit && (
                   <Button 
                     onClick={() => handleEliminarOrden(orden.id)}
                     variant="outline"
@@ -852,6 +857,7 @@ export default function ListaOrdenesCompra() {
                   >
                     {loading ? "⏳..." : "🗑️ Eliminar"}
                   </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

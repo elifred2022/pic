@@ -15,7 +15,7 @@ import {
   getFacturaViewUrl,
   getSupabaseErrorMessage,
 } from "@/lib/fact-compras-storage";
-import { isAprobEmail } from "@/lib/panol-access";
+import { canEditAsAdmin, isAprobEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -426,6 +426,7 @@ export default function VerOrdenCompraPage() {
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
+  const canEdit = canEditAsAdmin(userEmail, userRol);
 
   const enriquecerArticulosOrden = useCallback(
     async (articulos: ArticuloOrdenItem[]): Promise<ArticuloOrdenItem[]> => {
@@ -1164,6 +1165,7 @@ export default function VerOrdenCompraPage() {
             📋 Orden de Compra #{orden.noc}
           </h2>
           <div className="flex flex-wrap gap-2 print-hidden">
+            {canEdit && (
             <Button
               onClick={handleOpenEditModal}
               variant="outline"
@@ -1171,6 +1173,7 @@ export default function VerOrdenCompraPage() {
             >
               ✏️ Editar
             </Button>
+            )}
             <Button
               onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
               variant="outline"
@@ -1500,7 +1503,7 @@ export default function VerOrdenCompraPage() {
       </div>
 
       {/* Modal de Edición */}
-      {showEditModal && (
+      {canEdit && showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">✏️ Editar Orden de Compra</h3>

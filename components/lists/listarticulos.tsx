@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Plus, Minus, Pencil, Trash2 } from "lucide-react";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 
 
 type Articulo = {
@@ -32,6 +33,7 @@ type Articulo = {
 };
 
 export default function ListArticulos() {
+  const { canEdit } = useCanEditAsAdmin();
   const [search, setSearch] = useState("");
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [updatedDesde, setUpdatedDesde] = useState("");
@@ -396,12 +398,14 @@ const mobileHidden = "hidden md:table-cell";
     <h1 className="text-xl font-bold mb-4">Modulo Articulos</h1>
 
         <div className="flex flex-wrap gap-4 items-center print-hidden">
+          {canEdit && (
              <Link
             href="/auth/crear-formarticulo"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo articulo
           </Link>
+          )}
             <input
             type="text"
             placeholder="Buscar articulo..."
@@ -516,6 +520,7 @@ const mobileHidden = "hidden md:table-cell";
           {filteredArticulos.map((articulo) => (
             <tr key={articulo.id}>
                <td className={`${cellClass} col-acciones ${mobileHidden}`}>
+                {canEdit && (
                 <div className="flex flex-wrap gap-2">
                     
                   <button
@@ -637,7 +642,9 @@ const mobileHidden = "hidden md:table-cell";
                   </button>
 
                   
-                </div></td>
+                </div>
+                )}
+                </td>
                 <td className={`${cellClass} ${mobileHidden}`}>{articulo.id}</td>
                 <td className={`${cellClass} ${mobileHidden}`}>{formatDate(articulo.created_at) || "-"}</td>
                 <td className={`${cellClass} print-report`}>{articulo.articulo}</td>
@@ -668,7 +675,7 @@ const mobileHidden = "hidden md:table-cell";
       
 
       {/* MODAL */}
-      {editingArticulo && (
+      {canEdit && editingArticulo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">Editar articulo #{editingArticulo.id}</h2>
@@ -968,7 +975,7 @@ const mobileHidden = "hidden md:table-cell";
         </div>
       )}
         
-       {ingresarArticulo && (
+       {canEdit && ingresarArticulo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">Ingresar articulo #{ingresarArticulo.id}</h2>
@@ -1182,7 +1189,7 @@ const mobileHidden = "hidden md:table-cell";
           </div>
         </div>
       )} 
-       {descontarArticulo && (
+       {canEdit && descontarArticulo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">Salida de articulo #{descontarArticulo.id}</h2>

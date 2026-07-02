@@ -3,11 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import {
   canAccessModuloCompras,
   isAdminEmail,
+  isFinanzasEmail,
 } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import {
   adminComprasModuleItems,
   aprobComprasModuleItems,
+  finanzasComprasModuleItems,
 } from "@/lib/compras-module-items";
 import PanelModuloCompras from "@/components/panels/panel-modulo-compras";
 
@@ -27,7 +29,9 @@ export default async function ModuloComprasPage() {
 
   const items = isAdminEmail(authData.user.email, rol)
     ? adminComprasModuleItems
-    : aprobComprasModuleItems;
+    : isFinanzasEmail(authData.user.email, rol)
+      ? finanzasComprasModuleItems
+      : aprobComprasModuleItems;
 
   return <PanelModuloCompras items={items} />;
 }

@@ -83,6 +83,7 @@ type Props = {
   onInfo: (pedido: PedidoGeneralesMobile) => void;
   onEdit: (pedido: PedidoGeneralesMobile) => void;
   onDelete: (pedido: PedidoGeneralesMobile) => void;
+  canEdit?: boolean;
 };
 
 function estadoBadgeClass(estado: string): string {
@@ -158,6 +159,7 @@ export default function PedidosGeneralesAdminMobileList({
   onInfo,
   onEdit,
   onDelete,
+  canEdit = true,
 }: Props) {
   if (pedidos.length === 0) {
     return (
@@ -289,6 +291,8 @@ export default function PedidosGeneralesAdminMobileList({
               >
                 📋 Info
               </button>
+              {canEdit && (
+              <>
               <button
                 type="button"
                 onClick={() => onEdit(p)}
@@ -303,6 +307,8 @@ export default function PedidosGeneralesAdminMobileList({
               >
                 🗑️ Eliminar
               </button>
+              </>
+              )}
             </div>
           </div>
         </div>

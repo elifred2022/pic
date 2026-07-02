@@ -72,6 +72,7 @@ type Props = {
   onEdit: (pedido: PedidoMobile) => void;
   onComparativa: (pedido: PedidoMobile) => void;
   onDelete: (pedido: PedidoMobile) => void;
+  canEdit?: boolean;
 };
 
 function estadoBadgeClass(estado: string): string {
@@ -152,6 +153,7 @@ export default function PedidosProductivosAdminMobileList({
   onEdit,
   onComparativa,
   onDelete,
+  canEdit = true,
 }: Props) {
   if (pedidos.length === 0) {
     return (
@@ -260,6 +262,7 @@ export default function PedidosProductivosAdminMobileList({
           <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
             <p className="text-xs font-bold uppercase text-gray-500">Acciones</p>
             <div className="flex flex-col gap-2">
+              {canEdit && (
               <button
                 type="button"
                 onClick={() => onEdit(p)}
@@ -267,6 +270,7 @@ export default function PedidosProductivosAdminMobileList({
               >
                 ✏️ Editar
               </button>
+              )}
               <button
                 type="button"
                 onClick={() => onComparativa(p)}
@@ -274,6 +278,7 @@ export default function PedidosProductivosAdminMobileList({
               >
                 📊 Comparativa
               </button>
+              {canEdit && (
               <button
                 type="button"
                 onClick={() => onDelete(p)}
@@ -281,6 +286,7 @@ export default function PedidosProductivosAdminMobileList({
               >
                 🗑️ Eliminar
               </button>
+              )}
             </div>
           </div>
         </div>

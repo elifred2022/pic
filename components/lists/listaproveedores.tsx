@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 
 
 type Proveedor = {
@@ -24,6 +25,7 @@ type Proveedor = {
 };
 
 export default function ListProveedores() {
+  const { canEdit } = useCanEditAsAdmin();
   const [search, setSearch] = useState("");
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
@@ -171,12 +173,14 @@ const cellClass =
 
 
         <div className="flex flex-wrap gap-4 items-center">
+          {canEdit && (
              <Link
             href="/auth/crear-proveedor"
             className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
           >
             Crear nuevo proveedor
           </Link>
+          )}
           <button
             type="button"
             onClick={handleExportarExcel}
@@ -214,7 +218,7 @@ const cellClass =
           <tr className="bg-gray-100">
 
            
-            <th  className={headerClass}>Accion</th>
+            {canEdit && <th  className={headerClass}>Accion</th>}
              <th  className={headerClass}>Id</th>
              <th  className={headerClass}>Fecha de alta</th>
             <th  className={headerClass}>Codigo interno</th>
@@ -234,6 +238,7 @@ const cellClass =
         <tbody>
           {filteredProveedores.map((proveedor) => (
             <tr key={proveedor.id}>
+              {canEdit && (
               <td className={cellClass}>
                 <div className="flex gap-2">
                   <button
@@ -281,6 +286,7 @@ const cellClass =
 
                   
                 </div></td>
+              )}
 
                 <td className={cellClass}>{proveedor.id}</td>
               <td className={cellClass}>{formatDate(proveedor.created_at) || "-"}</td>
@@ -305,7 +311,7 @@ const cellClass =
       
 
       {/* MODAL */}
-      {editingProveedor && (
+      {canEdit && editingProveedor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">Editar proveedor #{editingProveedor.id}</h2>

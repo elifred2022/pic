@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import {
   emptyOcFacturaForm,
   formatDateInputValue,
@@ -97,6 +98,7 @@ type Pedido = {
 };
 
 export default function ListAdmin() {
+  const { canEdit, canCreatePedidosGenerales } = useCanEditAsAdmin();
   const searchParams = useSearchParams();
   const { ocVolver, resolveOcParaPedido } = useOcVolver();
   const [comparativaOc, setComparativaOc] = useState<OcVolver | null>(null);
@@ -1044,12 +1046,14 @@ export default function ListAdmin() {
         </div>
       
         <div className="flex flex-wrap gap-4 items-center">
+          {canCreatePedidosGenerales && (
           <Link
             href="/auth/crear-formus"
             className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
           >
             ➕ Crear nuevo pedido general
           </Link>
+          )}
           
           <input
             type="text"
@@ -1130,6 +1134,7 @@ export default function ListAdmin() {
            onInfo={abrirInfoPedido}
            onEdit={abrirEdicionPedido}
            onDelete={eliminarPedido}
+           canEdit={canEdit}
          />
          <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
            <table className="min-w-full table-auto border-collapse">
@@ -1173,6 +1178,8 @@ export default function ListAdmin() {
                   >
                     📋 Info
                   </button>
+                  {canEdit && (
+                  <>
                   <button
                     className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-xs"
                     onClick={() => abrirEdicionPedido(pedido)}
@@ -1186,6 +1193,8 @@ export default function ListAdmin() {
                   >
                     🗑️ Elim
                   </button>
+                  </>
+                  )}
                 </div>
               </td>
              
@@ -2339,7 +2348,7 @@ export default function ListAdmin() {
                         >
                           🔒 Cerrar
                         </button>
-                        {searchParams.get("comparativa") && (
+                        {searchParams.get("comparativa") && canEdit && (
                           <button
                             onClick={handleGuardarComparativa}
                             disabled={guardandoComparativa || ocFacturaUploading}

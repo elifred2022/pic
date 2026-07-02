@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { rolOpcionesForm, SIN_ROL } from "@/lib/panol-access";
 
 type Usuario = {
@@ -24,6 +25,7 @@ const getRolLabel = (rol: string | null) => {
 };
 
 export default function ListUsuarios() {
+  const { canEdit } = useCanEditAsAdmin();
   const [search, setSearch] = useState("");
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +110,11 @@ export default function ListUsuarios() {
       </Link>
 
       <h1 className="text-xl font-bold mb-4">Módulo Usuarios</h1>
+      {!canEdit && (
+        <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Modo solo lectura: podés consultar usuarios pero no modificarlos.
+        </p>
+      )}
 
       <input
         type="text"
@@ -123,7 +130,7 @@ export default function ListUsuarios() {
         <table className="min-w-full table-auto border border-gray-300 shadow-md rounded-md overflow-hidden">
           <thead className="bg-gray-100 text-gray-700">
             <tr>
-              <th className={headerClass}>Acción</th>
+              {canEdit && <th className={headerClass}>Acción</th>}
               <th className={headerClass}>Id</th>
               <th className={headerClass}>Nombre</th>
               <th className={headerClass}>Email</th>
@@ -133,13 +140,14 @@ export default function ListUsuarios() {
           <tbody>
             {filteredUsuarios.length === 0 ? (
               <tr>
-                <td colSpan={5} className={`${cellClass} text-center text-gray-500`}>
+                <td colSpan={canEdit ? 5 : 4} className={`${cellClass} text-center text-gray-500`}>
                   No se encontraron usuarios.
                 </td>
               </tr>
             ) : (
               filteredUsuarios.map((usuario) => (
                 <tr key={usuario.id} className="hover:bg-gray-50">
+                  {canEdit && (
                   <td className={cellClass}>
                     <button
                       type="button"
@@ -149,6 +157,7 @@ export default function ListUsuarios() {
                       Editar
                     </button>
                   </td>
+                  )}
                   <td className={cellClass}>{usuario.id}</td>
                   <td className={cellClass}>{usuario.nombre || "-"}</td>
                   <td className={cellClass}>{usuario.email || "-"}</td>
@@ -160,7 +169,7 @@ export default function ListUsuarios() {
         </table>
       )}
 
-      {editingUsuario && (
+      {canEdit && editingUsuario && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-md max-h-screen overflow-y-auto">
             <h2 className="text-black font-bold mb-4">

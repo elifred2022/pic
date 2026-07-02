@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ChatFloatingWidget } from "@/components/chats";
+import { hasEnvVars } from "@/lib/utils";
 import "./globals.css";
 
 
@@ -44,7 +45,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <ChatFloatingWidget />
+          {hasEnvVars ? <ChatFloatingWidget /> : null}
         </ThemeProvider>
       </body>
     </html>

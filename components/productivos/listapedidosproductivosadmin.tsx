@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
+import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import {
   emptyOcFacturaForm,
   formatDateInputValue,
@@ -81,6 +82,7 @@ type Pedido = {
 };
 
 export default function ListaPedidosProductivosAdmin() {
+  const { canEdit } = useCanEditAsAdmin();
 
   interface Articulo {
     codint: string;
@@ -1058,12 +1060,14 @@ const handleUpdatePedido = async () => {
       </div>
 
       <div className="flex flex-wrap gap-4 items-center">
+        {canEdit && (
         <Link
           href="/auth/rutaproductivos/crear-formpedidosproductivos"
             className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
         >
             ➕ Crear Pedido Productivo
         </Link>
+        )}
           
         <input
           type="text"
@@ -1144,6 +1148,7 @@ const handleUpdatePedido = async () => {
           onEdit={abrirEdicionPedido}
           onComparativa={abrirComparativaPedido}
           onDelete={eliminarPedido}
+          canEdit={canEdit}
         />
         <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
           <table className="min-w-full table-auto border-collapse">
@@ -1179,24 +1184,28 @@ const handleUpdatePedido = async () => {
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
                   <td className="px-4 py-3 border-b border-gray-200 align-top">
                     <div className="flex flex-col gap-2">
+                      {canEdit && (
                       <button 
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
                                                    onClick={() => abrirEdicionPedido(p)}
                 >
                         ✏️ Editar
                 </button>
+                      )}
                  <button
                         className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-sm"
                       onClick={() => abrirComparativaPedido(p)}
                   >
                         📊 Comparativa
                   </button>
+                {canEdit && (
                 <button
                         className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
                     onClick={() => eliminarPedido(p)}
                   >
                         🗑️ Elim
                   </button>
+                )}
                 </div>
               </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">

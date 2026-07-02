@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/panol-access";
+import { isAdminOrFinanzasEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListaPedidosProductivosAdmin from "@/components/productivos/listapedidosproductivosadmin";
 
@@ -15,7 +15,7 @@ export default async function Page() {
 
   const rol = await fetchUserRolByUuid(supabase, authData.user.id);
 
-  if (!isAdminEmail(authData.user.email, rol)) {
+  if (!isAdminOrFinanzasEmail(authData.user.email, rol)) {
     redirect("/protected");
   }
 
