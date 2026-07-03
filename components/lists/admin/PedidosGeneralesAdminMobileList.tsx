@@ -92,10 +92,12 @@ function estadoBadgeClass(estado: string): string {
   if (e === "anulado") return `${base} bg-red-100 text-red-800`;
   if (e === "aprobado" || e === "confirmado") return `${base} bg-green-100 text-green-800`;
   if (e === "cotizado") return `${base} bg-yellow-100 text-yellow-800`;
-  if (e === "stand by" || e === "visto/recibido" || e === "presentar presencial") {
+  if (e === "iniciado") return `${base} bg-orange-50 text-orange-500`;
+  if (e === "visto/recibido" || e === "Visto/recibido") return `${base} bg-orange-50 text-orange-500`;
+  if (e === "stand by" || e === "presentar presencial") {
     return `${base} bg-orange-100 text-orange-800`;
   }
-  if (e === "cumplido") return `${base} bg-gray-100 text-gray-800`;
+  if (e === "cumplido") return `${base} bg-blue-50 text-blue-600`;
   return `${base} bg-gray-100 text-gray-600`;
 }
 

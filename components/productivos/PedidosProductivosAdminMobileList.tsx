@@ -79,11 +79,18 @@ function estadoBadgeClass(estado: string): string {
   const base = "inline-block px-2.5 py-1 text-xs font-semibold rounded-full";
   if (estado === "anulado") return `${base} bg-red-100 text-red-800`;
   if (estado === "aprobado" || estado === "confirmado") return `${base} bg-green-100 text-green-800`;
-  if (estado === "cotizado" || estado === "iniciado") return `${base} bg-yellow-100 text-yellow-800`;
-  if (estado === "visto/recibido" || estado === "stand by" || estado === "Presentar presencial") {
+  if (estado === "entrego parcial" || estado === "entrego_parcial") {
+    return `${base} bg-orange-50 text-orange-500`;
+  }
+  if (estado === "cotizado") return `${base} bg-yellow-100 text-yellow-800`;
+  if (estado === "iniciado") return `${base} bg-orange-50 text-orange-500`;
+  if (estado === "visto/recibido" || estado === "Visto/recibido") {
+    return `${base} bg-orange-50 text-orange-500`;
+  }
+  if (estado === "stand by" || estado === "Presentar presencial") {
     return `${base} bg-orange-100 text-orange-800`;
   }
-  if (estado === "cumplido") return `${base} bg-gray-100 text-gray-800`;
+  if (estado === "cumplido") return `${base} bg-blue-50 text-blue-600`;
   return `${base} bg-gray-100 text-gray-600`;
 }
 

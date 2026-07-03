@@ -272,14 +272,18 @@ const cellClass =
                         ? "text-red-500 font-semibold"
                         : pedido.estado === "aprobado"
                         ? "text-green-600 font-semibold"
+                        : pedido.estado === "iniciado"
+                        ? "text-orange-500 font-semibold"
                         : pedido.estado === "cotizado"
                         ? "text-yellow-600 font-semibold"
+                        : pedido.estado === "visto/recibido" || pedido.estado === "Visto/recibido"
+                        ? "text-orange-500 font-semibold"
                         : pedido.estado === "stand by"
                         ? "text-orange-500 font-semibold"
                         : pedido.estado === "Presentar presencial"
                         ? "text-orange-500 font-semibold"
                         : pedido.estado === "cumplido"
-                        ? "text-green-800 font-semibold"
+                        ? "text-blue-600 font-semibold"
                         : pedido.estado === "confirmado" ? "text-green-600 font-semibold" 
                         : "text-black"
                     }
@@ -613,7 +617,7 @@ const cellClass =
                 <option value="anulado" className="bg-red-500 text-white">
                   Anulado
                 </option>
-                <option value="cumplido" className="bg-green-600 text-white">
+                <option value="cumplido" className="bg-blue-600 text-white">
                   Cumplido
                 </option>
               </select>

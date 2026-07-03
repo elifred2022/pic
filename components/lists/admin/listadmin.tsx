@@ -1205,16 +1205,18 @@ export default function ListAdmin() {
                          ? "px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "aprobado"
                          ? "px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full"
+                        : pedido.estado === "iniciado"
+                         ? "px-2 py-1 bg-orange-50 text-orange-500 text-xs font-semibold rounded-full"
                         : pedido.estado === "cotizado"
                          ? "px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "stand by"
                          ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
-                        : pedido.estado === "Visto/recibido"
-                         ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
+                        : pedido.estado === "visto/recibido" || pedido.estado === "Visto/recibido"
+                         ? "px-2 py-1 bg-orange-50 text-orange-500 text-xs font-semibold rounded-full"
                         : pedido.estado === "Presentar presencial"
                          ? "px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "cumplido"
-                         ? "px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full"
+                         ? "px-2 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full"
                          : pedido.estado === "confirmado" 
                          ? "px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full"
                          : "px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
@@ -1490,13 +1492,13 @@ export default function ListAdmin() {
                       onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                     >
                       <option value="">Seleccionar nuevo estado</option>
-                      <option value="iniciado">🟡 Iniciado</option>
+                      <option value="iniciado">🟠 Iniciado</option>
                       <option value="visto/recibido">🟠 Visto/Recibido</option>
                       <option value="cotizado">🟡 Cotizado</option>
                       <option value="aprobado">🟢 Aprobado</option>
                       <option value="confirmado">🟢 Confirmado</option>
                       <option value="confirmado">🟢 Entrego parcial</option>
-                      <option value="cumplido">⚪ Cumplido</option>
+                      <option value="cumplido">🔵 Cumplido</option>
                       <option value="stand by">🟠 Stand By</option>
                       <option value="anulado">🔴 Anulado</option>
                     </select>

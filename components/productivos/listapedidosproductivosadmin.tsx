@@ -1218,15 +1218,17 @@ const handleUpdatePedido = async () => {
                         : p.estado === "cotizado"
                           ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
                         : p.estado === "iniciado"
-                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
-                        : p.estado === "visto/recibido"
-                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
+                        : p.estado === "visto/recibido" || p.estado === "Visto/recibido"
+                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
                         : p.estado === "stand by"
                           ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : p.estado === "Presentar presencial"
                           ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
                         : p.estado === "cumplido"
-                          ? "px-3 py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full"
+                          ? "px-3 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-full"
+                        : p.estado === "entrego parcial" || p.estado === "entrego_parcial"
+                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
                           : p.estado === "confirmado" 
                           ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
                           : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
@@ -1661,13 +1663,13 @@ const handleUpdatePedido = async () => {
                        onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                      >
                        <option value="">Seleccionar nuevo estado</option>
-                       <option value="iniciado">🟡 Iniciado</option>
+                       <option value="iniciado">🟠 Iniciado</option>
                        <option value="visto/recibido">🟠 Visto/Recibido</option>
                        <option value="cotizado">🟡 Cotizado</option>
                        <option value="aprobado">🟢 Aprobado</option>
                        <option value="confirmado">🟢 Confirmado</option>
-                       <option value="confirmado">🟢 Entrego parcial</option>
-                       <option value="cumplido">⚪ Cumplido</option>
+                       <option value="entrego parcial">🟠 Entrego parcial</option>
+                       <option value="cumplido">🔵 Cumplido</option>
                        <option value="stand by">🟠 Stand By</option>
                        <option value="anulado">🔴 Anulado</option>
                      </select>
@@ -2044,6 +2046,7 @@ const handleUpdatePedido = async () => {
                     <option value="aprobado">Aprobado</option>
                     <option value="cotizado">Cotizado</option>
                     <option value="confirmado">Confirmado</option>
+                    <option value="entrego parcial">Entrego parcial</option>
                     <option value="cumplido">Cumplido</option>
                     <option value="anulado">Anulado</option>
                     <option value="stand by">Stand By</option>
