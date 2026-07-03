@@ -215,11 +215,14 @@ export const isAdminOrFinanzasEmail = (
 export const canEditAsAdmin = (email?: string | null, rol?: string | null) =>
   isAdminEmail(email, rol);
 
-/** Administrador y finanzas pueden crear pedidos generales. */
+/** Usuarios sin rol asignado, administrador y finanzas pueden crear pedidos generales. */
 export const canCreatePedidosGenerales = (
   email?: string | null,
   rol?: string | null,
-) => isAdminEmail(email, rol) || isFinanzasEmail(email, rol);
+) =>
+  isAdminEmail(email, rol) ||
+  isFinanzasEmail(email, rol) ||
+  soloPedidosGeneralesPorRol(rol);
 
 export const canAccessOrdenesProduccion = (
   email?: string | null,

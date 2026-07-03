@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canCreatePedidosGenerales } from "@/lib/panol-access";
-import { fetchUserRolByUuid } from "@/lib/user-rol";
 
 export async function requirePedidosGeneralesCreateAccess() {
   const supabase = await createClient();
@@ -11,7 +10,17 @@ export async function requirePedidosGeneralesCreateAccess() {
     redirect("/auth/login");
   }
 
-  const rol = await fetchUserRolByUuid(supabase, authData.user.id);
+  const { data: userProfile } = await supabase
+    .from("usuarios")
+    .select("rol")
+    .eq("uuid", authData.user.id)
+    .maybeSingle();
+
+  if (!userProfile) {
+    redirect("/auth/complete-profile");
+  }
+
+  const rol = userProfile.rol ?? null;
 
   if (!canCreatePedidosGenerales(authData.user.email, rol)) {
     redirect("/protected");
