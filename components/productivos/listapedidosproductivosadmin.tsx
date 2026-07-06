@@ -16,6 +16,7 @@ import {
   parseFacturasFromOrden,
   parseOrdenCompraEntero,
   uploadFacturaOrdenCompra,
+  type FacturasOrdenRow,
 } from "@/lib/fact-compras-storage";
 import {
   getPresupuestoViewUrl,
@@ -115,6 +116,7 @@ export default function ListaPedidosProductivosAdmin() {
 
     const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
     const [ocFacturaForm, setOcFacturaForm] = useState(emptyOcFacturaForm);
+    const [ocFacturasRow, setOcFacturasRow] = useState<FacturasOrdenRow | null>(null);
     const [ocFacturaImageUrl, setOcFacturaImageUrl] = useState<string | null>(null);
     const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
     const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
@@ -252,6 +254,7 @@ export default function ListaPedidosProductivosAdmin() {
   useEffect(() => {
     if (!comparativaPedido || !comparativaOc?.id) {
       setOcFacturaForm(emptyOcFacturaForm());
+      setOcFacturasRow(null);
       setOcFacturaImageUrl(null);
       setOcFacturaUploadError(null);
       return;
@@ -261,6 +264,7 @@ export default function ListaPedidosProductivosAdmin() {
     let cancelled = false;
 
     setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturasRow(null);
     setOcFacturaImageUrl(null);
 
     const cargarOcFactura = async () => {
@@ -271,6 +275,8 @@ export default function ListaPedidosProductivosAdmin() {
         .maybeSingle();
 
       if (cancelled || error || !data) return;
+
+      setOcFacturasRow({ fc: data.fc, fact_path: data.fact_path });
 
       const facturas = parseFacturasFromOrden(data);
       const primera = facturas[0];
@@ -502,6 +508,7 @@ export default function ListaPedidosProductivosAdmin() {
 
   const abrirComparativaPedido = async (p: Pedido) => {
     setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturasRow(null);
     setOcFacturaImageUrl(null);
     setOcFacturaUploadError(null);
 
@@ -704,7 +711,7 @@ const handleUpdatePedido = async () => {
     }
 
     if (comparativaPedido && comparativaOc?.id) {
-      const facturasPayload = buildOcFacturaFormSavePayload(ocFacturaForm);
+      const facturasPayload = buildOcFacturaFormSavePayload(ocFacturaForm, ocFacturasRow);
       const { error: ocError } = await supabase
         .from("ordenes_compra")
         .update({
@@ -721,6 +728,11 @@ const handleUpdatePedido = async () => {
         setGuardandoComparativa(false);
         return;
       }
+
+      setOcFacturasRow({
+        fc: facturasPayload.fc,
+        fact_path: facturasPayload.fact_path,
+      });
     }
 
     setPedidos((prev) =>

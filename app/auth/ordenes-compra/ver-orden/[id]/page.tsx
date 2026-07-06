@@ -16,8 +16,9 @@ import {
   getSupabaseErrorMessage,
   buildFacturasUpdatePayload,
   findFacturasIncompletas,
-  getFacturasFormatsToTry,
-  isFacturasCheckConstraintError,
+  getFacturaPathKey,
+  getFacturaPublicUrl,
+  loadFacturaViewUrls,
   parseFacturasFromOrden,
   type FacturaOrdenItem,
 } from "@/lib/fact-compras-storage";
@@ -405,7 +406,6 @@ export default function VerOrdenCompraPage() {
     lugar_entrega: '',
     cod_cta: '',
     sector: '',
-    rt: '',
     fecha_entrega: '',
     divisa: 'USD',
     articulos: [] as ArticuloOrdenItem[]
@@ -599,17 +599,8 @@ export default function VerOrdenCompraPage() {
       return;
     }
     let cancelled = false;
-    void Promise.all(
-      paths.map(async (path) => {
-        const url = await getFacturaViewUrl(supabase, path);
-        return [path, url] as const;
-      })
-    ).then((entries) => {
-      if (!cancelled) {
-        setFacturaViewUrls(
-          Object.fromEntries(entries.filter((entry): entry is [string, string] => Boolean(entry[1])))
-        );
-      }
+    void loadFacturaViewUrls(supabase, paths).then((urls) => {
+      if (!cancelled) setFacturaViewUrls(urls);
     });
     return () => {
       cancelled = true;
@@ -722,7 +713,6 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
-        rt: orden.rt != null ? orden.rt.toString() : '',
         fecha_entrega: formatDateForInput(orden.fecha_entrega),
         divisa: orden.divisa || 'USD',
         articulos: (orden.articulos || []).map((item) => ({
@@ -756,7 +746,6 @@ export default function VerOrdenCompraPage() {
       lugar_entrega: '',
       cod_cta: '',
       sector: '',
-      rt: '',
       fecha_entrega: '',
       divisa: 'USD',
       articulos: []
@@ -779,32 +768,18 @@ export default function VerOrdenCompraPage() {
       };
     }
 
-    let lastError: unknown = null;
-    let savedPayload: Record<string, unknown> | null = null;
+    const updatePayload = buildFacturasUpdatePayload(orden, facturas);
+    const { error: updateError } = await supabase
+      .from("ordenes_compra")
+      .update(updatePayload)
+      .eq("id", orden.id);
 
-    for (const format of getFacturasFormatsToTry(orden)) {
-      const updatePayload = buildFacturasUpdatePayload(orden, facturas, format);
-      const { error: updateError } = await supabase
-        .from("ordenes_compra")
-        .update(updatePayload)
-        .eq("id", orden.id);
-
-      if (!updateError) {
-        savedPayload = updatePayload;
-        break;
-      }
-
-      lastError = updateError;
+    if (updateError) {
       console.error("DB update facturas error:", updateError, "payload:", updatePayload);
-
-      if (!isFacturasCheckConstraintError(updateError)) {
-        return { error: updateError };
-      }
+      return { error: updateError };
     }
 
-    if (!savedPayload) {
-      return { error: lastError ?? new Error("No se pudieron guardar las facturas") };
-    }
+    const savedPayload = updatePayload;
 
     const facturasGuardadas = parseFacturasFromOrden({
       fc: savedPayload.fc,
@@ -890,9 +865,12 @@ export default function VerOrdenCompraPage() {
         return;
       }
 
-      const viewUrl = await getFacturaViewUrl(supabase, storagePath);
+      const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
+      const viewUrl =
+        (await getFacturaViewUrl(supabase, storagePath)) ??
+        getFacturaPublicUrl(storagePath);
       if (viewUrl) {
-        setFacturaViewUrls((prev) => ({ ...prev, [storagePath]: viewUrl }));
+        setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
       }
       setNuevaFacturaFc("");
     } catch (err) {
@@ -1072,7 +1050,7 @@ export default function VerOrdenCompraPage() {
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
         fc: facturasPayload.fc,
-        rt: editData.rt ? parseInt(editData.rt, 10) : null,
+        rt: orden.rt ?? null,
         fecha_entrega: editData.fecha_entrega || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
@@ -1121,7 +1099,7 @@ export default function VerOrdenCompraPage() {
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
         fc: facturasPayload.fc,
-        rt: editData.rt ? parseInt(editData.rt, 10) : null,
+        rt: orden.rt ?? null,
         fecha_entrega: editData.fecha_entrega || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
@@ -1259,6 +1237,12 @@ export default function VerOrdenCompraPage() {
     .map((item) => item.fc)
     .filter((fc): fc is number => fc !== null)
     .join(", ");
+
+  const resolveFacturaHref = (path: string | null | undefined) => {
+    if (!path) return null;
+    const key = getFacturaPathKey(path) ?? path.trim();
+    return facturaViewUrls[key] ?? getFacturaPublicUrl(path);
+  };
 
   return (
     <>
@@ -1422,26 +1406,27 @@ export default function VerOrdenCompraPage() {
                     <p className="text-base text-gray-600 print-field-label">Facturas (FC)</p>
                     <ul className="space-y-1">
                       {facturasOrden.map((factura, index) => {
-                        const viewUrl = factura.path ? facturaViewUrls[factura.path] : null;
+                        const viewUrl = resolveFacturaHref(factura.path);
                         const label =
                           factura.fc != null
-                            ? String(factura.fc)
+                            ? `FC ${factura.fc}`
                             : `Factura ${index + 1}`;
                         return (
-                          <li key={`${factura.path ?? "sin-path"}-${index}`}>
+                          <li key={`${factura.path ?? "sin-path"}-${index}`} className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-medium print-field-value">{label}</span>
                             {viewUrl ? (
                               <a
                                 href={viewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-medium text-blue-600 hover:text-blue-800 underline"
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 underline"
                                 title="Ver imagen de la factura"
                               >
-                                {label}
+                                Ver factura
                               </a>
-                            ) : (
-                              <span className="text-base font-medium print-field-value">{label}</span>
-                            )}
+                            ) : factura.path ? (
+                              <span className="text-sm text-gray-500">Imagen adjunta</span>
+                            ) : null}
                           </li>
                         );
                       })}
@@ -1763,7 +1748,7 @@ export default function VerOrdenCompraPage() {
                       ) : (
                         <ul className="mt-2 space-y-2">
                           {editFacturas.map((factura, index) => {
-                            const viewUrl = factura.path ? facturaViewUrls[factura.path] : null;
+                            const viewUrl = resolveFacturaHref(factura.path);
                             return (
                               <li
                                 key={`${factura.path ?? "sin-path"}-${index}`}
@@ -1789,10 +1774,10 @@ export default function VerOrdenCompraPage() {
                                     rel="noopener noreferrer"
                                     className="text-sm text-blue-600 underline"
                                   >
-                                    Ver imagen
+                                    Ver factura
                                   </a>
                                 ) : factura.path ? (
-                                  <span className="text-sm text-gray-600">Imagen cargada</span>
+                                  <span className="text-sm text-gray-600">Imagen adjunta</span>
                                 ) : (
                                   <span className="text-sm text-gray-500">Sin imagen</span>
                                 )}
@@ -1857,17 +1842,6 @@ export default function VerOrdenCompraPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="edit-rt">Remitos (RT)</Label>
-                      <Input
-                        id="edit-rt"
-                        type="number"
-                        value={editData.rt}
-                        onChange={(e) => setEditData({ ...editData, rt: e.target.value })}
-                        placeholder="Nº de remito"
-                        min="0"
-                      />
-                    </div>
                     <div>
                       <Label htmlFor="edit-fecha-entrega">Fecha de Entrega</Label>
                       <Input

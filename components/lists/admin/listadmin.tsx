@@ -16,6 +16,7 @@ import {
   parseFacturasFromOrden,
   parseOrdenCompraEntero,
   uploadFacturaOrdenCompra,
+  type FacturasOrdenRow,
 } from "@/lib/fact-compras-storage";
 import {
   getPresupuestoViewUrl,
@@ -105,6 +106,7 @@ export default function ListAdmin() {
   const { ocVolver, resolveOcParaPedido } = useOcVolver();
   const [comparativaOc, setComparativaOc] = useState<OcVolver | null>(null);
   const [ocFacturaForm, setOcFacturaForm] = useState(emptyOcFacturaForm);
+  const [ocFacturasRow, setOcFacturasRow] = useState<FacturasOrdenRow | null>(null);
   const [ocFacturaImageUrl, setOcFacturaImageUrl] = useState<string | null>(null);
   const [ocFacturaUploading, setOcFacturaUploading] = useState(false);
   const [ocFacturaUploadError, setOcFacturaUploadError] = useState<string | null>(null);
@@ -355,6 +357,7 @@ export default function ListAdmin() {
 
   const abrirInfoPedido = async (pedido: Pedido) => {
     setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturasRow(null);
     setOcFacturaImageUrl(null);
     setOcFacturaUploadError(null);
 
@@ -517,7 +520,7 @@ export default function ListAdmin() {
     }
 
     if (comparativaOc?.id) {
-      const facturasPayload = buildOcFacturaFormSavePayload(ocFacturaForm);
+      const facturasPayload = buildOcFacturaFormSavePayload(ocFacturaForm, ocFacturasRow);
       const { error: ocError } = await supabase
         .from("ordenes_compra")
         .update({
@@ -533,6 +536,11 @@ export default function ListAdmin() {
         setGuardandoComparativa(false);
         return;
       }
+
+      setOcFacturasRow({
+        fc: facturasPayload.fc,
+        fact_path: facturasPayload.fact_path,
+      });
     }
 
     setPedidos((prev) =>
@@ -930,6 +938,7 @@ export default function ListAdmin() {
   useEffect(() => {
     if (!verInfo || !comparativaOc?.id) {
       setOcFacturaForm(emptyOcFacturaForm());
+      setOcFacturasRow(null);
       setOcFacturaImageUrl(null);
       setOcFacturaUploadError(null);
       return;
@@ -939,6 +948,7 @@ export default function ListAdmin() {
     let cancelled = false;
 
     setOcFacturaForm(emptyOcFacturaForm());
+    setOcFacturasRow(null);
     setOcFacturaImageUrl(null);
 
     const cargarOcFactura = async () => {
@@ -949,6 +959,8 @@ export default function ListAdmin() {
         .maybeSingle();
 
       if (cancelled || error || !data) return;
+
+      setOcFacturasRow({ fc: data.fc, fact_path: data.fact_path });
 
       const facturas = parseFacturasFromOrden(data);
       const primera = facturas[0];

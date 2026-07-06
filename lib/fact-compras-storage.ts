@@ -58,17 +58,94 @@ export type FacturaOrdenItem = {
   path: string | null;
 };
 
+/** Aplana arrays JSON anidados (ej. [["600/factura.pdf"]] → ["600/factura.pdf"]). */
+function flattenJsonScalars(values: unknown[]): unknown[] {
+  const result: unknown[] = [];
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      result.push(...flattenJsonScalars(value));
+    } else if (value !== null && value !== undefined) {
+      result.push(value);
+    }
+  }
+  return result;
+}
+
 function parseFcValue(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
+  if (Array.isArray(value)) {
+    const flat = flattenJsonScalars(value);
+    return flat.length > 0 ? parseFcValue(flat[0]) : null;
+  }
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseInt(String(value), 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parsePathValue(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed || null;
+  if (value === null || value === undefined) return null;
+
+  if (Array.isArray(value)) {
+    const flat = flattenJsonScalars(value);
+    return flat.length > 0 ? parsePathValue(flat[0]) : null;
+  }
+
+  if (typeof value === "string") {
+    let trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed === "string") trimmed = parsed.trim();
+      } catch {
+        trimmed = trimmed.replace(/^"+|"+$/g, "");
+      }
+    }
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsePathValue(parsed[0]);
+        }
+      } catch {
+        /* usar valor tal cual */
+      }
+    }
+
+    return trimmed || null;
+  }
+
+  return null;
+}
+
+function coerceJsonArray(value: unknown): unknown[] {
+  let items: unknown[] = [];
+
+  if (Array.isArray(value)) {
+    items = value;
+  } else if (value === null || value === undefined || value === "") {
+    return [];
+  } else if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "[]" || trimmed === "{}") return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) items = parsed;
+        else return [trimmed];
+      } catch {
+        return [trimmed];
+      }
+    } else {
+      return [trimmed];
+    }
+  } else {
+    items = [value];
+  }
+
+  return flattenJsonScalars(items);
 }
 
 export type FacturasStorageFormat = "parallel" | "by-fc-object";
@@ -108,6 +185,44 @@ function isFacturaParCompleta(
 /** Facturas con solo FC o solo imagen (no cumplen el CHECK de Supabase). */
 export function findFacturasIncompletas(facturas: FacturaOrdenItem[]): FacturaOrdenItem[] {
   return facturas.filter((item) => !isFacturaParCompleta(item));
+}
+
+/** Extrae ruta legacy cuando fact_path era TEXT simple (pre-JSONB). */
+export function extractLegacyFactPath(fact_path: unknown): string | null {
+  if (fact_path === null || fact_path === undefined) return null;
+
+  if (Array.isArray(fact_path)) {
+    const flat = flattenJsonScalars(fact_path);
+    if (flat.length === 0) return null;
+    return parsePathValue(flat[0]);
+  }
+
+  if (typeof fact_path === "string") {
+    const trimmed = fact_path.trim();
+    if (!trimmed || trimmed === "[]" || trimmed === "{}") return null;
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsePathValue(parsed[0]);
+        }
+      } catch {
+        /* seguir */
+      }
+    }
+    return parsePathValue(trimmed);
+  }
+
+  return null;
+}
+
+function parseFacturasLegacyRow(row: FacturasOrdenRow): FacturaOrdenItem[] {
+  const path = extractLegacyFactPath(row.fact_path);
+  const fc = parseFcValue(row.fc);
+
+  if (!path && fc === null) return [];
+
+  return [{ fc, path }];
 }
 
 /** Lee facturas desde fc/fact_path JSON (arrays paralelos, objeto por FC o legacy TEXT). */
@@ -152,59 +267,36 @@ export function parseFacturasFromOrden(row: {
       .filter((item) => item.fc !== null || item.path !== null);
   }
 
-  const fcValues = Array.isArray(row.fc)
-    ? row.fc
-    : row.fc !== null && row.fc !== undefined && row.fc !== ""
-      ? [row.fc]
-      : [];
-  const pathValues = Array.isArray(row.fact_path)
-    ? row.fact_path
-    : typeof row.fact_path === "string" && row.fact_path.trim()
-      ? [row.fact_path.trim()]
-      : [];
+  const fcValues = coerceJsonArray(row.fc);
+  const pathValues = coerceJsonArray(row.fact_path);
 
   const total = Math.max(fcValues.length, pathValues.length);
-  if (total === 0) return [];
+  if (total === 0) {
+    return parseFacturasLegacyRow(row);
+  }
 
-  return Array.from({ length: total }, (_, index) => ({
+  const parsed = Array.from({ length: total }, (_, index) => ({
     fc: parseFcValue(fcValues[index]),
     path: parsePathValue(pathValues[index]),
   })).filter((item) => item.fc !== null || item.path !== null);
+
+  if (parsed.length > 0) return parsed;
+
+  return parseFacturasLegacyRow(row);
 }
 
-/** Persiste en columnas JSON fc y fact_path (arrays paralelos por defecto). */
-export function serializeFacturasToDb(
-  facturas: FacturaOrdenItem[],
-  format: FacturasStorageFormat = "parallel"
-) {
+/** Persiste en columnas JSON fc y fact_path (arrays planos, sin anidar). */
+export function serializeFacturasToDb(facturas: FacturaOrdenItem[]) {
   const cleaned = facturas.filter(isFacturaParCompleta);
-
-  if (cleaned.length === 0) {
-    return format === "by-fc-object"
-      ? { fc: [] as number[], fact_path: {} as Record<string, string> }
-      : { fc: [] as number[], fact_path: [] as string[] };
-  }
-
-  if (format === "by-fc-object") {
-    const fact_path: Record<string, string> = {};
-    for (const item of cleaned) {
-      fact_path[String(item.fc)] = item.path.trim();
-    }
-    return {
-      fc: cleaned.map((item) => item.fc),
-      fact_path,
-    };
-  }
-
   return {
     fc: cleaned.map((item) => item.fc),
-    fact_path: cleaned.map((item) => item.path.trim()),
+    fact_path: cleaned.map((item) => parsePathValue(item.path) ?? item.path.trim()),
   };
 }
 
 export type OrdenCompraFacturasJson = {
   fc: number[];
-  fact_path: string[] | Record<string, string>;
+  fact_path: string[];
 };
 
 export type FacturasOrdenRow = {
@@ -212,14 +304,12 @@ export type FacturasOrdenRow = {
   fact_path?: unknown;
 };
 
-/** Arma el UPDATE para columnas JSON fc y fact_path. */
+/** Arma el UPDATE para columnas JSON fc y fact_path (siempre arrays paralelos). */
 export function buildFacturasUpdatePayload(
-  orden: FacturasOrdenRow,
-  facturas: FacturaOrdenItem[],
-  format?: FacturasStorageFormat
+  _orden: FacturasOrdenRow,
+  facturas: FacturaOrdenItem[]
 ): Record<string, unknown> {
-  const resolvedFormat = format ?? detectFacturasStorageFormat(orden);
-  const facturasDb = serializeFacturasToDb(facturas, resolvedFormat);
+  const facturasDb = serializeFacturasToDb(facturas);
   return {
     fc: facturasDb.fc,
     fact_path: facturasDb.fact_path,
@@ -234,19 +324,24 @@ export function isFacturasCheckConstraintError(err: unknown): boolean {
   );
 }
 
-/** El CHECK de Supabase solo admite arrays JSON paralelos en fc y fact_path. */
-export function getFacturasFormatsToTry(_orden: FacturasOrdenRow): FacturasStorageFormat[] {
-  return ["parallel"];
-}
-
-/** Arma fc/fact_path JSON desde el formulario simple de comparativa (un solo par FC + imagen). */
-export function buildOcFacturaFormSavePayload(form: { fc: string; fact_path: string }) {
+/**
+ * Arma fc/fact_path JSON desde el formulario de comparativa.
+ * Si hay FC + imagen nuevos, agrega o actualiza ese par y conserva los demás.
+ */
+export function buildOcFacturaFormSavePayload(
+  form: { fc: string; fact_path: string },
+  ordenRow?: FacturasOrdenRow | null
+) {
+  const existentes = parseFacturasFromOrden(ordenRow ?? {}).filter(isFacturaParCompleta);
   const fc = parseOrdenCompraEntero(form.fc);
   const path = form.fact_path?.trim() || null;
-  return serializeFacturasToDb(
-    fc !== null && path ? [{ fc, path }] : [],
-    "parallel"
-  );
+
+  if (fc !== null && path) {
+    const sinMismoFc = existentes.filter((item) => item.fc !== fc);
+    return serializeFacturasToDb([...sinMismoFc, { fc, path }]);
+  }
+
+  return serializeFacturasToDb(existentes);
 }
 
 export function parseOrdenCompraEntero(value: string): number | null {
@@ -315,6 +410,49 @@ export function normalizeFactStoragePath(stored: string | null | undefined): str
   }
 
   return s.replace(/^\/+/, "");
+}
+
+/** Clave estable para mapas de URLs (ruta dentro del bucket). */
+export function getFacturaPathKey(stored: string | null | undefined): string | null {
+  return normalizeFactStoragePath(stored);
+}
+
+/** URL pública de respaldo (no requiere llamada async). */
+export function getFacturaPublicUrl(stored: string | null | undefined): string | null {
+  const objectPath = normalizeFactStoragePath(stored);
+  if (!objectPath) return null;
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  if (!baseUrl) return null;
+
+  const bucket = getFactComprasBucket();
+  return `${baseUrl}/storage/v1/object/public/${bucket}/${objectPath.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Carga URLs de visualización indexadas por ruta normalizada. */
+export async function loadFacturaViewUrls(
+  supabase: SupabaseClient,
+  paths: string[]
+): Promise<Record<string, string>> {
+  const uniquePaths = [...new Set(paths.map((p) => p.trim()).filter(Boolean))];
+  if (uniquePaths.length === 0) return {};
+
+  const entries = await Promise.all(
+    uniquePaths.map(async (path) => {
+      const key = getFacturaPathKey(path) ?? path;
+      try {
+        const url = (await getFacturaViewUrl(supabase, path)) ?? getFacturaPublicUrl(path);
+        return url ? ([key, url] as const) : null;
+      } catch {
+        const fallback = getFacturaPublicUrl(path);
+        return fallback ? ([key, fallback] as const) : null;
+      }
+    })
+  );
+
+  return Object.fromEntries(
+    entries.filter((entry): entry is [string, string] => entry !== null)
+  );
 }
 
 /**
