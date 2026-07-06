@@ -9,9 +9,11 @@ import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import {
+  buildOcFacturaFormSavePayload,
   emptyOcFacturaForm,
   formatDateInputValue,
   getFacturaViewUrl,
+  parseFacturasFromOrden,
   parseOrdenCompraEntero,
   uploadFacturaOrdenCompra,
 } from "@/lib/fact-compras-storage";
@@ -366,6 +368,11 @@ export default function ListAdmin() {
   const handleSubirImagenFacturaOc = async (file: File) => {
     if (!comparativaOc?.id) return;
 
+    if (!ocFacturaForm.fc.trim()) {
+      setOcFacturaUploadError("Debe ingresar el número de factura (FC) antes de subir la imagen.");
+      return;
+    }
+
     setOcFacturaUploading(true);
     setOcFacturaUploadError(null);
 
@@ -510,12 +517,13 @@ export default function ListAdmin() {
     }
 
     if (comparativaOc?.id) {
+      const facturasPayload = buildOcFacturaFormSavePayload(ocFacturaForm);
       const { error: ocError } = await supabase
         .from("ordenes_compra")
         .update({
-          fc: parseOrdenCompraEntero(ocFacturaForm.fc),
+          fc: facturasPayload.fc,
           rt: parseOrdenCompraEntero(ocFacturaForm.rt),
-          fact_path: ocFacturaForm.fact_path || null,
+          fact_path: facturasPayload.fact_path,
           fecha_entrega: ocFacturaForm.fecha_entrega || null,
         })
         .eq("id", comparativaOc.id);
@@ -942,16 +950,17 @@ export default function ListAdmin() {
 
       if (cancelled || error || !data) return;
 
-      const factPath = data.fact_path ?? "";
+      const facturas = parseFacturasFromOrden(data);
+      const primera = facturas[0];
       setOcFacturaForm({
-        fc: data.fc != null ? String(data.fc) : "",
+        fc: primera?.fc != null ? String(primera.fc) : "",
         rt: data.rt != null ? String(data.rt) : "",
-        fact_path: factPath,
+        fact_path: primera?.path ?? "",
         fecha_entrega: formatDateInputValue(data.fecha_entrega),
       });
 
-      if (factPath) {
-        const url = await getFacturaViewUrl(supabase, factPath);
+      if (primera?.path) {
+        const url = await getFacturaViewUrl(supabase, primera.path);
         if (!cancelled) setOcFacturaImageUrl(url);
       } else if (!cancelled) {
         setOcFacturaImageUrl(null);

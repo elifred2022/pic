@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getFacturaViewUrl } from "@/lib/fact-compras-storage";
+import { getFacturaViewUrl, parseFacturasFromOrden } from "@/lib/fact-compras-storage";
 import { getPresupuestoViewUrl } from "@/lib/presupuestos-storage";
 
 type ProveedorConPresupuesto = {
@@ -76,11 +76,12 @@ export function useOcFacturaAdjunto(ocId: string | null | undefined) {
         return;
       }
 
-      const factPath = data.fact_path ?? "";
-      setFacturaFc(data.fc != null ? String(data.fc) : "");
+      const facturas = parseFacturasFromOrden(data);
+      const primera = facturas[0];
+      setFacturaFc(primera?.fc != null ? String(primera.fc) : "");
 
-      if (factPath) {
-        const url = await getFacturaViewUrl(supabase, factPath);
+      if (primera?.path) {
+        const url = await getFacturaViewUrl(supabase, primera.path);
         if (!cancelled) setFacturaViewUrl(url);
       } else if (!cancelled) {
         setFacturaViewUrl(null);

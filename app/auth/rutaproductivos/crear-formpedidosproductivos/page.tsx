@@ -1,8 +1,8 @@
-import { requireAdminEditAccess } from "@/lib/require-admin-edit";
+import { requirePedidosProductivosCreateAccess } from "@/lib/require-pedidos-productivos-create";
 import CrearFormPedidoProductivo from "@/components/productivos/crear-formpedidoproductivo";
 
 export default async function Page() {
-  await requireAdminEditAccess();
+  await requirePedidosProductivosCreateAccess();
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">

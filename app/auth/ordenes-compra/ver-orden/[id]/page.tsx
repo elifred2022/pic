@@ -11,9 +11,15 @@ import {
 } from "@/lib/pic-links";
 import {
   getFactComprasBucket,
-  getFacturaStoragePath,
+  getFacturaStoragePathUnique,
   getFacturaViewUrl,
   getSupabaseErrorMessage,
+  buildFacturasUpdatePayload,
+  findFacturasIncompletas,
+  getFacturasFormatsToTry,
+  isFacturasCheckConstraintError,
+  parseFacturasFromOrden,
+  type FacturaOrdenItem,
 } from "@/lib/fact-compras-storage";
 import { canEditAsAdmin, isAprobEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
@@ -365,10 +371,10 @@ interface OrdenCompra {
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
-  fc?: number | null;
+  fc?: unknown;
   rt?: number | null;
   fecha_entrega?: string | null;
-  fact_path?: string | null;
+  fact_path?: unknown;
 }
 
 interface Proveedor {
@@ -399,20 +405,20 @@ export default function VerOrdenCompraPage() {
     lugar_entrega: '',
     cod_cta: '',
     sector: '',
-    fc: '',
     rt: '',
     fecha_entrega: '',
-    fact_path: '',
     divisa: 'USD',
     articulos: [] as ArticuloOrdenItem[]
   });
+  const [editFacturas, setEditFacturas] = useState<FacturaOrdenItem[]>([]);
+  const [nuevaFacturaFc, setNuevaFacturaFc] = useState('');
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedoresFiltrados, setProveedoresFiltrados] = useState<Proveedor[]>([]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
   const [saving, setSaving] = useState(false);
   const [facturaUploading, setFacturaUploading] = useState(false);
   const [facturaUploadError, setFacturaUploadError] = useState<string | null>(null);
-  const [facturaImageUrl, setFacturaImageUrl] = useState<string | null>(null);
+  const [facturaViewUrls, setFacturaViewUrls] = useState<Record<string, string>>({});
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
   const [printSinImportes, setPrintSinImportes] = useState(false);
@@ -580,18 +586,35 @@ export default function VerOrdenCompraPage() {
   }, []);
 
   useEffect(() => {
-    if (!orden?.fact_path) {
-      setFacturaImageUrl(null);
+    if (!orden) {
+      setFacturaViewUrls({});
+      return;
+    }
+    const facturas = parseFacturasFromOrden(orden);
+    const paths = facturas
+      .map((item) => item.path)
+      .filter((path): path is string => Boolean(path));
+    if (paths.length === 0) {
+      setFacturaViewUrls({});
       return;
     }
     let cancelled = false;
-    void getFacturaViewUrl(supabase, orden.fact_path).then((url) => {
-      if (!cancelled) setFacturaImageUrl(url);
+    void Promise.all(
+      paths.map(async (path) => {
+        const url = await getFacturaViewUrl(supabase, path);
+        return [path, url] as const;
+      })
+    ).then((entries) => {
+      if (!cancelled) {
+        setFacturaViewUrls(
+          Object.fromEntries(entries.filter((entry): entry is [string, string] => Boolean(entry[1])))
+        );
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [orden?.fact_path, orden?.id, supabase]);
+  }, [orden, supabase]);
 
   // Sincronizar divisa de la orden con todos los artículos cuando cambia
   useEffect(() => {
@@ -699,10 +722,8 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
-        fc: orden.fc != null ? orden.fc.toString() : '',
         rt: orden.rt != null ? orden.rt.toString() : '',
         fecha_entrega: formatDateForInput(orden.fecha_entrega),
-        fact_path: orden.fact_path || '',
         divisa: orden.divisa || 'USD',
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
@@ -712,6 +733,8 @@ export default function VerOrdenCompraPage() {
             calcularPrecioConDescuento(item.precio_unitario, item.descuento),
         }))
       });
+      setEditFacturas(parseFacturasFromOrden(orden));
+      setNuevaFacturaFc('');
       setBusquedaProveedor('');
       setShowEditModal(true);
     }
@@ -733,19 +756,92 @@ export default function VerOrdenCompraPage() {
       lugar_entrega: '',
       cod_cta: '',
       sector: '',
-      fc: '',
       rt: '',
       fecha_entrega: '',
-      fact_path: '',
       divisa: 'USD',
       articulos: []
     });
+    setEditFacturas([]);
+    setNuevaFacturaFc('');
     setBusquedaProveedor('');
     setFacturaUploadError(null);
   };
 
+  const persistirFacturas = async (facturas: FacturaOrdenItem[]) => {
+    if (!orden) return { error: new Error("Orden no disponible") };
+
+    const incompletas = findFacturasIncompletas(facturas);
+    if (incompletas.length > 0) {
+      return {
+        error: new Error(
+          "Cada factura debe tener número FC e imagen. Complete o quite las facturas incompletas."
+        ),
+      };
+    }
+
+    let lastError: unknown = null;
+    let savedPayload: Record<string, unknown> | null = null;
+
+    for (const format of getFacturasFormatsToTry(orden)) {
+      const updatePayload = buildFacturasUpdatePayload(orden, facturas, format);
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update(updatePayload)
+        .eq("id", orden.id);
+
+      if (!updateError) {
+        savedPayload = updatePayload;
+        break;
+      }
+
+      lastError = updateError;
+      console.error("DB update facturas error:", updateError, "payload:", updatePayload);
+
+      if (!isFacturasCheckConstraintError(updateError)) {
+        return { error: updateError };
+      }
+    }
+
+    if (!savedPayload) {
+      return { error: lastError ?? new Error("No se pudieron guardar las facturas") };
+    }
+
+    const facturasGuardadas = parseFacturasFromOrden({
+      fc: savedPayload.fc,
+      fact_path: savedPayload.fact_path,
+    });
+    setEditFacturas(facturasGuardadas);
+    setOrden((prev) =>
+      prev
+        ? {
+            ...prev,
+            fc: savedPayload.fc,
+            fact_path: savedPayload.fact_path,
+          }
+        : prev
+    );
+    return { error: null };
+  };
+
   const handleSubirImagenFactura = async (file: File) => {
     if (!orden) return;
+
+    if (!nuevaFacturaFc.trim()) {
+      setFacturaUploadError("Debe ingresar el número de factura (FC) antes de subir la imagen.");
+      return;
+    }
+
+    const fcNumero = parseInt(nuevaFacturaFc.trim(), 10);
+    if (!Number.isFinite(fcNumero)) {
+      setFacturaUploadError("Ingrese un número de factura válido.");
+      return;
+    }
+
+    const fcDuplicado = editFacturas.some((item) => item.fc === fcNumero);
+    if (fcDuplicado) {
+      setFacturaUploadError(`Ya existe una factura con el FC ${fcNumero}.`);
+      return;
+    }
 
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
     if (!/^(jpg|jpeg|png|gif|webp|bmp|pdf)$/i.test(fileExt)) {
@@ -763,13 +859,13 @@ export default function VerOrdenCompraPage() {
         return;
       }
 
-      const storagePath = getFacturaStoragePath(orden.id, fileExt);
+      const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
       const contentType = file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from(getFactComprasBucket())
         .upload(storagePath, file, {
-          upsert: true,
+          upsert: false,
           contentType: fileExt === "pdf" ? "application/pdf" : contentType,
         });
 
@@ -781,29 +877,54 @@ export default function VerOrdenCompraPage() {
         return;
       }
 
-      const { error: updateError } = await supabase
-        .from("ordenes_compra")
-        .update({ fact_path: storagePath })
-        .eq("id", orden.id);
-
-      if (updateError) {
-        console.error("DB update fact_path error:", updateError);
+      const facturasActualizadas: FacturaOrdenItem[] = [
+        ...editFacturas,
+        { fc: fcNumero, path: storagePath },
+      ];
+      const { error: persistError } = await persistirFacturas(facturasActualizadas);
+      if (persistError) {
+        console.error("DB update facturas error:", persistError);
         setFacturaUploadError(
-          `La imagen se subió, pero no se guardó en la orden: ${getSupabaseErrorMessage(updateError)}. Ejecute database/add_factura_imagen_ordenes_compra.sql en Supabase.`
+          `La imagen se subió, pero no se guardó en la orden: ${getSupabaseErrorMessage(persistError)}.`
         );
         return;
       }
 
-      setEditData((prev) => ({ ...prev, fact_path: storagePath }));
-      setOrden((prev) => (prev ? { ...prev, fact_path: storagePath } : prev));
       const viewUrl = await getFacturaViewUrl(supabase, storagePath);
-      setFacturaImageUrl(viewUrl);
+      if (viewUrl) {
+        setFacturaViewUrls((prev) => ({ ...prev, [storagePath]: viewUrl }));
+      }
+      setNuevaFacturaFc("");
     } catch (err) {
       console.error("Error subiendo imagen de factura:", err);
       setFacturaUploadError(getSupabaseErrorMessage(err));
     } finally {
       setFacturaUploading(false);
     }
+  };
+
+  const handleQuitarFactura = async (index: number) => {
+    const facturasActualizadas = editFacturas.filter((_, i) => i !== index);
+    setFacturaUploadError(null);
+    const { error } = await persistirFacturas(facturasActualizadas);
+    if (error) {
+      setFacturaUploadError(
+        `No se pudo quitar la factura: ${getSupabaseErrorMessage(error)}`
+      );
+    }
+  };
+
+  const handleActualizarFcFactura = (index: number, value: string) => {
+    setEditFacturas((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const fc = value.trim() ? parseInt(value.trim(), 10) : null;
+        return {
+          ...item,
+          fc: fc !== null && Number.isFinite(fc) ? fc : null,
+        };
+      })
+    );
   };
 
   const handleSeleccionarProveedor = (proveedor: Proveedor) => {
@@ -917,6 +1038,15 @@ export default function VerOrdenCompraPage() {
 
     try {
       setSaving(true);
+
+      const incompletas = findFacturasIncompletas(editFacturas);
+      if (incompletas.length > 0) {
+        setFacturaUploadError(
+          "Cada factura debe tener número FC e imagen. Complete o quite las facturas incompletas."
+        );
+        return;
+      }
+
       const divisaOrden: "USD" | "EUR" | "ARS" = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
       const articulosActualizados = editData.articulos.map((item) => ({
         ...item,
@@ -926,6 +1056,7 @@ export default function VerOrdenCompraPage() {
       }));
       const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
 
+      const facturasPayload = buildFacturasUpdatePayload(orden, editFacturas);
       const payload = {
         divisa: divisaOrden,
         noc: parseInt(editData.noc),
@@ -940,10 +1071,10 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
-        fc: editData.fc ? parseInt(editData.fc, 10) : null,
+        fc: facturasPayload.fc,
         rt: editData.rt ? parseInt(editData.rt, 10) : null,
         fecha_entrega: editData.fecha_entrega || null,
-        fact_path: editData.fact_path || null,
+        fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
         total: totalOrden,
       };
@@ -989,10 +1120,10 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
-        fc: editData.fc ? parseInt(editData.fc, 10) : null,
+        fc: facturasPayload.fc,
         rt: editData.rt ? parseInt(editData.rt, 10) : null,
         fecha_entrega: editData.fecha_entrega || null,
-        fact_path: editData.fact_path || null,
+        fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
         total: totalOrden,
         divisa: datosActualizados?.divisa ?? divisaOrden
@@ -1123,6 +1254,11 @@ export default function VerOrdenCompraPage() {
     (sum, item) => sum + getRowTotal(item),
     0
   ) || 0;
+  const facturasOrden = parseFacturasFromOrden(orden);
+  const fcImpresion = facturasOrden
+    .map((item) => item.fc)
+    .filter((fc): fc is number => fc !== null)
+    .join(", ");
 
   return (
     <>
@@ -1155,7 +1291,7 @@ export default function VerOrdenCompraPage() {
             )}
             {orden.cod_cta && <span><strong>Cta:</strong> {orden.cod_cta}</span>}
             {orden.sector && <span><strong>Sector:</strong> {orden.sector}</span>}
-            {orden.fc != null && <span><strong>FC:</strong> {orden.fc}</span>}
+            {fcImpresion && <span><strong>FC:</strong> {fcImpresion}</span>}
             {orden.rt != null && <span><strong>RT:</strong> {orden.rt}</span>}
           </div>
         </div>
@@ -1281,35 +1417,35 @@ export default function VerOrdenCompraPage() {
                     <p className="text-base font-medium print-field-value">{orden.sector}</p>
                   </div>
                 )}
-                {orden.fc != null && (
+                {facturasOrden.length > 0 && (
                   <div className="print-field print:hidden">
-                    <p className="text-base text-gray-600 print-field-label">Factura (FC)</p>
-                    {facturaImageUrl ? (
-                      <a
-                        href={facturaImageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:text-blue-800 underline"
-                        title="Ver imagen de la factura"
-                      >
-                        {orden.fc}
-                      </a>
-                    ) : (
-                      <p className="text-base font-medium print-field-value">{orden.fc}</p>
-                    )}
-                  </div>
-                )}
-                {orden.fact_path && orden.fc == null && facturaImageUrl && (
-                  <div className="print-field print:hidden">
-                    <p className="text-base text-gray-600 print-field-label">Imagen de factura</p>
-                    <a
-                      href={facturaImageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Ver factura
-                    </a>
+                    <p className="text-base text-gray-600 print-field-label">Facturas (FC)</p>
+                    <ul className="space-y-1">
+                      {facturasOrden.map((factura, index) => {
+                        const viewUrl = factura.path ? facturaViewUrls[factura.path] : null;
+                        const label =
+                          factura.fc != null
+                            ? String(factura.fc)
+                            : `Factura ${index + 1}`;
+                        return (
+                          <li key={`${factura.path ?? "sin-path"}-${index}`}>
+                            {viewUrl ? (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-blue-600 hover:text-blue-800 underline"
+                                title="Ver imagen de la factura"
+                              >
+                                {label}
+                              </a>
+                            ) : (
+                              <span className="text-base font-medium print-field-value">{label}</span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
                 )}
                 {orden.rt != null && (
@@ -1619,58 +1755,108 @@ export default function VerOrdenCompraPage() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="edit-fc">Factura (FC)</Label>
-                      <Input
-                        id="edit-fc"
-                        type="number"
-                        value={editData.fc}
-                        onChange={(e) => setEditData({ ...editData, fc: e.target.value })}
-                        placeholder="Nº de factura"
-                        min="0"
-                      />
+                      <Label>Facturas cargadas</Label>
+                      {editFacturas.length === 0 ? (
+                        <p className="text-sm text-gray-500 mt-1">No hay facturas cargadas.</p>
+                      ) : (
+                        <ul className="mt-2 space-y-2">
+                          {editFacturas.map((factura, index) => {
+                            const viewUrl = factura.path ? facturaViewUrls[factura.path] : null;
+                            return (
+                              <li
+                                key={`${factura.path ?? "sin-path"}-${index}`}
+                                className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white p-2"
+                              >
+                                <div className="w-36">
+                                  <Label htmlFor={`edit-fc-${index}`} className="sr-only">
+                                    Nº de factura
+                                  </Label>
+                                  <Input
+                                    id={`edit-fc-${index}`}
+                                    type="number"
+                                    value={factura.fc ?? ""}
+                                    onChange={(e) => handleActualizarFcFactura(index, e.target.value)}
+                                    placeholder="Nº FC"
+                                    min="0"
+                                  />
+                                </div>
+                                {viewUrl ? (
+                                  <a
+                                    href={viewUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 underline"
+                                  >
+                                    Ver imagen
+                                  </a>
+                                ) : factura.path ? (
+                                  <span className="text-sm text-gray-600">Imagen cargada</span>
+                                ) : (
+                                  <span className="text-sm text-gray-500">Sin imagen</span>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto text-red-600 border-red-300 hover:bg-red-50"
+                                  disabled={facturaUploading || saving}
+                                  onClick={() => void handleQuitarFactura(index)}
+                                >
+                                  Quitar
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                     </div>
-                    <div className="md:col-span-2">
-                      <Label htmlFor="edit-factura-imagen">Imagen de factura</Label>
-                      <Input
-                        id="edit-factura-imagen"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
-                        disabled={facturaUploading || saving}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) void handleSubirImagenFactura(file);
-                          e.target.value = "";
-                        }}
-                        className="cursor-pointer"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Se guarda en el bucket fact_compras. El número de FC se ingresa arriba; al guardar, en la vista aparecerá como enlace a la imagen.
-                      </p>
-                      {facturaUploading && (
-                        <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
-                      )}
-                      {facturaUploadError && (
-                        <p className="text-sm text-red-600 mt-1">{facturaUploadError}</p>
-                      )}
-                      {editData.fact_path && facturaImageUrl && (
-                        <p className="text-sm text-green-700 mt-1">
-                          Imagen cargada.{" "}
-                          <a
-                            href={facturaImageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                          >
-                            Ver vista previa
-                          </a>
-                        </p>
-                      )}
-                      {editData.fact_path && !facturaImageUrl && !facturaUploading && (
-                        <p className="text-sm text-gray-600 mt-1">Imagen cargada.</p>
-                      )}
+
+                    <div className="rounded-md border border-dashed border-gray-300 p-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Agregar factura</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="edit-nueva-fc">Nº de factura (FC) *</Label>
+                          <Input
+                            id="edit-nueva-fc"
+                            type="number"
+                            value={nuevaFacturaFc}
+                            onChange={(e) => setNuevaFacturaFc(e.target.value)}
+                            placeholder="Ej: 12345"
+                            min="0"
+                            required
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label htmlFor="edit-factura-imagen">Imagen / PDF de factura</Label>
+                          <Input
+                            id="edit-factura-imagen"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
+                            disabled={facturaUploading || saving}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) void handleSubirImagenFactura(file);
+                              e.target.value = "";
+                            }}
+                            className="cursor-pointer"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Ingrese el FC y luego el archivo. Cada factura requiere número e imagen/PDF.
+                          </p>
+                          {facturaUploading && (
+                            <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
+                          )}
+                          {facturaUploadError && (
+                            <p className="text-sm text-red-600 mt-1">{facturaUploadError}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="edit-rt">Remitos (RT)</Label>
                       <Input
