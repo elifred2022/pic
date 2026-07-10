@@ -4,12 +4,14 @@ import {
   canAccessModuloCompras,
   isAdminEmail,
   isFinanzasEmail,
+  isPanolEmail,
 } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import {
   adminComprasModuleItems,
   aprobComprasModuleItems,
   finanzasComprasModuleItems,
+  panolComprasModuleItems,
 } from "@/lib/compras-module-items";
 import PanelModuloCompras from "@/components/panels/panel-modulo-compras";
 
@@ -31,7 +33,9 @@ export default async function ModuloComprasPage() {
     ? adminComprasModuleItems
     : isFinanzasEmail(authData.user.email, rol)
       ? finanzasComprasModuleItems
-      : aprobComprasModuleItems;
+      : isPanolEmail(authData.user.email, rol)
+        ? panolComprasModuleItems
+        : aprobComprasModuleItems;
 
   return <PanelModuloCompras items={items} />;
 }

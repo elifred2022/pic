@@ -764,6 +764,10 @@ export function CrearFormOrdenCompra() {
 
     try {
       const divisa = (formData.divisa === "EUR" || formData.divisa === "ARS") ? formData.divisa : "USD";
+      const entregas = itemsOrden.map((item) => ({
+        entregadas: 0,
+        pendientes: item.cantidad,
+      }));
       const insertData = {
         divisa,
         cuit: proveedorSeleccionado.cuitprov.toString(),
@@ -782,6 +786,7 @@ export function CrearFormOrdenCompra() {
         ahorro: ahorroCalculado ?? 0,
         observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
         articulos: itemsOrden,
+        entregas: [],
         estado: formData.estado,
       };
       const { error } = await supabase
@@ -1152,12 +1157,6 @@ export function CrearFormOrdenCompra() {
                         onChange={(e) => setArticuloSinPic(prev => ({ ...prev, descuento: parseNumero(e.target.value) }))}
                       />
                     </div>
-                    <div>
-                      <Label>Divisa</Label>
-                      <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium">
-                        {formData.divisa}
-                      </div>
-                    </div>
                   </div>
                   <Button
                     type="button"
@@ -1401,21 +1400,15 @@ export function CrearFormOrdenCompra() {
                             className="w-24"
                           />
                         </div>
-                        <div>
-                          <Label className="text-sm">Divisa</Label>
-                          <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium w-20">
-                            {formData.divisa}
-                          </div>
-                        </div>
                         <div className="text-right">
                           <Label className="text-sm">Unit. c/ desc.</Label>
-                          <p className="font-semibold">
-                            ${calcularPrecioConDescuento(item.precio_unitario, item.descuento).toLocaleString('es-AR')}
+                          <p className="font-semibold whitespace-nowrap">
+                            {formData.divisa} {calcularPrecioConDescuento(item.precio_unitario, item.descuento).toLocaleString('es-AR')}
                           </p>
                         </div>
                         <div className="text-right">
                           <Label className="text-sm">Total</Label>
-                          <p className="font-semibold text-lg">${item.total.toLocaleString('es-AR')}</p>
+                          <p className="font-semibold text-lg whitespace-nowrap">{formData.divisa} {item.total.toLocaleString('es-AR')}</p>
                         </div>
                         <Button
                           type="button"
@@ -1451,8 +1444,7 @@ export function CrearFormOrdenCompra() {
                 <p><strong>Total de Artículos:</strong> {itemsOrden.length}</p>
                 <div className="flex items-center gap-2">
                   <p><strong>Total de la Orden:</strong></p>
-                  <span className="font-medium">{formData.divisa}</span>
-                  <span className="text-2xl font-bold text-green-600">${totalOrden.toLocaleString('es-AR')}</span>
+                  <span className="text-2xl font-bold text-green-600 whitespace-nowrap">{formData.divisa} {totalOrden.toLocaleString('es-AR')}</span>
                 </div>
                 <div>
                   <Label htmlFor="importe_competencia" className="text-sm text-gray-600">Importe competencia</Label>
@@ -1470,7 +1462,7 @@ export function CrearFormOrdenCompra() {
                     <p className="mt-1 text-sm">
                       <strong>Ahorro:</strong>{" "}
                       <span className={ahorroCalculado >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
-                        ${ahorroCalculado.toLocaleString('es-AR')}
+                        {formData.divisa} {ahorroCalculado.toLocaleString('es-AR')}
                         {ahorroCalculado >= 0 ? " (vs competencia)" : ""}
                       </span>
                     </p>

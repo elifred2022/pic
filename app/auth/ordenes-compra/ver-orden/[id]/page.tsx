@@ -22,7 +22,7 @@ import {
   parseFacturasFromOrden,
   type FacturaOrdenItem,
 } from "@/lib/fact-compras-storage";
-import { canEditAsAdmin, isAprobEmail } from "@/lib/panol-access";
+import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -334,6 +334,14 @@ const printStyles = `
       display: none !important;
     }
   }
+
+  /* Pantalla: ocultar importes (perfil pañol / recepción) */
+  .vista-sin-importes .print-header-total,
+  .vista-sin-importes .print-col-importe,
+  .vista-sin-importes .print-field-importe,
+  .vista-sin-importes .print-table tfoot {
+    display: none !important;
+  }
 `;
 
 type ArticuloOrdenItem = {
@@ -350,6 +358,392 @@ type ArticuloOrdenItem = {
   presentacion?: string | null;
   codprovsug?: string | null;
 };
+
+/** Entrada legacy de la columna JSON `entregas` (array paralelo a `articulos`). */
+type EntregaOrdenItem = {
+  entregadas: number | null;
+  pendientes: number | null;
+};
+
+/** Ítem de cantidad dentro de un registro de entrega (factura/remito). */
+type EntregaItemCantidad = {
+  articulo_id: string;
+  cantidad_entregada: number;
+};
+
+/** Registro de entrega del proveedor, vinculado a un documento en fact_path. */
+type EntregaRegistro = {
+  fc: number | null;
+  rt: number | null;
+  fecha_entrega: string | null;
+  fact_path: string;
+  items: EntregaItemCantidad[];
+};
+
+function parseEntregaItem(value: unknown): EntregaOrdenItem {
+  if (value === null || value === undefined) {
+    return { entregadas: null, pendientes: null };
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return { entregadas: value, pendientes: null };
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const entregadasRaw =
+      record.entregadas ??
+      record.cantidad_entregada ??
+      record.cantidad_entregadas ??
+      record.entregado;
+    const pendientesRaw =
+      record.pendientes ??
+      record.cantidad_pendiente ??
+      record.cantidad_pendientes ??
+      record.pendiente;
+
+    const toNum = (v: unknown): number | null => {
+      if (v === null || v === undefined || v === "") return null;
+      const n = typeof v === "number" ? v : Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    return {
+      entregadas: toNum(entregadasRaw),
+      pendientes: toNum(pendientesRaw),
+    };
+  }
+
+  return { entregadas: null, pendientes: null };
+}
+
+function isEntregaRegistro(value: unknown): value is EntregaRegistro {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return Array.isArray(record.items) || ("fact_path" in record && !("entregadas" in record));
+}
+
+function parseEntregaRegistro(value: unknown): EntregaRegistro | null {
+  if (!isEntregaRegistro(value)) return null;
+  const record = value as Record<string, unknown>;
+  const itemsRaw = Array.isArray(record.items) ? record.items : [];
+  const items: EntregaItemCantidad[] = itemsRaw
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const row = item as Record<string, unknown>;
+      const articuloId = String(row.articulo_id ?? "").trim();
+      const cant = Number(row.cantidad_entregada ?? row.entregadas ?? 0);
+      if (!articuloId || !Number.isFinite(cant) || cant <= 0) return null;
+      return { articulo_id: articuloId, cantidad_entregada: cant };
+    })
+    .filter((item): item is EntregaItemCantidad => item !== null);
+
+  const fcRaw = record.fc;
+  const rtRaw = record.rt;
+  const fc =
+    fcRaw === null || fcRaw === undefined || fcRaw === ""
+      ? null
+      : Number.isFinite(Number(fcRaw))
+        ? Number(fcRaw)
+        : null;
+  const rt =
+    rtRaw === null || rtRaw === undefined || rtRaw === ""
+      ? null
+      : Number.isFinite(Number(rtRaw))
+        ? Number(rtRaw)
+        : null;
+
+  return {
+    fc,
+    rt,
+    fecha_entrega:
+      typeof record.fecha_entrega === "string" && record.fecha_entrega.trim()
+        ? record.fecha_entrega.trim()
+        : null,
+    fact_path: typeof record.fact_path === "string" ? record.fact_path : "",
+    items,
+  };
+}
+
+function normalizeEntregasToRegistros(entregas: unknown): EntregaRegistro[] {
+  if (!Array.isArray(entregas) || entregas.length === 0) return [];
+  if (isEntregaRegistro(entregas[0])) {
+    return entregas
+      .map(parseEntregaRegistro)
+      .filter((reg): reg is EntregaRegistro => reg !== null);
+  }
+  return [];
+}
+
+/** Convierte entregas (eventos o legacy) a registros, sin perder cantidades ya cargadas. */
+function toEntregaRegistrosPreserving(
+  entregas: unknown,
+  articulos: ArticuloOrdenItem[]
+): EntregaRegistro[] {
+  if (!Array.isArray(entregas) || entregas.length === 0) return [];
+
+  if (isEntregaRegistro(entregas[0])) {
+    return normalizeEntregasToRegistros(entregas);
+  }
+
+  const legacyItems: EntregaItemCantidad[] = articulos
+    .map((art, idx) => {
+      const ent = parseEntregaItem(entregas[idx]);
+      const cant = ent.entregadas ?? 0;
+      if (cant <= 0 || !art.articulo_id) return null;
+      return {
+        articulo_id: art.articulo_id,
+        cantidad_entregada: cant,
+      };
+    })
+    .filter((item): item is EntregaItemCantidad => item !== null);
+
+  if (legacyItems.length === 0) return [];
+
+  return [
+    {
+      fc: null,
+      rt: null,
+      fecha_entrega: null,
+      fact_path: "",
+      items: legacyItems,
+    },
+  ];
+}
+
+function getEntregadasAgregadas(
+  entregas: unknown,
+  articuloId: string,
+  index: number
+): number {
+  if (!Array.isArray(entregas) || entregas.length === 0) return 0;
+
+  if (isEntregaRegistro(entregas[0])) {
+    let sum = 0;
+    for (const raw of entregas) {
+      const reg = parseEntregaRegistro(raw);
+      if (!reg) continue;
+      const byId = reg.items.find((item) => item.articulo_id === articuloId);
+      if (byId) {
+        sum += byId.cantidad_entregada;
+      } else if (!articuloId && reg.items[index]) {
+        sum += reg.items[index].cantidad_entregada;
+      }
+    }
+    return sum;
+  }
+
+  return parseEntregaItem(entregas[index]).entregadas ?? 0;
+}
+
+function getEntregaForArticulo(
+  entregas: unknown,
+  index: number,
+  articulo?: ArticuloOrdenItem
+): EntregaOrdenItem {
+  const cantidad = Number(articulo?.cantidad) || 0;
+  const esFormatoEventos =
+    Array.isArray(entregas) && entregas.length > 0 && isEntregaRegistro(entregas[0]);
+
+  if (esFormatoEventos || !Array.isArray(entregas) || entregas.length === 0) {
+    const entregadas = getEntregadasAgregadas(
+      entregas,
+      articulo?.articulo_id ?? "",
+      index
+    );
+    return {
+      entregadas,
+      pendientes: Math.max(0, cantidad - entregadas),
+    };
+  }
+
+  const legacy = parseEntregaItem(entregas[index]);
+  const entregadas = legacy.entregadas ?? 0;
+  return {
+    entregadas,
+    pendientes:
+      legacy.pendientes !== null
+        ? legacy.pendientes
+        : Math.max(0, cantidad - entregadas),
+  };
+}
+
+function formatCantidadEntrega(value: number | null): string {
+  if (value === null) return "—";
+  return value.toLocaleString("es-AR");
+}
+
+/** `rt` en ordenes_compra es JSONB array numérico (constraint ordenes_compra_rt_numeric_array_chk). */
+function coerceRtArray(value: unknown): number[] {
+  if (value === null || value === undefined || value === "") return [];
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "number" && Number.isFinite(item)) return item;
+        const n = Number(item);
+        return Number.isFinite(n) ? n : null;
+      })
+      .filter((n): n is number => n !== null);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) return [value];
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        return coerceRtArray(JSON.parse(trimmed));
+      } catch {
+        /* seguir */
+      }
+    }
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? [n] : [];
+  }
+
+  return [];
+}
+
+function appendRtToArray(existing: unknown, rt: number | null): number[] {
+  const arr = coerceRtArray(existing);
+  if (rt === null) return arr;
+  return [...arr, rt];
+}
+
+function formatRtDisplay(rt: unknown): string | null {
+  const arr = coerceRtArray(rt);
+  if (arr.length === 0) return null;
+  return arr.join(", ");
+}
+
+type AbonadoOrden = {
+  abonado: boolean;
+  fecha: string | null;
+};
+
+function parseAbonadoOrden(value: unknown): AbonadoOrden {
+  if (value === null || value === undefined || value === "") {
+    return { abonado: false, fecha: null };
+  }
+
+  // Legacy: solo fecha como string/date
+  if (typeof value === "string") {
+    const fecha = value.trim().split("T")[0] || null;
+    return { abonado: Boolean(fecha), fecha };
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const fechaRaw = record.fecha ?? record.fecha_abonado;
+    const fecha =
+      typeof fechaRaw === "string" && fechaRaw.trim()
+        ? fechaRaw.trim().split("T")[0]
+        : null;
+    const checked =
+      typeof record.abonado === "boolean"
+        ? record.abonado
+        : Boolean(fecha);
+    return { abonado: checked, fecha: checked ? fecha : null };
+  }
+
+  return { abonado: false, fecha: null };
+}
+
+function serializeAbonadoOrden(checked: boolean, fecha: string | null): AbonadoOrden {
+  const fechaNorm = fecha?.trim() ? fecha.trim().split("T")[0] : null;
+  if (!checked) {
+    return { abonado: false, fecha: null };
+  }
+  return { abonado: true, fecha: fechaNorm };
+}
+
+/** Estado según entregas: pendiente | entrego_parcial | cumplida */
+function computeEstadoDesdeEntregas(
+  articulos: ArticuloOrdenItem[],
+  entregas: unknown
+): "pendiente" | "entrego_parcial" | "cumplida" {
+  if (!articulos.length) return "pendiente";
+
+  let totalEntregadas = 0;
+  let totalPendientes = 0;
+
+  articulos.forEach((art, index) => {
+    const cantidad = Number(art.cantidad) || 0;
+    const entregadas = getEntregadasAgregadas(
+      entregas,
+      art.articulo_id ?? "",
+      index
+    );
+    totalEntregadas += entregadas;
+    totalPendientes += Math.max(0, cantidad - entregadas);
+  });
+
+  if (totalEntregadas <= 0) return "pendiente";
+  if (totalPendientes <= 0) return "cumplida";
+  return "entrego_parcial";
+}
+
+type DivisaOrden = "USD" | "EUR" | "ARS";
+
+function normalizeDivisa(value: unknown): DivisaOrden {
+  const v = String(value ?? "").trim().toUpperCase();
+  if (v === "EUR" || v.includes("EUR") || v === "€") return "EUR";
+  if (v === "ARS" || v.includes("ARS") || v === "PESO" || v === "$AR") return "ARS";
+  if (v === "USD" || v.includes("USD") || v === "U$S" || v === "US$") return "USD";
+  return "USD";
+}
+
+function formatImporte(amount: number | null | undefined, divisa?: unknown): string {
+  const n = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
+  return `${normalizeDivisa(divisa)} ${n.toLocaleString("es-AR")}`;
+}
+
+/**
+ * Arma `entregas` al editar artículos.
+ * Si ya hay registros de entrega (eventos), los conserva filtrando ítems.
+ * Si es formato legacy, recalcula entregadas/pendientes.
+ */
+function buildEntregasFromArticulos(
+  articulos: ArticuloOrdenItem[],
+  articulosPrevios: ArticuloOrdenItem[] | undefined,
+  entregasPrevias: unknown
+): EntregaRegistro[] | { entregadas: number; pendientes: number }[] {
+  const prevArray = Array.isArray(entregasPrevias) ? entregasPrevias : [];
+
+  if (prevArray.length > 0 && isEntregaRegistro(prevArray[0])) {
+    const ids = new Set(articulos.map((art) => art.articulo_id).filter(Boolean));
+    return normalizeEntregasToRegistros(prevArray).map((reg) => ({
+      ...reg,
+      items: reg.items.filter((item) => ids.has(item.articulo_id)),
+    }));
+  }
+
+  const entregadasPorArticuloId = new Map<string, number>();
+
+  (articulosPrevios ?? []).forEach((art, index) => {
+    if (!art.articulo_id) return;
+    const prev = parseEntregaItem(prevArray[index]);
+    if (prev.entregadas !== null) {
+      entregadasPorArticuloId.set(art.articulo_id, prev.entregadas);
+    }
+  });
+
+  return articulos.map((articulo, index) => {
+    const porId = articulo.articulo_id
+      ? entregadasPorArticuloId.get(articulo.articulo_id)
+      : undefined;
+    const porIndice = parseEntregaItem(prevArray[index]).entregadas;
+    const entregadasPrev = porId ?? porIndice ?? 0;
+
+    const cantidad = Number(articulo.cantidad) || 0;
+    const entregadas = Math.min(Math.max(0, entregadasPrev), cantidad);
+    const pendientes = Math.max(0, cantidad - entregadas);
+
+    return { entregadas, pendientes };
+  });
+}
 
 interface OrdenCompra {
   id: number;
@@ -369,12 +763,17 @@ interface OrdenCompra {
   condicion_pago?: string;
   tipo_pago?: string;
   articulos: ArticuloOrdenItem[];
+  /** Registros de entrega [{ fc, rt, fecha_entrega, fact_path, items }] o legacy paralelo. */
+  entregas?: unknown;
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
   fc?: unknown;
-  rt?: number | null;
+  /** JSONB array de remitos, ej. [1001, 1002] */
+  rt?: unknown;
   fecha_entrega?: string | null;
+  /** JSON: { abonado: boolean, fecha: string | null } */
+  abonado?: unknown;
   fact_path?: unknown;
 }
 
@@ -421,6 +820,7 @@ export default function VerOrdenCompraPage() {
   const [facturaViewUrls, setFacturaViewUrls] = useState<Record<string, string>>({});
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
+  const [accessLoaded, setAccessLoaded] = useState(false);
   const [printSinImportes, setPrintSinImportes] = useState(false);
   const [showArticuloModal, setShowArticuloModal] = useState(false);
   const [nuevoArticulo, setNuevoArticulo] = useState({
@@ -429,10 +829,29 @@ export default function VerOrdenCompraPage() {
     precio_unitario: 0,
     descuento: 0
   });
+  const [showEntregaModal, setShowEntregaModal] = useState(false);
+  const [entregaForm, setEntregaForm] = useState({
+    fc: "",
+    rt: "",
+    fecha_entrega: "",
+  });
+  const [entregaCantidades, setEntregaCantidades] = useState<Record<string, string>>({});
+  const [entregaFile, setEntregaFile] = useState<File | null>(null);
+  const [entregaSaving, setEntregaSaving] = useState(false);
+  const [entregaError, setEntregaError] = useState<string | null>(null);
+  const [showVerEntregasModal, setShowVerEntregasModal] = useState(false);
+  const [verEntregasLoading, setVerEntregasLoading] = useState(false);
+  const [abonadoChecked, setAbonadoChecked] = useState(false);
+  const [fechaAbonadoInput, setFechaAbonadoInput] = useState("");
+  const [abonadoSaving, setAbonadoSaving] = useState(false);
+  const [abonadoError, setAbonadoError] = useState<string | null>(null);
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
   const canEdit = canEditAsAdmin(userEmail, userRol);
+  const canCargarEntrega = canCargarEntregaOrdenes(userEmail, userRol);
+  const canViewImportes =
+    accessLoaded && canViewImportesOrdenesCompra(userEmail, userRol);
 
   const enriquecerArticulosOrden = useCallback(
     async (articulos: ArticuloOrdenItem[]): Promise<ArticuloOrdenItem[]> => {
@@ -521,7 +940,15 @@ export default function VerOrdenCompraPage() {
       const articulosEnriquecidos = await enriquecerArticulosOrden(
         (data.articulos as ArticuloOrdenItem[]) || []
       );
-      setOrden({ ...data, articulos: articulosEnriquecidos });
+      setOrden({
+        ...data,
+        divisa: normalizeDivisa(data.divisa),
+        articulos: articulosEnriquecidos,
+      });
+      const abonadoParsed = parseAbonadoOrden(data.abonado);
+      setAbonadoChecked(abonadoParsed.abonado);
+      setFechaAbonadoInput(abonadoParsed.fecha ?? "");
+      setAbonadoError(null);
     } catch (err) {
       console.error("Error fetching orden:", err);
       setError("Error al cargar la orden de compra");
@@ -571,6 +998,7 @@ export default function VerOrdenCompraPage() {
         const rol = await fetchUserRolByUuid(supabase, user.id);
         setUserRol(rol);
       }
+      setAccessLoaded(true);
     });
   }, [params.id, fetchOrden, fetchProveedores, supabase]);
 
@@ -610,14 +1038,15 @@ export default function VerOrdenCompraPage() {
   // Sincronizar divisa de la orden con todos los artículos cuando cambia
   useEffect(() => {
     if (showEditModal && editData.articulos.length > 0) {
-      const divisaOrden = editData.divisa || "USD";
-      const tieneOtroDivisa = editData.articulos.some(a => (a.divisa ?? "USD") !== divisaOrden);
+      const divisaOrden = normalizeDivisa(editData.divisa);
+      const tieneOtroDivisa = editData.articulos.some(a => normalizeDivisa(a.divisa) !== divisaOrden);
       if (tieneOtroDivisa) {
         setEditData(prev => ({
           ...prev,
+          divisa: divisaOrden,
           articulos: prev.articulos.map(a => ({
             ...a,
-            divisa: (prev.divisa === "EUR" || prev.divisa === "ARS" ? prev.divisa : "USD") as "USD" | "EUR" | "ARS"
+            divisa: divisaOrden
           }))
         }));
       }
@@ -682,6 +1111,55 @@ export default function VerOrdenCompraPage() {
     return dateStr.split('T')[0];
   };
 
+  const persistFechaAbonado = async (checked: boolean, fecha: string | null) => {
+    if (!orden) return;
+    setAbonadoSaving(true);
+    setAbonadoError(null);
+    try {
+      const payload = serializeAbonadoOrden(checked, fecha);
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update({ abonado: payload })
+        .eq("id", orden.id);
+
+      if (updateError) {
+        setAbonadoError(getSupabaseErrorMessage(updateError));
+        return;
+      }
+
+      setOrden((prev) =>
+        prev ? { ...prev, abonado: payload } : prev
+      );
+    } catch (err) {
+      console.error("Error guardando abonado:", err);
+      setAbonadoError(getSupabaseErrorMessage(err));
+    } finally {
+      setAbonadoSaving(false);
+    }
+  };
+
+  const handleToggleAbonado = async (checked: boolean) => {
+    setAbonadoChecked(checked);
+    setAbonadoError(null);
+    if (!checked) {
+      setFechaAbonadoInput("");
+      await persistFechaAbonado(false, null);
+      return;
+    }
+    // Al activar, si ya hay fecha la guarda; si no, espera a que elijan una
+    if (fechaAbonadoInput) {
+      await persistFechaAbonado(true, fechaAbonadoInput);
+    }
+  };
+
+  const handleFechaAbonadoChange = async (value: string) => {
+    setFechaAbonadoInput(value);
+    setAbonadoError(null);
+    if (!value) return;
+    setAbonadoChecked(true);
+    await persistFechaAbonado(true, value);
+  };
+
   const calcularPrecioConDescuento = (precio: number, descuento?: number) => {
     const descuentoNormalizado = Math.min(Math.max(descuento ?? 0, 0), 100);
     return precio - (precio * descuentoNormalizado) / 100;
@@ -695,6 +1173,259 @@ export default function VerOrdenCompraPage() {
     return typeof item.total === "number" && !Number.isNaN(item.total)
       ? item.total
       : item.cantidad * precioConDescuento;
+  };
+
+  const handleOpenEntregaModal = () => {
+    if (!orden) return;
+    const cantidades: Record<string, string> = {};
+    (orden.articulos || []).forEach((art) => {
+      cantidades[art.articulo_id] = "";
+    });
+    setEntregaForm({ fc: "", rt: "", fecha_entrega: "" });
+    setEntregaCantidades(cantidades);
+    setEntregaFile(null);
+    setEntregaError(null);
+    setShowEntregaModal(true);
+  };
+
+  const handleCloseEntregaModal = () => {
+    setShowEntregaModal(false);
+    setEntregaForm({ fc: "", rt: "", fecha_entrega: "" });
+    setEntregaCantidades({});
+    setEntregaFile(null);
+    setEntregaError(null);
+  };
+
+  const handleOpenVerEntregasModal = async () => {
+    if (!orden) return;
+    setShowVerEntregasModal(true);
+    setVerEntregasLoading(true);
+    try {
+      const registros = toEntregaRegistrosPreserving(
+        orden.entregas,
+        orden.articulos || []
+      );
+      const paths = registros
+        .map((reg) => reg.fact_path)
+        .filter((path): path is string => Boolean(path?.trim()));
+      if (paths.length > 0) {
+        const urls = await loadFacturaViewUrls(supabase, paths);
+        setFacturaViewUrls((prev) => ({ ...prev, ...urls }));
+      }
+    } catch (err) {
+      console.error("Error cargando URLs de entregas:", err);
+    } finally {
+      setVerEntregasLoading(false);
+    }
+  };
+
+  const handleGuardarEntrega = async () => {
+    if (!orden) return;
+
+    setEntregaError(null);
+
+    const fcTrim = entregaForm.fc.trim();
+    const rtTrim = entregaForm.rt.trim();
+    const fecha = entregaForm.fecha_entrega.trim();
+
+    let fcNumero: number | null = null;
+    if (fcTrim) {
+      fcNumero = parseInt(fcTrim, 10);
+      if (!Number.isFinite(fcNumero)) {
+        setEntregaError("La factura debe ser un número válido.");
+        return;
+      }
+    }
+
+    let rtNumero: number | null = null;
+    if (rtTrim) {
+      rtNumero = parseInt(rtTrim, 10);
+      if (!Number.isFinite(rtNumero)) {
+        setEntregaError("El remito debe ser un número válido.");
+        return;
+      }
+    }
+
+    if (fcNumero === null && rtNumero === null) {
+      setEntregaError(
+        "Debe cargar al menos un documento de recepción: número de factura o número de remito."
+      );
+      return;
+    }
+
+    if (!fecha) {
+      setEntregaError("Ingrese la fecha de entrega.");
+      return;
+    }
+
+    if (!entregaFile) {
+      setEntregaError("Adjunte el documento escaneado (PDF, JPG o PNG).");
+      return;
+    }
+
+    const fileExt = entregaFile.name.split(".").pop()?.toLowerCase() || "";
+    if (!/^(pdf|jpg|jpeg|png)$/i.test(fileExt)) {
+      setEntregaError("Formato no permitido. Use PDF, JPG o PNG.");
+      return;
+    }
+
+    const items: EntregaItemCantidad[] = [];
+    for (const art of orden.articulos || []) {
+      const raw = (entregaCantidades[art.articulo_id] ?? "").trim();
+      if (!raw) continue;
+      const cant = Number(raw);
+      if (!Number.isFinite(cant) || cant < 0) {
+        setEntregaError(`Cantidad inválida para "${art.articulo_nombre}".`);
+        return;
+      }
+      if (cant === 0) continue;
+
+      const yaEntregadas = getEntregadasAgregadas(
+        orden.entregas,
+        art.articulo_id,
+        (orden.articulos || []).findIndex((a) => a.articulo_id === art.articulo_id)
+      );
+      const pendiente = Math.max(0, (Number(art.cantidad) || 0) - yaEntregadas);
+      if (cant > pendiente) {
+        setEntregaError(
+          `"${art.articulo_nombre}": no puede entregar ${cant}. Pendiente: ${pendiente}.`
+        );
+        return;
+      }
+
+      items.push({
+        articulo_id: art.articulo_id,
+        cantidad_entregada: cant,
+      });
+    }
+
+    if (items.length === 0) {
+      setEntregaError("Indique al menos una cantidad entregada mayor a 0.");
+      return;
+    }
+
+    setEntregaSaving(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        setEntregaError("Debe iniciar sesión para cargar la entrega.");
+        return;
+      }
+
+      // Leer data actual de la DB para no pisar entregas/facturas/remitos previos
+      const { data: ordenDb, error: fetchError } = await supabase
+        .from("ordenes_compra")
+        .select("fc, fact_path, rt, fecha_entrega, entregas, articulos")
+        .eq("id", orden.id)
+        .single();
+
+      if (fetchError) {
+        setEntregaError(
+          `No se pudo leer la orden actual: ${getSupabaseErrorMessage(fetchError)}`
+        );
+        return;
+      }
+
+      const articulosBase =
+        (orden.articulos?.length ? orden.articulos : (ordenDb.articulos as ArticuloOrdenItem[])) ||
+        [];
+      const entregasPrevias = toEntregaRegistrosPreserving(
+        ordenDb.entregas ?? orden.entregas,
+        articulosBase
+      );
+
+      const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
+      const contentType =
+        fileExt === "pdf"
+          ? "application/pdf"
+          : entregaFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(getFactComprasBucket())
+        .upload(storagePath, entregaFile, {
+          upsert: false,
+          contentType,
+        });
+
+      if (uploadError) {
+        setEntregaError(`No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`);
+        return;
+      }
+
+      const facturasExistentes = parseFacturasFromOrden({
+        fc: ordenDb.fc ?? orden.fc,
+        fact_path: ordenDb.fact_path ?? orden.fact_path,
+      }).filter((f) => f.fc !== null && f.path) as { fc: number; path: string }[];
+
+      // Acumular: no reemplazar facturas previas (aunque sea el mismo FC)
+      const facturasMerged =
+        fcNumero !== null
+          ? [...facturasExistentes, { fc: fcNumero, path: storagePath }]
+          : facturasExistentes;
+      const facturasPayload = buildFacturasUpdatePayload(orden, facturasMerged);
+
+      const nuevoRegistro: EntregaRegistro = {
+        fc: fcNumero,
+        rt: rtNumero,
+        fecha_entrega: fecha,
+        fact_path: storagePath,
+        items,
+      };
+
+      const entregasFinal: EntregaRegistro[] = [...entregasPrevias, nuevoRegistro];
+      const rtArray = appendRtToArray(ordenDb.rt ?? orden.rt, rtNumero);
+      const estadoEntrega = computeEstadoDesdeEntregas(articulosBase, entregasFinal);
+
+      const updatePayload = {
+        fc: facturasPayload.fc,
+        fact_path: facturasPayload.fact_path,
+        rt: rtArray,
+        fecha_entrega: fecha,
+        entregas: entregasFinal,
+        estado: estadoEntrega,
+      };
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update(updatePayload)
+        .eq("id", orden.id);
+
+      if (updateError) {
+        setEntregaError(
+          `El documento se subió, pero no se guardó la entrega: ${getSupabaseErrorMessage(updateError)}`
+        );
+        return;
+      }
+
+      const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
+      const viewUrl =
+        (await getFacturaViewUrl(supabase, storagePath)) ??
+        getFacturaPublicUrl(storagePath);
+      if (viewUrl) {
+        setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+      }
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              fc: facturasPayload.fc,
+              fact_path: facturasPayload.fact_path,
+              rt: rtArray,
+              fecha_entrega: fecha,
+              entregas: entregasFinal,
+              estado: estadoEntrega,
+            }
+          : prev
+      );
+
+      handleCloseEntregaModal();
+    } catch (err) {
+      console.error("Error guardando entrega:", err);
+      setEntregaError(getSupabaseErrorMessage(err));
+    } finally {
+      setEntregaSaving(false);
+    }
   };
 
   const handleOpenEditModal = () => {
@@ -714,10 +1445,10 @@ export default function VerOrdenCompraPage() {
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
         fecha_entrega: formatDateForInput(orden.fecha_entrega),
-        divisa: orden.divisa || 'USD',
+        divisa: normalizeDivisa(orden.divisa),
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
-          divisa: item.divisa ?? "USD",
+          divisa: normalizeDivisa(orden.divisa),
           costunitcdesc:
             item.costunitcdesc ??
             calcularPrecioConDescuento(item.precio_unitario, item.descuento),
@@ -953,7 +1684,7 @@ export default function VerOrdenCompraPage() {
             item.precio_unitario,
             item.descuento ?? 0
           ),
-          divisa: item.divisa ?? "ARS",
+          divisa: normalizeDivisa(item.divisa),
           ultimo_prov: proveedor || null,
           update_usuario: updateUsuario,
           updated_at: new Date().toISOString(),
@@ -1025,7 +1756,7 @@ export default function VerOrdenCompraPage() {
         return;
       }
 
-      const divisaOrden: "USD" | "EUR" | "ARS" = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
+      const divisaOrden = normalizeDivisa(editData.divisa);
       const articulosActualizados = editData.articulos.map((item) => ({
         ...item,
         divisa: divisaOrden,
@@ -1035,6 +1766,11 @@ export default function VerOrdenCompraPage() {
       const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
 
       const facturasPayload = buildFacturasUpdatePayload(orden, editFacturas);
+      const entregas = buildEntregasFromArticulos(
+        articulosActualizados,
+        orden.articulos,
+        orden.entregas
+      );
       const payload = {
         divisa: divisaOrden,
         noc: parseInt(editData.noc),
@@ -1050,10 +1786,11 @@ export default function VerOrdenCompraPage() {
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
         fc: facturasPayload.fc,
-        rt: orden.rt ?? null,
+        rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
+        entregas,
         total: totalOrden,
       };
 
@@ -1099,10 +1836,11 @@ export default function VerOrdenCompraPage() {
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
         fc: facturasPayload.fc,
-        rt: orden.rt ?? null,
+        rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
+        entregas,
         total: totalOrden,
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
@@ -1124,7 +1862,7 @@ export default function VerOrdenCompraPage() {
       nuevoArticulo.precio_unitario,
       nuevoArticulo.descuento
     );
-    const divisaArt: "USD" | "EUR" | "ARS" = (editData.divisa === "EUR" || editData.divisa === "ARS") ? editData.divisa : "USD";
+    const divisaArt = normalizeDivisa(editData.divisa);
     const articulo = {
       articulo_id: `temp-${Date.now()}`,
       articulo_nombre: nuevoArticulo.articulo_nombre,
@@ -1247,7 +1985,7 @@ export default function VerOrdenCompraPage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      <div className={`w-full max-w-6xl mx-auto p-6 print-container${printSinImportes ? " print-sin-importes" : ""}`}>
+      <div className={`w-full max-w-6xl mx-auto p-6 print-container${printSinImportes ? " print-sin-importes" : ""}${!canViewImportes ? " vista-sin-importes" : ""}`}>
         {/* Encabezado compacto en impresión */}
         <div className="mb-6 print-header">
           <div className="text-center">
@@ -1261,7 +1999,7 @@ export default function VerOrdenCompraPage() {
               Orden de Recepción #{orden.noc}
             </h2>
             <p className="hidden print-header-total print:block text-gray-800">
-              Total: {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
+              Total: {formatImporte(totalOrdenCalculado, orden.divisa)}
             </p>
           </div>
           <div className="hidden print-header-meta print:flex print:justify-center">
@@ -1276,41 +2014,69 @@ export default function VerOrdenCompraPage() {
             {orden.cod_cta && <span><strong>Cta:</strong> {orden.cod_cta}</span>}
             {orden.sector && <span><strong>Sector:</strong> {orden.sector}</span>}
             {fcImpresion && <span><strong>FC:</strong> {fcImpresion}</span>}
-            {orden.rt != null && <span><strong>RT:</strong> {orden.rt}</span>}
+            {formatRtDisplay(orden.rt) && (
+              <span><strong>RT:</strong> {formatRtDisplay(orden.rt)}</span>
+            )}
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-6 print:hidden">
-          <h2 className="text-3xl font-bold text-gray-900">
+        <div className="mb-6 print:hidden flex flex-row flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 shrink-0">
             📋 Orden de Compra #{orden.noc}
           </h2>
-          <div className="flex flex-wrap gap-2 print-hidden">
-            {canEdit && (
+          <div
+            className="flex flex-row flex-nowrap items-center gap-2 overflow-x-auto"
+            style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap" }}
+          >
             <Button
-              onClick={handleOpenEditModal}
+              onClick={handleOpenVerEntregasModal}
               variant="outline"
-              className="border-blue-500 text-blue-600 hover:bg-blue-50"
+              size="sm"
+              className="shrink-0 whitespace-nowrap border-teal-500 text-teal-700 hover:bg-teal-50"
             >
-              ✏️ Editar
+              👁️ Ver entregas
             </Button>
+            {canCargarEntrega && (
+              <Button
+                onClick={handleOpenEntregaModal}
+                variant="outline"
+                size="sm"
+                className="shrink-0 whitespace-nowrap border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+              >
+                📦 Cargar entrega
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                onClick={handleOpenEditModal}
+                variant="outline"
+                size="sm"
+                className="shrink-0 whitespace-nowrap border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                ✏️ Editar
+              </Button>
             )}
             <Button
               onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
               variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+              size="sm"
+              className="shrink-0 whitespace-nowrap border-orange-500 text-orange-600 hover:bg-orange-50"
             >
               🏭 Pedidos Productivos
             </Button>
             <Button
               onClick={() => router.push("/auth/list-adminpedidosgenerales")}
               variant="outline"
-              className="border-purple-500 text-purple-600 hover:bg-purple-50"
+              size="sm"
+              className="shrink-0 whitespace-nowrap border-purple-500 text-purple-600 hover:bg-purple-50"
             >
               📋 Pedidos Generales
             </Button>
             <Button
               onClick={() => router.push("/auth/ordenes-compra")}
               variant="outline"
+              size="sm"
+              className="shrink-0 whitespace-nowrap"
             >
               🔙 Volver a la Lista
             </Button>
@@ -1369,15 +2135,45 @@ export default function VerOrdenCompraPage() {
                 </div>
                 <div className="print-field print-field-importe print:hidden">
                   <p className="text-base text-gray-600 print-field-label">Total de la Orden</p>
-                  <p className="text-3xl font-bold text-green-600 print-field-value">
-                    {orden.divisa || "USD"} ${totalOrdenCalculado.toLocaleString("es-AR")}
+                  <p className="text-3xl font-bold text-green-600 print-field-value whitespace-nowrap">
+                    {formatImporte(totalOrdenCalculado, orden.divisa)}
                   </p>
                 </div>
-                <div className="print-field">
+                <div className="print-field print:hidden md:col-span-2">
                   <p className="text-base text-gray-600 print-field-label">Condición de Pago</p>
-                  <p className="text-base font-medium print-field-value">
-                    {orden.condicion_pago || "No especificada"}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mt-1">
+                    <p className="text-base font-medium print-field-value">
+                      {orden.condicion_pago || "No especificada"}
+                    </p>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={abonadoChecked}
+                        disabled={!canEdit || abonadoSaving}
+                        onChange={(e) => handleToggleAbonado(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      Abonado
+                    </label>
+                    {abonadoChecked && (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="fecha-abonado" className="text-sm text-gray-600 whitespace-nowrap">
+                          Fecha abonado
+                        </Label>
+                        <Input
+                          id="fecha-abonado"
+                          type="date"
+                          value={fechaAbonadoInput}
+                          disabled={!canEdit || abonadoSaving}
+                          onChange={(e) => handleFechaAbonadoChange(e.target.value)}
+                          className="w-40 h-9"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {abonadoError && (
+                    <p className="text-sm text-red-600 mt-1">{abonadoError}</p>
+                  )}
                 </div>
                 <div className="print-field print-field-block">
                   <p className="text-base text-gray-600 print-field-label">Dirección de Entrega</p>
@@ -1433,10 +2229,10 @@ export default function VerOrdenCompraPage() {
                     </ul>
                   </div>
                 )}
-                {orden.rt != null && (
+                {formatRtDisplay(orden.rt) && (
                   <div className="print-field print:hidden">
                     <p className="text-base text-gray-600 print-field-label">Remitos (RT)</p>
-                    <p className="text-base font-medium print-field-value">{orden.rt}</p>
+                    <p className="text-base font-medium print-field-value">{formatRtDisplay(orden.rt)}</p>
                   </div>
                 )}
                 {orden.fecha_entrega && (
@@ -1462,29 +2258,35 @@ export default function VerOrdenCompraPage() {
           <CardContent className="print-section-body print:py-2 print:px-0">
             {orden.articulos && orden.articulos.length > 0 ? (
               <div className="overflow-x-auto print:overflow-visible">
-                <table className="w-full border-collapse border border-gray-300 print:border-gray-500 print-table">
+                <table className="w-full border-collapse border border-gray-300 text-sm print:border-gray-500 print-table print:text-[10.5px]">
                   <thead className="bg-gray-100 print:bg-gray-200">
                     <tr>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-pic w-[7%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-pic w-[6%]">
                         PIC
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-articulo min-w-[200px] print:min-w-0 print:w-[32%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-left text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-articulo min-w-[140px] print:min-w-0 print:w-[32%]">
                         Artículo
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-cant w-[8%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-center text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-cant w-[6%]">
                         Cant.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[12%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-right text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[9%]">
                         P. Unit.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[8%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-right text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[6%]">
                         Desc. %
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[13%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-right text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[9%]">
                         P. c/ desc.
                       </th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[12%]">
+                      <th className="border border-gray-300 px-2 py-1.5 text-right text-xs font-semibold text-gray-700 print:px-1 print:py-0.5 print:text-[9.5px] print-col-importe w-[9%]">
                         Total
+                      </th>
+                      <th className="border border-gray-300 px-1.5 py-1.5 text-center text-xs font-semibold text-gray-700 leading-tight print:hidden w-[8%]">
+                        Entregadas
+                      </th>
+                      <th className="border border-gray-300 px-1.5 py-1.5 text-center text-xs font-semibold text-gray-700 leading-tight print:hidden w-[8%]">
+                        Pendientes
                       </th>
                     </tr>
                   </thead>
@@ -1496,9 +2298,10 @@ export default function VerOrdenCompraPage() {
                           item.descuento
                         );
                         const totalFila = getRowTotal(item);
+                        const entrega = getEntregaForArticulo(orden.entregas, index, item);
                         return (
                       <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
-                        <td className="border border-gray-300 px-3 py-2 text-base text-gray-600 print:px-2 print:py-1 print:text-[10.5px]">
+                        <td className="border border-gray-300 px-2 py-1.5 text-gray-600 print:px-2 print:py-1 print:text-[10.5px]">
                           {(() => {
                             const comparativaUrl = getComparativaPedidoUrl(item.articulo_id, {
                               ordenCompraId: orden.id,
@@ -1527,51 +2330,57 @@ export default function VerOrdenCompraPage() {
                             return picLabel;
                           })()}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-base print:px-1 print:py-0.5 print:text-[10.5px] align-top print-articulo-cell">
-                          <div className="flex flex-col gap-1.5 print:gap-0">
+                        <td className="border border-gray-300 px-2 py-1.5 print:px-1 print:py-0.5 print:text-[10.5px] align-top print-articulo-cell">
+                          <div className="flex flex-col gap-0.5 print:gap-0">
                             <span className="font-medium text-gray-900 print-articulo-nombre">{item.articulo_nombre}</span>
                             {item.descripcion?.trim() && (
-                              <span className="text-gray-600 leading-snug print-articulo-extra">
+                              <span className="text-xs text-gray-600 leading-snug print-articulo-extra">
                                 <span className="text-gray-500 print:hidden">Descripción: </span>
                                 <span className="hidden print:inline">Desc: </span>
                                 {item.descripcion}
                               </span>
                             )}
                             {item.presentacion?.trim() && (
-                              <span className="font-bold text-red-600 leading-snug print-articulo-extra">
+                              <span className="text-xs font-bold text-red-600 leading-snug print-articulo-extra">
                                 <span className="print:hidden">Presentacion: </span>
                                 <span className="hidden print:inline">Pres: </span>
                                 {item.presentacion}
                               </span>
                             )}
                             {item.codprovsug?.trim() && (
-                              <span className="text-gray-600 leading-snug print-articulo-extra">
+                              <span className="text-xs text-gray-600 leading-snug print-articulo-extra">
                                 <span className="text-gray-500 print:hidden">Cod. prov. sug.: </span>
                                 <span className="hidden print:inline">Cód: </span>
                                 {item.codprovsug}
                               </span>
                             )}
                             {item.codint?.trim() && (
-                              <span className="text-gray-600 leading-snug print-articulo-extra print-or-codint">
+                              <span className="text-xs text-gray-600 leading-snug print-articulo-extra print-or-codint">
                                 Cod. Int.: {item.codint}
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-center text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
+                        <td className="border border-gray-300 px-2 py-1.5 text-center text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
                           {item.cantidad}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
-                          ${item.precio_unitario?.toLocaleString('es-AR')}
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-right text-gray-700 whitespace-nowrap print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
+                          {formatImporte(item.precio_unitario, orden.divisa)}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-right text-gray-700 whitespace-nowrap print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
                           {(item.descuento ?? 0).toLocaleString('es-AR')}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-base text-gray-700 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
-                          ${precioConDescuento.toLocaleString('es-AR')}
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-right text-gray-700 whitespace-nowrap print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
+                          {formatImporte(precioConDescuento, orden.divisa)}
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-900 print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
-                          ${totalFila.toLocaleString('es-AR')}
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-right font-semibold text-gray-900 whitespace-nowrap print:px-2 print:py-1 print:text-[10.5px] print-col-importe">
+                          {formatImporte(totalFila, orden.divisa)}
+                        </td>
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-center text-gray-700 print:hidden">
+                          {formatCantidadEntrega(entrega.entregadas)}
+                        </td>
+                        <td className="border border-gray-300 px-1.5 py-1.5 text-center text-gray-700 print:hidden">
+                          {formatCantidadEntrega(entrega.pendientes)}
                         </td>
                       </tr>
                         );
@@ -1580,12 +2389,14 @@ export default function VerOrdenCompraPage() {
                   </tbody>
                   <tfoot className="bg-gray-50 print:bg-gray-100 print-col-importe">
                     <tr>
-                      <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right text-base font-semibold text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
+                      <td colSpan={6} className="border border-gray-300 px-2 py-1.5 text-right text-xs font-semibold text-gray-700 print:px-2 print:py-1 print:text-[10.5px]">
                         TOTAL:
                       </td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-2xl font-bold text-gray-900 print:px-2 print:py-1 print:text-[12px]">
-                        ${totalOrdenCalculado.toLocaleString('es-AR')}
+                      <td className="border border-gray-300 px-1.5 py-1.5 text-right text-base font-bold text-gray-900 whitespace-nowrap print:px-2 print:py-1 print:text-[12px]">
+                        {formatImporte(totalOrdenCalculado, orden.divisa)}
                       </td>
+                      <td className="border border-gray-300 print:hidden" />
+                      <td className="border border-gray-300 print:hidden" />
                     </tr>
                   </tfoot>
                 </table>
@@ -1598,26 +2409,21 @@ export default function VerOrdenCompraPage() {
           </CardContent>
         </Card>
 
-        {/* Acciones */}
+        {/* Acciones impresión */}
         <div className="flex justify-center gap-4 print-hidden">
-          <Button
-            onClick={() => handleImprimir(false)}
-            className="px-8 bg-blue-600 hover:bg-blue-700"
-          >
-            🖨️ Imprimir OC
-          </Button>
+          {canViewImportes && (
+            <Button
+              onClick={() => handleImprimir(false)}
+              className="px-8 bg-blue-600 hover:bg-blue-700"
+            >
+              🖨️ Imprimir OC
+            </Button>
+          )}
           <Button
             onClick={() => handleImprimir(true)}
             className="px-8 bg-emerald-600 hover:bg-emerald-700"
           >
             🖨️ Imprimir OR
-          </Button>
-          <Button
-            onClick={() => router.push("/auth/ordenes-compra")}
-            variant="outline"
-            className="px-8"
-          >
-            🔙 Volver a la Lista
           </Button>
         </div>
       </div>
@@ -1870,12 +2676,10 @@ export default function VerOrdenCompraPage() {
                     <select
                       id="edit-divisa"
                       name="divisa"
-                      value={editData.divisa || "USD"}
+                      value={normalizeDivisa(editData.divisa)}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "USD" || val === "EUR" || val === "ARS") {
-                          setEditData(prev => ({ ...prev, divisa: val }));
-                        }
+                        const val = normalizeDivisa(e.target.value);
+                        setEditData(prev => ({ ...prev, divisa: val }));
                       }}
                       className="w-full p-2 border border-gray-300 rounded-md"
                     >
@@ -2003,7 +2807,7 @@ export default function VerOrdenCompraPage() {
                 </div>
 
                 <div className="bg-gray-100 print:bg-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center">
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-center">
                     <div className="md:col-span-2 border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                       Artículo
                     </div>
@@ -2015,9 +2819,6 @@ export default function VerOrdenCompraPage() {
                     </div>
                     <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                       Descuento %
-                    </div>
-                    <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
-                      Divisa
                     </div>
                     <div className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 print:px-2 print:py-1 print:text-xs">
                       Costo unit. c/ desc.
@@ -2032,7 +2833,7 @@ export default function VerOrdenCompraPage() {
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {editData.articulos.map((articulo, index) => (
                       <div key={index} className="bg-white p-3 rounded-lg border border-purple-200">
-                        <div className="grid grid-cols-1 md:grid-cols-8 gap-2 items-start">
+                        <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-start">
                           <div className="md:col-span-2 space-y-2">
                             <Input
                               value={articulo.articulo_nombre}
@@ -2088,21 +2889,18 @@ export default function VerOrdenCompraPage() {
                               step="0.01"
                             />
                           </div>
-                          <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium text-center">
-                            {editData.divisa || "USD"}
+                          <div className="text-sm text-right whitespace-nowrap self-center">
+                            {formatImporte(calcularPrecioConDescuento(articulo.precio_unitario, articulo.descuento), editData.divisa)}
                           </div>
-                          <div className="text-sm text-right">
-                            ${calcularPrecioConDescuento(articulo.precio_unitario, articulo.descuento).toLocaleString('es-AR')}
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">
-                              ${getRowTotal(articulo).toLocaleString('es-AR')}
+                          <div className="flex items-center justify-between gap-1 self-center">
+                            <span className="font-semibold text-sm whitespace-nowrap">
+                              {formatImporte(getRowTotal(articulo), editData.divisa)}
                             </span>
                             <Button
                               onClick={() => handleEliminarArticulo(index)}
                               variant="outline"
                               size="sm"
-                              className="text-red-600 border-red-300 hover:bg-red-50 ml-2"
+                              className="text-red-600 border-red-300 hover:bg-red-50 ml-2 shrink-0"
                             >
                               ❌
                             </Button>
@@ -2115,8 +2913,11 @@ export default function VerOrdenCompraPage() {
                     <div className="bg-purple-100 p-3 rounded-lg border-2 border-purple-300">
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-lg">Total de la Orden:</span>
-                        <span className="font-bold text-xl text-purple-800">
-                          ${editData.articulos.reduce((sum, item) => sum + getRowTotal(item), 0).toLocaleString('es-AR')}
+                        <span className="font-bold text-xl text-purple-800 whitespace-nowrap">
+                          {formatImporte(
+                            editData.articulos.reduce((sum, item) => sum + getRowTotal(item), 0),
+                            editData.divisa
+                          )}
                         </span>
                       </div>
                     </div>
@@ -2173,7 +2974,7 @@ export default function VerOrdenCompraPage() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="nuevo-articulo-cantidad">Cantidad</Label>
                   <Input
@@ -2208,19 +3009,16 @@ export default function VerOrdenCompraPage() {
                     step="0.01"
                   />
                 </div>
-                <div>
-                  <Label>Divisa</Label>
-                  <div className="p-2 border border-gray-200 rounded-md bg-gray-50 text-sm font-medium">
-                    {editData.divisa || "USD"}
-                  </div>
-                </div>
               </div>
               
               <div className="bg-gray-50 p-3 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Total:</span>
-                  <span className="font-bold text-lg">
-                    ${(nuevoArticulo.cantidad * calcularPrecioConDescuento(nuevoArticulo.precio_unitario, nuevoArticulo.descuento)).toLocaleString('es-AR')}
+                  <span className="font-bold text-lg whitespace-nowrap">
+                    {formatImporte(
+                      nuevoArticulo.cantidad * calcularPrecioConDescuento(nuevoArticulo.precio_unitario, nuevoArticulo.descuento),
+                      editData.divisa
+                    )}
                   </span>
                 </div>
               </div>
@@ -2249,6 +3047,320 @@ export default function VerOrdenCompraPage() {
                 Agregar Artículo
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cargar entrega */}
+      {showEntregaModal && orden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">📦 Cargar entrega del proveedor</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <Label htmlFor="entrega-fc">Factura</Label>
+                <Input
+                  id="entrega-fc"
+                  type="number"
+                  value={entregaForm.fc}
+                  onChange={(e) =>
+                    setEntregaForm((prev) => ({ ...prev, fc: e.target.value }))
+                  }
+                  placeholder="Nº factura"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="entrega-rt">Remito</Label>
+                <Input
+                  id="entrega-rt"
+                  type="number"
+                  value={entregaForm.rt}
+                  onChange={(e) =>
+                    setEntregaForm((prev) => ({ ...prev, rt: e.target.value }))
+                  }
+                  placeholder="Nº remito"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="entrega-fecha">Fecha de entrega *</Label>
+                <Input
+                  id="entrega-fecha"
+                  type="date"
+                  value={entregaForm.fecha_entrega}
+                  onChange={(e) =>
+                    setEntregaForm((prev) => ({
+                      ...prev,
+                      fecha_entrega: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-2 mb-4">
+              Debe indicar al menos factura o remito (documento de recepción).
+            </p>
+
+            <div className="mb-4">
+              <Label htmlFor="entrega-archivo">Documento adjunto (PDF, JPG, PNG) *</Label>
+              <Input
+                id="entrega-archivo"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setEntregaFile(file);
+                  setEntregaError(null);
+                }}
+                className="mt-1"
+              />
+              {entregaFile && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Archivo: {entregaFile.name}
+                </p>
+              )}
+            </div>
+
+            {(() => {
+              const prevEntregas = toEntregaRegistrosPreserving(
+                orden.entregas,
+                orden.articulos || []
+              );
+              if (prevEntregas.length === 0) return null;
+              return (
+                <div className="border rounded-lg overflow-hidden mb-4 bg-emerald-50/50">
+                  <div className="bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-900">
+                    Entregas ya cargadas ({prevEntregas.length}) — se conservan al guardar
+                  </div>
+                  <ul className="divide-y max-h-36 overflow-y-auto text-sm">
+                    {prevEntregas.map((reg, idx) => {
+                      const totalCant = reg.items.reduce(
+                        (sum, item) => sum + item.cantidad_entregada,
+                        0
+                      );
+                      return (
+                        <li key={`${reg.fact_path}-${idx}`} className="px-3 py-2 text-gray-700">
+                          <span className="font-medium">#{idx + 1}</span>
+                          {reg.fc != null && <> · FC {reg.fc}</>}
+                          {reg.rt != null && <> · RT {reg.rt}</>}
+                          {reg.fecha_entrega && <> · {reg.fecha_entrega}</>}
+                          <> · {reg.items.length} art. · cant. {totalCant}</>
+                          {reg.fact_path ? (
+                            <span className="text-xs text-gray-500 block truncate">
+                              Doc: {reg.fact_path}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })()}
+
+            <div className="border rounded-lg overflow-hidden mb-4">
+              <div className="bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700">
+                Artículos de la orden — cantidad entregada en esta entrega
+              </div>
+              <div className="divide-y max-h-64 overflow-y-auto">
+                {(orden.articulos || []).map((art, index) => {
+                  const entrega = getEntregaForArticulo(orden.entregas, index, art);
+                  const pendiente = entrega.pendientes ?? Math.max(0, art.cantidad - (entrega.entregadas ?? 0));
+                  return (
+                    <div
+                      key={art.articulo_id || index}
+                      className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center px-3 py-2 text-sm"
+                    >
+                      <div className="md:col-span-6">
+                        <p className="font-medium text-gray-900">{art.articulo_nombre}</p>
+                        <p className="text-xs text-gray-500">
+                          Pedido: {art.cantidad} · Entregadas: {formatCantidadEntrega(entrega.entregadas)} · Pendientes: {formatCantidadEntrega(pendiente)}
+                        </p>
+                      </div>
+                      <div className="md:col-span-3">
+                        <Label className="text-xs text-gray-500">Cant. entregada</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max={pendiente}
+                          step="1"
+                          value={entregaCantidades[art.articulo_id] ?? ""}
+                          onChange={(e) =>
+                            setEntregaCantidades((prev) => ({
+                              ...prev,
+                              [art.articulo_id]: e.target.value,
+                            }))
+                          }
+                          placeholder="0"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="md:col-span-3 text-xs text-gray-500">
+                        Máx. esta entrega: {pendiente}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {entregaError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {entregaError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={handleCloseEntregaModal}
+                variant="outline"
+                disabled={entregaSaving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGuardarEntrega}
+                disabled={entregaSaving}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {entregaSaving ? "Guardando..." : "Guardar entrega"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ver entregas */}
+      {showVerEntregasModal && orden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold">👁️ Entregas cargadas</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVerEntregasModal(false)}
+              >
+                Cerrar
+              </Button>
+            </div>
+
+            {verEntregasLoading && (
+              <p className="text-sm text-gray-500 mb-3">Cargando documentos...</p>
+            )}
+
+            {(() => {
+              const registros = toEntregaRegistrosPreserving(
+                orden.entregas,
+                orden.articulos || []
+              );
+              const nombrePorId = new Map(
+                (orden.articulos || []).map((art) => [
+                  art.articulo_id,
+                  art.articulo_nombre,
+                ])
+              );
+
+              if (registros.length === 0) {
+                return (
+                  <div className="text-center py-10 text-gray-500">
+                    No hay entregas cargadas en esta orden.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {registros.map((reg, idx) => {
+                    const viewUrl = resolveFacturaHref(reg.fact_path);
+                    const totalCant = reg.items.reduce(
+                      (sum, item) => sum + item.cantidad_entregada,
+                      0
+                    );
+                    return (
+                      <div
+                        key={`${reg.fact_path || "sin-doc"}-${idx}`}
+                        className="border border-teal-200 rounded-lg overflow-hidden"
+                      >
+                        <div className="bg-teal-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-gray-800">
+                            <span className="font-semibold">Entrega #{idx + 1}</span>
+                            {reg.fc != null && (
+                              <span className="ml-2">FC: {reg.fc}</span>
+                            )}
+                            {reg.rt != null && (
+                              <span className="ml-2">RT: {reg.rt}</span>
+                            )}
+                            {reg.fecha_entrega && (
+                              <span className="ml-2">
+                                Fecha: {formatDateLocal(reg.fecha_entrega)}
+                              </span>
+                            )}
+                            <span className="ml-2 text-gray-500">
+                              · {reg.items.length} art. · cant. {totalCant}
+                            </span>
+                          </div>
+                          {viewUrl ? (
+                            <a
+                              href={viewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-teal-700 hover:text-teal-900 underline"
+                            >
+                              Ver documento
+                            </a>
+                          ) : reg.fact_path ? (
+                            <span className="text-xs text-gray-500">
+                              Documento sin URL
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">
+                              Sin documento adjunto
+                            </span>
+                          )}
+                        </div>
+                        <div className="px-4 py-2">
+                          {reg.items.length === 0 ? (
+                            <p className="text-sm text-gray-500 py-2">
+                              Sin cantidades registradas.
+                            </p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-left text-gray-500 border-b">
+                                  <th className="py-1.5 font-medium">Artículo</th>
+                                  <th className="py-1.5 font-medium text-right w-28">
+                                    Cant. entregada
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {reg.items.map((item, itemIdx) => (
+                                  <tr
+                                    key={`${item.articulo_id}-${itemIdx}`}
+                                    className="border-b border-gray-100 last:border-0"
+                                  >
+                                    <td className="py-1.5 text-gray-800">
+                                      {nombrePorId.get(item.articulo_id) ||
+                                        item.articulo_id}
+                                    </td>
+                                    <td className="py-1.5 text-right font-medium">
+                                      {item.cantidad_entregada.toLocaleString("es-AR")}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

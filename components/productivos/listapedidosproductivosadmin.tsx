@@ -15,6 +15,7 @@ import {
   getFacturaViewUrl,
   parseFacturasFromOrden,
   parseOrdenCompraEntero,
+  buildRtUpdateValue,
   uploadFacturaOrdenCompra,
   type FacturasOrdenRow,
 } from "@/lib/fact-compras-storage";
@@ -276,7 +277,7 @@ export default function ListaPedidosProductivosAdmin() {
 
       if (cancelled || error || !data) return;
 
-      setOcFacturasRow({ fc: data.fc, fact_path: data.fact_path });
+      setOcFacturasRow({ fc: data.fc, fact_path: data.fact_path, rt: data.rt });
 
       const facturas = parseFacturasFromOrden(data);
       const primera = facturas[0];
@@ -716,7 +717,7 @@ const handleUpdatePedido = async () => {
         .from("ordenes_compra")
         .update({
           fc: facturasPayload.fc,
-          rt: parseOrdenCompraEntero(ocFacturaForm.rt),
+          rt: buildRtUpdateValue(ocFacturasRow?.rt, ocFacturaForm.rt),
           fact_path: facturasPayload.fact_path,
           fecha_entrega: ocFacturaForm.fecha_entrega || null,
         })
@@ -732,6 +733,7 @@ const handleUpdatePedido = async () => {
       setOcFacturasRow({
         fc: facturasPayload.fc,
         fact_path: facturasPayload.fact_path,
+        rt: buildRtUpdateValue(ocFacturasRow?.rt, ocFacturaForm.rt),
       });
     }
 

@@ -182,7 +182,20 @@ export const canAccessModuloCompras = (
 ) =>
   isAdminEmail(email, rol) ||
   isFinanzasEmail(email, rol) ||
-  isAprobEmail(email, rol);
+  isAprobEmail(email, rol) ||
+  isPanolEmail(email, rol);
+
+/** Pañol usa órdenes de recepción: ve todo salvo importes en moneda. */
+export const canViewImportesOrdenesCompra = (
+  email?: string | null,
+  rol?: string | null,
+) => !isPanolEmail(email, rol);
+
+/** Admin y pañol pueden registrar entregas del proveedor. */
+export const canCargarEntregaOrdenes = (
+  email?: string | null,
+  rol?: string | null,
+) => canEditAsAdmin(email, rol) || isPanolEmail(email, rol);
 
 export const isProduccionEmail = (email?: string | null, rol?: string | null) => {
   if (isSinRol(rol)) return false;

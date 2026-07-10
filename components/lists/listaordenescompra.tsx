@@ -19,6 +19,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
+import { canViewImportesOrdenesCompra } from "@/lib/panol-access";
 
 interface OrdenCompra {
   id: number;
@@ -53,7 +54,9 @@ interface OrdenCompra {
 } 
 
 export default function ListaOrdenesCompra() {
-  const { canEdit } = useCanEditAsAdmin();
+  const { canEdit, email, rol, loading: accessLoading } = useCanEditAsAdmin();
+  const canViewImportes =
+    !accessLoading && canViewImportesOrdenesCompra(email, rol);
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
   const [ordenesFiltradas, setOrdenesFiltradas] = useState<OrdenCompra[]>([]);
   const [filtroBusqueda, setFiltroBusqueda] = useState("");
@@ -68,6 +71,7 @@ export default function ListaOrdenesCompra() {
   const [ocultarPendientes, setOcultarPendientes] = useState(false);
   const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
+  const [soloPagoAnticipado, setSoloPagoAnticipado] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [exportandoDetalle, setExportandoDetalle] = useState(false);
@@ -84,11 +88,13 @@ export default function ListaOrdenesCompra() {
     const savedPendientes = localStorage.getItem("ocultarPendientesOrdenes");
     const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcialOrdenes");
     const savedAnulados = localStorage.getItem("ocultarAnuladosOrdenes");
+    const savedPagoAnticipado = localStorage.getItem("soloPagoAnticipadoOrdenes");
 
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedPendientes !== null) setOcultarPendientes(savedPendientes === "true");
     if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
+    if (savedPagoAnticipado !== null) setSoloPagoAnticipado(savedPagoAnticipado === "true");
   }, []);
 
   // Cada vez que cambia, actualizá localStorage
@@ -116,6 +122,12 @@ export default function ListaOrdenesCompra() {
     }
   }, [ocultarAnulados, hasMounted]);
 
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem("soloPagoAnticipadoOrdenes", String(soloPagoAnticipado));
+    }
+  }, [soloPagoAnticipado, hasMounted]);
+
   const fetchOrdenes = useCallback(async () => {
     try {
       setLoading(true);
@@ -140,7 +152,7 @@ export default function ListaOrdenesCompra() {
     
     // Debug: mostrar estados y filtros
     console.log('Estados de las órdenes:', ordenes.map(o => o.estado));
-    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados });
+    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados, soloPagoAnticipado });
     
     // Aplicar filtros de checkbox primero
     ordenesFiltradas = ordenesFiltradas.filter(orden => {
@@ -160,6 +172,12 @@ export default function ListaOrdenesCompra() {
       }
       if (ocultarAnulados && orden.estado === 'anulado') {
         return false;
+      }
+      if (soloPagoAnticipado) {
+        const condicion = (orden.condicion_pago || "").toLowerCase().trim();
+        if (!condicion.includes("pago anticipado")) {
+          return false;
+        }
       }
       return true;
     });
@@ -286,7 +304,7 @@ export default function ListaOrdenesCompra() {
     });
     
     setOrdenesFiltradas(ordenesFiltradas);
-  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados]);
+  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados, soloPagoAnticipado]);
 
   useEffect(() => {
     if (activeTab === 'ordenes') {
@@ -380,33 +398,39 @@ export default function ListaOrdenesCompra() {
         const nocB = Number(b.noc) || 0;
         return nocA - nocB;
       });
-      const rows = ordenadasPorNoc.map((o) => ({
-        estado: o.estado ?? "",
-        noc: o.noc ?? "",
-        pic: extractPIC(o.articulos),
-        sector: o.sector ?? "",
-        fecha: o.fecha
-          ? new Date(o.fecha).toLocaleDateString("es-AR")
-          : o.created_at
-            ? new Date(o.created_at).toLocaleDateString("es-AR")
-            : "",
-        proveedor: o.proveedor ?? "",
-        total: o.total ?? 0,
-        condi_proceso: o.condi_proceso ?? "",
-        cod_cta: o.cod_cta ?? "",
-        importe_competencia: o.importe_competencia ?? "",
-        ahorro: o.ahorro ?? "",
-        tipo_pago: o.tipo_pago ?? "",
-        divisa: inferirDivisaOrden({
-          id: o.id,
-          noc: o.noc,
-          fecha: o.fecha,
-          estado: o.estado,
-          total: o.total,
-          divisa: o.divisa,
-          articulos: o.articulos,
-        }),
-      }));
+      const rows = ordenadasPorNoc.map((o) => {
+        const base = {
+          estado: o.estado ?? "",
+          noc: o.noc ?? "",
+          pic: extractPIC(o.articulos),
+          sector: o.sector ?? "",
+          fecha: o.fecha
+            ? new Date(o.fecha).toLocaleDateString("es-AR")
+            : o.created_at
+              ? new Date(o.created_at).toLocaleDateString("es-AR")
+              : "",
+          proveedor: o.proveedor ?? "",
+          condi_proceso: o.condi_proceso ?? "",
+          cod_cta: o.cod_cta ?? "",
+          tipo_pago: o.tipo_pago ?? "",
+        };
+        if (!canViewImportes) return base;
+        return {
+          ...base,
+          total: o.total ?? 0,
+          importe_competencia: o.importe_competencia ?? "",
+          ahorro: o.ahorro ?? "",
+          divisa: inferirDivisaOrden({
+            id: o.id,
+            noc: o.noc,
+            fecha: o.fecha,
+            estado: o.estado,
+            total: o.total,
+            divisa: o.divisa,
+            articulos: o.articulos,
+          }),
+        };
+      });
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Órdenes de Compra");
@@ -416,7 +440,7 @@ export default function ListaOrdenesCompra() {
     } finally {
       setExportando(false);
     }
-  }, [ordenesFiltradas]);
+  }, [ordenesFiltradas, canViewImportes]);
 
   const descargarExcelDetalle = useCallback(async () => {
     try {
@@ -489,54 +513,80 @@ export default function ListaOrdenesCompra() {
             articulo: it.articulo_nombre ?? "",
             noc: o.noc ?? "",
             proveedor: o.proveedor ?? "",
-            precio_unitario: it.precio_unitario ?? 0,
-            descuento: it.descuento ?? 0,
-            precio_con_descuento:
-              (it.precio_unitario ?? 0) *
-              (1 - Math.min(Math.max((it.descuento ?? 0) / 100, 0), 1)),
-            divisa: (it as any)?.divisa ?? o.divisa ?? "USD",
+            ...(canViewImportes
+              ? {
+                  precio_unitario: it.precio_unitario ?? 0,
+                  descuento: it.descuento ?? 0,
+                  precio_con_descuento:
+                    (it.precio_unitario ?? 0) *
+                    (1 - Math.min(Math.max((it.descuento ?? 0) / 100, 0), 1)),
+                  divisa: (it as any)?.divisa ?? o.divisa ?? "USD",
+                }
+              : {}),
           };
         });
       });
 
-      const ws = XLSX.utils.json_to_sheet(rows, {
-        header: [
-          "pic",
-          "fecha_pic",
-          "sector",
-          "solicita",
-          "cod_cta",
-          "cantidad",
-          "articulo",
-          "noc",
-          "proveedor",
-          "precio_unitario",
-          "descuento",
-          "precio_con_descuento",
-          "divisa",
-        ],
-      });
+      const headers = canViewImportes
+        ? [
+            "pic",
+            "fecha_pic",
+            "sector",
+            "solicita",
+            "cod_cta",
+            "cantidad",
+            "articulo",
+            "noc",
+            "proveedor",
+            "precio_unitario",
+            "descuento",
+            "precio_con_descuento",
+            "divisa",
+          ]
+        : [
+            "pic",
+            "fecha_pic",
+            "sector",
+            "solicita",
+            "cod_cta",
+            "cantidad",
+            "articulo",
+            "noc",
+            "proveedor",
+          ];
+
+      const headerLabels = canViewImportes
+        ? [
+            "pic",
+            "fecha pic",
+            "sector",
+            "solicita",
+            "codigo de cuenta",
+            "cantidad",
+            "articulo",
+            "noc",
+            "proveedor",
+            "precio unitario",
+            "descuento",
+            "precio con descuento",
+            "divisa",
+          ]
+        : [
+            "pic",
+            "fecha pic",
+            "sector",
+            "solicita",
+            "codigo de cuenta",
+            "cantidad",
+            "articulo",
+            "noc",
+            "proveedor",
+          ];
+
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
 
       // Encabezados “lindos” en el orden requerido
-      XLSX.utils.sheet_add_aoa(
-        ws,
-        [[
-          "pic",
-          "fecha pic",
-          "sector",
-          "solicita",
-          "codigo de cuenta",
-          "cantidad",
-          "articulo",
-          "noc",
-          "proveedor",
-          "precio unitario",
-          "descuento",
-          "precio con descuento",
-          "divisa",
-        ]],
-        { origin: "A1" }
-      );
+      XLSX.utils.sheet_add_aoa(ws, [headerLabels], { origin: "A1" });
 
       // Mover data una fila abajo para que no pise encabezados
       XLSX.utils.sheet_add_json(ws, rows, {
@@ -555,7 +605,7 @@ export default function ListaOrdenesCompra() {
     } finally {
       setExportandoDetalle(false);
     }
-  }, [ordenesFiltradas, supabase]);
+  }, [ordenesFiltradas, supabase, canViewImportes]);
 
   // Función para extraer solo el número del ID
   const extractIdNumber = (articuloId: string) => {
@@ -723,6 +773,16 @@ export default function ListaOrdenesCompra() {
             />
             <span className="text-gray-700 font-medium">Ocultar anulados</span>
           </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={soloPagoAnticipado}
+              onChange={() => setSoloPagoAnticipado((v) => !v)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">Solo pago anticipado</span>
+          </label>
         </div>
       </div>
 
@@ -762,16 +822,20 @@ export default function ListaOrdenesCompra() {
                     </CardTitle>
                     <p className="text-sm text-gray-600 mt-1">
                       CUIT: {orden.cuit} | Fecha: {new Date(orden.fecha).toLocaleDateString('es-AR')}
-                      <span className="ml-2">| {orden.divisa || 'USD'} ${orden.total?.toLocaleString('es-AR')}</span>
-                      {orden.importe_competencia != null && orden.importe_competencia > 0 && (
-                        <span className="ml-2">
-                          | Imp. competencia: ${Number(orden.importe_competencia).toLocaleString('es-AR')}
-                          {orden.ahorro != null && (
-                            <> | Ahorro: <span className={(orden.ahorro ?? 0) >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
-                              ${Number(orden.ahorro).toLocaleString('es-AR')}
-                            </span></>
+                      {canViewImportes && (
+                        <>
+                          <span className="ml-2">| {orden.divisa || 'USD'} ${orden.total?.toLocaleString('es-AR')}</span>
+                          {orden.importe_competencia != null && orden.importe_competencia > 0 && (
+                            <span className="ml-2">
+                              | Imp. competencia: ${Number(orden.importe_competencia).toLocaleString('es-AR')}
+                              {orden.ahorro != null && (
+                                <> | Ahorro: <span className={(orden.ahorro ?? 0) >= 0 ? "text-green-600 font-semibold" : "text-red-600"}>
+                                  ${Number(orden.ahorro).toLocaleString('es-AR')}
+                                </span></>
+                              )}
+                            </span>
                           )}
-                        </span>
+                        </>
                       )}
                     </p>
                   </div>
@@ -817,22 +881,26 @@ export default function ListaOrdenesCompra() {
                               <p className="text-xs text-gray-600">Cant.</p>
                               <p className="font-medium">{item.cantidad}</p>
                             </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Precio</p>
-                              <p className="font-medium">${item.precio_unitario?.toLocaleString('es-AR')}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">% Desc</p>
-                              <p className="font-medium">{item.descuento}%</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Precio c/ desc.</p>
-                              <p className="font-medium">${item.costunitcdesc?.toLocaleString('es-AR')}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Total</p>
-                              <p className="font-semibold text-green-600">${item.total?.toLocaleString('es-AR')}</p>
-                            </div>  
+                            {canViewImportes && (
+                              <>
+                                <div>
+                                  <p className="text-xs text-gray-600">Precio</p>
+                                  <p className="font-medium">${item.precio_unitario?.toLocaleString('es-AR')}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-600">% Desc</p>
+                                  <p className="font-medium">{item.descuento}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-600">Precio c/ desc.</p>
+                                  <p className="font-medium">${item.costunitcdesc?.toLocaleString('es-AR')}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-600">Total</p>
+                                  <p className="font-semibold text-green-600">${item.total?.toLocaleString('es-AR')}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}

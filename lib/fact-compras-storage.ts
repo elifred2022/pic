@@ -302,6 +302,7 @@ export type OrdenCompraFacturasJson = {
 export type FacturasOrdenRow = {
   fc?: unknown;
   fact_path?: unknown;
+  rt?: unknown;
 };
 
 /** Arma el UPDATE para columnas JSON fc y fact_path (siempre arrays paralelos). */
@@ -349,6 +350,56 @@ export function parseOrdenCompraEntero(value: string): number | null {
   if (!trimmed) return null;
   const n = parseInt(trimmed, 10);
   return Number.isFinite(n) ? n : null;
+}
+
+/** `rt` en ordenes_compra es JSONB array numérico. */
+export function coerceRtArray(value: unknown): number[] {
+  if (value === null || value === undefined || value === "") return [];
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "number" && Number.isFinite(item)) return item;
+        const n = Number(item);
+        return Number.isFinite(n) ? n : null;
+      })
+      .filter((n): n is number => n !== null);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) return [value];
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        return coerceRtArray(JSON.parse(trimmed));
+      } catch {
+        /* seguir */
+      }
+    }
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? [n] : [];
+  }
+
+  return [];
+}
+
+export function appendRtToArray(existing: unknown, rt: number | null): number[] {
+  const arr = coerceRtArray(existing);
+  if (rt === null) return arr;
+  return [...arr, rt];
+}
+
+export function buildRtUpdateValue(
+  existing: unknown,
+  rtInput: string
+): number[] {
+  const parsed = parseOrdenCompraEntero(rtInput);
+  if (parsed === null) return coerceRtArray(existing);
+  const existingArr = coerceRtArray(existing);
+  if (existingArr.includes(parsed)) return existingArr;
+  return [...existingArr, parsed];
 }
 
 export function formatDateInputValue(dateStr: string | null | undefined): string {

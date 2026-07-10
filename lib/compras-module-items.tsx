@@ -128,6 +128,41 @@ export const finanzasComprasModuleItems: ComprasModuleItem[] = [
   indicadoresComprasItem,
 ];
 
+export const panolComprasModuleItems: ComprasModuleItem[] = [
+  {
+    href: "/auth/lista-articulospanol",
+    title: "Sección Artículos",
+    description: "Gestionar inventario y artículos del almacén",
+    icon: <span className="text-2xl">📦</span>,
+    linkClassName:
+      "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
+  },
+  {
+    href: "/auth/list-panolpedidosgenerales",
+    title: "Pedidos Generales",
+    description: "Administrar pedidos generales del sistema",
+    icon: <span className="text-2xl">📋</span>,
+    linkClassName:
+      "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+  },
+  {
+    href: "/auth/rutaproductivos/lista-pedidosproductivos",
+    title: "Pedidos Productivos",
+    description: "Gestionar pedidos del área productiva",
+    icon: <span className="text-2xl">⚙️</span>,
+    linkClassName:
+      "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
+  },
+  {
+    href: "/auth/ordenes-compra",
+    title: "Órdenes de Recepción",
+    description: "Consulta órdenes de recepción",
+    icon: <span className="text-2xl">🛒</span>,
+    linkClassName:
+      "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+  },
+];
+
 export const aprobComprasModuleItems: ComprasModuleItem[] = [
   {
     href: "/auth/listaproveedores",

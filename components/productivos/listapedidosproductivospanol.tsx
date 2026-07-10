@@ -325,10 +325,10 @@ export default function ListaPedidosProductivos() {
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
           <Link
-            href="/protected"
+            href="/auth/modulo-compras"
             className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
           >
-            ← Home
+            ← Atrás
           </Link>
           
           <h1 className="text-3xl font-bold text-gray-800">🏭 Pedidos Productivos</h1>
