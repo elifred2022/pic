@@ -128,6 +128,7 @@ export function CrearFormOrdenCompra() {
     observaciones: "",
     estado: "pendiente",
     lugar_entrega: "",
+    fecha_prometida: "",
     noc: "",
     sector: "",
     cod_cta: "",
@@ -775,6 +776,7 @@ export function CrearFormOrdenCompra() {
         direccion: proveedorSeleccionado.direccionprov,
         telefono: proveedorSeleccionado.telefonoprov.toString(),
         lugar_entrega: formData.lugar_entrega,
+        fecha_prometida: formData.fecha_prometida || null,
         sector: formData.sector,
         cod_cta: formData.cod_cta,
         condicion_pago: formData.condicion_pago,
@@ -896,6 +898,20 @@ export function CrearFormOrdenCompra() {
                   Parque industrial ruta 6, lote 26, Los Cardales
                 </option>
               </select>
+            </div>
+
+            {/* Fecha acordada de entrega */}
+            <div>
+              <Label htmlFor="fecha_prometida">Fecha acordada de entrega</Label>
+              <Input
+                id="fecha_prometida"
+                type="date"
+                value={formData.fecha_prometida}
+                onChange={(e) =>
+                  setFormData({ ...formData, fecha_prometida: e.target.value })
+                }
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
 
             {/* Sector */}

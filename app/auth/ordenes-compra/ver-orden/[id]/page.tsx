@@ -772,6 +772,8 @@ interface OrdenCompra {
   /** JSONB array de remitos, ej. [1001, 1002] */
   rt?: unknown;
   fecha_entrega?: string | null;
+  /** Fecha acordada / prometida de entrega */
+  fecha_prometida?: string | null;
   /** JSON: { abonado: boolean, fecha: string | null } */
   abonado?: unknown;
   fact_path?: unknown;
@@ -806,6 +808,7 @@ export default function VerOrdenCompraPage() {
     cod_cta: '',
     sector: '',
     fecha_entrega: '',
+    fecha_prometida: '',
     divisa: 'USD',
     articulos: [] as ArticuloOrdenItem[]
   });
@@ -1445,6 +1448,7 @@ export default function VerOrdenCompraPage() {
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
         fecha_entrega: formatDateForInput(orden.fecha_entrega),
+        fecha_prometida: formatDateForInput(orden.fecha_prometida),
         divisa: normalizeDivisa(orden.divisa),
         articulos: (orden.articulos || []).map((item) => ({
           ...item,
@@ -1478,6 +1482,7 @@ export default function VerOrdenCompraPage() {
       cod_cta: '',
       sector: '',
       fecha_entrega: '',
+      fecha_prometida: '',
       divisa: 'USD',
       articulos: []
     });
@@ -1788,6 +1793,7 @@ export default function VerOrdenCompraPage() {
         fc: facturasPayload.fc,
         rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
+        fecha_prometida: editData.fecha_prometida || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
         entregas,
@@ -1838,6 +1844,7 @@ export default function VerOrdenCompraPage() {
         fc: facturasPayload.fc,
         rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
+        fecha_prometida: editData.fecha_prometida || null,
         fact_path: facturasPayload.fact_path,
         articulos: articulosActualizados,
         entregas,
@@ -2127,11 +2134,21 @@ export default function VerOrdenCompraPage() {
                   <p className="text-base text-gray-600 print-field-label">Estado</p>
                   <div className="mt-1">{getEstadoBadge(orden.estado)}</div>
                 </div>
-                <div className="print-field print:hidden">
-                  <p className="text-base text-gray-600 print-field-label">Fecha de Creación</p>
-                  <p className="text-base font-medium print-field-value">
-                    {formatFechaOrden(orden.fecha)}
-                  </p>
+                <div className="print-field print:hidden space-y-3">
+                  <div>
+                    <p className="text-base text-gray-600 print-field-label">Fecha de Creación</p>
+                    <p className="text-base font-medium print-field-value">
+                      {formatFechaOrden(orden.fecha)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-base text-gray-600 print-field-label">Fecha acordada de entrega</p>
+                    <p className="text-base font-medium print-field-value">
+                      {orden.fecha_prometida
+                        ? formatDateLocal(orden.fecha_prometida)
+                        : "No especificada"}
+                    </p>
+                  </div>
                 </div>
                 <div className="print-field print-field-importe print:hidden">
                   <p className="text-base text-gray-600 print-field-label">Total de la Orden</p>
@@ -2544,6 +2561,18 @@ export default function VerOrdenCompraPage() {
                         Parque industrial ruta 6, lote 26, Los Cardales
                       </option>
                     </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-fecha-prometida">Fecha acordada de entrega</Label>
+                    <Input
+                      id="edit-fecha-prometida"
+                      type="date"
+                      value={editData.fecha_prometida}
+                      onChange={(e) =>
+                        setEditData({ ...editData, fecha_prometida: e.target.value })
+                      }
+                    />
                   </div>
 
                   <div className="space-y-4">

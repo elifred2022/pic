@@ -20,6 +20,11 @@ import { ChevronDown } from "lucide-react";
 import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canViewImportesOrdenesCompra } from "@/lib/panol-access";
+import {
+  formatFechaExcel,
+  getCantidadesEntregaArticulo,
+  getFechasEntregaEventos,
+} from "@/lib/ordenes-compra-entregas";
 
 interface OrdenCompra {
   id: number;
@@ -51,6 +56,9 @@ interface OrdenCompra {
   cod_cta?: string;
   sector?: string;
   created_at?: string;
+  entregas?: unknown;
+  fecha_entrega?: string | null;
+  fecha_prometida?: string | null;
 } 
 
 export default function ListaOrdenesCompra() {
@@ -495,13 +503,23 @@ export default function ListaOrdenesCompra() {
 
       const rows = ordenadasPorNoc.flatMap((o) => {
         const articulos = o.articulos ?? [];
-        return articulos.map((it) => {
+        const fechasEventos = getFechasEntregaEventos(o.entregas)
+          .map(formatFechaExcel)
+          .filter(Boolean)
+          .join(", ");
+        return articulos.map((it, index) => {
           const parsed = parsePicFromArticuloId(it.articulo_id);
           const pedidoKey =
             parsed.tipo === "productivo" || parsed.tipo === "general"
               ? `${parsed.tipo}:${parsed.pedidoId}`
               : null;
           const pedido = pedidoKey ? pedidoMap.get(pedidoKey) : undefined;
+          const { entregadas, pendientes } = getCantidadesEntregaArticulo(
+            o.entregas,
+            it.articulo_id ?? "",
+            index,
+            it.cantidad ?? 0
+          );
 
           return {
             pic: parsed.pic,
@@ -510,9 +528,14 @@ export default function ListaOrdenesCompra() {
             solicita: pedido?.solicita ?? "",
             cod_cta: o.cod_cta ?? "",
             cantidad: it.cantidad ?? 0,
+            entregadas,
+            pendientes,
             articulo: it.articulo_nombre ?? "",
             noc: o.noc ?? "",
             proveedor: o.proveedor ?? "",
+            fecha_prometida: formatFechaExcel(o.fecha_prometida),
+            fecha_entrega: formatFechaExcel(o.fecha_entrega),
+            fechas_entregas: fechasEventos,
             ...(canViewImportes
               ? {
                   precio_unitario: it.precio_unitario ?? 0,
@@ -535,9 +558,14 @@ export default function ListaOrdenesCompra() {
             "solicita",
             "cod_cta",
             "cantidad",
+            "entregadas",
+            "pendientes",
             "articulo",
             "noc",
             "proveedor",
+            "fecha_prometida",
+            "fecha_entrega",
+            "fechas_entregas",
             "precio_unitario",
             "descuento",
             "precio_con_descuento",
@@ -550,9 +578,14 @@ export default function ListaOrdenesCompra() {
             "solicita",
             "cod_cta",
             "cantidad",
+            "entregadas",
+            "pendientes",
             "articulo",
             "noc",
             "proveedor",
+            "fecha_prometida",
+            "fecha_entrega",
+            "fechas_entregas",
           ];
 
       const headerLabels = canViewImportes
@@ -563,9 +596,14 @@ export default function ListaOrdenesCompra() {
             "solicita",
             "codigo de cuenta",
             "cantidad",
+            "entregadas",
+            "pendientes",
             "articulo",
             "noc",
             "proveedor",
+            "fecha acordada",
+            "fecha entrega",
+            "fechas entregas",
             "precio unitario",
             "descuento",
             "precio con descuento",
@@ -578,9 +616,14 @@ export default function ListaOrdenesCompra() {
             "solicita",
             "codigo de cuenta",
             "cantidad",
+            "entregadas",
+            "pendientes",
             "articulo",
             "noc",
             "proveedor",
+            "fecha acordada",
+            "fecha entrega",
+            "fechas entregas",
           ];
 
       const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
