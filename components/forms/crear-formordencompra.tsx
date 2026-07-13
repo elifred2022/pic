@@ -131,6 +131,7 @@ export function CrearFormOrdenCompra() {
     fecha_prometida: "",
     noc: "",
     sector: "",
+    clasificacion_compra: "",
     cod_cta: "",
     condicion_pago: "",
     tipo_pago: "",
@@ -735,6 +736,11 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.clasificacion_compra) {
+      setError("Debe seleccionar la clasificación de compra");
+      return;
+    }
+
     if (!formData.cod_cta || formData.cod_cta.trim() === "") {
       setError("Debe ingresar un código de cuenta");
       return;
@@ -778,6 +784,7 @@ export function CrearFormOrdenCompra() {
         lugar_entrega: formData.lugar_entrega,
         fecha_prometida: formData.fecha_prometida || null,
         sector: formData.sector,
+        clasificacion_compra: formData.clasificacion_compra,
         cod_cta: formData.cod_cta,
         condicion_pago: formData.condicion_pago,
         tipo_pago: formData.tipo_pago || null,
@@ -936,6 +943,24 @@ export function CrearFormOrdenCompra() {
               </p>
             </div>
 
+            {/* Clasificación de compra */}
+            <div>
+              <Label htmlFor="clasificacion_compra">Clasificación de compra *</Label>
+              <select
+                id="clasificacion_compra"
+                value={formData.clasificacion_compra}
+                onChange={(e) =>
+                  setFormData({ ...formData, clasificacion_compra: e.target.value })
+                }
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">Seleccione la clasificación de compra</option>
+                <option value="productiva">Productiva</option>
+                <option value="no productiva">No productiva</option>
+              </select>
+            </div>
+
             {/* Divisa de la orden */}
             <div>
               <Label htmlFor="divisa_orden">Divisa de la Orden</Label>
@@ -1029,6 +1054,7 @@ export function CrearFormOrdenCompra() {
               >
                 <option value="">Seleccione la condición de pago</option>
                 <option value="CC 30/60/90 DIAS FF">CC 30/60/90 DIAS FF</option>
+                <option value="CC 30/45/60 DIAS FF">CC 30/45/60 DIAS FF</option>
                 <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
                   <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
                   <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>

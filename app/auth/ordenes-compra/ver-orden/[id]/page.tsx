@@ -768,6 +768,7 @@ interface OrdenCompra {
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
+  clasificacion_compra?: string;
   fc?: unknown;
   /** JSONB array de remitos, ej. [1001, 1002] */
   rt?: unknown;
@@ -807,6 +808,7 @@ export default function VerOrdenCompraPage() {
     lugar_entrega: '',
     cod_cta: '',
     sector: '',
+    clasificacion_compra: '',
     fecha_entrega: '',
     fecha_prometida: '',
     divisa: 'USD',
@@ -1447,6 +1449,7 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
+        clasificacion_compra: orden.clasificacion_compra || '',
         fecha_entrega: formatDateForInput(orden.fecha_entrega),
         fecha_prometida: formatDateForInput(orden.fecha_prometida),
         divisa: normalizeDivisa(orden.divisa),
@@ -1481,6 +1484,7 @@ export default function VerOrdenCompraPage() {
       lugar_entrega: '',
       cod_cta: '',
       sector: '',
+      clasificacion_compra: '',
       fecha_entrega: '',
       fecha_prometida: '',
       divisa: 'USD',
@@ -1790,6 +1794,7 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || null,
         sector: editData.sector || null,
+        clasificacion_compra: editData.clasificacion_compra || null,
         fc: facturasPayload.fc,
         rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
@@ -1841,6 +1846,7 @@ export default function VerOrdenCompraPage() {
         lugar_entrega: editData.lugar_entrega,
         cod_cta: editData.cod_cta || undefined,
         sector: editData.sector || undefined,
+        clasificacion_compra: editData.clasificacion_compra || undefined,
         fc: facturasPayload.fc,
         rt: coerceRtArray(orden.rt),
         fecha_entrega: editData.fecha_entrega || null,
@@ -2212,6 +2218,18 @@ export default function VerOrdenCompraPage() {
                   <div className="print-field print:hidden">
                     <p className="text-base text-gray-600 print-field-label">Sector</p>
                     <p className="text-base font-medium print-field-value">{orden.sector}</p>
+                  </div>
+                )}
+                {orden.clasificacion_compra && (
+                  <div className="print-field print:hidden">
+                    <p className="text-base text-gray-600 print-field-label">Clasificación de compra</p>
+                    <p className="text-base font-medium print-field-value">
+                      {orden.clasificacion_compra === "productiva"
+                        ? "Productiva"
+                        : orden.clasificacion_compra === "no productiva"
+                          ? "No productiva"
+                          : orden.clasificacion_compra}
+                    </p>
                   </div>
                 )}
                 {facturasOrden.length > 0 && (
@@ -2728,6 +2746,7 @@ export default function VerOrdenCompraPage() {
                     >
                       <option value="">Seleccione la condición de pago</option>
                       <option value="CC 30/60/90 DIAS FF">CC 30/60/90 DIAS FF</option>
+                      <option value="CC 30/45/60 DIAS FF">CC 30/45/60 DIAS FF</option>
                       <option value="CC 60 DIAS FF">CC 60 DIAS FF</option>
                       <option value="CC 45 DIAS FF">CC 45 DIAS FF</option>
                       <option value="CC 30 DIAS FF">CC 30 DIAS FF</option>
@@ -2819,6 +2838,22 @@ export default function VerOrdenCompraPage() {
                       placeholder="Ej: Compra directa, Ventas..."
                       className="w-full"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-clasificacion-compra">Clasificación de compra</Label>
+                    <select
+                      id="edit-clasificacion-compra"
+                      value={editData.clasificacion_compra || ''}
+                      onChange={(e) =>
+                        setEditData({ ...editData, clasificacion_compra: e.target.value })
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Seleccione la clasificación de compra</option>
+                      <option value="productiva">Productiva</option>
+                      <option value="no productiva">No productiva</option>
+                    </select>
                   </div>
                 </div>
               </div>
