@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PicRealtimeListener from "../../realtime/picrealtimelistener";
 import { isPanolEmail } from "@/lib/panol-access";
 
@@ -55,6 +55,36 @@ export default function ListPanolProductosGenerales() {
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editarAbiertoRef = useRef<string | null>(null);
+
+  const openEditPedido = (pedido: Pedido) => {
+    setEditingPedido(pedido);
+    setFormData({
+      created_at: pedido.created_at,
+      necesidad: pedido.necesidad,
+      categoria: pedido.categoria,
+      solicita: pedido.solicita,
+      sector: pedido.sector,
+      cc: pedido.cc,
+      articulos: pedido.articulos,
+      descripcion: pedido.descripcion,
+      controlado: pedido.controlado,
+      superviso: pedido.superviso,
+      estado:
+        pedido.estado === "entrego_parcial"
+          ? "entrego parcial"
+          : pedido.estado,
+      oc: pedido.oc,
+      proveedor_selec: pedido.proveedor_selec,
+      fecha_conf: pedido.fecha_conf,
+      fecha_prom: pedido.fecha_prom,
+      fecha_ent: pedido.fecha_ent,
+      rto: pedido.rto,
+      fac: pedido.fac,
+      nota_solicitante: pedido.nota_solicitante ?? "",
+    });
+  };
 
   // Para que no desactive checkbox al reset página - Al montar, leé localStorage
        useEffect(() => {
@@ -128,6 +158,18 @@ export default function ListPanolProductosGenerales() {
 
   fetchPedidos();
 }, [supabase]);
+
+  useEffect(() => {
+    const editarId = searchParams.get("editar");
+    if (!editarId || pedidos.length === 0) return;
+    if (editarAbiertoRef.current === editarId) return;
+
+    const pedido = pedidos.find((p) => String(p.id) === editarId);
+    if (!pedido) return;
+
+    editarAbiertoRef.current = editarId;
+    openEditPedido(pedido);
+  }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Función para formatear las fechas
  function formatDate(dateString: string | null): string {
@@ -328,30 +370,7 @@ function renderValue(value: unknown): string {
                     <div className="flex flex-col gap-2">
           <button
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-            onClick={() => {
-              setEditingPedido(pedido);
-              setFormData({
-                created_at: pedido.created_at,
-                necesidad: pedido.necesidad,
-                categoria: pedido.categoria,
-                solicita: pedido.solicita,
-                sector: pedido.sector,
-                cc: pedido.cc,
-                        articulos: pedido.articulos,
-                descripcion: pedido.descripcion,
-                 controlado: pedido.controlado,
-                        superviso: pedido.superviso,
-                estado: pedido.estado,
-                oc: pedido.oc,
-                proveedor_selec: pedido.proveedor_selec,
-                fecha_conf: pedido.fecha_conf,
-                fecha_prom: pedido.fecha_prom,
-                fecha_ent: pedido.fecha_ent,
-                rto: pedido.rto,
-                fac: pedido.fac,
-                nota_solicitante: pedido.nota_solicitante ?? "",
-              });
-            }}
+            onClick={() => openEditPedido(pedido)}
           >
                         ✏️ Editar
           </button>
@@ -546,6 +565,34 @@ function renderValue(value: unknown): string {
 
                              {/* Campos de edición */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                 <div className="md:col-span-2">
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Estado:
+                   </label>
+                   <select
+                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                     value={
+                       formData.estado === "entrego_parcial"
+                         ? "entrego parcial"
+                         : formData.estado || ""
+                     }
+                     onChange={(e) =>
+                       setFormData({ ...formData, estado: e.target.value })
+                     }
+                   >
+                     {formData.estado &&
+                       formData.estado !== "cumplido" &&
+                       formData.estado !== "entrego parcial" &&
+                       formData.estado !== "entrego_parcial" && (
+                         <option value={formData.estado}>
+                           {formData.estado}
+                         </option>
+                       )}
+                     <option value="cumplido">Cumplido</option>
+                     <option value="entrego parcial">Entrego parcial</option>
+                   </select>
+                 </div>
+
                  <div>
                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Entrega:</label>
                <input
@@ -612,6 +659,9 @@ function renderValue(value: unknown): string {
                   const rawNs = payload.nota_solicitante;
                   payload.nota_solicitante =
                     typeof rawNs === "string" && rawNs.trim() ? rawNs.trim() : null;
+                  if (payload.estado === "entrego_parcial") {
+                    payload.estado = "entrego parcial";
+                  }
 
                   const { error } = await supabase
                     .from("pic")

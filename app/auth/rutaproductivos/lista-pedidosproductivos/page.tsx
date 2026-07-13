@@ -1,10 +1,9 @@
-
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListaPedidosProductivos from "@/components/productivos/listapedidosproductivospanol";
-
 
 export default async function Page() {
   const supabase = await createClient();
@@ -22,9 +21,9 @@ export default async function Page() {
 
   return (
     <div className="w-full">
-      <div className="w-full">
-        <ListaPedidosProductivos/>
-      </div>
+      <Suspense fallback={<div className="p-6 text-center">Cargando...</div>}>
+        <ListaPedidosProductivos />
+      </Suspense>
     </div>
   );
 }

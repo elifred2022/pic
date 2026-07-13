@@ -22,7 +22,7 @@ import {
   parseFacturasFromOrden,
   type FacturaOrdenItem,
 } from "@/lib/fact-compras-storage";
-import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail } from "@/lib/panol-access";
+import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail, isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2341,7 +2341,11 @@ export default function VerOrdenCompraPage() {
                             const comparativaUrl = getComparativaPedidoUrl(item.articulo_id, {
                               ordenCompraId: orden.id,
                               ordenCompraNoc: orden.noc,
-                              audience: isAprobEmail(userEmail, userRol) ? "aprob" : "admin",
+                              audience: isPanolEmail(userEmail, userRol)
+                                ? "panol"
+                                : isAprobEmail(userEmail, userRol)
+                                  ? "aprob"
+                                  : "admin",
                             });
                             const picLabel = extractPicDisplayNumber(item.articulo_id);
                             const parsed = parsePicFromArticuloId(item.articulo_id);
@@ -2351,7 +2355,11 @@ export default function VerOrdenCompraPage() {
                                 <Link
                                   href={comparativaUrl}
                                   className="text-blue-600 hover:text-blue-800 underline font-medium print:text-gray-600 print:no-underline"
-                                  title={`Ver comparativa del pedido ${parsed.pic}`}
+                                  title={
+                                    isPanolEmail(userEmail, userRol)
+                                      ? `Editar pedido ${parsed.pic}`
+                                      : `Ver comparativa del pedido ${parsed.pic}`
+                                  }
                                 >
                                   {picLabel}
                                 </Link>

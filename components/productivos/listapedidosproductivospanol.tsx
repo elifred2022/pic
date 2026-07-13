@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPanolEmail } from "@/lib/panol-access";
 
@@ -42,6 +43,11 @@ type Pedido = {
   }[];
 };
 
+function toDateInputValue(dateString: string | null | undefined): string {
+  if (!dateString) return "";
+  return dateString.split("T")[0];
+}
+
 export default function ListaPedidosProductivos() {
    const [search, setSearch] = useState("");
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -56,6 +62,21 @@ export default function ListaPedidosProductivos() {
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
     const supabase = createClient();
+    const searchParams = useSearchParams();
+    const editarAbiertoRef = useRef<string | null>(null);
+
+    const openEditPedido = (p: Pedido) => {
+      setEditingPedido(p);
+      setFormData({
+        fecha_ent: toDateInputValue(p.fecha_ent),
+        rto: p.rto,
+        fac: p.fac,
+        observ: p.observ || "",
+        nota_solicitante: p.nota_solicitante ?? "",
+        estado:
+          p.estado === "entrego_parcial" ? "entrego parcial" : p.estado,
+      });
+    };
 
     const enriquecerPedidosConCodProvSug = async (pedidos: Pedido[]): Promise<Pedido[]> => {
       const codints = [
@@ -171,6 +192,18 @@ export default function ListaPedidosProductivos() {
     fetchPedidos();
   }, [supabase]);
 
+  useEffect(() => {
+    const editarId = searchParams.get("editar");
+    if (!editarId || pedidos.length === 0) return;
+    if (editarAbiertoRef.current === editarId) return;
+
+    const pedido = pedidos.find((p) => String(p.id) === editarId);
+    if (!pedido) return;
+
+    editarAbiertoRef.current = editarId;
+    openEditPedido(pedido);
+  }, [searchParams, pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   
    
@@ -264,25 +297,26 @@ export default function ListaPedidosProductivos() {
     return String(value);
   }
 
-  function toDateInputValue(dateString: string | null | undefined): string {
-    if (!dateString) return "";
-    return dateString.split("T")[0];
-  }
-
   const isPanolUser = isPanolEmail(currentUserEmail, currentUserRol);
 
   const handleSaveEdit = async () => {
     if (!editingPedido) return;
 
+    const estadoNormalizado =
+      formData.estado === "entrego_parcial"
+        ? "entrego parcial"
+        : formData.estado || editingPedido.estado;
+
     const payload: Pick<
       Pedido,
-      "fecha_ent" | "rto" | "fac" | "observ" | "nota_solicitante"
+      "fecha_ent" | "rto" | "fac" | "observ" | "nota_solicitante" | "estado"
     > = {
       fecha_ent: formData.fecha_ent || null,
       rto: formData.rto ?? null,
       fac: formData.fac ?? null,
       observ: formData.observ || "",
       nota_solicitante: formData.nota_solicitante?.trim() || null,
+      estado: estadoNormalizado,
     };
 
     const { error } = await supabase
@@ -305,6 +339,7 @@ export default function ListaPedidosProductivos() {
               fac: payload.fac,
               observ: payload.observ,
               nota_solicitante: payload.nota_solicitante,
+              estado: payload.estado,
             }
           : p,
       ),
@@ -446,16 +481,7 @@ export default function ListaPedidosProductivos() {
                   {isPanolUser && (
                     <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
                       <button
-                        onClick={() => {
-                          setEditingPedido(p);
-                          setFormData({
-                            fecha_ent: toDateInputValue(p.fecha_ent),
-                            rto: p.rto,
-                            fac: p.fac,
-                            observ: p.observ || "",
-                            nota_solicitante: p.nota_solicitante ?? "",
-                          });
-                        }}
+                        onClick={() => openEditPedido(p)}
                         className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 text-sm"
                       >
                         ✏️ Editar
@@ -589,6 +615,35 @@ export default function ListaPedidosProductivos() {
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 gap-4">
+                {isPanolUser && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estado:
+                    </label>
+                    <select
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={
+                        formData.estado === "entrego_parcial"
+                          ? "entrego parcial"
+                          : formData.estado || ""
+                      }
+                      onChange={(e) =>
+                        setFormData({ ...formData, estado: e.target.value })
+                      }
+                    >
+                      {formData.estado &&
+                        formData.estado !== "cumplido" &&
+                        formData.estado !== "entrego parcial" &&
+                        formData.estado !== "entrego_parcial" && (
+                          <option value={formData.estado}>
+                            {formData.estado}
+                          </option>
+                        )}
+                      <option value="cumplido">Cumplido</option>
+                      <option value="entrego parcial">Entrego parcial</option>
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Entrega:</label>
                   <input
