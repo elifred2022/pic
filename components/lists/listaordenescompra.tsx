@@ -43,6 +43,8 @@ interface OrdenCompra {
     costunitcdesc: number;
     total: number;
     divisa?: string | null;
+    codint?: string | null;
+    articulo_db_id?: string | null;
   }>;
   estado: string;
   total: number;
@@ -83,7 +85,8 @@ export default function ListaOrdenesCompra() {
   const [hasMounted, setHasMounted] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [exportandoDetalle, setExportandoDetalle] = useState(false);
-  const [tipoExcel, setTipoExcel] = useState<"resumen" | "detalle">("detalle");
+  const [exportandoMovimiento, setExportandoMovimiento] = useState(false);
+  const [tipoExcel, setTipoExcel] = useState<"resumen" | "detalle" | "movimiento">("detalle");
   
   const router = useRouter();
   const supabase = createClient();
@@ -650,6 +653,225 @@ export default function ListaOrdenesCompra() {
     }
   }, [ordenesFiltradas, supabase, canViewImportes]);
 
+  const descargarExcelMovimiento = useCallback(async () => {
+    try {
+      setExportandoMovimiento(true);
+
+      const ordenadasPorNoc = [...ordenesFiltradas].sort((a, b) => {
+        const nocA = Number(a.noc) || 0;
+        const nocB = Number(b.noc) || 0;
+        return nocA - nocB;
+      });
+
+      const nombresSinCodint = new Set<string>();
+      const idsSinCodint = new Set<string>();
+      for (const o of ordenadasPorNoc) {
+        for (const it of o.articulos ?? []) {
+          const codint = (it.codint ?? "").toString().trim();
+          if (codint) continue;
+          const nombre = (it.articulo_nombre ?? "").trim();
+          const dbId = (it.articulo_db_id ?? "").toString().trim();
+          if (dbId) idsSinCodint.add(dbId);
+          else if (nombre) nombresSinCodint.add(nombre);
+        }
+      }
+
+      const codintPorNombre = new Map<string, string>();
+      const codintPorId = new Map<string, string>();
+
+      const ids = [...idsSinCodint];
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from("articulos")
+          .select("id, codint, articulo")
+          .in("id", chunk);
+        if (error) throw error;
+        (data ?? []).forEach(
+          (row: {
+            id?: string | null;
+            codint?: string | null;
+            articulo?: string | null;
+          }) => {
+            const id = (row.id ?? "").toString().trim();
+            const codint = (row.codint ?? "").toString().trim();
+            const nombre = (row.articulo ?? "").trim();
+            if (id && codint) codintPorId.set(id, codint);
+            if (nombre && codint && !codintPorNombre.has(nombre)) {
+              codintPorNombre.set(nombre, codint);
+            }
+          }
+        );
+      }
+
+      const nombres = [...nombresSinCodint];
+      for (let i = 0; i < nombres.length; i += CHUNK) {
+        const chunk = nombres.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from("articulos")
+          .select("codint, articulo")
+          .in("articulo", chunk);
+        if (error) throw error;
+        (data ?? []).forEach(
+          (row: { codint?: string | null; articulo?: string | null }) => {
+            const nombre = (row.articulo ?? "").trim();
+            const codint = (row.codint ?? "").toString().trim();
+            if (nombre && codint && !codintPorNombre.has(nombre)) {
+              codintPorNombre.set(nombre, codint);
+            }
+          }
+        );
+      }
+
+      const rows = ordenadasPorNoc.flatMap((o) => {
+        const articulos = o.articulos ?? [];
+        const fechaCreacion = o.created_at
+          ? new Date(o.created_at).toLocaleDateString("es-AR")
+          : o.fecha
+            ? new Date(o.fecha).toLocaleDateString("es-AR")
+            : "";
+        const divisaOrden = inferirDivisaOrden({
+          id: o.id,
+          noc: o.noc,
+          fecha: o.fecha,
+          estado: o.estado,
+          total: o.total,
+          divisa: o.divisa,
+          articulos: o.articulos,
+        });
+
+        return articulos.map((it, index) => {
+          const parsed = parsePicFromArticuloId(it.articulo_id);
+          const { entregadas, pendientes } = getCantidadesEntregaArticulo(
+            o.entregas,
+            it.articulo_id ?? "",
+            index,
+            it.cantidad ?? 0
+          );
+          const valorUnitario =
+            it.costunitcdesc ??
+            (it.precio_unitario ?? 0) *
+              (1 - Math.min(Math.max((it.descuento ?? 0) / 100, 0), 1));
+          const totalArticulo =
+            it.total ?? valorUnitario * (Number(it.cantidad) || 0);
+          const nombre = (it.articulo_nombre ?? "").trim();
+          const dbId = (it.articulo_db_id ?? "").toString().trim();
+          const codint =
+            (it.codint ?? "").toString().trim() ||
+            (dbId ? codintPorId.get(dbId) : undefined) ||
+            codintPorNombre.get(nombre) ||
+            "";
+
+          const base = {
+            fecha_creacion: fechaCreacion,
+            pic: parsed.pic,
+            sector: o.sector ?? "",
+            articulo: it.articulo_nombre ?? "",
+            codint,
+            cantidad_comprada: it.cantidad ?? 0,
+            cantidad_entregada: entregadas,
+            cantidad_pendiente: pendientes,
+            proveedor: o.proveedor ?? "",
+            oc: o.noc ?? "",
+          };
+
+          if (!canViewImportes) return base;
+
+          return {
+            ...base,
+            valor_unitario: valorUnitario,
+            total_articulo: totalArticulo,
+            divisa: it.divisa ?? divisaOrden,
+          };
+        });
+      });
+
+      const headers = canViewImportes
+        ? [
+            "fecha_creacion",
+            "pic",
+            "sector",
+            "articulo",
+            "codint",
+            "cantidad_comprada",
+            "cantidad_entregada",
+            "cantidad_pendiente",
+            "proveedor",
+            "oc",
+            "valor_unitario",
+            "total_articulo",
+            "divisa",
+          ]
+        : [
+            "fecha_creacion",
+            "pic",
+            "sector",
+            "articulo",
+            "codint",
+            "cantidad_comprada",
+            "cantidad_entregada",
+            "cantidad_pendiente",
+            "proveedor",
+            "oc",
+          ];
+
+      const headerLabels = canViewImportes
+        ? [
+            "fecha creacion",
+            "pic",
+            "sector",
+            "articulo",
+            "codint",
+            "cantidad comprada",
+            "cantidad entregada",
+            "cantidad pendiente",
+            "proveedor",
+            "oc",
+            "valor unitario",
+            "total articulo",
+            "divisa",
+          ]
+        : [
+            "fecha creacion",
+            "pic",
+            "sector",
+            "articulo",
+            "codint",
+            "cantidad comprada",
+            "cantidad entregada",
+            "cantidad pendiente",
+            "proveedor",
+            "oc",
+          ];
+
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+      XLSX.utils.sheet_add_aoa(ws, [headerLabels], { origin: "A1" });
+      XLSX.utils.sheet_add_json(ws, rows, {
+        origin: "A2",
+        skipHeader: true,
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Movimiento articulos");
+      XLSX.writeFile(
+        wb,
+        `movimiento-articulos-${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (err) {
+      console.error("Error al exportar Excel (movimiento):", err);
+    } finally {
+      setExportandoMovimiento(false);
+    }
+  }, [ordenesFiltradas, canViewImportes, supabase]);
+
+  const labelTipoExcel =
+    tipoExcel === "detalle"
+      ? "Detalle PIC"
+      : tipoExcel === "movimiento"
+        ? "Movimiento artículos"
+        : "Resumen OC";
+
   // Función para extraer solo el número del ID
   const extractIdNumber = (articuloId: string) => {
     // Si el ID tiene formato "productivo-123-articulo" o "general-456-articulo"
@@ -684,33 +906,42 @@ export default function ListaOrdenesCompra() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="border-gray-300">
-                {tipoExcel === "detalle" ? "Detalle PIC" : "Resumen OC"}
+                {labelTipoExcel}
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup
                 value={tipoExcel}
-                onValueChange={(v) => setTipoExcel(v as "resumen" | "detalle")}
+                onValueChange={(v) =>
+                  setTipoExcel(v as "resumen" | "detalle" | "movimiento")
+                }
               >
                 <DropdownMenuRadioItem value="detalle">Detalle PIC</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="resumen">Resumen OC</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="movimiento">
+                  Movimiento artículos
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
             onClick={() => {
               if (tipoExcel === "detalle") descargarExcelDetalle();
+              else if (tipoExcel === "movimiento") descargarExcelMovimiento();
               else descargarExcel();
             }}
             disabled={
               ordenesFiltradas.length === 0 ||
               exportando ||
-              exportandoDetalle
+              exportandoDetalle ||
+              exportandoMovimiento
             }
             className="bg-green-600 hover:bg-green-700"
           >
-            {exportando || exportandoDetalle ? "⏳ Exportando..." : "📥 Descargar"}
+            {exportando || exportandoDetalle || exportandoMovimiento
+              ? "⏳ Exportando..."
+              : "📥 Descargar"}
           </Button>
           {canEdit && (
           <Button onClick={handleCrearOrden} className="bg-blue-600 hover:bg-blue-700">
