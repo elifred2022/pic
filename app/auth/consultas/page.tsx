@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/panol-access";
+import { canAccessConsultas } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import PanelModuloConsultas from "@/components/panels/panel-modulo-consultas";
 
@@ -15,7 +15,7 @@ export default async function ConsultasPage() {
 
   const rol = await fetchUserRolByUuid(supabase, authData.user.id);
 
-  if (!isAdminEmail(authData.user.email, rol)) {
+  if (!canAccessConsultas(authData.user.email, rol)) {
     redirect("/protected");
   }
 

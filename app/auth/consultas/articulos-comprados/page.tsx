@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Package } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/panol-access";
+import { canAccessConsultas } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import { ConsultaArticulosComprados } from "@/components/consultas/consulta-articulos-comprados";
 
@@ -16,7 +16,7 @@ export default async function ConsultaArticulosCompradosPage() {
 
   const rol = await fetchUserRolByUuid(supabase, authData.user.id);
 
-  if (!isAdminEmail(authData.user.email, rol)) {
+  if (!canAccessConsultas(authData.user.email, rol)) {
     redirect("/protected");
   }
 

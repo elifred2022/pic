@@ -16,6 +16,19 @@ const indicadoresComprasItem: ComprasModuleItem = {
     "bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700",
 };
 
+const consultasItem: ComprasModuleItem = {
+  href: "/auth/consultas",
+  title: "Consultas",
+  description: "Consultas y reportes del sistema",
+  icon: (
+    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30">
+      <Search className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
+    </div>
+  ),
+  linkClassName:
+    "bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800",
+};
+
 export const adminComprasModuleItems: ComprasModuleItem[] = [
   {
     href: "/auth/listaproveedores",
@@ -70,18 +83,7 @@ export const adminComprasModuleItems: ComprasModuleItem[] = [
       "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
   },
   indicadoresComprasItem,
-  {
-    href: "/auth/consultas",
-    title: "Consultas",
-    description: "Consultas y reportes del sistema",
-    icon: (
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30">
-        <Search className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
-      </div>
-    ),
-    linkClassName:
-      "bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800",
-  },
+  consultasItem,
 ];
 
 
@@ -230,4 +232,5 @@ export const aprobComprasModuleItems: ComprasModuleItem[] = [
       "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
   },
   indicadoresComprasItem,
+  consultasItem,
 ];
