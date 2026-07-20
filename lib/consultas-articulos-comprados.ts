@@ -1,5 +1,9 @@
 import { getCantidadesEntregaArticulo, formatFechaExcel } from "@/lib/ordenes-compra-entregas";
 import {
+  extractPicDisplayNumber,
+  parsePicFromArticuloId,
+} from "@/lib/pic-links";
+import {
   convertirImporteAArs,
   inferirDivisaOrden,
   normalizarDivisaExplicita,
@@ -31,6 +35,7 @@ export type OrdenCompraConsulta = {
   importe_competencia?: number | null;
   divisa?: string | null;
   cod_cta?: string | null;
+  proveedor?: string | null;
   articulos?: ArticuloOrdenConsulta[] | null;
   entregas?: unknown;
 };
@@ -53,6 +58,10 @@ export type ArticuloCompradoResumen = {
   fechaOrdenRaw: string;
   ordenId: string;
   noc: string;
+  /** Número de PIC (pedido) asociado al ítem, si existe. */
+  pic: string;
+  proveedor: string;
+  articuloId: string;
   codint: string;
   codCta: string;
   cantidadComprada: number;
@@ -123,6 +132,13 @@ function totalLinea(item: ArticuloOrdenConsulta, cantidad: number): number {
   return costoUnitarioLinea(item) * cantidad;
 }
 
+function resolvePicDisplay(articuloId: string): string {
+  const parsed = parsePicFromArticuloId(articuloId);
+  if (parsed.tipo === "sin-pic") return "Sin PIC";
+  if (parsed.tipo === "otro" || !parsed.pedidoId) return "—";
+  return extractPicDisplayNumber(articuloId);
+}
+
 /** Agrupa ítems por artículo + fecha de orden y suma cantidades / importes. */
 export function resumirArticulosComprados(
   ordenes: OrdenCompraConsulta[]
@@ -135,14 +151,17 @@ export function resumirArticulosComprados(
     const noc = String(orden.noc ?? "").trim();
     const ordenId = String(orden.id ?? "").trim();
     const codCta = String(orden.cod_cta ?? "").trim();
+    const proveedor = String(orden.proveedor ?? "").trim();
     const articulos = Array.isArray(orden.articulos) ? orden.articulos : [];
     articulos.forEach((item, index) => {
       const divisa = resolveDivisa(item, orden);
+      const articuloId = String(item.articulo_id ?? "").trim();
+      const pic = resolvePicDisplay(articuloId);
       const key = `${articuloKey(item)}|${fechaRaw}|${ordenId || noc || "sin-oc"}|${divisa}`;
       const cantidad = Number(item.cantidad) || 0;
       const { entregadas, pendientes } = getCantidadesEntregaArticulo(
         orden.entregas,
-        String(item.articulo_id ?? "").trim(),
+        articuloId,
         index,
         cantidad
       );
@@ -164,6 +183,15 @@ export function resumirArticulosComprados(
         if (!existing.codCta && codCta) {
           existing.codCta = codCta;
         }
+        if (!existing.proveedor && proveedor) {
+          existing.proveedor = proveedor;
+        }
+        if (!existing.articuloId && articuloId) {
+          existing.articuloId = articuloId;
+        }
+        if ((!existing.pic || existing.pic === "—") && pic !== "—") {
+          existing.pic = pic;
+        }
         if (
           (!existing.articulo || existing.articulo === "Sin nombre") &&
           item.articulo_nombre
@@ -180,6 +208,9 @@ export function resumirArticulosComprados(
         fechaOrdenRaw: fechaRaw,
         ordenId,
         noc,
+        pic,
+        proveedor,
+        articuloId,
         codint: String(item.codint ?? "").trim(),
         codCta,
         cantidadComprada: cantidad,
