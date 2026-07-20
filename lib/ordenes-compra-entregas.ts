@@ -11,6 +11,7 @@ type EntregaRegistro = {
   fecha_entrega: string | null;
   fact_path: string;
   items: EntregaItemCantidad[];
+  anulado?: boolean;
 };
 
 function isEntregaRegistro(value: unknown): value is EntregaRegistro {
@@ -45,6 +46,7 @@ function parseEntregaRegistro(value: unknown): EntregaRegistro | null {
       typeof fechaRaw === "string" && fechaRaw.trim() ? fechaRaw.trim() : null,
     fact_path: typeof record.fact_path === "string" ? record.fact_path : "",
     items,
+    anulado: record.anulado === true,
   };
 }
 
@@ -94,7 +96,7 @@ function getEntregadasAgregadas(
     let sum = 0;
     for (const raw of entregas) {
       const reg = parseEntregaRegistro(raw);
-      if (!reg) continue;
+      if (!reg || reg.anulado) continue;
       const byId = reg.items.find((item) => item.articulo_id === articuloId);
       if (byId) {
         sum += byId.cantidad_entregada;
@@ -148,7 +150,8 @@ export function getFechasEntregaEventos(entregas: unknown): string[] {
   const seen = new Set<string>();
   for (const raw of entregas) {
     const reg = parseEntregaRegistro(raw);
-    const f = reg?.fecha_entrega?.trim();
+    if (!reg || reg.anulado) continue;
+    const f = reg.fecha_entrega?.trim();
     if (!f || seen.has(f)) continue;
     seen.add(f);
     fechas.push(f);

@@ -378,6 +378,29 @@ type EntregaRegistro = {
   fecha_entrega: string | null;
   fact_path: string;
   items: EntregaItemCantidad[];
+  /** Si true, no cuenta para entregadas/pendientes (cantidad revertida a la orden). */
+  anulado?: boolean;
+  fecha_anulacion?: string | null;
+  observacion_anulacion?: string | null;
+};
+
+/** Ítem de cantidad dentro de un registro de devolución. */
+type DevolucionItemCantidad = {
+  articulo_id: string;
+  cantidad_devuelta: number;
+};
+
+/** Registro de devolución al proveedor, vinculado a un documento en fact_path. */
+type DevolucionRegistro = {
+  fc: number | null;
+  rt: number | null;
+  fecha_devolucion: string | null;
+  fact_path: string;
+  items: DevolucionItemCantidad[];
+  /** Si true, no resta de entregadas (cantidad vuelve a entregada neta). */
+  anulado?: boolean;
+  fecha_anulacion?: string | null;
+  observacion_anulacion?: string | null;
 };
 
 function parseEntregaItem(value: unknown): EntregaOrdenItem {
@@ -462,6 +485,16 @@ function parseEntregaRegistro(value: unknown): EntregaRegistro | null {
         : null,
     fact_path: typeof record.fact_path === "string" ? record.fact_path : "",
     items,
+    anulado: record.anulado === true,
+    fecha_anulacion:
+      typeof record.fecha_anulacion === "string" && record.fecha_anulacion.trim()
+        ? record.fecha_anulacion.trim()
+        : null,
+    observacion_anulacion:
+      typeof record.observacion_anulacion === "string" &&
+      record.observacion_anulacion.trim()
+        ? record.observacion_anulacion.trim()
+        : null,
   };
 }
 
@@ -507,6 +540,9 @@ function toEntregaRegistrosPreserving(
       fecha_entrega: null,
       fact_path: "",
       items: legacyItems,
+      anulado: false,
+      fecha_anulacion: null,
+      observacion_anulacion: null,
     },
   ];
 }
@@ -522,7 +558,7 @@ function getEntregadasAgregadas(
     let sum = 0;
     for (const raw of entregas) {
       const reg = parseEntregaRegistro(raw);
-      if (!reg) continue;
+      if (!reg || reg.anulado) continue;
       const byId = reg.items.find((item) => item.articulo_id === articuloId);
       if (byId) {
         sum += byId.cantidad_entregada;
@@ -536,21 +572,96 @@ function getEntregadasAgregadas(
   return parseEntregaItem(entregas[index]).entregadas ?? 0;
 }
 
+function parseDevolucionRegistro(value: unknown): DevolucionRegistro | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const itemsRaw = Array.isArray(record.items) ? record.items : [];
+  const items: DevolucionItemCantidad[] = itemsRaw
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const row = item as Record<string, unknown>;
+      const articuloId = String(row.articulo_id ?? "").trim();
+      const cant = Number(row.cantidad_devuelta ?? row.devueltas ?? 0);
+      if (!articuloId || !Number.isFinite(cant) || cant <= 0) return null;
+      return { articulo_id: articuloId, cantidad_devuelta: cant };
+    })
+    .filter((item): item is DevolucionItemCantidad => item !== null);
+
+  const fcRaw = record.fc;
+  const rtRaw = record.rt;
+  const fc =
+    fcRaw === null || fcRaw === undefined || fcRaw === ""
+      ? null
+      : Number.isFinite(Number(fcRaw))
+        ? Number(fcRaw)
+        : null;
+  const rt =
+    rtRaw === null || rtRaw === undefined || rtRaw === ""
+      ? null
+      : Number.isFinite(Number(rtRaw))
+        ? Number(rtRaw)
+        : null;
+
+  return {
+    fc,
+    rt,
+    fecha_devolucion:
+      typeof record.fecha_devolucion === "string" && record.fecha_devolucion.trim()
+        ? record.fecha_devolucion.trim()
+        : null,
+    fact_path: typeof record.fact_path === "string" ? record.fact_path : "",
+    items,
+    anulado: record.anulado === true,
+    fecha_anulacion:
+      typeof record.fecha_anulacion === "string" && record.fecha_anulacion.trim()
+        ? record.fecha_anulacion.trim()
+        : null,
+    observacion_anulacion:
+      typeof record.observacion_anulacion === "string" &&
+      record.observacion_anulacion.trim()
+        ? record.observacion_anulacion.trim()
+        : null,
+  };
+}
+
+function normalizeDevolucionesToRegistros(devoluciones: unknown): DevolucionRegistro[] {
+  if (!Array.isArray(devoluciones) || devoluciones.length === 0) return [];
+  return devoluciones
+    .map(parseDevolucionRegistro)
+    .filter((reg): reg is DevolucionRegistro => reg !== null);
+}
+
+function getDevueltasAgregadas(
+  devoluciones: unknown,
+  articuloId: string
+): number {
+  if (!Array.isArray(devoluciones) || devoluciones.length === 0) return 0;
+  let sum = 0;
+  for (const raw of devoluciones) {
+    const reg = parseDevolucionRegistro(raw);
+    if (!reg || reg.anulado) continue;
+    const byId = reg.items.find((item) => item.articulo_id === articuloId);
+    if (byId) sum += byId.cantidad_devuelta;
+  }
+  return sum;
+}
+
 function getEntregaForArticulo(
   entregas: unknown,
   index: number,
-  articulo?: ArticuloOrdenItem
+  articulo?: ArticuloOrdenItem,
+  devoluciones?: unknown
 ): EntregaOrdenItem {
   const cantidad = Number(articulo?.cantidad) || 0;
+  const articuloId = articulo?.articulo_id ?? "";
   const esFormatoEventos =
     Array.isArray(entregas) && entregas.length > 0 && isEntregaRegistro(entregas[0]);
 
+  const devueltas = getDevueltasAgregadas(devoluciones, articuloId);
+
   if (esFormatoEventos || !Array.isArray(entregas) || entregas.length === 0) {
-    const entregadas = getEntregadasAgregadas(
-      entregas,
-      articulo?.articulo_id ?? "",
-      index
-    );
+    const entregadasBrutas = getEntregadasAgregadas(entregas, articuloId, index);
+    const entregadas = Math.max(0, entregadasBrutas - devueltas);
     return {
       entregadas,
       pendientes: Math.max(0, cantidad - entregadas),
@@ -558,11 +669,12 @@ function getEntregaForArticulo(
   }
 
   const legacy = parseEntregaItem(entregas[index]);
-  const entregadas = legacy.entregadas ?? 0;
+  const entregadasBrutas = legacy.entregadas ?? 0;
+  const entregadas = Math.max(0, entregadasBrutas - devueltas);
   return {
     entregadas,
     pendientes:
-      legacy.pendientes !== null
+      legacy.pendientes !== null && devueltas === 0
         ? legacy.pendientes
         : Math.max(0, cantidad - entregadas),
   };
@@ -659,10 +771,11 @@ function serializeAbonadoOrden(checked: boolean, fecha: string | null): AbonadoO
   return { abonado: true, fecha: fechaNorm };
 }
 
-/** Estado según entregas: pendiente | entrego_parcial | cumplida */
+/** Estado según entregas netas (entregas − devoluciones): pendiente | entrego_parcial | cumplida */
 function computeEstadoDesdeEntregas(
   articulos: ArticuloOrdenItem[],
-  entregas: unknown
+  entregas: unknown,
+  devoluciones?: unknown
 ): "pendiente" | "entrego_parcial" | "cumplida" {
   if (!articulos.length) return "pendiente";
 
@@ -671,11 +784,13 @@ function computeEstadoDesdeEntregas(
 
   articulos.forEach((art, index) => {
     const cantidad = Number(art.cantidad) || 0;
-    const entregadas = getEntregadasAgregadas(
+    const entregadasBrutas = getEntregadasAgregadas(
       entregas,
       art.articulo_id ?? "",
       index
     );
+    const devueltas = getDevueltasAgregadas(devoluciones, art.articulo_id ?? "");
+    const entregadas = Math.max(0, entregadasBrutas - devueltas);
     totalEntregadas += entregadas;
     totalPendientes += Math.max(0, cantidad - entregadas);
   });
@@ -765,6 +880,8 @@ interface OrdenCompra {
   articulos: ArticuloOrdenItem[];
   /** Registros de entrega [{ fc, rt, fecha_entrega, fact_path, items }] o legacy paralelo. */
   entregas?: unknown;
+  /** Registros de devolución [{ fc, rt, fecha_devolucion, fact_path, items }]. */
+  devoluciones?: unknown;
   lugar_entrega: string;
   cod_cta?: string;
   sector?: string;
@@ -846,6 +963,26 @@ export default function VerOrdenCompraPage() {
   const [entregaError, setEntregaError] = useState<string | null>(null);
   const [showVerEntregasModal, setShowVerEntregasModal] = useState(false);
   const [verEntregasLoading, setVerEntregasLoading] = useState(false);
+  const [anularEntregaIndex, setAnularEntregaIndex] = useState<number | null>(null);
+  const [anularEntregaObservacion, setAnularEntregaObservacion] = useState("");
+  const [anularEntregaSaving, setAnularEntregaSaving] = useState(false);
+  const [anularEntregaError, setAnularEntregaError] = useState<string | null>(null);
+  const [showDevolucionModal, setShowDevolucionModal] = useState(false);
+  const [devolucionForm, setDevolucionForm] = useState({
+    fc: "",
+    rt: "",
+    fecha_devolucion: "",
+  });
+  const [devolucionCantidades, setDevolucionCantidades] = useState<Record<string, string>>({});
+  const [devolucionFile, setDevolucionFile] = useState<File | null>(null);
+  const [devolucionSaving, setDevolucionSaving] = useState(false);
+  const [devolucionError, setDevolucionError] = useState<string | null>(null);
+  const [showVerDevolucionesModal, setShowVerDevolucionesModal] = useState(false);
+  const [verDevolucionesLoading, setVerDevolucionesLoading] = useState(false);
+  const [anularDevolucionIndex, setAnularDevolucionIndex] = useState<number | null>(null);
+  const [anularDevolucionObservacion, setAnularDevolucionObservacion] = useState("");
+  const [anularDevolucionSaving, setAnularDevolucionSaving] = useState(false);
+  const [anularDevolucionError, setAnularDevolucionError] = useState<string | null>(null);
   const [abonadoChecked, setAbonadoChecked] = useState(false);
   const [fechaAbonadoInput, setFechaAbonadoInput] = useState("");
   const [abonadoSaving, setAbonadoSaving] = useState(false);
@@ -1205,6 +1342,9 @@ export default function VerOrdenCompraPage() {
     if (!orden) return;
     setShowVerEntregasModal(true);
     setVerEntregasLoading(true);
+    setAnularEntregaError(null);
+    setAnularEntregaIndex(null);
+    setAnularEntregaObservacion("");
     try {
       const registros = toEntregaRegistrosPreserving(
         orden.entregas,
@@ -1221,6 +1361,497 @@ export default function VerOrdenCompraPage() {
       console.error("Error cargando URLs de entregas:", err);
     } finally {
       setVerEntregasLoading(false);
+    }
+  };
+
+  const handleAnularEntrega = async (index: number) => {
+    if (!orden) return;
+
+    setAnularEntregaError(null);
+
+    const observacion = anularEntregaObservacion.trim();
+    if (!observacion) {
+      setAnularEntregaError(
+        "Debe escribir una observación para anular la entrega."
+      );
+      return;
+    }
+
+    setAnularEntregaSaving(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        setAnularEntregaError("Debe iniciar sesión para anular la entrega.");
+        return;
+      }
+
+      const { data: ordenDb, error: fetchError } = await supabase
+        .from("ordenes_compra")
+        .select("entregas, articulos, devoluciones")
+        .eq("id", orden.id)
+        .single();
+
+      if (fetchError) {
+        setAnularEntregaError(
+          `No se pudo leer la orden: ${getSupabaseErrorMessage(fetchError)}`
+        );
+        return;
+      }
+
+      const articulosBase =
+        (orden.articulos?.length ? orden.articulos : (ordenDb.articulos as ArticuloOrdenItem[])) ||
+        [];
+      const entregasPrevias = toEntregaRegistrosPreserving(
+        ordenDb.entregas ?? orden.entregas,
+        articulosBase
+      );
+
+      if (index < 0 || index >= entregasPrevias.length) {
+        setAnularEntregaError("No se encontró el registro de entrega.");
+        return;
+      }
+
+      const objetivo = entregasPrevias[index];
+      if (objetivo.anulado) {
+        setAnularEntregaError("Esta entrega ya está anulada.");
+        return;
+      }
+
+      // Simular anulación y validar que no queden menos entregadas que devoluciones
+      const entregasSimuladas = entregasPrevias.map((reg, i) =>
+        i === index
+          ? {
+              ...reg,
+              anulado: true,
+              fecha_anulacion: new Date().toISOString().slice(0, 10),
+              observacion_anulacion: observacion,
+            }
+          : reg
+      );
+      const devolucionesActuales = ordenDb.devoluciones ?? orden.devoluciones;
+
+      for (const art of articulosBase) {
+        const artIndex = articulosBase.findIndex((a) => a.articulo_id === art.articulo_id);
+        const entregadasTrasAnular = getEntregadasAgregadas(
+          entregasSimuladas,
+          art.articulo_id,
+          artIndex
+        );
+        const devueltas = getDevueltasAgregadas(devolucionesActuales, art.articulo_id);
+        if (devueltas > entregadasTrasAnular) {
+          setAnularEntregaError(
+            `No se puede anular: "${art.articulo_nombre}" quedaría con ${entregadasTrasAnular} entregadas y ${devueltas} ya devueltas. Anule primero las devoluciones correspondientes.`
+          );
+          return;
+        }
+      }
+
+      const estadoEntrega = computeEstadoDesdeEntregas(
+        articulosBase,
+        entregasSimuladas,
+        devolucionesActuales
+      );
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update({
+          entregas: entregasSimuladas,
+          estado: estadoEntrega,
+        })
+        .eq("id", orden.id);
+
+      if (updateError) {
+        setAnularEntregaError(
+          `No se pudo anular la entrega: ${getSupabaseErrorMessage(updateError)}`
+        );
+        return;
+      }
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              entregas: entregasSimuladas,
+              estado: estadoEntrega,
+            }
+          : prev
+      );
+      setAnularEntregaIndex(null);
+      setAnularEntregaObservacion("");
+    } catch (err) {
+      console.error("Error anulando entrega:", err);
+      setAnularEntregaError(getSupabaseErrorMessage(err));
+    } finally {
+      setAnularEntregaSaving(false);
+    }
+  };
+
+  const handleOpenDevolucionModal = () => {
+    if (!orden) return;
+    const cantidades: Record<string, string> = {};
+    (orden.articulos || []).forEach((art) => {
+      cantidades[art.articulo_id] = "";
+    });
+    setDevolucionForm({ fc: "", rt: "", fecha_devolucion: "" });
+    setDevolucionCantidades(cantidades);
+    setDevolucionFile(null);
+    setDevolucionError(null);
+    setShowDevolucionModal(true);
+  };
+
+  const handleCloseDevolucionModal = () => {
+    setShowDevolucionModal(false);
+    setDevolucionForm({ fc: "", rt: "", fecha_devolucion: "" });
+    setDevolucionCantidades({});
+    setDevolucionFile(null);
+    setDevolucionError(null);
+  };
+
+  const handleOpenVerDevolucionesModal = async () => {
+    if (!orden) return;
+    setShowVerDevolucionesModal(true);
+    setVerDevolucionesLoading(true);
+    setAnularDevolucionError(null);
+    setAnularDevolucionIndex(null);
+    setAnularDevolucionObservacion("");
+    try {
+      const registros = normalizeDevolucionesToRegistros(orden.devoluciones);
+      const paths = registros
+        .map((reg) => reg.fact_path)
+        .filter((path): path is string => Boolean(path?.trim()));
+      if (paths.length > 0) {
+        const urls = await loadFacturaViewUrls(supabase, paths);
+        setFacturaViewUrls((prev) => ({ ...prev, ...urls }));
+      }
+    } catch (err) {
+      console.error("Error cargando URLs de devoluciones:", err);
+    } finally {
+      setVerDevolucionesLoading(false);
+    }
+  };
+
+  const handleAnularDevolucion = async (index: number) => {
+    if (!orden) return;
+
+    setAnularDevolucionError(null);
+
+    const observacion = anularDevolucionObservacion.trim();
+    if (!observacion) {
+      setAnularDevolucionError(
+        "Debe escribir una observación para anular la devolución."
+      );
+      return;
+    }
+
+    setAnularDevolucionSaving(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        setAnularDevolucionError("Debe iniciar sesión para anular la devolución.");
+        return;
+      }
+
+      const { data: ordenDb, error: fetchError } = await supabase
+        .from("ordenes_compra")
+        .select("entregas, articulos, devoluciones")
+        .eq("id", orden.id)
+        .single();
+
+      if (fetchError) {
+        setAnularDevolucionError(
+          `No se pudo leer la orden: ${getSupabaseErrorMessage(fetchError)}`
+        );
+        return;
+      }
+
+      const articulosBase =
+        (orden.articulos?.length ? orden.articulos : (ordenDb.articulos as ArticuloOrdenItem[])) ||
+        [];
+      const devolucionesPrevias = normalizeDevolucionesToRegistros(
+        ordenDb.devoluciones ?? orden.devoluciones
+      );
+
+      if (index < 0 || index >= devolucionesPrevias.length) {
+        setAnularDevolucionError("No se encontró el registro de devolución.");
+        return;
+      }
+
+      const objetivo = devolucionesPrevias[index];
+      if (objetivo.anulado) {
+        setAnularDevolucionError("Esta devolución ya está anulada.");
+        return;
+      }
+
+      const devolucionesFinal = devolucionesPrevias.map((reg, i) =>
+        i === index
+          ? {
+              ...reg,
+              anulado: true,
+              fecha_anulacion: new Date().toISOString().slice(0, 10),
+              observacion_anulacion: observacion,
+            }
+          : reg
+      );
+
+      const estadoEntrega = computeEstadoDesdeEntregas(
+        articulosBase,
+        ordenDb.entregas ?? orden.entregas,
+        devolucionesFinal
+      );
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update({
+          devoluciones: devolucionesFinal,
+          estado: estadoEntrega,
+        })
+        .eq("id", orden.id);
+
+      if (updateError) {
+        setAnularDevolucionError(
+          `No se pudo anular la devolución: ${getSupabaseErrorMessage(updateError)}`
+        );
+        return;
+      }
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              devoluciones: devolucionesFinal,
+              estado: estadoEntrega,
+            }
+          : prev
+      );
+      setAnularDevolucionIndex(null);
+      setAnularDevolucionObservacion("");
+    } catch (err) {
+      console.error("Error anulando devolución:", err);
+      setAnularDevolucionError(getSupabaseErrorMessage(err));
+    } finally {
+      setAnularDevolucionSaving(false);
+    }
+  };
+
+  const handleGuardarDevolucion = async () => {
+    if (!orden) return;
+
+    setDevolucionError(null);
+
+    const fcTrim = devolucionForm.fc.trim();
+    const rtTrim = devolucionForm.rt.trim();
+    const fecha = devolucionForm.fecha_devolucion.trim();
+
+    let fcNumero: number | null = null;
+    if (fcTrim) {
+      fcNumero = parseInt(fcTrim, 10);
+      if (!Number.isFinite(fcNumero)) {
+        setDevolucionError("La factura debe ser un número válido.");
+        return;
+      }
+    }
+
+    let rtNumero: number | null = null;
+    if (rtTrim) {
+      rtNumero = parseInt(rtTrim, 10);
+      if (!Number.isFinite(rtNumero)) {
+        setDevolucionError("El remito debe ser un número válido.");
+        return;
+      }
+    }
+
+    if (fcNumero === null && rtNumero === null) {
+      setDevolucionError(
+        "Debe cargar al menos un documento: número de factura o número de remito."
+      );
+      return;
+    }
+
+    if (!fecha) {
+      setDevolucionError("Ingrese la fecha de devolución.");
+      return;
+    }
+
+    if (!devolucionFile) {
+      setDevolucionError("Adjunte el documento escaneado (PDF, JPG o PNG).");
+      return;
+    }
+
+    const fileExt = devolucionFile.name.split(".").pop()?.toLowerCase() || "";
+    if (!/^(pdf|jpg|jpeg|png)$/i.test(fileExt)) {
+      setDevolucionError("Formato no permitido. Use PDF, JPG o PNG.");
+      return;
+    }
+
+    const items: DevolucionItemCantidad[] = [];
+    for (const art of orden.articulos || []) {
+      const raw = (devolucionCantidades[art.articulo_id] ?? "").trim();
+      if (!raw) continue;
+      const cant = Number(raw);
+      if (!Number.isFinite(cant) || cant < 0) {
+        setDevolucionError(`Cantidad inválida para "${art.articulo_nombre}".`);
+        return;
+      }
+      if (cant === 0) continue;
+
+      const artIndex = (orden.articulos || []).findIndex(
+        (a) => a.articulo_id === art.articulo_id
+      );
+      const entregaNeta = getEntregaForArticulo(
+        orden.entregas,
+        artIndex,
+        art,
+        orden.devoluciones
+      );
+      const maxDevolver = entregaNeta.entregadas ?? 0;
+      if (cant > maxDevolver) {
+        setDevolucionError(
+          `"${art.articulo_nombre}": no puede devolver ${cant}. Entregadas netas: ${maxDevolver}.`
+        );
+        return;
+      }
+
+      items.push({
+        articulo_id: art.articulo_id,
+        cantidad_devuelta: cant,
+      });
+    }
+
+    if (items.length === 0) {
+      setDevolucionError("Indique al menos una cantidad a devolver mayor a 0.");
+      return;
+    }
+
+    setDevolucionSaving(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        setDevolucionError("Debe iniciar sesión para cargar la devolución.");
+        return;
+      }
+
+      const { data: ordenDb, error: fetchError } = await supabase
+        .from("ordenes_compra")
+        .select("fc, fact_path, rt, entregas, articulos, devoluciones")
+        .eq("id", orden.id)
+        .single();
+
+      if (fetchError) {
+        setDevolucionError(
+          `No se pudo leer la orden actual: ${getSupabaseErrorMessage(fetchError)}`
+        );
+        return;
+      }
+
+      const articulosBase =
+        (orden.articulos?.length ? orden.articulos : (ordenDb.articulos as ArticuloOrdenItem[])) ||
+        [];
+      const devolucionesPrevias = normalizeDevolucionesToRegistros(
+        ordenDb.devoluciones ?? orden.devoluciones
+      );
+
+      const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
+      const contentType =
+        fileExt === "pdf"
+          ? "application/pdf"
+          : devolucionFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(getFactComprasBucket())
+        .upload(storagePath, devolucionFile, {
+          upsert: false,
+          contentType,
+        });
+
+      if (uploadError) {
+        setDevolucionError(
+          `No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`
+        );
+        return;
+      }
+
+      // Siempre persistir el adjunto en fact_path (FC o, si no hay, RT como nro. de documento)
+      const docNumero = fcNumero ?? rtNumero;
+      const facturasExistentes = parseFacturasFromOrden({
+        fc: ordenDb.fc ?? orden.fc,
+        fact_path: ordenDb.fact_path ?? orden.fact_path,
+      }).filter((f) => f.fc !== null && f.path) as { fc: number; path: string }[];
+
+      const facturasMerged =
+        docNumero !== null
+          ? [...facturasExistentes, { fc: docNumero, path: storagePath }]
+          : facturasExistentes;
+      const facturasPayload = buildFacturasUpdatePayload(orden, facturasMerged);
+
+      const nuevoRegistro: DevolucionRegistro = {
+        fc: fcNumero,
+        rt: rtNumero,
+        fecha_devolucion: fecha,
+        fact_path: storagePath,
+        items,
+        anulado: false,
+        fecha_anulacion: null,
+        observacion_anulacion: null,
+      };
+
+      const devolucionesFinal: DevolucionRegistro[] = [
+        ...devolucionesPrevias,
+        nuevoRegistro,
+      ];
+      const rtArray = appendRtToArray(ordenDb.rt ?? orden.rt, rtNumero);
+      const estadoEntrega = computeEstadoDesdeEntregas(
+        articulosBase,
+        ordenDb.entregas ?? orden.entregas,
+        devolucionesFinal
+      );
+
+      const updatePayload = {
+        fc: facturasPayload.fc,
+        fact_path: facturasPayload.fact_path,
+        rt: rtArray,
+        devoluciones: devolucionesFinal,
+        estado: estadoEntrega,
+      };
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update(updatePayload)
+        .eq("id", orden.id);
+
+      if (updateError) {
+        setDevolucionError(
+          `El documento se subió, pero no se guardó la devolución: ${getSupabaseErrorMessage(updateError)}`
+        );
+        return;
+      }
+
+      const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
+      const viewUrl =
+        (await getFacturaViewUrl(supabase, storagePath)) ??
+        getFacturaPublicUrl(storagePath);
+      if (viewUrl) {
+        setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+      }
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              fc: facturasPayload.fc,
+              fact_path: facturasPayload.fact_path,
+              rt: rtArray,
+              devoluciones: devolucionesFinal,
+              estado: estadoEntrega,
+            }
+          : prev
+      );
+
+      handleCloseDevolucionModal();
+    } catch (err) {
+      console.error("Error guardando devolución:", err);
+      setDevolucionError(getSupabaseErrorMessage(err));
+    } finally {
+      setDevolucionSaving(false);
     }
   };
 
@@ -1290,7 +1921,9 @@ export default function VerOrdenCompraPage() {
         art.articulo_id,
         (orden.articulos || []).findIndex((a) => a.articulo_id === art.articulo_id)
       );
-      const pendiente = Math.max(0, (Number(art.cantidad) || 0) - yaEntregadas);
+      const yaDevueltas = getDevueltasAgregadas(orden.devoluciones, art.articulo_id);
+      const entregadasNetas = Math.max(0, yaEntregadas - yaDevueltas);
+      const pendiente = Math.max(0, (Number(art.cantidad) || 0) - entregadasNetas);
       if (cant > pendiente) {
         setEntregaError(
           `"${art.articulo_nombre}": no puede entregar ${cant}. Pendiente: ${pendiente}.`
@@ -1320,7 +1953,7 @@ export default function VerOrdenCompraPage() {
       // Leer data actual de la DB para no pisar entregas/facturas/remitos previos
       const { data: ordenDb, error: fetchError } = await supabase
         .from("ordenes_compra")
-        .select("fc, fact_path, rt, fecha_entrega, entregas, articulos")
+        .select("fc, fact_path, rt, fecha_entrega, entregas, articulos, devoluciones")
         .eq("id", orden.id)
         .single();
 
@@ -1375,11 +2008,18 @@ export default function VerOrdenCompraPage() {
         fecha_entrega: fecha,
         fact_path: storagePath,
         items,
+        anulado: false,
+        fecha_anulacion: null,
+        observacion_anulacion: null,
       };
 
       const entregasFinal: EntregaRegistro[] = [...entregasPrevias, nuevoRegistro];
       const rtArray = appendRtToArray(ordenDb.rt ?? orden.rt, rtNumero);
-      const estadoEntrega = computeEstadoDesdeEntregas(articulosBase, entregasFinal);
+      const estadoEntrega = computeEstadoDesdeEntregas(
+        articulosBase,
+        entregasFinal,
+        ordenDb.devoluciones ?? orden.devoluciones
+      );
 
       const updatePayload = {
         fc: facturasPayload.fc,
@@ -1766,21 +2406,45 @@ export default function VerOrdenCompraPage() {
       }
 
       const divisaOrden = normalizeDivisa(editData.divisa);
-      const articulosActualizados = editData.articulos.map((item) => ({
-        ...item,
-        divisa: divisaOrden,
-        costunitcdesc: calcularPrecioConDescuento(item.precio_unitario, item.descuento),
-        total: getRowTotal(item),
-      }));
-      const totalOrden = articulosActualizados.reduce((sum, item) => sum + item.total, 0);
+      const esAnulado = editData.estado === "anulado";
+
+      const articulosActualizados = editData.articulos.map((item) => {
+        if (esAnulado) {
+          return {
+            ...item,
+            divisa: divisaOrden,
+            // Conservar cantidad de la orden; montos a 0
+            precio_unitario: 0,
+            descuento: 0,
+            costunitcdesc: 0,
+            total: 0,
+          };
+        }
+        return {
+          ...item,
+          divisa: divisaOrden,
+          costunitcdesc: calcularPrecioConDescuento(item.precio_unitario, item.descuento),
+          total: getRowTotal(item),
+        };
+      });
+      const totalOrden = esAnulado
+        ? 0
+        : articulosActualizados.reduce((sum, item) => sum + item.total, 0);
 
       const facturasPayload = buildFacturasUpdatePayload(orden, editFacturas);
-      const entregas = buildEntregasFromArticulos(
-        articulosActualizados,
-        orden.articulos,
-        orden.entregas
-      );
-      const payload = {
+
+      const entregas = esAnulado
+        ? articulosActualizados.map(() => ({
+            entregadas: 0,
+            pendientes: 0,
+          }))
+        : buildEntregasFromArticulos(
+            articulosActualizados,
+            orden.articulos,
+            orden.entregas
+          );
+
+      const payload: Record<string, unknown> = {
         divisa: divisaOrden,
         noc: parseInt(editData.noc),
         proveedor: editData.proveedor,
@@ -1805,6 +2469,12 @@ export default function VerOrdenCompraPage() {
         total: totalOrden,
       };
 
+      if (esAnulado) {
+        payload.devoluciones = [];
+        payload.importe_competencia = 0;
+        payload.ahorro = 0;
+      }
+
       const { data: datosActualizados, error } = await supabase
         .from("ordenes_compra")
         .update(payload)
@@ -1823,12 +2493,15 @@ export default function VerOrdenCompraPage() {
         .update({ divisa: divisaOrden })
         .eq("id", orden.id);
 
-      try {
-        await actualizarArticulosSupabase(articulosActualizados, editData.proveedor);
-      } catch (updateError) {
-        console.error("Error actualizando artículos:", updateError);
-        setError("Orden actualizada, pero no se pudieron actualizar los artículos");
-        return;
+      // No pisar costos del catálogo de artículos al anular la OC
+      if (!esAnulado) {
+        try {
+          await actualizarArticulosSupabase(articulosActualizados, editData.proveedor);
+        } catch (updateError) {
+          console.error("Error actualizando artículos:", updateError);
+          setError("Orden actualizada, pero no se pudieron actualizar los artículos");
+          return;
+        }
       }
 
       // Actualizar el estado local (usar divisa de la respuesta si vino)
@@ -1855,6 +2528,9 @@ export default function VerOrdenCompraPage() {
         articulos: articulosActualizados,
         entregas,
         total: totalOrden,
+        ...(esAnulado
+          ? { devoluciones: [], importe_competencia: 0, ahorro: 0 }
+          : {}),
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
 
@@ -2033,66 +2709,85 @@ export default function VerOrdenCompraPage() {
           </div>
         </div>
 
-        <div className="mb-6 print:hidden flex flex-row flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 shrink-0">
-            📋 Orden de Compra #{orden.noc}
-          </h2>
-          <div
-            className="flex flex-row flex-nowrap items-center gap-2 overflow-x-auto"
-            style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap" }}
-          >
-            <Button
-              onClick={handleOpenVerEntregasModal}
-              variant="outline"
-              size="sm"
-              className="shrink-0 whitespace-nowrap border-teal-500 text-teal-700 hover:bg-teal-50"
-            >
-              👁️ Ver entregas
-            </Button>
+        <div className="mb-6 print:hidden flex flex-col gap-3">
+          <div className="flex flex-row flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+              📋 Orden de Compra #{orden.noc}
+            </h2>
+            <div className="flex flex-row flex-wrap items-center gap-2">
+              <Button
+                onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-orange-500 text-orange-600 hover:bg-orange-50"
+              >
+                🏭 Pedidos Productivos
+              </Button>
+              <Button
+                onClick={() => router.push("/auth/list-adminpedidosgenerales")}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-purple-500 text-purple-600 hover:bg-purple-50"
+              >
+                📋 Pedidos Generales
+              </Button>
+              <Button
+                onClick={() => router.push("/auth/ordenes-compra")}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap"
+              >
+                🔙 Volver a la Lista
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-row flex-wrap items-center gap-2">
             {canCargarEntrega && (
               <Button
                 onClick={handleOpenEntregaModal}
                 variant="outline"
                 size="sm"
-                className="shrink-0 whitespace-nowrap border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                className="whitespace-nowrap border-emerald-500 text-emerald-700 hover:bg-emerald-50"
               >
                 📦 Cargar entrega
               </Button>
             )}
+            <Button
+              onClick={handleOpenVerEntregasModal}
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap border-teal-500 text-teal-700 hover:bg-teal-50"
+            >
+              👁️ Ver entregas
+            </Button>
+            {canCargarEntrega && (
+              <Button
+                onClick={handleOpenDevolucionModal}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-orange-500 text-orange-700 hover:bg-orange-50"
+              >
+                ↩️ Cargar devolución
+              </Button>
+            )}
+            <Button
+              onClick={handleOpenVerDevolucionesModal}
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap border-amber-500 text-amber-700 hover:bg-amber-50"
+            >
+              👁️ Ver devoluciones
+            </Button>
             {canEdit && (
               <Button
                 onClick={handleOpenEditModal}
                 variant="outline"
                 size="sm"
-                className="shrink-0 whitespace-nowrap border-blue-500 text-blue-600 hover:bg-blue-50"
+                className="whitespace-nowrap border-blue-500 text-blue-600 hover:bg-blue-50"
               >
                 ✏️ Editar
               </Button>
             )}
-            <Button
-              onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
-              variant="outline"
-              size="sm"
-              className="shrink-0 whitespace-nowrap border-orange-500 text-orange-600 hover:bg-orange-50"
-            >
-              🏭 Pedidos Productivos
-            </Button>
-            <Button
-              onClick={() => router.push("/auth/list-adminpedidosgenerales")}
-              variant="outline"
-              size="sm"
-              className="shrink-0 whitespace-nowrap border-purple-500 text-purple-600 hover:bg-purple-50"
-            >
-              📋 Pedidos Generales
-            </Button>
-            <Button
-              onClick={() => router.push("/auth/ordenes-compra")}
-              variant="outline"
-              size="sm"
-              className="shrink-0 whitespace-nowrap"
-            >
-              🔙 Volver a la Lista
-            </Button>
           </div>
         </div>
 
@@ -2333,7 +3028,12 @@ export default function VerOrdenCompraPage() {
                           item.descuento
                         );
                         const totalFila = getRowTotal(item);
-                        const entrega = getEntregaForArticulo(orden.entregas, index, item);
+                        const entrega = getEntregaForArticulo(
+                          orden.entregas,
+                          index,
+                          item,
+                          orden.devoluciones
+                        );
                         return (
                       <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
                         <td className="border border-gray-300 px-2 py-1.5 text-gray-600 print:px-2 print:py-1 print:text-[10.5px]">
@@ -3213,14 +3913,24 @@ export default function VerOrdenCompraPage() {
                         0
                       );
                       return (
-                        <li key={`${reg.fact_path}-${idx}`} className="px-3 py-2 text-gray-700">
+                        <li
+                          key={`${reg.fact_path}-${idx}`}
+                          className={`px-3 py-2 ${
+                            reg.anulado ? "text-gray-400 line-through" : "text-gray-700"
+                          }`}
+                        >
                           <span className="font-medium">#{idx + 1}</span>
+                          {reg.anulado && (
+                            <span className="ml-1 no-underline inline-flex text-xs font-semibold text-red-600">
+                              (anulada)
+                            </span>
+                          )}
                           {reg.fc != null && <> · FC {reg.fc}</>}
                           {reg.rt != null && <> · RT {reg.rt}</>}
                           {reg.fecha_entrega && <> · {reg.fecha_entrega}</>}
                           <> · {reg.items.length} art. · cant. {totalCant}</>
                           {reg.fact_path ? (
-                            <span className="text-xs text-gray-500 block truncate">
+                            <span className="text-xs text-gray-500 block truncate no-underline">
                               Doc: {reg.fact_path}
                             </span>
                           ) : null}
@@ -3238,7 +3948,12 @@ export default function VerOrdenCompraPage() {
               </div>
               <div className="divide-y max-h-64 overflow-y-auto">
                 {(orden.articulos || []).map((art, index) => {
-                  const entrega = getEntregaForArticulo(orden.entregas, index, art);
+                  const entrega = getEntregaForArticulo(
+                    orden.entregas,
+                    index,
+                    art,
+                    orden.devoluciones
+                  );
                   const pendiente = entrega.pendientes ?? Math.max(0, art.cantidad - (entrega.entregadas ?? 0));
                   return (
                     <div
@@ -3313,7 +4028,12 @@ export default function VerOrdenCompraPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowVerEntregasModal(false)}
+                onClick={() => {
+                  setShowVerEntregasModal(false);
+                  setAnularEntregaIndex(null);
+                  setAnularEntregaObservacion("");
+                  setAnularEntregaError(null);
+                }}
               >
                 Cerrar
               </Button>
@@ -3321,6 +4041,12 @@ export default function VerOrdenCompraPage() {
 
             {verEntregasLoading && (
               <p className="text-sm text-gray-500 mb-3">Cargando documentos...</p>
+            )}
+
+            {anularEntregaError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {anularEntregaError}
+              </div>
             )}
 
             {(() => {
@@ -3351,14 +4077,29 @@ export default function VerOrdenCompraPage() {
                       (sum, item) => sum + item.cantidad_entregada,
                       0
                     );
+                    const estaAnulada = reg.anulado === true;
+                    const confirmandoAnular = anularEntregaIndex === idx;
                     return (
                       <div
                         key={`${reg.fact_path || "sin-doc"}-${idx}`}
-                        className="border border-teal-200 rounded-lg overflow-hidden"
+                        className={`border rounded-lg overflow-hidden ${
+                          estaAnulada
+                            ? "border-gray-300 opacity-80"
+                            : "border-teal-200"
+                        }`}
                       >
-                        <div className="bg-teal-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                        <div
+                          className={`px-4 py-3 flex flex-wrap items-center justify-between gap-2 ${
+                            estaAnulada ? "bg-gray-100" : "bg-teal-50"
+                          }`}
+                        >
                           <div className="text-sm text-gray-800">
                             <span className="font-semibold">Entrega #{idx + 1}</span>
+                            {estaAnulada && (
+                              <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700">
+                                Anulada
+                              </span>
+                            )}
                             {reg.fc != null && (
                               <span className="ml-2">FC: {reg.fc}</span>
                             )}
@@ -3370,29 +4111,119 @@ export default function VerOrdenCompraPage() {
                                 Fecha: {formatDateLocal(reg.fecha_entrega)}
                               </span>
                             )}
+                            {estaAnulada && reg.fecha_anulacion && (
+                              <span className="ml-2 text-red-600">
+                                Anulada: {formatDateLocal(reg.fecha_anulacion)}
+                              </span>
+                            )}
                             <span className="ml-2 text-gray-500">
                               · {reg.items.length} art. · cant. {totalCant}
                             </span>
                           </div>
-                          {viewUrl ? (
-                            <a
-                              href={viewUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium text-teal-700 hover:text-teal-900 underline"
-                            >
-                              Ver documento
-                            </a>
-                          ) : reg.fact_path ? (
-                            <span className="text-xs text-gray-500">
-                              Documento sin URL
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-400">
-                              Sin documento adjunto
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {viewUrl ? (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-teal-700 hover:text-teal-900 underline"
+                              >
+                                Ver documento
+                              </a>
+                            ) : reg.fact_path ? (
+                              <span className="text-xs text-gray-500">
+                                Documento sin URL
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                Sin documento adjunto
+                              </span>
+                            )}
+                            {canCargarEntrega && !estaAnulada && !confirmandoAnular && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={anularEntregaSaving}
+                                onClick={() => {
+                                  setAnularEntregaError(null);
+                                  setAnularEntregaObservacion("");
+                                  setAnularEntregaIndex(idx);
+                                }}
+                                className="border-red-400 text-red-700 hover:bg-red-50"
+                              >
+                                Anular entrega
+                              </Button>
+                            )}
+                          </div>
                         </div>
+
+                        {confirmandoAnular && !estaAnulada && (
+                          <div className="px-4 py-3 bg-red-50 border-t border-red-100 text-sm">
+                            <p className="text-red-800 mb-3">
+                              ¿Anular esta entrega? Las cantidades volverán a pendientes
+                              en la orden. El registro se conserva marcado como anulado.
+                            </p>
+                            <div className="mb-3">
+                              <Label
+                                htmlFor={`anular-obs-${idx}`}
+                                className="text-sm font-medium text-red-900"
+                              >
+                                Observación de anulación *
+                              </Label>
+                              <textarea
+                                id={`anular-obs-${idx}`}
+                                value={anularEntregaObservacion}
+                                onChange={(e) => {
+                                  setAnularEntregaObservacion(e.target.value);
+                                  if (anularEntregaError) setAnularEntregaError(null);
+                                }}
+                                rows={3}
+                                placeholder="Indique el motivo de la anulación (obligatorio)"
+                                className="mt-1 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                disabled={anularEntregaSaving}
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={anularEntregaSaving}
+                                onClick={() => {
+                                  setAnularEntregaIndex(null);
+                                  setAnularEntregaObservacion("");
+                                  setAnularEntregaError(null);
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={
+                                  anularEntregaSaving ||
+                                  !anularEntregaObservacion.trim()
+                                }
+                                onClick={() => void handleAnularEntrega(idx)}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                {anularEntregaSaving
+                                  ? "Anulando..."
+                                  : "Confirmar anulación"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {estaAnulada && reg.observacion_anulacion && (
+                          <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-sm">
+                            <p className="text-xs font-semibold text-gray-600 mb-0.5">
+                              Observación de anulación
+                            </p>
+                            <p className="text-gray-800 whitespace-pre-wrap">
+                              {reg.observacion_anulacion}
+                            </p>
+                          </div>
+                        )}
+
                         <div className="px-4 py-2">
                           {reg.items.length === 0 ? (
                             <p className="text-sm text-gray-500 py-2">
@@ -3414,12 +4245,479 @@ export default function VerOrdenCompraPage() {
                                     key={`${item.articulo_id}-${itemIdx}`}
                                     className="border-b border-gray-100 last:border-0"
                                   >
-                                    <td className="py-1.5 text-gray-800">
+                                    <td
+                                      className={`py-1.5 ${
+                                        estaAnulada
+                                          ? "text-gray-500 line-through"
+                                          : "text-gray-800"
+                                      }`}
+                                    >
                                       {nombrePorId.get(item.articulo_id) ||
                                         item.articulo_id}
                                     </td>
-                                    <td className="py-1.5 text-right font-medium">
+                                    <td
+                                      className={`py-1.5 text-right font-medium ${
+                                        estaAnulada
+                                          ? "text-gray-500 line-through"
+                                          : ""
+                                      }`}
+                                    >
                                       {item.cantidad_entregada.toLocaleString("es-AR")}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cargar devolución */}
+      {showDevolucionModal && orden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">↩️ Cargar devolución al proveedor</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <Label htmlFor="devolucion-fc">Factura</Label>
+                <Input
+                  id="devolucion-fc"
+                  type="number"
+                  value={devolucionForm.fc}
+                  onChange={(e) =>
+                    setDevolucionForm((prev) => ({ ...prev, fc: e.target.value }))
+                  }
+                  placeholder="Nº factura"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="devolucion-rt">Remito</Label>
+                <Input
+                  id="devolucion-rt"
+                  type="number"
+                  value={devolucionForm.rt}
+                  onChange={(e) =>
+                    setDevolucionForm((prev) => ({ ...prev, rt: e.target.value }))
+                  }
+                  placeholder="Nº remito"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="devolucion-fecha">Fecha de devolución *</Label>
+                <Input
+                  id="devolucion-fecha"
+                  type="date"
+                  value={devolucionForm.fecha_devolucion}
+                  onChange={(e) =>
+                    setDevolucionForm((prev) => ({
+                      ...prev,
+                      fecha_devolucion: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-2 mb-4">
+              Debe indicar al menos factura o remito. Las cantidades devueltas vuelven a pendientes.
+            </p>
+
+            <div className="mb-4">
+              <Label htmlFor="devolucion-archivo">Documento adjunto (PDF, JPG, PNG) *</Label>
+              <Input
+                id="devolucion-archivo"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setDevolucionFile(file);
+                  setDevolucionError(null);
+                }}
+                className="mt-1"
+              />
+              {devolucionFile && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Archivo: {devolucionFile.name}
+                </p>
+              )}
+            </div>
+
+            {(() => {
+              const prevDevs = normalizeDevolucionesToRegistros(orden.devoluciones);
+              if (prevDevs.length === 0) return null;
+              return (
+                <div className="border rounded-lg overflow-hidden mb-4 bg-amber-50/50">
+                  <div className="bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+                    Devoluciones ya cargadas ({prevDevs.length}) — se conservan al guardar
+                  </div>
+                  <ul className="divide-y max-h-36 overflow-y-auto text-sm">
+                    {prevDevs.map((reg, idx) => {
+                      const totalCant = reg.items.reduce(
+                        (sum, item) => sum + item.cantidad_devuelta,
+                        0
+                      );
+                      return (
+                        <li
+                          key={`${reg.fact_path}-${idx}`}
+                          className={`px-3 py-2 ${
+                            reg.anulado ? "text-gray-400 line-through" : "text-gray-700"
+                          }`}
+                        >
+                          <span className="font-medium">#{idx + 1}</span>
+                          {reg.anulado && (
+                            <span className="ml-1 no-underline inline-flex text-xs font-semibold text-red-600">
+                              (anulada)
+                            </span>
+                          )}
+                          {reg.fc != null && <> · FC {reg.fc}</>}
+                          {reg.rt != null && <> · RT {reg.rt}</>}
+                          {reg.fecha_devolucion && <> · {reg.fecha_devolucion}</>}
+                          <> · {reg.items.length} art. · cant. {totalCant}</>
+                          {reg.fact_path ? (
+                            <span className="text-xs text-gray-500 block truncate no-underline">
+                              Doc: {reg.fact_path}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })()}
+
+            <div className="border rounded-lg overflow-hidden mb-4">
+              <div className="bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700">
+                Artículos de la orden — cantidad a devolver (vuelve a pendiente)
+              </div>
+              <div className="divide-y max-h-64 overflow-y-auto">
+                {(orden.articulos || []).map((art, index) => {
+                  const entrega = getEntregaForArticulo(
+                    orden.entregas,
+                    index,
+                    art,
+                    orden.devoluciones
+                  );
+                  const maxDevolver = entrega.entregadas ?? 0;
+                  return (
+                    <div
+                      key={art.articulo_id || index}
+                      className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center px-3 py-2 text-sm"
+                    >
+                      <div className="md:col-span-6">
+                        <p className="font-medium text-gray-900">{art.articulo_nombre}</p>
+                        <p className="text-xs text-gray-500">
+                          Pedido: {art.cantidad} · Entregadas netas:{" "}
+                          {formatCantidadEntrega(entrega.entregadas)} · Pendientes:{" "}
+                          {formatCantidadEntrega(entrega.pendientes)}
+                        </p>
+                      </div>
+                      <div className="md:col-span-3">
+                        <Label className="text-xs text-gray-500">Cant. a devolver</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max={maxDevolver}
+                          step="1"
+                          value={devolucionCantidades[art.articulo_id] ?? ""}
+                          onChange={(e) =>
+                            setDevolucionCantidades((prev) => ({
+                              ...prev,
+                              [art.articulo_id]: e.target.value,
+                            }))
+                          }
+                          placeholder="0"
+                          className="h-9"
+                          disabled={maxDevolver <= 0}
+                        />
+                      </div>
+                      <div className="md:col-span-3 text-xs text-gray-500">
+                        Máx. a devolver: {maxDevolver}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {devolucionError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {devolucionError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={handleCloseDevolucionModal}
+                variant="outline"
+                disabled={devolucionSaving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGuardarDevolucion}
+                disabled={devolucionSaving}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {devolucionSaving ? "Guardando..." : "Guardar devolución"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ver devoluciones */}
+      {showVerDevolucionesModal && orden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold">👁️ Devoluciones cargadas</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowVerDevolucionesModal(false);
+                  setAnularDevolucionIndex(null);
+                  setAnularDevolucionObservacion("");
+                  setAnularDevolucionError(null);
+                }}
+              >
+                Cerrar
+              </Button>
+            </div>
+
+            {verDevolucionesLoading && (
+              <p className="text-sm text-gray-500 mb-3">Cargando documentos...</p>
+            )}
+
+            {anularDevolucionError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {anularDevolucionError}
+              </div>
+            )}
+
+            {(() => {
+              const registros = normalizeDevolucionesToRegistros(orden.devoluciones);
+              const nombrePorId = new Map(
+                (orden.articulos || []).map((art) => [
+                  art.articulo_id,
+                  art.articulo_nombre,
+                ])
+              );
+
+              if (registros.length === 0) {
+                return (
+                  <div className="text-center py-10 text-gray-500">
+                    No hay devoluciones cargadas en esta orden.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {registros.map((reg, idx) => {
+                    const viewUrl = resolveFacturaHref(reg.fact_path);
+                    const totalCant = reg.items.reduce(
+                      (sum, item) => sum + item.cantidad_devuelta,
+                      0
+                    );
+                    const estaAnulada = reg.anulado === true;
+                    const confirmandoAnular = anularDevolucionIndex === idx;
+                    return (
+                      <div
+                        key={`${reg.fact_path || "sin-doc"}-${idx}`}
+                        className={`border rounded-lg overflow-hidden ${
+                          estaAnulada
+                            ? "border-gray-300 opacity-80"
+                            : "border-amber-200"
+                        }`}
+                      >
+                        <div
+                          className={`px-4 py-3 flex flex-wrap items-center justify-between gap-2 ${
+                            estaAnulada ? "bg-gray-100" : "bg-amber-50"
+                          }`}
+                        >
+                          <div className="text-sm text-gray-800">
+                            <span className="font-semibold">Devolución #{idx + 1}</span>
+                            {estaAnulada && (
+                              <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700">
+                                Anulada
+                              </span>
+                            )}
+                            {reg.fc != null && (
+                              <span className="ml-2">FC: {reg.fc}</span>
+                            )}
+                            {reg.rt != null && (
+                              <span className="ml-2">RT: {reg.rt}</span>
+                            )}
+                            {reg.fecha_devolucion && (
+                              <span className="ml-2">
+                                Fecha: {formatDateLocal(reg.fecha_devolucion)}
+                              </span>
+                            )}
+                            {estaAnulada && reg.fecha_anulacion && (
+                              <span className="ml-2 text-red-600">
+                                Anulada: {formatDateLocal(reg.fecha_anulacion)}
+                              </span>
+                            )}
+                            <span className="ml-2 text-gray-500">
+                              · {reg.items.length} art. · cant. {totalCant}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {viewUrl ? (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-amber-700 hover:text-amber-900 underline"
+                              >
+                                Ver documento
+                              </a>
+                            ) : reg.fact_path ? (
+                              <span className="text-xs text-gray-500">
+                                Documento sin URL
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                Sin documento adjunto
+                              </span>
+                            )}
+                            {canCargarEntrega && !estaAnulada && !confirmandoAnular && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={anularDevolucionSaving}
+                                onClick={() => {
+                                  setAnularDevolucionError(null);
+                                  setAnularDevolucionObservacion("");
+                                  setAnularDevolucionIndex(idx);
+                                }}
+                                className="border-red-400 text-red-700 hover:bg-red-50"
+                              >
+                                Anular devolución
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {confirmandoAnular && !estaAnulada && (
+                          <div className="px-4 py-3 bg-red-50 border-t border-red-100 text-sm">
+                            <p className="text-red-800 mb-3">
+                              ¿Anular esta devolución? Las cantidades dejarán de restarse
+                              de las entregadas (vuelven a entregadas netas). El registro
+                              se conserva marcado como anulado.
+                            </p>
+                            <div className="mb-3">
+                              <Label
+                                htmlFor={`anular-dev-obs-${idx}`}
+                                className="text-sm font-medium text-red-900"
+                              >
+                                Observación de anulación *
+                              </Label>
+                              <textarea
+                                id={`anular-dev-obs-${idx}`}
+                                value={anularDevolucionObservacion}
+                                onChange={(e) => {
+                                  setAnularDevolucionObservacion(e.target.value);
+                                  if (anularDevolucionError) setAnularDevolucionError(null);
+                                }}
+                                rows={3}
+                                placeholder="Indique el motivo de la anulación (obligatorio)"
+                                className="mt-1 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                disabled={anularDevolucionSaving}
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={anularDevolucionSaving}
+                                onClick={() => {
+                                  setAnularDevolucionIndex(null);
+                                  setAnularDevolucionObservacion("");
+                                  setAnularDevolucionError(null);
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={
+                                  anularDevolucionSaving ||
+                                  !anularDevolucionObservacion.trim()
+                                }
+                                onClick={() => void handleAnularDevolucion(idx)}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                {anularDevolucionSaving
+                                  ? "Anulando..."
+                                  : "Confirmar anulación"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {estaAnulada && reg.observacion_anulacion && (
+                          <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-sm">
+                            <p className="text-xs font-semibold text-gray-600 mb-0.5">
+                              Observación de anulación
+                            </p>
+                            <p className="text-gray-800 whitespace-pre-wrap">
+                              {reg.observacion_anulacion}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="px-4 py-2">
+                          {reg.items.length === 0 ? (
+                            <p className="text-sm text-gray-500 py-2">
+                              Sin cantidades registradas.
+                            </p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-left text-gray-500 border-b">
+                                  <th className="py-1.5 font-medium">Artículo</th>
+                                  <th className="py-1.5 font-medium text-right w-28">
+                                    Cant. devuelta
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {reg.items.map((item, itemIdx) => (
+                                  <tr
+                                    key={`${item.articulo_id}-${itemIdx}`}
+                                    className="border-b border-gray-100 last:border-0"
+                                  >
+                                    <td
+                                      className={`py-1.5 ${
+                                        estaAnulada
+                                          ? "text-gray-500 line-through"
+                                          : "text-gray-800"
+                                      }`}
+                                    >
+                                      {nombrePorId.get(item.articulo_id) ||
+                                        item.articulo_id}
+                                    </td>
+                                    <td
+                                      className={`py-1.5 text-right font-medium ${
+                                        estaAnulada
+                                          ? "text-gray-500 line-through"
+                                          : ""
+                                      }`}
+                                    >
+                                      {item.cantidad_devuelta.toLocaleString("es-AR")}
                                     </td>
                                   </tr>
                                 ))}
