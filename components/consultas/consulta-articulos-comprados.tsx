@@ -146,14 +146,28 @@ export function ConsultaArticulosComprados() {
           acc.entregada += row.cantidadEntregada;
           acc.pendiente += row.cantidadPendiente;
           acc.total += row.total;
+          acc.costoUnitarioPonderado +=
+            row.costoUnitario * row.cantidadComprada;
+          acc.descuentoPonderado += row.descuento * row.cantidadComprada;
           return acc;
         },
-        { comprada: 0, entregada: 0, pendiente: 0, total: 0 }
+        {
+          comprada: 0,
+          entregada: 0,
+          pendiente: 0,
+          total: 0,
+          costoUnitarioPonderado: 0,
+          descuentoPonderado: 0,
+        }
       ),
     [filtrados]
   );
 
   const costoUnitarioPromedio =
+    totales.comprada > 0 ? totales.costoUnitarioPonderado / totales.comprada : 0;
+  const descuentoPromedio =
+    totales.comprada > 0 ? totales.descuentoPonderado / totales.comprada : 0;
+  const precioConDescuentoPromedio =
     totales.comprada > 0 ? totales.total / totales.comprada : 0;
 
   const mostrarTabla = !totalizarEnArs || tiposCambioValidos;
@@ -175,6 +189,8 @@ export function ConsultaArticulosComprados() {
         "cant_entregada",
         "cant_pendiente",
         "costo_unitario",
+        "descuento",
+        "precio_con_descuento",
         "total",
         "divisa",
         "codigo_cuenta",
@@ -191,6 +207,8 @@ export function ConsultaArticulosComprados() {
         "Cant. entregada",
         "Cant. pendiente",
         "Costo unitario",
+        "Descuento %",
+        "Precio con descuento",
         "Total",
         "Divisa",
         "Código cuenta",
@@ -207,6 +225,8 @@ export function ConsultaArticulosComprados() {
         cant_entregada: row.cantidadEntregada,
         cant_pendiente: row.cantidadPendiente,
         costo_unitario: row.costoUnitario,
+        descuento: row.descuento,
+        precio_con_descuento: row.precioConDescuento,
         total: row.total,
         divisa: row.divisa,
         codigo_cuenta: row.codCta || "",
@@ -442,6 +462,12 @@ export function ConsultaArticulosComprados() {
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">
                       Costo unit.
                     </th>
+                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">
+                      Desc. %
+                    </th>
+                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">
+                      P. c/ desc.
+                    </th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">Total</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Divisa</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Cód. cuenta</th>
@@ -510,6 +536,12 @@ export function ConsultaArticulosComprados() {
                       <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-slate-800">
                         {formatImporte(row.costoUnitario)}
                       </td>
+                      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-slate-700">
+                        {formatCantidad(row.descuento)}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-slate-800">
+                        {formatImporte(row.precioConDescuento)}
+                      </td>
                       <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-slate-800">
                         {formatImporte(row.total)}
                       </td>
@@ -537,6 +569,12 @@ export function ConsultaArticulosComprados() {
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
                       {formatImporte(costoUnitarioPromedio)}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                      {formatCantidad(descuentoPromedio)}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                      {formatImporte(precioConDescuentoPromedio)}
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
                       {formatImporte(totales.total)}

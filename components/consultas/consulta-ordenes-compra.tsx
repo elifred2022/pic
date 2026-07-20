@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getVerOrdenCompraUrl } from "@/lib/pic-links";
+import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import {
   aplanarConsultaOrdenesCompra,
   filtrarOrdenesConsultaOcPorFecha,
@@ -38,7 +38,11 @@ function getEstadoBadge(estado: string) {
 
   const estadoInfo =
     estados[estado as keyof typeof estados] || estados.pendiente;
-  return <Badge className={estadoInfo.color}>{estadoInfo.text}</Badge>;
+  return (
+    <Badge className={`${estadoInfo.color} px-1.5 py-0 text-[10px] leading-tight`}>
+      {estadoInfo.text}
+    </Badge>
+  );
 }
 
 export function ConsultaOrdenesCompra() {
@@ -186,6 +190,7 @@ export function ConsultaOrdenesCompra() {
     return result.filter(
       (row) =>
         row.noc.toLowerCase().includes(q) ||
+        row.pic.toLowerCase().includes(q) ||
         row.estado.toLowerCase().includes(q) ||
         row.proveedor.toLowerCase().includes(q) ||
         row.articulo.toLowerCase().includes(q)
@@ -222,6 +227,7 @@ export function ConsultaOrdenesCompra() {
       const headers = [
         "estado",
         "noc",
+        "pic",
         "proveedor",
         "fecha_creacion",
         "fecha_prometida",
@@ -235,6 +241,7 @@ export function ConsultaOrdenesCompra() {
       const headerLabels = [
         "Estado",
         "OC",
+        "PIC",
         "Proveedor",
         "Fecha creación",
         "Fecha prometida",
@@ -248,6 +255,7 @@ export function ConsultaOrdenesCompra() {
       const excelRows = filtrados.map((row) => ({
         estado: row.estado || "",
         noc: row.noc || "",
+        pic: row.pic === "—" ? "" : row.pic,
         proveedor: row.proveedor || "",
         fecha_creacion: row.fechaCreacion,
         fecha_prometida: row.fechaPrometida,
@@ -281,37 +289,37 @@ export function ConsultaOrdenesCompra() {
 
   return (
     <section className="border-t border-gray-200">
-      <div className="bg-slate-50 px-6 py-4 sm:px-8 border-b border-gray-200">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-600 text-white">
-              <ShoppingCart className="h-5 w-5" strokeWidth={2} aria-hidden />
+      <div className="bg-slate-50 px-3 py-3 sm:px-4 border-b border-gray-200">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-600 text-white">
+              <ShoppingCart className="h-4 w-4" strokeWidth={2} aria-hidden />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-800">
+              <h2 className="text-sm font-semibold text-slate-800">
                 Órdenes de compra
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-xs text-slate-500">
                 OC, proveedor, fechas y cantidades por artículo
               </p>
             </div>
           </div>
           <Input
             type="search"
-            placeholder="Buscar OC, proveedor o artículo..."
+            placeholder="Buscar OC, PIC, proveedor o artículo..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="sm:max-w-xs bg-white"
+            className="h-8 sm:max-w-xs bg-white text-xs"
           />
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-4">
-          <h3 className="text-sm font-semibold text-gray-800">Filtros</h3>
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="consulta-oc-fecha-desde" className="text-sm text-gray-600">
+      <div className="p-3 sm:p-4 space-y-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm space-y-3">
+          <h3 className="text-xs font-semibold text-gray-800">Filtros</h3>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-oc-fecha-desde" className="text-xs text-gray-600">
                 Desde
               </Label>
               <Input
@@ -319,11 +327,11 @@ export function ConsultaOrdenesCompra() {
                 type="date"
                 value={fechaDesde}
                 onChange={(e) => setFechaDesde(e.target.value)}
-                className="h-10 w-[11.5rem] min-w-[11.5rem] border-gray-300 bg-white text-gray-900"
+                className="h-8 w-[10.5rem] min-w-[10.5rem] border-gray-300 bg-white text-xs text-gray-900"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="consulta-oc-fecha-hasta" className="text-sm text-gray-600">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-oc-fecha-hasta" className="text-xs text-gray-600">
                 Hasta
               </Label>
               <Input
@@ -331,70 +339,71 @@ export function ConsultaOrdenesCompra() {
                 type="date"
                 value={fechaHasta}
                 onChange={(e) => setFechaHasta(e.target.value)}
-                className="h-10 w-[11.5rem] min-w-[11.5rem] border-gray-300 bg-white text-gray-900"
+                className="h-8 w-[10.5rem] min-w-[10.5rem] border-gray-300 bg-white text-xs text-gray-900"
               />
             </div>
             {(fechaDesde || fechaHasta) && (
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   setFechaDesde("");
                   setFechaHasta("");
                 }}
-                className="border-gray-300"
+                className="h-8 border-gray-300 text-xs"
               >
                 Limpiar fechas
               </Button>
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <h4 className="text-xs font-semibold text-gray-700 mb-2">
               Filtros de estado
             </h4>
-            <div className="flex flex-wrap gap-4 items-center">
-              <label className="flex items-center gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg transition-colors">
+            <div className="flex flex-wrap gap-2 items-center">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-white/80 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarCumplidos}
                   onChange={() => setOcultarCumplidos((v) => !v)}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-gray-700 font-medium text-sm">
+                <span className="text-gray-700 font-medium text-xs">
                   Ocultar cumplidas
                 </span>
               </label>
-              <label className="flex items-center gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-white/80 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarPendientes}
                   onChange={() => setOcultarPendientes((v) => !v)}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-gray-700 font-medium text-sm">
+                <span className="text-gray-700 font-medium text-xs">
                   Ocultar pendientes
                 </span>
               </label>
-              <label className="flex items-center gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-white/80 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarEntregoParcial}
                   onChange={() => setOcultarEntregoParcial((v) => !v)}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-gray-700 font-medium text-sm">
+                <span className="text-gray-700 font-medium text-xs">
                   Ocultar entregó parcial
                 </span>
               </label>
-              <label className="flex items-center gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-white/80 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarAnulados}
                   onChange={() => setOcultarAnulados((v) => !v)}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-gray-700 font-medium text-sm">
+                <span className="text-gray-700 font-medium text-xs">
                   Ocultar anulados
                 </span>
               </label>
@@ -404,41 +413,43 @@ export function ConsultaOrdenesCompra() {
           <div className="flex justify-end">
             <Button
               type="button"
+              size="sm"
               onClick={descargarExcel}
               disabled={exportando || loading || filtrados.length === 0}
-              className="bg-green-600 hover:bg-green-700"
+              className="h-8 bg-green-600 text-xs hover:bg-green-700"
             >
-              <Download className="mr-2 h-4 w-4" aria-hidden />
+              <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden />
               {exportando ? "Exportando..." : "Descargar Excel"}
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-500 py-8 text-center">Cargando…</p>
+          <p className="text-xs text-slate-500 py-6 text-center">Cargando…</p>
         ) : error ? (
-          <p className="text-sm text-red-600 py-8 text-center">{error}</p>
+          <p className="text-xs text-red-600 py-6 text-center">{error}</p>
         ) : filtrados.length === 0 ? (
-          <p className="text-sm text-slate-500 py-8 text-center">
+          <p className="text-xs text-slate-500 py-6 text-center">
             No hay órdenes para mostrar.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
-            <table className="w-full min-w-[960px] text-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full table-auto text-[11px] leading-snug sm:text-xs">
               <thead className="bg-slate-100 text-left text-slate-700">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Estado</th>
-                  <th className="px-4 py-3 font-semibold">OC</th>
-                  <th className="px-4 py-3 font-semibold">Proveedor</th>
-                  <th className="px-4 py-3 font-semibold">Fecha creación</th>
-                  <th className="px-4 py-3 font-semibold">Fecha prometida</th>
-                  <th className="px-4 py-3 font-semibold">Fecha entrega</th>
-                  <th className="px-4 py-3 font-semibold">Artículo</th>
-                  <th className="px-4 py-3 font-semibold text-right">Cantidad</th>
-                  <th className="px-4 py-3 font-semibold text-right">
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Estado</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">OC</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">PIC</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Proveedor</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">F. creación</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">F. prometida</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">F. entrega</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Artículo</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">Cantidad</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">
                     Cant. entregada
                   </th>
-                  <th className="px-4 py-3 font-semibold text-right">
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">
                     Cant. pendiente
                   </th>
                 </tr>
@@ -449,10 +460,10 @@ export function ConsultaOrdenesCompra() {
                     key={row.key}
                     className="border-t border-gray-100 hover:bg-slate-50/80"
                   >
-                    <td className="px-4 py-3">
+                    <td className="whitespace-nowrap px-2 py-1">
                       {getEstadoBadge(row.estado)}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
+                    <td className="whitespace-nowrap px-2 py-1 tabular-nums text-slate-700">
                       {row.ordenId && row.noc ? (
                         <Link
                           href={getVerOrdenCompraUrl(row.ordenId)}
@@ -464,26 +475,55 @@ export function ConsultaOrdenesCompra() {
                         row.noc || "—"
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-800">
+                    <td className="whitespace-nowrap px-2 py-1 tabular-nums text-slate-700">
+                      {(() => {
+                        const picUrl = row.articuloId
+                          ? getComparativaPedidoUrl(row.articuloId, {
+                              ordenCompraId: row.ordenId || undefined,
+                              ordenCompraNoc: row.noc || undefined,
+                            })
+                          : null;
+                        if (picUrl && row.pic && row.pic !== "—") {
+                          return (
+                            <Link
+                              href={picUrl}
+                              className="font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900"
+                            >
+                              {row.pic}
+                            </Link>
+                          );
+                        }
+                        return row.pic || "—";
+                      })()}
+                    </td>
+                    <td
+                      className="max-w-[10rem] truncate px-2 py-1 text-slate-800"
+                      title={row.proveedor || undefined}
+                    >
                       {row.proveedor || "—"}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-600">
+                    <td className="whitespace-nowrap px-2 py-1 tabular-nums text-slate-600">
                       {row.fechaCreacion}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-600">
+                    <td className="whitespace-nowrap px-2 py-1 tabular-nums text-slate-600">
                       {row.fechaPrometida}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-600">
+                    <td className="whitespace-nowrap px-2 py-1 tabular-nums text-slate-600">
                       {row.fechaEntrega}
                     </td>
-                    <td className="px-4 py-3 text-slate-800">{row.articulo}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-800">
+                    <td
+                      className="max-w-[14rem] truncate px-2 py-1 text-slate-800"
+                      title={row.articulo}
+                    >
+                      {row.articulo}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-slate-800">
                       {formatCantidad(row.cantidad)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
+                    <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-emerald-700">
                       {formatCantidad(row.cantidadEntregada)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-amber-700">
+                    <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-amber-700">
                       {formatCantidad(row.cantidadPendiente)}
                     </td>
                   </tr>
@@ -491,16 +531,16 @@ export function ConsultaOrdenesCompra() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold text-slate-800">
-                  <td className="px-4 py-3" colSpan={7}>
+                  <td className="px-2 py-1.5" colSpan={8}>
                     Totales ({filtrados.length} filas)
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
+                  <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
                     {formatCantidad(totales.cantidad)}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
+                  <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-emerald-700">
                     {formatCantidad(totales.entregada)}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-amber-700">
+                  <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-amber-700">
                     {formatCantidad(totales.pendiente)}
                   </td>
                 </tr>

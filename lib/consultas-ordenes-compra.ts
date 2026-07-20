@@ -4,6 +4,10 @@ import {
   getFechasEntregaEventos,
 } from "@/lib/ordenes-compra-entregas";
 import { ordenEnRangoFechas } from "@/lib/indicadores-compras";
+import {
+  extractPicDisplayNumber,
+  parsePicFromArticuloId,
+} from "@/lib/pic-links";
 
 export type ArticuloOrdenConsultaOc = {
   articulo_id?: string | null;
@@ -27,6 +31,8 @@ export type ConsultaOrdenCompraFila = {
   key: string;
   ordenId: string;
   noc: string;
+  pic: string;
+  articuloId: string;
   estado: string;
   proveedor: string;
   fechaCreacion: string;
@@ -38,6 +44,13 @@ export type ConsultaOrdenCompraFila = {
   cantidadEntregada: number;
   cantidadPendiente: number;
 };
+
+function resolvePicDisplay(articuloId: string): string {
+  const parsed = parsePicFromArticuloId(articuloId);
+  if (parsed.tipo === "sin-pic") return "Sin PIC";
+  if (parsed.tipo === "otro" || !parsed.pedidoId) return "—";
+  return extractPicDisplayNumber(articuloId);
+}
 
 function fechaCreacionRaw(orden: OrdenCompraConsultaOc): string {
   const fecha = String(orden.fecha ?? "").trim();
@@ -93,6 +106,8 @@ export function aplanarConsultaOrdenesCompra(
         key: `${ordenId || noc || "sin-oc"}|sin-articulo`,
         ordenId,
         noc,
+        pic: "—",
+        articuloId: "",
         estado,
         proveedor,
         fechaCreacion,
@@ -109,9 +124,10 @@ export function aplanarConsultaOrdenesCompra(
 
     articulos.forEach((item, index) => {
       const cantidad = Number(item.cantidad) || 0;
+      const articuloId = String(item.articulo_id ?? "").trim();
       const { entregadas, pendientes } = getCantidadesEntregaArticulo(
         orden.entregas,
-        String(item.articulo_id ?? "").trim(),
+        articuloId,
         index,
         cantidad
       );
@@ -120,6 +136,8 @@ export function aplanarConsultaOrdenesCompra(
         key: `${ordenId || noc || "sin-oc"}|${index}|${item.articulo_id ?? item.articulo_nombre ?? index}`,
         ordenId,
         noc,
+        pic: resolvePicDisplay(articuloId),
+        articuloId,
         estado,
         proveedor,
         fechaCreacion,

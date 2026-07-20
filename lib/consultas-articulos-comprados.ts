@@ -67,7 +67,12 @@ export type ArticuloCompradoResumen = {
   cantidadComprada: number;
   cantidadEntregada: number;
   cantidadPendiente: number;
+  /** Precio unitario de lista (sin descuento). */
   costoUnitario: number;
+  /** Descuento % aplicado en la línea. */
+  descuento: number;
+  /** Precio unitario luego del descuento. */
+  precioConDescuento: number;
   total: number;
   divisa: DivisaIndicador;
 };
@@ -126,6 +131,16 @@ function costoUnitarioLinea(item: ArticuloOrdenConsulta): number {
   return precio * (1 - descuento / 100);
 }
 
+function precioUnitarioLinea(item: ArticuloOrdenConsulta): number {
+  const precio = Number(item.precio_unitario);
+  if (Number.isFinite(precio) && precio >= 0) return precio;
+  return 0;
+}
+
+function descuentoLinea(item: ArticuloOrdenConsulta): number {
+  return Math.min(Math.max(Number(item.descuento) || 0, 0), 100);
+}
+
 function totalLinea(item: ArticuloOrdenConsulta, cantidad: number): number {
   const total = Number(item.total);
   if (Number.isFinite(total) && total !== 0) return total;
@@ -166,17 +181,26 @@ export function resumirArticulosComprados(
         cantidad
       );
       const total = totalLinea(item, cantidad);
+      const precioUnitario = precioUnitarioLinea(item);
+      const descuento = descuentoLinea(item);
+      const precioConDescuento = costoUnitarioLinea(item);
 
       const existing = map.get(key);
       if (existing) {
-        existing.cantidadComprada += cantidad;
+        const cantPrev = existing.cantidadComprada;
+        const cantNueva = cantPrev + cantidad;
+        existing.cantidadComprada = cantNueva;
         existing.cantidadEntregada += entregadas;
         existing.cantidadPendiente += pendientes;
         existing.total += total;
-        existing.costoUnitario =
-          existing.cantidadComprada > 0
-            ? existing.total / existing.cantidadComprada
-            : 0;
+        if (cantNueva > 0) {
+          existing.costoUnitario =
+            (existing.costoUnitario * cantPrev + precioUnitario * cantidad) /
+            cantNueva;
+          existing.descuento =
+            (existing.descuento * cantPrev + descuento * cantidad) / cantNueva;
+          existing.precioConDescuento = existing.total / cantNueva;
+        }
         if (!existing.codint && item.codint) {
           existing.codint = String(item.codint).trim();
         }
@@ -216,8 +240,10 @@ export function resumirArticulosComprados(
         cantidadComprada: cantidad,
         cantidadEntregada: entregadas,
         cantidadPendiente: pendientes,
-        costoUnitario:
-          cantidad > 0 ? total / cantidad : costoUnitarioLinea(item),
+        costoUnitario: precioUnitario,
+        descuento,
+        precioConDescuento:
+          cantidad > 0 ? total / cantidad : precioConDescuento,
         total,
         divisa,
       });
@@ -233,7 +259,7 @@ export function resumirArticulosComprados(
   });
 }
 
-/** Convierte costo unitario y total a ARS con el mismo criterio de indicadores. */
+/** Convierte importes de moneda a ARS; el descuento % se conserva. */
 export function convertirArticulosCompradosAArs(
   rows: ArticuloCompradoResumen[],
   tiposCambio: TiposCambioIndicador
@@ -245,11 +271,17 @@ export function convertirArticulosCompradosAArs(
       row.divisa,
       tiposCambio
     );
+    const precioConDescuento = convertirImporteAArs(
+      row.precioConDescuento,
+      row.divisa,
+      tiposCambio
+    );
 
     return {
       ...row,
       key: `${row.key}|ARS`,
       costoUnitario,
+      precioConDescuento,
       total,
       divisa: "ARS",
     };
