@@ -176,11 +176,14 @@ export const canAccessUsuarios = (
   isFinanzasEmail(email, rol) ||
   isAprobEmail(email, rol);
 
-/** Admin y aprobadores pueden acceder al módulo de consultas. */
+/** Admin, finanzas y aprobadores pueden acceder al módulo de consultas. */
 export const canAccessConsultas = (
   email?: string | null,
   rol?: string | null,
-) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+) =>
+  isAdminEmail(email, rol) ||
+  isFinanzasEmail(email, rol) ||
+  isAprobEmail(email, rol);
 
 export const canAccessModuloCompras = (
   email?: string | null,

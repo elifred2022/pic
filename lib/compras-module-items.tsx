@@ -141,6 +141,7 @@ export const finanzasComprasModuleItems: ComprasModuleItem[] = [
       "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
   },
   indicadoresComprasItem,
+  consultasItem,
 ];
 
 export const panolComprasModuleItems: ComprasModuleItem[] = [
