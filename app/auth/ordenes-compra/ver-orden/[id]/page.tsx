@@ -1894,15 +1894,19 @@ export default function VerOrdenCompraPage() {
       return;
     }
 
-    if (!entregaFile) {
+    // Admin puede registrar recepción sin adjunto; el resto debe cargar documento.
+    if (!entregaFile && !canEdit) {
       setEntregaError("Adjunte el documento escaneado (PDF, JPG o PNG).");
       return;
     }
 
-    const fileExt = entregaFile.name.split(".").pop()?.toLowerCase() || "";
-    if (!/^(pdf|jpg|jpeg|png)$/i.test(fileExt)) {
-      setEntregaError("Formato no permitido. Use PDF, JPG o PNG.");
-      return;
+    let fileExt = "";
+    if (entregaFile) {
+      fileExt = entregaFile.name.split(".").pop()?.toLowerCase() || "";
+      if (!/^(pdf|jpg|jpeg|png)$/i.test(fileExt)) {
+        setEntregaError("Formato no permitido. Use PDF, JPG o PNG.");
+        return;
+      }
     }
 
     const items: EntregaItemCantidad[] = [];
@@ -1972,22 +1976,25 @@ export default function VerOrdenCompraPage() {
         articulosBase
       );
 
-      const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
-      const contentType =
-        fileExt === "pdf"
-          ? "application/pdf"
-          : entregaFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+      let storagePath = "";
+      if (entregaFile) {
+        storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
+        const contentType =
+          fileExt === "pdf"
+            ? "application/pdf"
+            : entregaFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from(getFactComprasBucket())
-        .upload(storagePath, entregaFile, {
-          upsert: false,
-          contentType,
-        });
+        const { error: uploadError } = await supabase.storage
+          .from(getFactComprasBucket())
+          .upload(storagePath, entregaFile, {
+            upsert: false,
+            contentType,
+          });
 
-      if (uploadError) {
-        setEntregaError(`No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`);
-        return;
+        if (uploadError) {
+          setEntregaError(`No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`);
+          return;
+        }
       }
 
       const facturasExistentes = parseFacturasFromOrden({
@@ -1995,9 +2002,9 @@ export default function VerOrdenCompraPage() {
         fact_path: ordenDb.fact_path ?? orden.fact_path,
       }).filter((f) => f.fc !== null && f.path) as { fc: number; path: string }[];
 
-      // Acumular: no reemplazar facturas previas (aunque sea el mismo FC)
+      // Acumular facturas solo si hay FC y documento adjunto
       const facturasMerged =
-        fcNumero !== null
+        fcNumero !== null && storagePath
           ? [...facturasExistentes, { fc: fcNumero, path: storagePath }]
           : facturasExistentes;
       const facturasPayload = buildFacturasUpdatePayload(orden, facturasMerged);
@@ -2037,17 +2044,21 @@ export default function VerOrdenCompraPage() {
 
       if (updateError) {
         setEntregaError(
-          `El documento se subió, pero no se guardó la entrega: ${getSupabaseErrorMessage(updateError)}`
+          storagePath
+            ? `El documento se subió, pero no se guardó la entrega: ${getSupabaseErrorMessage(updateError)}`
+            : `No se pudo guardar la entrega: ${getSupabaseErrorMessage(updateError)}`
         );
         return;
       }
 
-      const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
-      const viewUrl =
-        (await getFacturaViewUrl(supabase, storagePath)) ??
-        getFacturaPublicUrl(storagePath);
-      if (viewUrl) {
-        setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+      if (storagePath) {
+        const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
+        const viewUrl =
+          (await getFacturaViewUrl(supabase, storagePath)) ??
+          getFacturaPublicUrl(storagePath);
+        if (viewUrl) {
+          setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+        }
       }
 
       setOrden((prev) =>
@@ -3876,7 +3887,9 @@ export default function VerOrdenCompraPage() {
             </p>
 
             <div className="mb-4">
-              <Label htmlFor="entrega-archivo">Documento adjunto (PDF, JPG, PNG) *</Label>
+              <Label htmlFor="entrega-archivo">
+                Documento adjunto (PDF, JPG, PNG){canEdit ? "" : " *"}
+              </Label>
               <Input
                 id="entrega-archivo"
                 type="file"
@@ -3888,11 +3901,15 @@ export default function VerOrdenCompraPage() {
                 }}
                 className="mt-1"
               />
-              {entregaFile && (
+              {entregaFile ? (
                 <p className="text-sm text-gray-600 mt-1">
                   Archivo: {entregaFile.name}
                 </p>
-              )}
+              ) : canEdit ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Opcional para administradores: puede registrar la recepción sin adjunto.
+                </p>
+              ) : null}
             </div>
 
             {(() => {
