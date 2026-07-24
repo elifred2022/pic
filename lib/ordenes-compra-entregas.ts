@@ -1,5 +1,10 @@
 /** Helpers de entregas en órdenes de compra (formato eventos + legacy). */
 
+/** Normaliza articulo_id para comparar (evita fallos por espacios en el nombre embebido). */
+export function normalizeArticuloId(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
 type EntregaItemCantidad = {
   articulo_id: string;
   cantidad_entregada: number;
@@ -31,7 +36,7 @@ function parseEntregaRegistro(value: unknown): EntregaRegistro | null {
     .map((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return null;
       const row = item as Record<string, unknown>;
-      const articuloId = String(row.articulo_id ?? "").trim();
+      const articuloId = normalizeArticuloId(row.articulo_id);
       const cant = Number(row.cantidad_entregada ?? row.entregadas ?? 0);
       if (!articuloId || !Number.isFinite(cant) || cant <= 0) return null;
       return { articulo_id: articuloId, cantidad_entregada: cant };
@@ -93,14 +98,19 @@ function getEntregadasAgregadas(
   if (!Array.isArray(entregas) || entregas.length === 0) return 0;
 
   if (isEntregaRegistro(entregas[0])) {
+    const idNorm = normalizeArticuloId(articuloId);
     let sum = 0;
     for (const raw of entregas) {
       const reg = parseEntregaRegistro(raw);
       if (!reg || reg.anulado) continue;
-      const byId = reg.items.find((item) => item.articulo_id === articuloId);
-      if (byId) {
-        sum += byId.cantidad_entregada;
-      } else if (!articuloId && reg.items[index]) {
+      let matched = false;
+      for (const item of reg.items) {
+        if (normalizeArticuloId(item.articulo_id) === idNorm) {
+          sum += item.cantidad_entregada;
+          matched = true;
+        }
+      }
+      if (!matched && !idNorm && reg.items[index]) {
         sum += reg.items[index].cantidad_entregada;
       }
     }

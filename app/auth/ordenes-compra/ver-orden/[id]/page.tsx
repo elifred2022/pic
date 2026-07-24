@@ -547,6 +547,11 @@ function toEntregaRegistrosPreserving(
   ];
 }
 
+/** Normaliza articulo_id para comparar (espacios en nombres embebidos, ej. "TAMIZ 0.5MM "). */
+function normalizeArticuloId(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
 function getEntregadasAgregadas(
   entregas: unknown,
   articuloId: string,
@@ -555,14 +560,19 @@ function getEntregadasAgregadas(
   if (!Array.isArray(entregas) || entregas.length === 0) return 0;
 
   if (isEntregaRegistro(entregas[0])) {
+    const idNorm = normalizeArticuloId(articuloId);
     let sum = 0;
     for (const raw of entregas) {
       const reg = parseEntregaRegistro(raw);
       if (!reg || reg.anulado) continue;
-      const byId = reg.items.find((item) => item.articulo_id === articuloId);
-      if (byId) {
-        sum += byId.cantidad_entregada;
-      } else if (!articuloId && reg.items[index]) {
+      let matched = false;
+      for (const item of reg.items) {
+        if (normalizeArticuloId(item.articulo_id) === idNorm) {
+          sum += item.cantidad_entregada;
+          matched = true;
+        }
+      }
+      if (!matched && !idNorm && reg.items[index]) {
         sum += reg.items[index].cantidad_entregada;
       }
     }
@@ -636,12 +646,17 @@ function getDevueltasAgregadas(
   articuloId: string
 ): number {
   if (!Array.isArray(devoluciones) || devoluciones.length === 0) return 0;
+  const idNorm = normalizeArticuloId(articuloId);
+  if (!idNorm) return 0;
   let sum = 0;
   for (const raw of devoluciones) {
     const reg = parseDevolucionRegistro(raw);
     if (!reg || reg.anulado) continue;
-    const byId = reg.items.find((item) => item.articulo_id === articuloId);
-    if (byId) sum += byId.cantidad_devuelta;
+    for (const item of reg.items) {
+      if (normalizeArticuloId(item.articulo_id) === idNorm) {
+        sum += item.cantidad_devuelta;
+      }
+    }
   }
   return sum;
 }
@@ -828,10 +843,14 @@ function buildEntregasFromArticulos(
   const prevArray = Array.isArray(entregasPrevias) ? entregasPrevias : [];
 
   if (prevArray.length > 0 && isEntregaRegistro(prevArray[0])) {
-    const ids = new Set(articulos.map((art) => art.articulo_id).filter(Boolean));
+    const ids = new Set(
+      articulos.map((art) => normalizeArticuloId(art.articulo_id)).filter(Boolean)
+    );
     return normalizeEntregasToRegistros(prevArray).map((reg) => ({
       ...reg,
-      items: reg.items.filter((item) => ids.has(item.articulo_id)),
+      items: reg.items.filter((item) =>
+        ids.has(normalizeArticuloId(item.articulo_id))
+      ),
     }));
   }
 
@@ -1712,7 +1731,7 @@ export default function VerOrdenCompraPage() {
       }
 
       items.push({
-        articulo_id: art.articulo_id,
+        articulo_id: normalizeArticuloId(art.articulo_id),
         cantidad_devuelta: cant,
       });
     }
@@ -1936,7 +1955,7 @@ export default function VerOrdenCompraPage() {
       }
 
       items.push({
-        articulo_id: art.articulo_id,
+        articulo_id: normalizeArticuloId(art.articulo_id),
         cantidad_entregada: cant,
       });
     }
@@ -4073,7 +4092,7 @@ export default function VerOrdenCompraPage() {
               );
               const nombrePorId = new Map(
                 (orden.articulos || []).map((art) => [
-                  art.articulo_id,
+                  normalizeArticuloId(art.articulo_id),
                   art.articulo_nombre,
                 ])
               );
@@ -4269,8 +4288,9 @@ export default function VerOrdenCompraPage() {
                                           : "text-gray-800"
                                       }`}
                                     >
-                                      {nombrePorId.get(item.articulo_id) ||
-                                        item.articulo_id}
+                                      {nombrePorId.get(
+                                        normalizeArticuloId(item.articulo_id)
+                                      ) || item.articulo_id}
                                     </td>
                                     <td
                                       className={`py-1.5 text-right font-medium ${
@@ -4527,7 +4547,7 @@ export default function VerOrdenCompraPage() {
               const registros = normalizeDevolucionesToRegistros(orden.devoluciones);
               const nombrePorId = new Map(
                 (orden.articulos || []).map((art) => [
-                  art.articulo_id,
+                  normalizeArticuloId(art.articulo_id),
                   art.articulo_nombre,
                 ])
               );
@@ -4724,8 +4744,9 @@ export default function VerOrdenCompraPage() {
                                           : "text-gray-800"
                                       }`}
                                     >
-                                      {nombrePorId.get(item.articulo_id) ||
-                                        item.articulo_id}
+                                      {nombrePorId.get(
+                                        normalizeArticuloId(item.articulo_id)
+                                      ) || item.articulo_id}
                                     </td>
                                     <td
                                       className={`py-1.5 text-right font-medium ${

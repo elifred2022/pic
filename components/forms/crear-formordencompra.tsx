@@ -372,7 +372,7 @@ export function CrearFormOrdenCompra() {
       // Procesar artículos de pedidos productivos
       const articulosProductivosProcesados = articulosProductivosData?.flatMap(pedido => 
         pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
-          id: `productivo-${pedido.id}-${index}-${articulo.articulo}`,
+          id: `productivo-${pedido.id}-${index}-${String(articulo.articulo ?? "").trim()}`,
           pedido_id: pedido.id, // ID del pedido original
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
@@ -394,7 +394,7 @@ export function CrearFormOrdenCompra() {
       // Procesar artículos de pedidos generales (tabla pic)
       const articulosGeneralesProcesados = articulosGeneralesData?.flatMap(pedido => 
         pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
-          id: `general-${pedido.id}-${index}-${articulo.articulo}`,
+          id: `general-${pedido.id}-${index}-${String(articulo.articulo ?? "").trim()}`,
           pedido_id: pedido.id, // ID del pedido original
           articulo: articulo.articulo,
           descripcion: articulo.descripcion,
@@ -526,7 +526,7 @@ export function CrearFormOrdenCompra() {
 
     const nuevoItem: ItemOrden = {
       articulo_id: articulo.id,
-      articulo_nombre: articulo.articulo,
+      articulo_nombre: String(articulo.articulo ?? "").trim(),
       articulo_db_id: catalogo.articulo_db_id,
       codint: articulo.codint ?? null,
       descripcion: articulo.descripcion?.trim() || null,
