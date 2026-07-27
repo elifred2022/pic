@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 type OrdenProduccion = {
   id: string;
@@ -70,7 +70,7 @@ function ResumenOrden({
   );
 }
 
-export default function OrdenesProduccionMobileList({
+function OrdenesProduccionMobileList({
   ordenes,
   selectedId,
   onSelect,
@@ -196,9 +196,31 @@ export default function OrdenesProduccionMobileList({
           }}
           className="w-full text-left p-4 bg-white active:bg-blue-50 touch-manipulation transition-colors cursor-pointer"
         >
-          <ResumenOrden orden={orden} renderValue={renderValue} renderObraCell={renderObraCell} />
+          {/* Lista compacta: texto plano (sin ObraConObservaciones) para no re-montar formularios pesados al filtrar */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Nº Carpeta</span>
+              <p className="text-base font-bold text-gray-900 mt-0.5 break-words">{renderValue(orden.num_carpeta)}</p>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Mes</span>
+              <p className="text-sm font-semibold text-gray-800 mt-0.5">{renderValue(orden.mes)}</p>
+            </div>
+            <div className="col-span-2">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Obra</span>
+              <p className="text-sm font-semibold text-gray-800 mt-0.5 break-words">{renderValue(orden.obra)}</p>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Semana</span>
+              <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                {orden.semana ? `Semana ${orden.semana}` : "-"}
+              </p>
+            </div>
+          </div>
         </div>
       ))}
     </div>
   );
 }
+
+export default memo(OrdenesProduccionMobileList);

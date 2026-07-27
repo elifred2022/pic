@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
@@ -291,6 +297,71 @@ type OrdenProduccion = {
   observaciones?: string | null;
   observaciones_iniciales?: string | null;
 };
+
+/** Campos ligeros indexables para búsqueda (evita serializar estado_obra / URLs). */
+function buildOrdenSearchHaystack(orden: OrdenProduccion): string {
+  return [orden.num_carpeta, orden.obra, orden.mes, orden.semana, orden.alertas]
+    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+    .join("\0")
+    .toLowerCase();
+}
+
+/**
+ * Input controlado con estado local: al tipear solo re-renderiza este nodo.
+ * El padre recibe el valor con debounce + startTransition para no bloquear el teclado.
+ */
+function DebouncedSearchInput({
+  onDebouncedChange,
+  delayMs = 280,
+  placeholder,
+  className,
+  defaultValue = "",
+}: {
+  onDebouncedChange: (value: string) => void;
+  delayMs?: number;
+  placeholder?: string;
+  className?: string;
+  defaultValue?: string;
+}) {
+  const [value, setValue] = useState(defaultValue);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      startTransition(() => {
+        onDebouncedChange(value);
+      });
+    }, delayMs);
+    return () => window.clearTimeout(id);
+  }, [value, delayMs, onDebouncedChange]);
+
+  return (
+    <input
+      type="text"
+      inputMode="search"
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      className={className}
+    />
+  );
+}
+
+function useIsDesktopViewport(minWidthPx = 1024): boolean | null {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${minWidthPx}px)`);
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [minWidthPx]);
+
+  return isDesktop;
+}
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -868,6 +939,10 @@ export default function ListOrdenesProduccion() {
   const [fechaHasta, setFechaHasta] = useState("");
   const [ordenes, setOrdenes] = useState<OrdenProduccion[]>([]);
   const [loading, setLoading] = useState(true);
+  const isDesktopViewport = useIsDesktopViewport(1024);
+  const onSearchDebounced = useCallback((value: string) => {
+    setSearch(value);
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [editingOrden, setEditingOrden] = useState<OrdenProduccion | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -2137,25 +2212,31 @@ export default function ListOrdenesProduccion() {
     return String(value);
   }
 
-  const filteredOrdenes = ordenes.filter((orden) => {
+  const ordenSearchIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const orden of ordenes) {
+      map.set(orden.id, buildOrdenSearchHaystack(orden));
+    }
+    return map;
+  }, [ordenes]);
+
+  const filteredOrdenes = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (s) {
-      const matchSearch = Object.entries(orden).some(([key, value]) => {
-        if (key === "usuario_id") return false;
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(s);
-      });
-      if (!matchSearch) return false;
-    }
-    if (fechaDesde || fechaHasta) {
-      const created = orden.created_at ? new Date(orden.created_at) : null;
-      if (!created) return false;
-      const fecha = created.toISOString().slice(0, 10);
-      if (fechaDesde && fecha < fechaDesde) return false;
-      if (fechaHasta && fecha > fechaHasta) return false;
-    }
-    return true;
-  });
+    return ordenes.filter((orden) => {
+      if (s) {
+        const haystack = ordenSearchIndex.get(orden.id) ?? "";
+        if (!haystack.includes(s)) return false;
+      }
+      if (fechaDesde || fechaHasta) {
+        const created = orden.created_at ? new Date(orden.created_at) : null;
+        if (!created) return false;
+        const fecha = created.toISOString().slice(0, 10);
+        if (fechaDesde && fecha < fechaDesde) return false;
+        if (fechaHasta && fecha > fechaHasta) return false;
+      }
+      return true;
+    });
+  }, [ordenes, search, fechaDesde, fechaHasta, ordenSearchIndex]);
 
   const estadoObraTipologiasFiltradas = estadoObraTipologias
     .map((tipologia, idx) => ({ tipologia, idx }))
@@ -2339,11 +2420,9 @@ export default function ListOrdenesProduccion() {
               ➕ Nueva obra
             </button>
           )}
-          <input
-            type="text"
+          <DebouncedSearchInput
             placeholder="🔍 Buscar por carpeta, obra, mes, semana..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onDebouncedChange={onSearchDebounced}
             className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full sm:max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-h-[48px]"
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -3270,155 +3349,160 @@ export default function ListOrdenesProduccion() {
       )}
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <OrdenesProduccionMobileList
-          ordenes={filteredOrdenes}
-          selectedId={selectedMobileOrdenId}
-          onSelect={selectMobileOrden}
-          onClearSelection={() => setSelectedMobileOrdenId(null)}
-          renderValue={renderValue}
-          formatDate={formatDate}
-          showAccionesColumn={showAccionesColumn}
-          isTabletUser={isTabletEmail(userEmail, userRol)}
-          mobileBtnBase={mobileBtnBase}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onOpenEstado={handleOpenEstadoObra}
-          renderProgress={renderArticulosProgress}
-          renderImagenButtons={(orden) => renderOrdenImagenButtons(orden, true)}
-          estadoSummary={(orden) => formatEstadoObraSummary(parseEstadoObra(orden.estado_obra))}
-          renderObraCell={(orden) => (
-            <ObraConObservaciones
-              orden={orden}
-              canEdit={canEditObservaciones && !soloVista}
-              canDelete={canDeleteObservaciones && !soloVista}
-              onSave={handleSaveObservaciones}
-              onDelete={handleDeleteObservacion}
-              renderValue={renderValue}
-            />
-          )}
-        />
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="min-w-full table-auto border-collapse">
-            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-            <tr>
-              {showAccionesColumn && <th className={headerClass}>Acciones</th>}
-              <th className={headerClass}>Fecha</th>
-              <th className={headerClass}>Nº Carpeta</th>
-              <th className={headerClass}>Obra</th>
-              <th className={headerClass}>Mes</th>
-              <th className={headerClass}>Semana</th>
-              <th className={headerClass}>Alertas</th>
-              <th className={headerClass}>Estado de obra</th>
-              <th className={headerClass}>Imagen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrdenes.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={showAccionesColumn ? 9 : 8}
-                  className="px-4 py-8 text-center text-gray-500"
-                >
-                  No hay órdenes de producción registradas.
-                </td>
-              </tr>
-            ) : (
-              filteredOrdenes.map((orden) => (
-                <tr key={orden.id} className="hover:bg-gray-50 transition-colors duration-200">
-                  {showAccionesColumn && (
-                    <td className={cellClass}>
-                      <div className="flex flex-col gap-2 items-center">
-                        {!sinGestionCarpetaExcel && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(orden)}
-                              className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(orden)}
-                              className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                            >
-                              🗑️ Eliminar
-                            </button>
-                          </>
-                        )}
-                        {(() => {
-                          const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
-                          if (total === 0) return null;
-                          return (
-                            <div className="w-full min-w-[80px] mt-1">
-                              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
-                                <span>Artículos terminados</span>
-                                <span>{percent}%</span>
-                              </div>
-                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500 transition-all duration-300 ease-out"
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-400">{completed}/{total}</span>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </td>
-                  )}
-                  <td className={cellClass}>{formatDate(orden.created_at)}</td>
-                  <td className={cellClass}>
-                    {renderValue(orden.num_carpeta)}
-                  </td>
-                  <td className={cellClass}>
-                    <ObraConObservaciones
-                      orden={orden}
-                      canEdit={canEditObservaciones && !soloVista}
-                      canDelete={canDeleteObservaciones && !soloVista}
-                      onSave={handleSaveObservaciones}
-                      onDelete={handleDeleteObservacion}
-                      renderValue={renderValue}
-                    />
-                  </td>
-                  <td className={cellClass}>{renderValue(orden.mes)}</td>
-                  <td className={cellClass}>{renderValue(orden.semana)}</td>
-                  <td className={cellClass}>
-                    {orden.alertas ? (
-                      <span className="text-red-600 font-medium">{renderValue(orden.alertas)}</span>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className={cellClass}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEstadoObra(orden)}
-                      className="inline-block px-3 py-2 bg-amber-500 text-white font-medium rounded-lg shadow-md hover:bg-amber-600 transition-all duration-200 text-sm"
-                      title="Estado de obra"
-                    >
-                      📋 Estado
-                    </button>
-                    {(() => {
-                      const data = parseEstadoObra(orden.estado_obra);
-                      const summary = formatEstadoObraSummary(data);
-                      return summary ? (
-                        <span className="ml-1 text-xs text-gray-500 block mt-1" title={summary}>
-                          {summary.length > 50 ? `${summary.slice(0, 47)}...` : summary}
-                        </span>
-                      ) : null;
-                    })()}
-                  </td>
-                  <td className={cellClass}>
-                    {renderOrdenImagenButtons(orden, false)}
-                  </td>
-                </tr>
-              ))
+        {isDesktopViewport == null ? (
+          <p className="px-4 py-10 text-center text-gray-400 text-sm">Cargando lista…</p>
+        ) : !isDesktopViewport ? (
+          <OrdenesProduccionMobileList
+            ordenes={filteredOrdenes}
+            selectedId={selectedMobileOrdenId}
+            onSelect={selectMobileOrden}
+            onClearSelection={() => setSelectedMobileOrdenId(null)}
+            renderValue={renderValue}
+            formatDate={formatDate}
+            showAccionesColumn={showAccionesColumn}
+            isTabletUser={isTabletEmail(userEmail, userRol)}
+            mobileBtnBase={mobileBtnBase}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onOpenEstado={handleOpenEstadoObra}
+            renderProgress={renderArticulosProgress}
+            renderImagenButtons={(orden) => renderOrdenImagenButtons(orden, true)}
+            estadoSummary={(orden) => formatEstadoObraSummary(parseEstadoObra(orden.estado_obra))}
+            renderObraCell={(orden) => (
+              <ObraConObservaciones
+                orden={orden}
+                canEdit={canEditObservaciones && !soloVista}
+                canDelete={canDeleteObservaciones && !soloVista}
+                onSave={handleSaveObservaciones}
+                onDelete={handleDeleteObservacion}
+                renderValue={renderValue}
+              />
             )}
-          </tbody>
-        </table>
-        </div>
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto border-collapse">
+              <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                <tr>
+                  {showAccionesColumn && <th className={headerClass}>Acciones</th>}
+                  <th className={headerClass}>Fecha</th>
+                  <th className={headerClass}>Nº Carpeta</th>
+                  <th className={headerClass}>Obra</th>
+                  <th className={headerClass}>Mes</th>
+                  <th className={headerClass}>Semana</th>
+                  <th className={headerClass}>Alertas</th>
+                  <th className={headerClass}>Estado de obra</th>
+                  <th className={headerClass}>Imagen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrdenes.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={showAccionesColumn ? 9 : 8}
+                      className="px-4 py-8 text-center text-gray-500"
+                    >
+                      No hay órdenes de producción registradas.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrdenes.map((orden) => (
+                    <tr key={orden.id} className="hover:bg-gray-50 transition-colors duration-200">
+                      {showAccionesColumn && (
+                        <td className={cellClass}>
+                          <div className="flex flex-col gap-2 items-center">
+                            {!sinGestionCarpetaExcel && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(orden)}
+                                  className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                                >
+                                  ✏️ Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(orden)}
+                                  className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                                >
+                                  🗑️ Eliminar
+                                </button>
+                              </>
+                            )}
+                            {(() => {
+                              const { completed, total, percent } = getArticulosTerminadosProgress(orden.estado_obra);
+                              if (total === 0) return null;
+                              return (
+                                <div className="w-full min-w-[80px] mt-1">
+                                  <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                                    <span>Artículos terminados</span>
+                                    <span>{percent}%</span>
+                                  </div>
+                                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+                                      style={{ width: `${percent}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400">{completed}/{total}</span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      )}
+                      <td className={cellClass}>{formatDate(orden.created_at)}</td>
+                      <td className={cellClass}>
+                        {renderValue(orden.num_carpeta)}
+                      </td>
+                      <td className={cellClass}>
+                        <ObraConObservaciones
+                          orden={orden}
+                          canEdit={canEditObservaciones && !soloVista}
+                          canDelete={canDeleteObservaciones && !soloVista}
+                          onSave={handleSaveObservaciones}
+                          onDelete={handleDeleteObservacion}
+                          renderValue={renderValue}
+                        />
+                      </td>
+                      <td className={cellClass}>{renderValue(orden.mes)}</td>
+                      <td className={cellClass}>{renderValue(orden.semana)}</td>
+                      <td className={cellClass}>
+                        {orden.alertas ? (
+                          <span className="text-red-600 font-medium">{renderValue(orden.alertas)}</span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className={cellClass}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEstadoObra(orden)}
+                          className="inline-block px-3 py-2 bg-amber-500 text-white font-medium rounded-lg shadow-md hover:bg-amber-600 transition-all duration-200 text-sm"
+                          title="Estado de obra"
+                        >
+                          📋 Estado
+                        </button>
+                        {(() => {
+                          const data = parseEstadoObra(orden.estado_obra);
+                          const summary = formatEstadoObraSummary(data);
+                          return summary ? (
+                            <span className="ml-1 text-xs text-gray-500 block mt-1" title={summary}>
+                              {summary.length > 50 ? `${summary.slice(0, 47)}...` : summary}
+                            </span>
+                          ) : null;
+                        })()}
+                      </td>
+                      <td className={cellClass}>
+                        {renderOrdenImagenButtons(orden, false)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
