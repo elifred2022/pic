@@ -282,6 +282,8 @@ function formatEstadoObraSummary(data: EstadoObraConTipologias): string {
   return parts.join(" | ");
 }
 
+type ExcelPathItem = { url: string; name: string; path: string };
+
 type OrdenProduccion = {
   id: string;
   created_at: string;
@@ -292,6 +294,7 @@ type OrdenProduccion = {
   alertas: string | null;
   url_imagen: string | null;
   url_medicion?: string | null;
+  excel_path?: ExcelPathItem[] | string | null;
   usuario_id: string | null;
   estado_obra?: unknown;
   observaciones?: string | null;
@@ -383,6 +386,88 @@ function isAllowedUploadFile(file: File): boolean {
     file.type === "application/pdf" ||
     /^image\/(jpeg|jpg)$/i.test(file.type)
   );
+}
+
+function isAllowedExcelFile(file: File): boolean {
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
+  return (
+    /^(xlsx|xls)$/i.test(fileExt) ||
+    file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.type === "application/vnd.ms-excel"
+  );
+}
+
+function parseExcelPathItems(excelPath: unknown): ExcelPathItem[] {
+  if (excelPath == null) return [];
+  let arr: unknown = excelPath;
+  if (typeof excelPath === "string") {
+    const trimmed = excelPath.trim();
+    if (!trimmed) return [];
+    try {
+      arr = JSON.parse(trimmed);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((item, i) => {
+      if (typeof item === "object" && item !== null) {
+        const obj = item as { url?: unknown; name?: unknown; path?: unknown };
+        const url = typeof obj.url === "string" ? obj.url : "";
+        const path = typeof obj.path === "string" ? obj.path : "";
+        const name =
+          typeof obj.name === "string" && obj.name.trim()
+            ? obj.name
+            : path.split("/").pop() || url.split("/").pop()?.split("?")[0] || `Excel ${i + 1}`;
+        if (!url && !path) return null;
+        return { url: url || path, name, path: path || url };
+      }
+      if (typeof item === "string" && item.trim()) {
+        const s = item.trim();
+        return { url: s, name: s.split("/").pop()?.split("?")[0] || `Excel ${i + 1}`, path: s };
+      }
+      return null;
+    })
+    .filter((x): x is ExcelPathItem => x != null);
+}
+
+/** Abre el Excel en el visor online (pestaña del navegador) en lugar de descargarlo. */
+function getExcelBrowserViewUrl(fileUrl: string): string {
+  const trimmed = fileUrl.trim();
+  if (!trimmed) return trimmed;
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(trimmed)}`;
+}
+
+async function uploadExcelFile(
+  supabase: ReturnType<typeof createClient>,
+  file: File,
+  userId: string,
+  ordenId: string
+): Promise<{ item: ExcelPathItem | null; error: string | null }> {
+  if (!isAllowedExcelFile(file)) {
+    return { item: null, error: "Formato no permitido. Use .xlsx o .xls." };
+  }
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "xlsx";
+  const filePath = `${userId}/${ordenId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+  const contentType =
+    fileExt === "xls"
+      ? "application/vnd.ms-excel"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  const { error: uploadError } = await supabase.storage
+    .from("ordenes")
+    .upload(filePath, file, { upsert: false, contentType });
+
+  if (uploadError) {
+    return { item: null, error: `Error al subir "${file.name}": ${uploadError.message}` };
+  }
+
+  const { data: urlData } = supabase.storage.from("ordenes").getPublicUrl(filePath);
+  return {
+    item: { url: urlData.publicUrl, name: file.name, path: filePath },
+    error: null,
+  };
 }
 
 async function uploadImageFolder(
@@ -1302,9 +1387,14 @@ export default function ListOrdenesProduccion() {
     setShowEstadoObraModal(true);
     const { data: fresh } = await supabase
       .from("ordenes_produccion")
-      .select("estado_obra")
+      .select("estado_obra, excel_path")
       .eq("id", orden.id)
       .single();
+    if (fresh?.excel_path !== undefined) {
+      setEstadoObraOrden((prev) =>
+        prev && prev.id === orden.id ? { ...prev, excel_path: fresh.excel_path } : prev
+      );
+    }
     const session = buildEstadoObraCheckboxState(fresh?.estado_obra ?? orden.estado_obra);
     applyEstadoObraCheckboxSession(session);
     estadoObraAutoSaveReadyRef.current = true;
@@ -1323,15 +1413,59 @@ export default function ListOrdenesProduccion() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!estadoObraOrden) {
+      alert("No hay una orden seleccionada.");
+      return;
+    }
     setImportandoEstadoObra(true);
     try {
       const data = await file.arrayBuffer();
       const nuevas = parseEstadoObraExcelBuffer(data);
       setEstadoObraTipologias((prev) => [...prev, ...nuevas]);
-      if (nuevas.length > 0) {
-        alert(`Se agregaron ${nuevas.length} tipología(s) al proceso de producción. Haz clic en Actualizar para guardar.`);
+
+      let adjuntoMsg = "";
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        adjuntoMsg = "No se adjuntó el Excel: debes iniciar sesión.";
       } else {
-        alert(`No se encontraron filas con datos. ${describeExcelImportFormat()}`);
+        const { item, error: uploadError } = await uploadExcelFile(
+          supabase,
+          file,
+          user.id,
+          estadoObraOrden.id
+        );
+        if (uploadError || !item) {
+          adjuntoMsg = `No se pudo adjuntar el archivo: ${uploadError ?? "error desconocido"}`;
+        } else {
+          const nextExcelPath = [...parseExcelPathItems(estadoObraOrden.excel_path), item];
+          const baseQuery = supabase
+            .from("ordenes_produccion")
+            .update({ excel_path: nextExcelPath })
+            .eq("id", estadoObraOrden.id);
+          const finalQuery = canAccessOrdenesProduccion(user.email, userRol)
+            ? baseQuery
+            : baseQuery.eq("usuario_id", user.id);
+          const { error: updateError } = await finalQuery;
+          if (updateError) {
+            adjuntoMsg = `Se subió el archivo, pero no se pudo guardar excel_path: ${updateError.message}`;
+          } else {
+            adjuntoMsg = "Excel adjuntado correctamente.";
+            setEstadoObraOrden((prev) => (prev ? { ...prev, excel_path: nextExcelPath } : prev));
+            setOrdenes((prev) =>
+              prev.map((o) => (o.id === estadoObraOrden.id ? { ...o, excel_path: nextExcelPath } : o))
+            );
+          }
+        }
+      }
+
+      if (nuevas.length > 0) {
+        alert(
+          `Se agregaron ${nuevas.length} tipología(s) al proceso de producción. ${adjuntoMsg} Haz clic en Actualizar para guardar el estado.`
+        );
+      } else {
+        alert(`${adjuntoMsg} No se encontraron filas con datos. ${describeExcelImportFormat()}`);
       }
     } catch (ex) {
       console.error("Error al importar:", ex);
@@ -2558,7 +2692,9 @@ export default function ListOrdenesProduccion() {
             <p className="shrink-0 text-sm text-gray-500 mb-4">
               {estadoObraSoloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
-            {(canEditFullModalEnModal || estadoObraTipologias.length > 0) && (
+            {(canEditFullModalEnModal ||
+              estadoObraTipologias.length > 0 ||
+              parseExcelPathItems(estadoObraOrden.excel_path).length > 0) && (
               <div className="shrink-0 mb-4 pb-3 border-b border-gray-200 bg-white">
                 {canEditFullModalEnModal && (
                   <div className="flex flex-wrap gap-2 items-center">
@@ -2594,6 +2730,27 @@ export default function ListOrdenesProduccion() {
                   </div>
                 )}
                 {!canEditFullModalEnModal && estadoObraTipologias.length > 0 && renderFiltroTipologiaControls()}
+                {(() => {
+                  const excelItems = parseExcelPathItems(estadoObraOrden.excel_path);
+                  if (excelItems.length === 0) return null;
+                  return (
+                    <div className={`flex flex-wrap gap-2 items-center ${canEditFullModalEnModal ? "mt-2" : ""}`}>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Excel adjunto:</span>
+                      {excelItems.map((item, i) => (
+                        <a
+                          key={`${item.path}-${i}`}
+                          href={getExcelBrowserViewUrl(item.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:underline truncate max-w-[220px]"
+                          title={`Ver ${item.name} en el navegador`}
+                        >
+                          {item.name}
+                        </a>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-6 mb-4 pr-1">
