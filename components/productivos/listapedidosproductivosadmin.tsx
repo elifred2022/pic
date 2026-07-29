@@ -24,6 +24,12 @@ import {
   removePresupuestoFromStorage,
   uploadPresupuestoProveedor,
 } from "@/lib/presupuestos-storage";
+import {
+  appendHistoricoEstado,
+  formatHistoricoFecha,
+  parseHistoricoEstado,
+  type HistoricoEstadoEntry,
+} from "@/lib/historico-estado-pedidos-productivos";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -60,6 +66,7 @@ type Pedido = {
   nota_comprador?: string;
   comprador?: string | null;
   estado: string;
+  historico_estado?: HistoricoEstadoEntry[] | null;
   observ: string;
   numero_oc: string | null;
   proveedor_seleccionado: string | null;
@@ -137,7 +144,7 @@ export default function ListaPedidosProductivosAdmin() {
     const supabase = createClient();
 
     const mobileBtnBase =
-      "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation";
+      "w-full min-h-[40px] px-3 py-2 text-xs font-semibold rounded-lg shadow-sm transition active:scale-[0.98] touch-manipulation";
 
     const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
       const precioBase = precioUnitario || 0;
@@ -693,6 +700,15 @@ const handleUpdatePedido = async () => {
         rto: formData.rto,
     };
 
+    const historicoNuevo = appendHistoricoEstado(
+      pedidoToUpdate.historico_estado,
+      pedidoToUpdate.estado,
+      formData.estado
+    );
+    if (historicoNuevo) {
+      dataToUpdate.historico_estado = historicoNuevo;
+    }
+
     if (editingPedido) {
         dataToUpdate.comparativa_prov = comparativaForm;
         dataToUpdate.nota_comprador = formData.nota_comprador;
@@ -1067,278 +1083,323 @@ const handleUpdatePedido = async () => {
   };
 
 
+  const thClass =
+    "whitespace-nowrap px-2 py-1.5 font-semibold text-slate-700 bg-slate-100 sticky top-0 z-10";
+  const tdClass = "px-2 py-1.5 align-top text-slate-700 border-t-2 border-slate-200";
+  const actionBtnClass =
+    "px-2 py-0.5 text-[10px] font-medium rounded border transition-colors whitespace-nowrap";
+  const filterLabelClass =
+    "flex items-center gap-2 cursor-pointer hover:bg-white/80 px-1.5 py-1 rounded transition-colors";
+
+  const estadoBadgeClass = (estado: string) => {
+    const base = "inline-block px-1.5 py-0 text-[10px] leading-tight font-semibold rounded";
+    if (estado === "anulado") return `${base} bg-red-100 text-red-800`;
+    if (estado === "aprobado" || estado === "confirmado") return `${base} bg-green-100 text-green-800`;
+    if (estado === "cotizado") return `${base} bg-yellow-100 text-yellow-800`;
+    if (estado === "iniciado" || estado === "visto/recibido" || estado === "Visto/recibido") {
+      return `${base} bg-orange-50 text-orange-500`;
+    }
+    if (estado === "stand by" || estado === "Presentar presencial") {
+      return `${base} bg-orange-100 text-orange-800`;
+    }
+    if (estado === "cumplido") return `${base} bg-blue-50 text-blue-600`;
+    if (estado === "entrego parcial" || estado === "entrego_parcial") {
+      return `${base} bg-orange-50 text-orange-500`;
+    }
+    return `${base} bg-gray-100 text-gray-600`;
+  };
+
   return (
-    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
-      {/* Header con navegación */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Link
           href="/auth/modulo-compras"
-            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+          className="inline-block px-4 sm:px-5 py-2 bg-slate-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-slate-700 transition-all duration-200 text-center touch-manipulation"
         >
-            Volver
+          Volver
         </Link>
-          
-          <h1 className="text-3xl font-bold text-gray-800">⚙️ Pedidos Productivos Admin</h1>
-      </div>
-
-      <div className="flex flex-wrap gap-4 items-center">
         {canEdit && (
-        <Link
-          href="/auth/rutaproductivos/crear-formpedidosproductivos"
-            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
-        >
-            ➕ Crear Pedido Productivo
-        </Link>
+          <Link
+            href="/auth/rutaproductivos/crear-formpedidosproductivos"
+            className="inline-block px-4 sm:px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 text-center touch-manipulation"
+          >
+            Crear pedido productivo
+          </Link>
         )}
-          
-        <input
-          type="text"
-            placeholder="🔍 Buscar pedido productivo..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-        />
-        </div>
       </div>
 
-      {/* Filtros con mejor diseño */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">🎛️ Filtros de estado</h3>
-        <div className="flex flex-wrap gap-6 items-center">
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-          <input
-            type="checkbox"
-            checked={ocultarCumplidos}
-            onChange={() => setOcultarCumplidos((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
-        </label>
-
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-          <input
-            type="checkbox"
-            checked={ocultarAprobados}
-            onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
-        </label>
-
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-          <input
-            type="checkbox"
-            checked={ocultarConfirmado}
-            onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
-        </label>
-
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-          <input
-            type="checkbox"
-            checked={ocultarAnulados}
-            onChange={() => setOcultarAnulados((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-            <span className="text-gray-700 font-medium">Ocultar anulados</span>
-        </label>
-
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-          <input
-            type="checkbox"
-            checked={ocultarStandBy}
-            onChange={() => setOcultarStandBy((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-            <span className="text-gray-700 font-medium">Ocultar stand by</span>
-        </label>
+      <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-white">
+                Pedidos productivos admin
+              </h1>
+              <p className="text-blue-100 text-xs mt-0.5">
+                Gestión y seguimiento de pedidos productivos
+              </p>
+            </div>
+            <input
+              type="search"
+              placeholder="Buscar pedido productivo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 w-full sm:max-w-xs rounded-md border border-white/30 bg-white/95 px-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Tabla con scroll horizontal y encabezado congelado */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <PedidosProductivosAdminMobileList
-          pedidos={filteredPedidos}
-          selectedId={selectedMobilePedidoId}
-          onSelect={setSelectedMobilePedidoId}
-          onClearSelection={() => setSelectedMobilePedidoId(null)}
-          formatDate={formatDate}
-          renderValue={renderValue}
-          mobileBtnBase={mobileBtnBase}
-          onEdit={abrirEdicionPedido}
-          onComparativa={abrirComparativaPedido}
-          onDelete={eliminarPedido}
-          canEdit={canEdit}
-        />
-        <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
-          <table className="min-w-full table-auto border-collapse">
-            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left bg-gradient-to-r from-blue-600 to-blue-700">Acciones</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Estado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">PIC</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha Sol</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha Nec</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Categoría</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicitante</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículo Solicitado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Observ/Mensaje</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Comprador</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Prov. Selecc.</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">USD</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">EUR</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">ARS sin imp</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Confirmado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Promesa</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Entrego</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fac</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Rto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPedidos.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors duration-200">
-                  <td className="px-4 py-3 border-b border-gray-200 align-top">
-                    <div className="flex flex-col gap-2">
-                      {canEdit && (
-                      <button 
-                        className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                                                   onClick={() => abrirEdicionPedido(p)}
-                >
-                        ✏️ Editar
-                </button>
-                      )}
-                 <button
-                        className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                      onClick={() => abrirComparativaPedido(p)}
-                  >
-                        📊 Comparativa
-                  </button>
-                {canEdit && (
-                <button
-                        className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
-                    onClick={() => eliminarPedido(p)}
-                  >
-                        🗑️ Elim
-                  </button>
-                )}
-                </div>
-              </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                <span
-                    className={
-                    p.estado === "anulado"
-                          ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
-                        : p.estado === "aprobado"
-                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
-                        : p.estado === "cotizado"
-                          ? "px-3 py-2 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded-full"
-                        : p.estado === "iniciado"
-                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
-                        : p.estado === "visto/recibido" || p.estado === "Visto/recibido"
-                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
-                        : p.estado === "stand by"
-                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
-                        : p.estado === "Presentar presencial"
-                          ? "px-3 py-2 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
-                        : p.estado === "cumplido"
-                          ? "px-3 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-full"
-                        : p.estado === "entrego parcial" || p.estado === "entrego_parcial"
-                          ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
-                          : p.estado === "confirmado" 
-                          ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
-                          : "px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-full"
-                    }
-                >
-                   {renderValue(p.estado)}
-                </span>
-            </td>
-            
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{p.id}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.created_at)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.necesidad)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.categoria}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-medium text-gray-800">{p.solicita}</span>
-                      {p.nota_solicitante?.trim() ? (
-                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
-                          {p.nota_solicitante}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{p.sector}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    {p.articulos && p.articulos.length > 0 ? (
-                      <div className="space-y-2">
-                        {p.articulos.map((art, index) => (
-                          <div key={index} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <div className="font-medium text-gray-800">{art.articulo}</div>
-                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
-                            <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
-                            <div className="text-gray-600">Cant: {art.cant}</div>
-                            <div className="text-gray-600">Stock: {art.existencia ?? '-'}</div>
-                            <div className="text-gray-600">Prov: {art.provsug || '-'}</div>
-                            <div className="text-gray-600">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : '-'}</div>
-                            <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
+        <div className="p-3 sm:p-4 space-y-3">
+          <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <h3 className="text-xs font-semibold text-gray-700 mb-2">Filtros de estado</h3>
+              <div className="flex flex-wrap gap-2 items-center">
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarCumplidos}
+                    onChange={() => setOcultarCumplidos((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar cumplidos</span>
+                </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarAprobados}
+                    onChange={() => setOcultarAprobados((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar aprobados</span>
+                </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarConfirmado}
+                    onChange={() => setOcultarConfirmado((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar confirmados</span>
+                </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarAnulados}
+                    onChange={() => setOcultarAnulados((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar anulados</span>
+                </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarStandBy}
+                    onChange={() => setOcultarStandBy((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar stand by</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <PedidosProductivosAdminMobileList
+              pedidos={filteredPedidos}
+              selectedId={selectedMobilePedidoId}
+              onSelect={setSelectedMobilePedidoId}
+              onClearSelection={() => setSelectedMobilePedidoId(null)}
+              formatDate={formatDate}
+              renderValue={renderValue}
+              mobileBtnBase={mobileBtnBase}
+              onEdit={abrirEdicionPedido}
+              onComparativa={abrirComparativaPedido}
+              onDelete={eliminarPedido}
+              canEdit={canEdit}
+            />
+            <div className="hidden lg:block overflow-x-auto max-h-[75vh] overflow-y-auto">
+              <table className="w-full table-auto text-[11px] leading-snug sm:text-xs">
+                <thead className="bg-slate-100 text-left text-slate-700">
+                  <tr>
+                    <th className={thClass}>Acciones</th>
+                    <th className={thClass}>Estado</th>
+                    <th className={thClass}>PIC</th>
+                    <th className={thClass}>F. Sol</th>
+                    <th className={thClass}>F. Nec</th>
+                    <th className={thClass}>Categoría</th>
+                    <th className={thClass}>Solicitante</th>
+                    <th className={thClass}>Sector</th>
+                    <th className={thClass}>Artículo</th>
+                    <th className={thClass}>Observ</th>
+                    <th className={thClass}>Supervisado</th>
+                    <th className={thClass}>Comprador</th>
+                    <th className={thClass}>Aprueba</th>
+                    <th className={thClass}>OC</th>
+                    <th className={thClass}>Prov. Selecc.</th>
+                    <th className={thClass}>Confirmado</th>
+                    <th className={thClass}>Promesa</th>
+                    <th className={thClass}>Entregó</th>
+                    <th className={thClass}>Fac</th>
+                    <th className={thClass}>Rto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPedidos.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/80 even:bg-slate-50/40">
+                      <td className={tdClass}>
+                        <div className="flex flex-col gap-1">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className={`${actionBtnClass} bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100`}
+                              onClick={() => abrirEdicionPedido(p)}
+                            >
+                              Editar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={`${actionBtnClass} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100`}
+                            onClick={() => abrirComparativaPedido(p)}
+                          >
+                            Comparativa
+                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className={`${actionBtnClass} bg-red-50 text-red-700 border-red-200 hover:bg-red-100`}
+                              onClick={() => eliminarPedido(p)}
+                            >
+                              Elim
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`}>
+                        <div className="flex flex-col gap-0.5 min-w-[6.5rem]">
+                          <span className={estadoBadgeClass(p.estado)}>{renderValue(p.estado)}</span>
+                          {parseHistoricoEstado(p.historico_estado).map((h, i) => (
+                            <span
+                              key={`${h.estado}-${h.fecha}-${i}`}
+                              className="text-[10px] leading-tight text-slate-500 tabular-nums"
+                              title={`${h.estado} · ${formatHistoricoFecha(h.fecha)}`}
+                            >
+                              {h.estado} · {formatHistoricoFecha(h.fecha)}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums font-medium`}>{p.id}</td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums text-slate-600`}>
+                        {formatDate(p.created_at)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums text-slate-600`}>
+                        {formatDate(p.necesidad)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`}>{p.categoria}</td>
+                      <td className={tdClass}>
+                        <div className="flex flex-col gap-0.5 max-w-[9rem]">
+                          <span className="font-medium text-slate-800">{p.solicita}</span>
+                          {p.nota_solicitante?.trim() ? (
+                            <span className="text-[10px] text-blue-700 font-semibold whitespace-pre-wrap break-words">
+                              {p.nota_solicitante}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`}>{p.sector}</td>
+                      <td className={tdClass}>
+                        {p.articulos && p.articulos.length > 0 ? (
+                          <div className="space-y-1 min-w-[14rem] max-w-[18rem]">
+                            {p.articulos.map((art, index) => (
+                              <div
+                                key={index}
+                                className="bg-slate-50 px-1.5 py-1 rounded border border-gray-100"
+                              >
+                                <div className="font-medium text-slate-800 truncate" title={art.articulo}>
+                                  {art.articulo}
+                                </div>
+                                <div className="text-[10px] text-slate-500 truncate">
+                                  {renderValue(art.descripcion)}
+                                </div>
+                                <div className="text-[10px] text-slate-600 flex flex-wrap gap-x-2">
+                                  <span>Cant: {art.cant}</span>
+                                  <span>Stock: {art.existencia ?? "-"}</span>
+                                  <span className="font-mono">{art.codint}</span>
+                                </div>
+                                {(art.presentacion?.trim() || art.provsug || art.codprovsug?.trim()) && (
+                                  <div className="text-[10px] text-slate-500 truncate">
+                                    {[
+                                      art.presentacion?.trim() || null,
+                                      art.provsug || null,
+                                      art.codprovsug?.trim() || null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-sm">- Sin artículos -</span>
-                    )}
-                </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="max-w-xs">
-                      <span className="text-sm text-gray-700">{renderValue(p.observ)}</span>
-                </div>
-                </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-gray-700">{p.controlado}</span>
-                      <span className="text-sm text-gray-600">{p.supervisor}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-medium text-gray-800">{renderValue(p.comprador)}</span>
-                      {p.nota_comprador?.trim() ? (
-                        <span className="text-xs text-blue-700 font-bold max-w-[220px] whitespace-pre-wrap break-words text-left">
-                          {p.nota_comprador}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-orange-600 font-medium text-lg">{renderValue(p.aprueba)}</span>
-                      <span className="text-xs text-red-600 max-w-[180px] break-words">
-                        {p.notas_aprobador || p.nota_aprobador || "-"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.numero_oc)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium text-lg">{renderValue(p.proveedor_seleccionado)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">${(Number(p.usd) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">€{(Number(p.eur) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">${(Number(p.ars) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_conf)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_prom)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(p.fecha_ent)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(p.fac)}</td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{renderValue(p.rto)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className={tdClass}>
+                        <div className="max-w-[10rem] text-slate-600 whitespace-pre-wrap break-words">
+                          {renderValue(p.observ)}
+                        </div>
+                      </td>
+                      <td className={tdClass}>
+                        <div className="flex flex-col gap-0.5 whitespace-nowrap">
+                          <span className="font-medium">{p.controlado}</span>
+                          <span className="text-slate-500">{p.supervisor}</span>
+                        </div>
+                      </td>
+                      <td className={tdClass}>
+                        <div className="flex flex-col gap-0.5 max-w-[9rem]">
+                          <span className="font-medium text-slate-800">{renderValue(p.comprador)}</span>
+                          {p.nota_comprador?.trim() ? (
+                            <span className="text-[10px] text-blue-700 font-semibold whitespace-pre-wrap break-words">
+                              {p.nota_comprador}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className={tdClass}>
+                        <div className="flex flex-col gap-0.5 max-w-[8rem]">
+                          <span className="text-orange-600 font-medium">{renderValue(p.aprueba)}</span>
+                          <span className="text-[10px] text-red-600 break-words">
+                            {p.notas_aprobador || p.nota_aprobador || "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap text-orange-600 font-medium tabular-nums`}>
+                        {renderValue(p.numero_oc)}
+                      </td>
+                      <td
+                        className={`${tdClass} max-w-[9rem] truncate text-orange-600 font-medium`}
+                        title={renderValue(p.proveedor_seleccionado)}
+                      >
+                        {renderValue(p.proveedor_seleccionado)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums text-slate-600`}>
+                        {formatDate(p.fecha_conf)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums text-slate-600`}>
+                        {formatDate(p.fecha_prom)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap tabular-nums text-slate-600`}>
+                        {formatDate(p.fecha_ent)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`}>{renderValue(p.fac)}</td>
+                      <td className={`${tdClass} whitespace-nowrap`}>{renderValue(p.rto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 

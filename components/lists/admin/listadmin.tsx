@@ -24,6 +24,12 @@ import {
   removePresupuestoFromStorage,
   uploadPresupuestoProveedor,
 } from "@/lib/presupuestos-storage";
+import {
+  appendHistoricoEstado,
+  formatHistoricoFecha,
+  parseHistoricoEstado,
+  type HistoricoEstadoEntry,
+} from "@/lib/historico-estado-pedidos-productivos";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -67,6 +73,7 @@ type Pedido = {
   controlado: string;
   superviso: string;
   estado: string;
+  historico_estado?: HistoricoEstadoEntry[] | null;
   aprueba: string;
   notas_aprobador?: string;
   nota_aprobador?: string;
@@ -137,7 +144,7 @@ export default function ListAdmin() {
   const supabase = createClient();
 
   const mobileBtnBase =
-    "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation";
+    "w-full min-h-[40px] px-3 py-2 text-xs font-semibold rounded-lg shadow-sm transition active:scale-[0.98] touch-manipulation";
 
   const calcularSubtotalConDescuento = (precioUnitario: number | null, descuentoPorcentaje: number, cantidad: number) => {
     const precioBase = precioUnitario || 0;
@@ -171,6 +178,13 @@ export default function ListAdmin() {
       typeof formData.comprador === "string" && formData.comprador.trim()
         ? formData.comprador.trim()
         : null;
+
+    const historicoNuevo = appendHistoricoEstado(
+      editingPedido.historico_estado,
+      editingPedido.estado,
+      formData.estado
+    );
+    if (historicoNuevo) datosActualizar.historico_estado = historicoNuevo;
     
     const { error } = await supabase
       .from("pic")
@@ -500,7 +514,7 @@ export default function ListAdmin() {
 
     setGuardandoComparativa(true);
 
-    const datosActualizar = {
+    const datosActualizar: Record<string, unknown> = {
       estado: formData.estado,
       oc: formData.oc ?? 0,
       proveedor_selec: formData.proveedor_selec,
@@ -508,6 +522,13 @@ export default function ListAdmin() {
       rto: formData.rto ?? 0,
       fecha_ent: formData.fecha_ent || null,
     };
+
+    const historicoNuevo = appendHistoricoEstado(
+      verInfo.historico_estado,
+      verInfo.estado,
+      formData.estado
+    );
+    if (historicoNuevo) datosActualizar.historico_estado = historicoNuevo;
 
     const { error } = await supabase
       .from("pic")
@@ -1053,26 +1074,31 @@ export default function ListAdmin() {
     return () => clearTimeout(timer);
   }, [verInfo, searchParams]);
 
+  const tableHeaderClass =
+    "whitespace-nowrap px-2 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 sticky top-0 z-10";
+  const tableCellClass =
+    "px-2 py-1.5 align-top text-xs text-slate-700 border-t-2 border-slate-200";
+
   return (
-    <div className="flex-1 w-full p-4 bg-gray-50 min-h-screen">
+    <div className="flex-1 w-full p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-slate-100 min-h-screen">
       {/* Header con navegación */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-md p-3 sm:p-4 mb-3">
+        <div className="flex flex-wrap gap-2 items-center justify-between mb-3">
              <Link
               href="/auth/modulo-compras"
-            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+            className="inline-block px-4 py-2 bg-slate-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-slate-700 transition-all duration-200"
             >
             Volver
             </Link>
            
-          <h1 className="text-3xl font-bold text-gray-800">Pedidos Generales</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Pedidos Generales</h1>
         </div>
       
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           {canCreatePedidosGenerales && (
           <Link
             href="/auth/crear-formus"
-            className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+            className="inline-block px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200"
           >
             ➕ Crear nuevo pedido general
           </Link>
@@ -1083,69 +1109,69 @@ export default function ListAdmin() {
             placeholder="🔍 Buscar pedido..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+            className="h-8 px-3 border border-gray-300 rounded-lg w-full max-w-xs text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
         </div>
 
       {/* Filtros con mejor diseño */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Filtros de estado</h3>
-        <div className="flex flex-wrap gap-6 items-center">
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-3">
+        <h3 className="text-xs font-semibold text-gray-700 mb-2">Filtros de estado</h3>
+        <div className="flex flex-wrap gap-2 items-center">
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
           <input
             type="checkbox"
             checked={ocultarCumplidos}
             onChange={() => setOcultarCumplidos((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
           />
-            <span className="text-gray-700 font-medium">Ocultar cumplidos</span>
+            <span className="text-gray-700 font-medium text-xs">Ocultar cumplidos</span>
         </label>
 
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
             <input
               type="checkbox"
               checked={ocultarAprobados}
               onChange={() => setOcultarAprobados((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
             />
-            <span className="text-gray-700 font-medium">Ocultar aprobados</span>
+            <span className="text-gray-700 font-medium text-xs">Ocultar aprobados</span>
           </label>
 
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
             <input
               type="checkbox"
               checked={ocultarConfirmado}
               onChange={() => setOcultarConfirmado((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
             />
-            <span className="text-gray-700 font-medium">Ocultar confirmados</span>
+            <span className="text-gray-700 font-medium text-xs">Ocultar confirmados</span>
           </label>
 
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarAnulados}
                   onChange={() => setOcultarAnulados((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-            <span className="text-gray-700 font-medium">Ocultar anulados</span>
+            <span className="text-gray-700 font-medium text-xs">Ocultar anulados</span>
               </label>
 
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
                 <input
                   type="checkbox"
                   checked={ocultarStandBy}
                   onChange={() => setOcultarStandBy((v) => !v)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
-            <span className="text-gray-700 font-medium">Ocultar stand by</span>
+            <span className="text-gray-700 font-medium text-xs">Ocultar stand by</span>
               </label>
         </div>
       </div>
 
              {/* Tabla con scroll horizontal y encabezado congelado */}
-       <div className="bg-white rounded-lg shadow-md overflow-hidden">
+       <div className="bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
          <PedidosGeneralesAdminMobileList
            pedidos={filteredPedidos}
            selectedId={selectedMobilePedidoId}
@@ -1160,43 +1186,43 @@ export default function ListAdmin() {
            canEdit={canEdit}
          />
          <div className="hidden lg:block overflow-x-auto max-h-[70vh] overflow-y-auto">
-           <table className="min-w-full table-auto border-collapse">
-             <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+           <table className="min-w-full table-auto border-collapse text-xs leading-snug">
+             <thead className="bg-slate-100">
                <tr>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left bg-gradient-to-r from-blue-600 to-blue-700">Acciones</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Estado</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Nº PIC</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha sol</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha nec</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Categoria</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Solicita</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Sector</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Artículos Solicitados</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Supervisado/Revisado</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Comprador</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Notas</th>
-                  <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Aprueba</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">OC</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Proveedor Selec.</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">USD</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">EUR</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">ARS sin imp</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha confirm</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha prometida</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fecha entrega</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Rto</th>
-                 <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center bg-gradient-to-r from-blue-600 to-blue-700">Fact</th>
+                 <th className={tableHeaderClass}>Acciones</th>
+                 <th className={tableHeaderClass}>Estado</th>
+                 <th className={tableHeaderClass}>Nº PIC</th>
+                 <th className={tableHeaderClass}>Fecha sol</th>
+                 <th className={tableHeaderClass}>Fecha nec</th>
+                 <th className={tableHeaderClass}>Categoría</th>
+                 <th className={tableHeaderClass}>Solicita</th>
+                 <th className={tableHeaderClass}>Sector</th>
+                 <th className={tableHeaderClass}>Artículos solicitados</th>
+                 <th className={tableHeaderClass}>Supervisado/Revisado</th>
+                 <th className={tableHeaderClass}>Comprador</th>
+                 <th className={tableHeaderClass}>Notas</th>
+                 <th className={tableHeaderClass}>Aprueba</th>
+                 <th className={tableHeaderClass}>OC</th>
+                 <th className={tableHeaderClass}>Proveedor selec.</th>
+                 <th className={tableHeaderClass}>Fecha confirm.</th>
+                 <th className={tableHeaderClass}>Fecha prometida</th>
+                 <th className={tableHeaderClass}>Fecha entrega</th>
+                 <th className={tableHeaderClass}>Rto</th>
+                 <th className={tableHeaderClass}>Fact</th>
                  
           </tr>
         </thead>
           
         <tbody>
           {filteredPedidos.map((pedido) => (
-            <tr key={pedido.id}>
-              <td className="px-4 py-3 border-b border-gray-200 align-top">
-                <div className="flex flex-col gap-2">
+            <tr
+              key={pedido.id}
+              className="border-t-2 border-slate-200 even:bg-slate-50/50 hover:bg-blue-50/40"
+            >
+              <td className={tableCellClass}>
+                <div className="flex flex-col gap-1">
                    <button
-                    className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-xs"
+                    className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 font-medium rounded hover:bg-blue-100 transition-colors text-[10px]"
                     onClick={() => abrirInfoPedido(pedido)}
                   >
                     📋 Info
@@ -1204,14 +1230,14 @@ export default function ListAdmin() {
                   {canEdit && (
                   <>
                   <button
-                    className="px-3 py-2 bg-green-500 text-white font-medium rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 transform hover:scale-105 text-xs"
+                    className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 font-medium rounded hover:bg-green-100 transition-colors text-[10px]"
                     onClick={() => abrirEdicionPedido(pedido)}
                   >
                     ✏️ Edit
                   </button>
 
                   <button
-                    className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-xs"
+                    className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 font-medium rounded hover:bg-red-100 transition-colors text-[10px]"
                     onClick={() => eliminarPedido(pedido)}
                   >
                     🗑️ Elim
@@ -1221,7 +1247,8 @@ export default function ListAdmin() {
                 </div>
               </td>
              
-            <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+            <td className={tableCellClass}>
+              <div className="flex min-w-[7rem] flex-col gap-0.5">
                 <span
                     className={
                     pedido.estado === "anulado"
@@ -1247,6 +1274,15 @@ export default function ListAdmin() {
                 >
                    {renderValue(pedido.estado)}
                 </span>
+                {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
+                  <span
+                    key={`${h.estado}-${h.fecha}-${index}`}
+                    className="text-[10px] leading-tight text-slate-500 tabular-nums"
+                  >
+                    {h.estado} · {formatHistoricoFecha(h.fecha)}
+                  </span>
+                ))}
+              </div>
             </td>
              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.id}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at) || "-"}</td>
@@ -1345,10 +1381,6 @@ export default function ListAdmin() {
               </td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{pedido.oc}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center text-orange-600 font-medium">{renderValue(pedido.proveedor_selec)}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.usd}</td>
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{pedido.eur}</td>
-              
-              <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium">$ {Number(pedido.ars).toLocaleString("es-AR")}</td>
              
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_conf)}</td>
               <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.fecha_prom)}</td>

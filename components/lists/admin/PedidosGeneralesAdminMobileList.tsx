@@ -1,6 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import {
+  formatHistoricoFecha,
+  parseHistoricoEstado,
+  type HistoricoEstadoEntry,
+} from "@/lib/historico-estado-pedidos-productivos";
 
 type ArticuloComparativa = {
   articulo: string;
@@ -40,6 +45,7 @@ export type PedidoGeneralesMobile = {
   controlado: string;
   superviso: string;
   estado: string;
+  historico_estado?: HistoricoEstadoEntry[] | null;
   aprueba: string;
   notas_aprobador?: string;
   nota_aprobador?: string;
@@ -87,7 +93,7 @@ type Props = {
 };
 
 function estadoBadgeClass(estado: string): string {
-  const base = "inline-block px-2.5 py-1 text-xs font-semibold rounded-full";
+  const base = "inline-block px-1.5 py-0 text-[10px] leading-tight font-semibold rounded";
   const e = estado.toLowerCase();
   if (e === "anulado") return `${base} bg-red-100 text-red-800`;
   if (e === "aprobado" || e === "confirmado") return `${base} bg-green-100 text-green-800`;
@@ -111,16 +117,24 @@ function ResumenPedido({
   renderValue: (value: unknown) => string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
       <div>
         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Nº PIC</span>
-        <p className="text-base font-bold text-gray-900 mt-0.5">#{pedido.id}</p>
+        <p className="font-semibold text-gray-900 mt-0.5">#{pedido.id}</p>
       </div>
       <div>
         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Estado</span>
         <p className="mt-1">
           <span className={estadoBadgeClass(pedido.estado)}>{renderValue(pedido.estado)}</span>
         </p>
+        {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
+          <p
+            key={`${h.estado}-${h.fecha}-${index}`}
+            className="text-[10px] leading-tight text-slate-500 tabular-nums"
+          >
+            {h.estado} · {formatHistoricoFecha(h.fecha)}
+          </p>
+        ))}
       </div>
       <div>
         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Fecha solicitud</span>
@@ -143,9 +157,9 @@ function ResumenPedido({
 
 function DetalleFila({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
-      <span className="text-gray-500 shrink-0 text-sm">{label}</span>
-      <span className="font-medium text-gray-800 text-right text-sm break-words">{children}</span>
+    <div className="flex justify-between gap-2 py-1.5 border-b border-gray-100 last:border-0">
+      <span className="text-gray-500 shrink-0 text-xs">{label}</span>
+      <span className="font-medium text-gray-800 text-right text-xs break-words">{children}</span>
     </div>
   );
 }
@@ -258,12 +272,7 @@ export default function PedidosGeneralesAdminMobileList({
             <DetalleFila label="Proveedor selec.">
               <span className="text-orange-600">{renderValue(p.proveedor_selec)}</span>
             </DetalleFila>
-            <DetalleFila label="USD">{p.usd}</DetalleFila>
-            <DetalleFila label="EUR">{p.eur}</DetalleFila>
             <DetalleFila label="TC">{p.tc}</DetalleFila>
-            <DetalleFila label="ARS sin imp">
-              $ {Number(p.ars).toLocaleString("es-AR")}
-            </DetalleFila>
             <DetalleFila label="%">{p.porcent}</DetalleFila>
             <DetalleFila label="ARS desc">{p.ars_desc}</DetalleFila>
             <DetalleFila label="Total simp">{p.total_simp}</DetalleFila>
@@ -319,16 +328,18 @@ export default function PedidosGeneralesAdminMobileList({
   }
 
   return (
-    <div className="lg:hidden divide-y divide-gray-200">
-      <p className="px-4 py-2 text-xs text-gray-500 bg-gray-50 border-b border-gray-100">
+    <div className="lg:hidden divide-y-2 divide-slate-200">
+      <p className="px-3 py-1.5 text-[10px] text-gray-500 bg-gray-50 border-b-2 border-slate-200">
         Tocá un pedido para ver el detalle
       </p>
-      {pedidos.map((pedido) => (
+      {pedidos.map((pedido, index) => (
         <button
           key={pedido.id}
           type="button"
           onClick={() => onSelect(pedido.id)}
-          className="w-full text-left p-4 bg-white active:bg-blue-50 touch-manipulation transition-colors"
+          className={`w-full text-left px-3 py-2.5 active:bg-blue-50 touch-manipulation transition-colors ${
+            index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+          }`}
         >
           <ResumenPedido pedido={pedido} formatDate={formatDate} renderValue={renderValue} />
         </button>

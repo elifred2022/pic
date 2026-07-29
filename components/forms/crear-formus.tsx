@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { appendHistoricoEstado } from "@/lib/historico-estado-pedidos-productivos";
 
 type ArticuloManual = {
   id: string;
@@ -169,6 +170,7 @@ export default function CrearFormUs() {
             solicita,
             sector,
             estado,
+            historico_estado: appendHistoricoEstado([], null, estado) ?? [],
             aprueba,
             notas,
             uuid: user.id,
