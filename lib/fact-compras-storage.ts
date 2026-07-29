@@ -11,6 +11,21 @@ export function getFactComprasBucket(): string {
 const STORAGE_RLS_HINT =
   "Faltan políticas en Storage. En Supabase → SQL Editor ejecute database/fact_compras_storage_policies.sql";
 
+/** Quita secuencias ANSI que a veces aparecen en mensajes de error del navegador. */
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*[a-zA-Z]|\u001b[_\]].*?(?:\u0007|\u001b\\)|\u001b./g, "");
+}
+
+function isNonJsonResponseError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("unexpected token") ||
+    m.includes("is not valid json") ||
+    m.includes("unexpected end of json") ||
+    m.includes("invalid json")
+  );
+}
+
 /** Mensaje legible desde errores de Supabase (Storage/PostgREST). */
 export function getSupabaseErrorMessage(err: unknown): string {
   if (err && typeof err === "object") {
@@ -21,6 +36,7 @@ export function getSupabaseErrorMessage(err: unknown): string {
       hint?: string;
       code?: string;
       statusCode?: string | number;
+      name?: string;
     };
     const status = String(o.statusCode ?? "");
     const isRls =
@@ -34,12 +50,32 @@ export function getSupabaseErrorMessage(err: unknown): string {
     const parts = [o.message, o.details, o.hint, o.code ? `código ${o.code}` : null].filter(
       (part): part is string => Boolean(part?.trim())
     );
-    if (parts.length > 0) return parts.join(" — ");
-    if (o.error?.trim()) return o.error;
+    if (parts.length > 0) {
+      const joined = stripAnsi(parts.join(" — "));
+      if (isNonJsonResponseError(joined) || o.name === "SyntaxError") {
+        return (
+          "La API devolvió una respuesta inválida (no JSON). " +
+          "Suele ser un corte de red, proxy o sesión vencida. Recargue la página e intente de nuevo; " +
+          "si adjunta archivo, pruebe con un PDF/JPG más chico."
+        );
+      }
+      return joined;
+    }
+    if (o.error?.trim()) return stripAnsi(o.error);
     if (o.statusCode) return `Error ${o.statusCode}`;
   }
-  if (err instanceof Error && err.message?.trim()) return err.message;
-  if (typeof err === "string" && err.trim()) return err;
+  if (err instanceof Error && err.message?.trim()) {
+    const msg = stripAnsi(err.message);
+    if (err.name === "SyntaxError" || isNonJsonResponseError(msg)) {
+      return (
+        "La API devolvió una respuesta inválida (no JSON). " +
+        "Suele ser un corte de red, proxy o sesión vencida. Recargue la página e intente de nuevo; " +
+        "si adjunta archivo, pruebe con un PDF/JPG más chico."
+      );
+    }
+    return msg;
+  }
+  if (typeof err === "string" && err.trim()) return stripAnsi(err);
   return `Error desconocido. ${STORAGE_RLS_HINT}`;
 }
 
@@ -51,6 +87,61 @@ export function getFacturaStoragePath(ordenId: number | string, extension: strin
 export function getFacturaStoragePathUnique(ordenId: number | string, extension: string) {
   const ext = extension.replace(/^\./, "").toLowerCase() || "jpg";
   return `${ordenId}/factura-${Date.now()}.${ext}`;
+}
+
+/**
+ * Sube sin usar el parser JSON de storage-js.
+ * Algunos proxies/navegadores devuelven un body corrupto aun con estado HTTP exitoso.
+ */
+export async function uploadFacturaRaw(
+  supabase: SupabaseClient,
+  storagePath: string,
+  file: File,
+  contentType: string
+): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!baseUrl || !anonKey) {
+    throw new Error("Falta la configuración pública de Supabase.");
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error("La sesión venció. Recargue la página e inicie sesión nuevamente.");
+  }
+
+  const bucket = encodeURIComponent(getFactComprasBucket());
+  const encodedPath = storagePath
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  const response = await fetch(
+    `${baseUrl}/storage/v1/object/${bucket}/${encodedPath}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${data.session.access_token}`,
+        "Content-Type": contentType,
+        "Cache-Control": "max-age=3600",
+        "x-upsert": "false",
+      },
+      body: await file.arrayBuffer(),
+    }
+  );
+
+  // El contenido de la respuesta se ignora cuando HTTP confirma el éxito.
+  if (response.ok) return;
+
+  let detail = "";
+  try {
+    detail = stripAnsi((await response.text()).trim());
+  } catch {
+    // El código HTTP sigue siendo suficiente para informar el fallo.
+  }
+  throw new Error(
+    `Storage respondió HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`
+  );
 }
 
 export type FacturaOrdenItem = {
@@ -513,24 +604,28 @@ export async function getFacturaViewUrl(
   supabase: SupabaseClient,
   stored: string | null | undefined
 ): Promise<string | null> {
-  if (!stored?.trim()) return null;
+  try {
+    if (!stored?.trim()) return null;
 
-  const trimmed = stored.trim();
-  const bucket = getFactComprasBucket();
+    const trimmed = stored.trim();
+    const bucket = getFactComprasBucket();
 
-  if (/^https?:\/\//i.test(trimmed) && !normalizeFactStoragePath(trimmed)) {
-    return trimmed;
+    if (/^https?:\/\//i.test(trimmed) && !normalizeFactStoragePath(trimmed)) {
+      return trimmed;
+    }
+
+    const objectPath = normalizeFactStoragePath(trimmed);
+    if (!objectPath) return null;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(objectPath, SIGNED_URL_TTL_SEC);
+
+    if (!error && data?.signedUrl) return data.signedUrl;
+
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(objectPath);
+    return pub.publicUrl ?? getFacturaPublicUrl(objectPath);
+  } catch {
+    return getFacturaPublicUrl(stored);
   }
-
-  const objectPath = normalizeFactStoragePath(trimmed);
-  if (!objectPath) return null;
-
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(objectPath, SIGNED_URL_TTL_SEC);
-
-  if (!error && data?.signedUrl) return data.signedUrl;
-
-  const { data: pub } = supabase.storage.from(bucket).getPublicUrl(objectPath);
-  return pub.publicUrl;
 }

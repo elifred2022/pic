@@ -14,6 +14,7 @@ import {
   getFacturaStoragePathUnique,
   getFacturaViewUrl,
   getSupabaseErrorMessage,
+  uploadFacturaRaw,
   buildFacturasUpdatePayload,
   findFacturasIncompletas,
   getFacturaPathKey,
@@ -1966,14 +1967,17 @@ export default function VerOrdenCompraPage() {
     }
 
     setEntregaSaving(true);
+    let paso = "inicio";
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
+      paso = "sesión";
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
         setEntregaError("Debe iniciar sesión para cargar la entrega.");
         return;
       }
 
       // Leer data actual de la DB para no pisar entregas/facturas/remitos previos
+      paso = "lectura de orden";
       const { data: ordenDb, error: fetchError } = await supabase
         .from("ordenes_compra")
         .select("fc, fact_path, rt, fecha_entrega, entregas, articulos, devoluciones")
@@ -1997,23 +2001,14 @@ export default function VerOrdenCompraPage() {
 
       let storagePath = "";
       if (entregaFile) {
+        paso = "subida de documento";
         storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
         const contentType =
           fileExt === "pdf"
             ? "application/pdf"
             : entregaFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from(getFactComprasBucket())
-          .upload(storagePath, entregaFile, {
-            upsert: false,
-            contentType,
-          });
-
-        if (uploadError) {
-          setEntregaError(`No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`);
-          return;
-        }
+        await uploadFacturaRaw(supabase, storagePath, entregaFile, contentType);
       }
 
       const facturasExistentes = parseFacturasFromOrden({
@@ -2056,10 +2051,13 @@ export default function VerOrdenCompraPage() {
         estado: estadoEntrega,
       };
 
+      paso = "guardado de entrega";
       const { error: updateError } = await supabase
         .from("ordenes_compra")
         .update(updatePayload)
-        .eq("id", orden.id);
+        .eq("id", orden.id)
+        .select("id")
+        .maybeSingle();
 
       if (updateError) {
         setEntregaError(
@@ -2071,12 +2069,18 @@ export default function VerOrdenCompraPage() {
       }
 
       if (storagePath) {
-        const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
-        const viewUrl =
-          (await getFacturaViewUrl(supabase, storagePath)) ??
-          getFacturaPublicUrl(storagePath);
-        if (viewUrl) {
-          setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+        paso = "url del documento";
+        try {
+          const pathKey = getFacturaPathKey(storagePath) ?? storagePath;
+          const viewUrl =
+            (await getFacturaViewUrl(supabase, storagePath)) ??
+            getFacturaPublicUrl(storagePath);
+          if (viewUrl) {
+            setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
+          }
+        } catch (urlErr) {
+          // La entrega ya quedó guardada; no abortar por fallar la URL firmada.
+          console.warn("Entrega guardada; no se pudo generar URL del documento:", urlErr);
         }
       }
 
@@ -2096,8 +2100,8 @@ export default function VerOrdenCompraPage() {
 
       handleCloseEntregaModal();
     } catch (err) {
-      console.error("Error guardando entrega:", err);
-      setEntregaError(getSupabaseErrorMessage(err));
+      console.error(`Error guardando entrega (paso: ${paso}):`, err);
+      setEntregaError(`Error en ${paso}: ${getSupabaseErrorMessage(err)}`);
     } finally {
       setEntregaSaving(false);
     }
