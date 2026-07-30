@@ -267,37 +267,20 @@ function renderValue(value: unknown): string {
 }
 
 const headerClass =
-  "px-2 py-1 border text-xs font-semibold bg-blue-600 text-white whitespace-normal break-words sticky top-0 z-10 text-left";
+  "px-2 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-700 whitespace-nowrap sticky top-0 z-10";
 const cellClass =
-  "px-2 py-1 border align-top text-xs text-left break-words overflow-hidden";
+  "px-2 py-1 whitespace-nowrap text-[11px] sm:text-xs text-slate-700 border-t-2 border-slate-200";
 
 /* En móvil solo mostramos: articulo, codint, costunit, descuento, costcondescuento, divisa, ultimo proveedor, fecha actualizacion, existencia */
 const mobileHidden = "hidden md:table-cell";
 
   return (
-    <div className="flex-2 w-full p-2">
+    <div className="w-full">
         <style>{`
-          /* Responsive móvil: columnas más compactas y texto vertical */
           @media (max-width: 767px) {
-            .articulos-table {
-              table-layout: auto;
-              min-width: 100%;
-              font-size: 0.75rem;
-            }
             .articulos-table th,
             .articulos-table td {
               padding: 0.25rem 0.375rem;
-              white-space: nowrap;
-            }
-            .articulos-table th.print-report.wrap,
-            .articulos-table td.print-report.wrap {
-              white-space: normal;
-              max-width: 80px;
-            }
-            .articulos-table tbody td {
-              writing-mode: vertical-lr;
-              text-orientation: mixed;
-              transform: rotate(180deg);
             }
           }
           @media print {
@@ -334,6 +317,9 @@ const mobileHidden = "hidden md:table-cell";
               white-space: normal !important;
               word-break: break-word !important;
               overflow-wrap: anywhere !important;
+              max-width: none !important;
+              overflow: visible !important;
+              text-overflow: clip !important;
             }
             th.print-report.wrap,
             td.print-report.wrap {
@@ -343,175 +329,144 @@ const mobileHidden = "hidden md:table-cell";
           .articulos-table {
             width: 100%;
             border-collapse: collapse;
-            --scrollbar-w: 16px;
-          }
-          .articulos-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            display: table;
-            width: calc(100% - var(--scrollbar-w));
-            table-layout: fixed;
-            box-sizing: border-box;
-          }
-          .articulos-table thead tr {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
-          }
-          .articulos-table .col-acciones {
-            width: 220px;
-          }
-          .articulos-table tbody td.col-acciones {
-            white-space: normal;
-          }
-          .articulos-table tbody {
-            display: block;
-            width: 100%;
-            max-height: 70vh;
-            overflow-y: scroll;
-            scrollbar-gutter: stable;
-            font-size: 0.7rem;
           }
           .articulos-table tbody td {
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            white-space: normal;
-            line-height: 1.2;
-          }
-          .articulos-table tbody tr {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
+            line-height: 1.3;
           }
         `}</style>
-        <div className="flex flex-wrap gap-4 items-center" >
-             <Link
-              href="/auth/modulo-compras"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Volver
-            </Link>
-           
-        </div>
-           
-    <h1 className="text-xl font-bold mb-4">Modulo Articulos</h1>
 
-        <div className="flex flex-wrap gap-4 items-center print-hidden">
-          {canEdit && (
-             <Link
-            href="/auth/crear-articulo"
-            className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-          >
-            Crear nuevo articulo
-          </Link>
-          )}
+      <section className="border-t border-gray-200">
+        <div className="bg-slate-50 px-3 py-3 sm:px-4 border-b border-gray-200 print-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Artículos</h2>
+              <p className="text-xs text-slate-500">
+                Búsqueda, filtros y gestión de stock
+              </p>
+            </div>
             <input
-            type="text"
-            placeholder="Buscar articulo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mb-4 px-4 py-2 border rounded w-full max-w-md"
-          />
-          <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600">Updated desde</label>
-              <input
-                type="date"
-                value={updatedDesde}
-                onChange={(e) => setUpdatedDesde(e.target.value)}
-                className="px-2 py-1 border rounded"
-              />
+              type="search"
+              placeholder="Buscar artículo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 w-full sm:max-w-xs rounded-md border border-gray-300 bg-white px-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+          </div>
+        </div>
+
+        <div className="p-3 sm:p-4 space-y-3">
+          <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm space-y-3 print-hidden">
+            <div className="flex flex-wrap items-center gap-2">
+              {canEdit && (
+                <Link
+                  href="/auth/crear-articulo"
+                  className="inline-flex h-8 items-center rounded-md bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-700"
+                >
+                  Crear nuevo artículo
+                </Link>
+              )}
             </div>
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600">Updated hasta</label>
-              <input
-                type="date"
-                value={updatedHasta}
-                onChange={(e) => setUpdatedHasta(e.target.value)}
-                className="px-2 py-1 border rounded"
-              />
+
+            <h3 className="text-xs font-semibold text-gray-800">Filtros</h3>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-gray-600">Updated desde</label>
+                <input
+                  type="date"
+                  value={updatedDesde}
+                  onChange={(e) => setUpdatedDesde(e.target.value)}
+                  className="h-8 w-[10.5rem] min-w-[10.5rem] rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-gray-600">Updated hasta</label>
+                <input
+                  type="date"
+                  value={updatedHasta}
+                  onChange={(e) => setUpdatedHasta(e.target.value)}
+                  className="h-8 w-[10.5rem] min-w-[10.5rem] rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={fetchArticulosPorUpdatedAt}
+                className="h-8 rounded-md bg-blue-600 px-3 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                Filtrar
+              </button>
+              <button
+                type="button"
+                onClick={limpiarFiltroUpdatedAt}
+                className="h-8 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-800 hover:bg-gray-50"
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                onClick={handleImprimirReporte}
+                className="h-8 rounded-md bg-slate-700 px-3 text-xs font-medium text-white hover:bg-slate-800"
+              >
+                Imprimir reporte
+              </button>
+              <button
+                type="button"
+                onClick={handleExportarExcel}
+                className="h-8 rounded-md bg-green-600 px-3 text-xs font-medium text-white hover:bg-green-700"
+              >
+                Exportar Excel
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={fetchArticulosPorUpdatedAt}
-              className="px-3 py-2 bg-blue-600 text-white rounded"
-            >
-              Filtrar
-            </button>
-            <button
-              type="button"
-              onClick={limpiarFiltroUpdatedAt}
-              className="px-3 py-2 bg-gray-200 text-black rounded"
-            >
-              Limpiar
-            </button>
-            <button
-              type="button"
-              onClick={handleImprimirReporte}
-              className="px-3 py-2 bg-green-600 text-white rounded"
-            >
-              Imprimir reporte
-            </button>
-            <button
-              type="button"
-              onClick={handleExportarExcel}
-              className="px-3 py-2 bg-emerald-600 text-white rounded"
-            >
-              Exportar Excel
-            </button>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ocultarArticuloInactivo}
+                  onChange={() => setOcultarArticuloInactivo((v) => !v)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-gray-700 font-medium text-xs">
+                  Ocultar artículos inactivos
+                </span>
+              </label>
+            </div>
           </div>
 
-        </div>
-
-       <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={ocultarArticuloInactivo}
-            onChange={() => setOcultarArticuloInactivo((v) => !v)}
-            className="w-4 h-4"
-          />
-          Ocultar articulos inactivos
-        </label>
-    </div>
-
-     
-      <div className="overflow-x-auto">
-        <table className="articulos-table min-w-full table-fixed border border-gray-300 shadow-md rounded-md overflow-hidden">
-          <thead>
+      <div className="overflow-auto max-h-[75vh] rounded-lg border border-gray-200">
+        <table className="articulos-table w-full table-auto text-[11px] leading-snug sm:text-xs">
+          <thead className="bg-slate-100 text-left text-slate-700">
           <tr>
-            <th className={`${headerClass} col-acciones ${mobileHidden}`}>Accion</th>
+            <th className={`${headerClass} col-acciones ${mobileHidden}`}>Acción</th>
             <th className={`${headerClass} ${mobileHidden}`}>Id</th>
             <th className={`${headerClass} ${mobileHidden}`}>Fecha de alta</th>
-            <th className={`${headerClass} print-report`}>Articulo</th>
-            <th className={`${headerClass} ${mobileHidden}`}>Descripcion</th>
-            <th className={`${headerClass} ${mobileHidden}`}>Presentacion</th>
+            <th className={`${headerClass} print-report`}>Artículo</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Descripción</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Presentación</th>
             <th className={`${headerClass} print-report`}>Cod int</th>
-            <th className={`${headerClass} print-report`}>Cost. unit.</th>
-            <th className={`${headerClass} print-report`}>% Desc</th>
-            <th className={`${headerClass} print-report`}>Cost. unit. c/ desc.</th>
+            <th className={`${headerClass} print-report text-right`}>Cost. unit.</th>
+            <th className={`${headerClass} print-report text-right`}>% Desc</th>
+            <th className={`${headerClass} print-report text-right`}>Cost. unit. c/ desc.</th>
             <th className={`${headerClass} print-report`}>Divisa</th>
-            <th className={`${headerClass} print-report`}>Fecha de actualizacion</th>
-            <th className={`${headerClass} print-report wrap`}>Ultimo proveedor</th>
-            <th className={`${headerClass} ${mobileHidden}`}>Ultimo usuario</th>
+            <th className={`${headerClass} print-report`}>Fecha de actualización</th>
+            <th className={`${headerClass} print-report wrap`}>Último proveedor</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Último usuario</th>
             <th className={`${headerClass} ${mobileHidden}`}>Cod cta</th>
-            <th className={`${headerClass} print-report`}>Existencia</th>
+            <th className={`${headerClass} print-report text-right`}>Existencia</th>
             <th className={`${headerClass} ${mobileHidden}`}>Prov. sug.</th>
             <th className={`${headerClass} ${mobileHidden}`}>Cod. prov. sug.</th>
             <th className={`${headerClass} ${mobileHidden}`}>Familia</th>
-            <th className={`${headerClass} ${mobileHidden}`}>Situacion</th>
+            <th className={`${headerClass} ${mobileHidden}`}>Situación</th>
           </tr>
         </thead>
         <tbody>
           {filteredArticulos.map((articulo) => (
-            <tr key={articulo.id}>
+            <tr key={articulo.id} className="even:bg-slate-50/50 hover:bg-slate-50/80">
                <td className={`${cellClass} col-acciones ${mobileHidden}`}>
                 {canEdit && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-nowrap items-center gap-1">
                     
                   <button
-                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold rounded hover:bg-emerald-100 transition-colors"
                     onClick={() => {
                         setIngresArt(""); // limpiar antes de abrir
                         setIngresarArticulo(articulo);
@@ -539,12 +494,12 @@ const mobileHidden = "hidden md:table-cell";
                     }}
                     title="Ingreso"
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                   </button>
 
                   
                   <button
-                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-1.5 bg-amber-50 text-amber-700 border border-amber-200 font-semibold rounded hover:bg-amber-100 transition-colors"
                     onClick={() => {
                       setDescontArt(""); // limpiar antes de abrir
                       setDescontarArticulo(articulo);
@@ -571,11 +526,11 @@ const mobileHidden = "hidden md:table-cell";
                     }}
                     title="Egreso"
                   >
-                    <Minus size={16} />
+                    <Minus size={14} />
                   </button>
 
                   <button
-                    className="p-2 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
+                    className="p-1.5 bg-blue-50 text-blue-700 border border-blue-200 font-semibold rounded hover:bg-blue-100 transition-colors"
                     onClick={() => {
                       setEditingArticulo(articulo);
                       setFormData({
@@ -606,7 +561,7 @@ const mobileHidden = "hidden md:table-cell";
 
 
                   <button
-                    className="p-2 bg-white text-red-700 font-semibold rounded-md shadow hover:bg-red-700 hover:text-black transition-colors duration-200"
+                    className="p-1.5 bg-red-50 text-red-700 border border-red-200 font-semibold rounded hover:bg-red-100 transition-colors"
                     onClick={async () => {
                       const confirm = window.confirm(
                         `¿Estás seguro de que querés eliminar el articulo ${articulo.id} ${articulo.articulo} ?`
@@ -625,32 +580,32 @@ const mobileHidden = "hidden md:table-cell";
                     }}
                     title="Eliminar"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
 
                   
                 </div>
                 )}
                 </td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.id}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{formatDate(articulo.created_at) || "-"}</td>
-                <td className={`${cellClass} print-report`}>{articulo.articulo}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.descripcion}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{renderValue(articulo.presentacion)}</td>
-                <td className={`${cellClass} print-report`}>{articulo.codint}</td>
-                <td className={`${cellClass} print-report`}>{articulo.costunit}</td>
-                <td className={`${cellClass} print-report`}>{articulo.descuento}</td>
-                <td className={`${cellClass} print-report`}>{parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
+                <td className={`${cellClass} ${mobileHidden} tabular-nums text-slate-500`}>{articulo.id}</td>
+                <td className={`${cellClass} ${mobileHidden} tabular-nums text-slate-600`}>{formatDate(articulo.created_at) || "-"}</td>
+                <td className={`${cellClass} print-report max-w-[14rem] truncate text-slate-800`} title={articulo.articulo}>{articulo.articulo}</td>
+                <td className={`${cellClass} ${mobileHidden} max-w-[16rem] truncate`} title={articulo.descripcion || undefined}>{articulo.descripcion}</td>
+                <td className={`${cellClass} ${mobileHidden} max-w-[8rem] truncate`} title={renderValue(articulo.presentacion)}>{renderValue(articulo.presentacion)}</td>
+                <td className={`${cellClass} print-report tabular-nums`}>{articulo.codint}</td>
+                <td className={`${cellClass} print-report text-right tabular-nums`}>{articulo.costunit}</td>
+                <td className={`${cellClass} print-report text-right tabular-nums`}>{articulo.descuento}</td>
+                <td className={`${cellClass} print-report text-right tabular-nums`}>{parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2)}
                 </td>
                 <td className={`${cellClass} print-report`}>{articulo.divisa}</td>
-                <td className={`${cellClass} print-report`}>{formatDate(articulo.updated_at) || "-"}</td>
-                <td className={`${cellClass} print-report wrap`}>{articulo.ultimo_prov}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.update_usuario || "-"}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{renderValue(articulo.cc)}</td>
-                <td className={`${cellClass} print-report`}>{articulo.existencia}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.provsug}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.codprovsug}</td>
-                <td className={`${cellClass} ${mobileHidden}`}>{articulo.familia}</td>
+                <td className={`${cellClass} print-report tabular-nums text-slate-600`}>{formatDate(articulo.updated_at) || "-"}</td>
+                <td className={`${cellClass} print-report wrap max-w-[10rem] truncate`} title={articulo.ultimo_prov || undefined}>{articulo.ultimo_prov}</td>
+                <td className={`${cellClass} ${mobileHidden} max-w-[9rem] truncate`} title={articulo.update_usuario || undefined}>{articulo.update_usuario || "-"}</td>
+                <td className={`${cellClass} ${mobileHidden} tabular-nums`}>{renderValue(articulo.cc)}</td>
+                <td className={`${cellClass} print-report text-right tabular-nums font-medium`}>{articulo.existencia}</td>
+                <td className={`${cellClass} ${mobileHidden} max-w-[10rem] truncate`} title={articulo.provsug || undefined}>{articulo.provsug}</td>
+                <td className={`${cellClass} ${mobileHidden} tabular-nums`}>{articulo.codprovsug}</td>
+                <td className={`${cellClass} ${mobileHidden} max-w-[8rem] truncate`} title={articulo.familia || undefined}>{articulo.familia}</td>
                 <td className={`${cellClass} ${mobileHidden}`}>{articulo.situacion}</td>
 
             </tr>
@@ -658,6 +613,8 @@ const mobileHidden = "hidden md:table-cell";
         </tbody>
       </table>
       </div>
+        </div>
+      </section>
 
       
 
