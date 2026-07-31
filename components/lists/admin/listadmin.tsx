@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import * as XLSX from "xlsx";
 import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
@@ -139,6 +140,7 @@ export default function ListAdmin() {
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Pedido>>({});
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const [comparativaForm, setComparativaForm] = useState<ProveedorComparativa[] | null>(null);
   const [selectedMobilePedidoId, setSelectedMobilePedidoId] = useState<string | null>(null);
   const supabase = createClient();
@@ -315,6 +317,56 @@ export default function ListAdmin() {
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
     return true;
   });
+
+  const descargarExcel = () => {
+    const filas = filteredPedidos.flatMap((pedido) =>
+      (pedido.articulos ?? []).map((art) => ({
+        articulo: art.articulo ?? "",
+        descripcion: art.descripcion?.trim() ?? "",
+        cantidad: art.cant ?? 0,
+        pic: pedido.id ?? "",
+        sector: pedido.sector ?? "",
+        solicitante: pedido.solicita ?? "",
+      }))
+    );
+
+    if (filas.length === 0) return;
+
+    try {
+      setExportandoExcel(true);
+
+      const headers = [
+        "articulo",
+        "descripcion",
+        "cantidad",
+        "pic",
+        "sector",
+        "solicitante",
+      ] as const;
+      const headerLabels = [
+        "Artículo",
+        "Descripción",
+        "Cantidad",
+        "PIC",
+        "Sector",
+        "Solicitante",
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(filas, { header: [...headers] });
+      XLSX.utils.sheet_add_aoa(ws, [headerLabels], { origin: "A1" });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Pedidos generales");
+      XLSX.writeFile(
+        wb,
+        `pedidos-generales-${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (err) {
+      console.error("Error al exportar Excel:", err);
+    } finally {
+      setExportandoExcel(false);
+    }
+  };
 
   function renderValue(value: unknown): string {
     if (
@@ -1111,6 +1163,16 @@ export default function ListAdmin() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 px-3 border border-gray-300 rounded-lg w-full max-w-xs text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
+
+          <button
+            type="button"
+            onClick={descargarExcel}
+            disabled={exportandoExcel || filteredPedidos.length === 0}
+            title="Descarga los artículos de los pedidos filtrados"
+            className="h-8 whitespace-nowrap rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {exportandoExcel ? "Exportando..." : "Descargar Excel"}
+          </button>
         </div>
         </div>
 

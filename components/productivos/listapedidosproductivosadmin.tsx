@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
@@ -139,6 +140,7 @@ export default function ListaPedidosProductivosAdmin() {
     >({});
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
+    const [exportandoExcel, setExportandoExcel] = useState(false);
     const [fechaImpresion, setFechaImpresion] = useState("");
     const [selectedMobilePedidoId, setSelectedMobilePedidoId] = useState<string | null>(null);
     const supabase = createClient();
@@ -428,6 +430,59 @@ export default function ListaPedidosProductivosAdmin() {
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
     return true;
   });
+
+  const descargarExcel = () => {
+    const filas = filteredPedidos.flatMap((pedido) =>
+      (pedido.articulos ?? []).map((art) => ({
+        articulo: art.articulo ?? "",
+        presentacion: art.presentacion?.trim() ?? "",
+        cantidad: art.cant ?? 0,
+        cod_proveedor: art.codprovsug?.trim() ?? "",
+        pic: pedido.id ?? "",
+        sector: pedido.sector ?? "",
+        solicitante: pedido.solicita ?? "",
+      }))
+    );
+
+    if (filas.length === 0) return;
+
+    try {
+      setExportandoExcel(true);
+
+      const headers = [
+        "articulo",
+        "presentacion",
+        "cantidad",
+        "cod_proveedor",
+        "pic",
+        "sector",
+        "solicitante",
+      ] as const;
+      const headerLabels = [
+        "Artículo",
+        "Presentación",
+        "Cantidad",
+        "Código proveedor",
+        "PIC",
+        "Sector",
+        "Solicitante",
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(filas, { header: [...headers] });
+      XLSX.utils.sheet_add_aoa(ws, [headerLabels], { origin: "A1" });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Pedidos productivos");
+      XLSX.writeFile(
+        wb,
+        `pedidos-productivos-${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (err) {
+      console.error("Error al exportar Excel:", err);
+    } finally {
+      setExportandoExcel(false);
+    }
+  };
 
   
   
@@ -1139,13 +1194,24 @@ const handleUpdatePedido = async () => {
                 Gestión y seguimiento de pedidos productivos
               </p>
             </div>
-            <input
-              type="search"
-              placeholder="Buscar pedido productivo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-full sm:max-w-xs rounded-md border border-white/30 bg-white/95 px-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                placeholder="Buscar pedido productivo..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 w-full sm:max-w-xs rounded-md border border-white/30 bg-white/95 px-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <button
+                type="button"
+                onClick={descargarExcel}
+                disabled={exportandoExcel || filteredPedidos.length === 0}
+                title="Descarga los artículos de los pedidos filtrados"
+                className="h-8 whitespace-nowrap rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation"
+              >
+                {exportandoExcel ? "Exportando..." : "Descargar Excel"}
+              </button>
+            </div>
           </div>
         </div>
 
