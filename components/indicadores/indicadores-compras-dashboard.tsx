@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calcularAhorrosAlcanzados,
   calcularAhorrosAlcanzadosPorDivisa,
+  calcularImportePorClasificacionCompra,
+  calcularImportePorClasificacionCompraPorDivisa,
   calcularImportePorModalidadPago,
   calcularImportePorModalidadPagoPorDivisa,
   calcularImportePorCondicionProceso,
@@ -23,6 +25,7 @@ import {
   calcularImportePorProveedor,
   calcularImportePorProveedorPorDivisa,
   consolidarAhorrosEnArs,
+  consolidarImporteClasificacionEnArs,
   consolidarImporteModalidadEnArs,
   consolidarImporteCondicionProcesoEnArs,
   consolidarSolicitudesPorSectorEnArs,
@@ -40,6 +43,7 @@ import {
   type OrdenCompraIndicador,
 } from "@/lib/indicadores-compras";
 import { AhorrosAlcanzadosChart } from "@/components/indicadores/ahorros-alcanzados-chart";
+import { ImporteClasificacionCompraChart } from "@/components/indicadores/importe-clasificacion-compra-chart";
 import { ImporteModalidadPagoChart } from "@/components/indicadores/importe-modalidad-pago-chart";
 import { ImporteCondicionProcesoChart } from "@/components/indicadores/importe-condicion-proceso-chart";
 import { SolicitudesPorSectorChart } from "@/components/indicadores/solicitudes-por-sector-chart";
@@ -69,7 +73,7 @@ export function IndicadoresComprasDashboard() {
 
       const { data, error: fetchError } = await supabase
         .from("ordenes_compra")
-        .select("id, noc, fecha, estado, total, divisa, importe_competencia, ahorro, tipo_pago, condi_proceso, sector, cod_cta, proveedor, articulos")
+        .select("id, noc, fecha, estado, total, divisa, importe_competencia, ahorro, tipo_pago, condi_proceso, clasificacion_compra, sector, cod_cta, proveedor, articulos")
         .order("fecha", { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -98,6 +102,11 @@ export function IndicadoresComprasDashboard() {
 
   const ahorrosPorDivisa = useMemo(
     () => calcularAhorrosAlcanzadosPorDivisa(ordenesFiltradas),
+    [ordenesFiltradas]
+  );
+
+  const importeClasificacionPorDivisa = useMemo(
+    () => calcularImportePorClasificacionCompraPorDivisa(ordenesFiltradas),
     [ordenesFiltradas]
   );
 
@@ -158,6 +167,50 @@ export function IndicadoresComprasDashboard() {
     tipoCambioUsd,
     tipoCambioEur,
     ahorrosPorDivisa,
+    filtroDivisa,
+    ordenesFiltradas,
+  ]);
+
+  const gruposClasificacionCompra = useMemo(() => {
+    if (totalizarEnArs) {
+      if (!tiposCambioValidos) return [];
+      return [
+        {
+          divisa: "ARS" as const,
+          etiquetaGrupo: "Total en ARS",
+          clasificaciones: consolidarImporteClasificacionEnArs(
+            importeClasificacionPorDivisa,
+            {
+              usd: tipoCambioUsd!,
+              eur: tipoCambioEur!,
+            }
+          ),
+        },
+      ];
+    }
+
+    if (filtroDivisa === "todas") {
+      return DIVISAS_INDICADOR.map((divisa) => ({
+        divisa,
+        clasificaciones: importeClasificacionPorDivisa[divisa],
+      }));
+    }
+
+    return [
+      {
+        divisa: filtroDivisa,
+        clasificaciones: calcularImportePorClasificacionCompra(
+          ordenesFiltradas,
+          filtroDivisa
+        ),
+      },
+    ];
+  }, [
+    totalizarEnArs,
+    tiposCambioValidos,
+    tipoCambioUsd,
+    tipoCambioEur,
+    importeClasificacionPorDivisa,
     filtroDivisa,
     ordenesFiltradas,
   ]);
@@ -599,6 +652,37 @@ export function IndicadoresComprasDashboard() {
                 }
                 etiquetasGrupo={
                   totalizarEnArs ? { ARS: "Total en ARS" } : undefined
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800">
+              Monto de compras productivas y no productivas
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              {totalizarEnArs
+                ? "Total confirmado por clasificación de compra, consolidado en ARS."
+                : "Total confirmado de órdenes según clasificación de compra (productiva / no productiva)."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {totalizarEnArs && !tiposCambioValidos ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-amber-800">
+                Ingresá el tipo de cambio del día en USD y EUR para ver el total en ARS.
+              </div>
+            ) : (
+              <ImporteClasificacionCompraChart
+                grupos={gruposClasificacionCompra}
+                tituloComparativa={
+                  totalizarEnArs
+                    ? "Total consolidado en ARS"
+                    : filtroDivisa === "todas"
+                      ? "Comparativa por divisa"
+                      : `Total en ${DIVISA_LABELS[filtroDivisa]}`
                 }
               />
             )}

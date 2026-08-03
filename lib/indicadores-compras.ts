@@ -21,6 +21,7 @@ export type OrdenCompraIndicador = {
   ahorro?: number | null;
   tipo_pago?: string | null;
   condi_proceso?: string | null;
+  clasificacion_compra?: string | null;
   sector?: string | null;
   cod_cta?: string | null;
   proveedor?: string | null;
@@ -392,6 +393,118 @@ export function consolidarAhorrosEnArs(
     total.importeMasAltoCotizado - total.importeConfirmado;
 
   return total;
+}
+
+export type ClasificacionCompra = "PRODUCTIVA" | "NO_PRODUCTIVA";
+
+export const CLASIFICACIONES_COMPRA: ClasificacionCompra[] = [
+  "PRODUCTIVA",
+  "NO_PRODUCTIVA",
+];
+
+export const CLASIFICACION_COMPRA_LABELS: Record<ClasificacionCompra, string> = {
+  PRODUCTIVA: "Productiva",
+  NO_PRODUCTIVA: "No productiva",
+};
+
+export type ImportePorClasificacionCompra = {
+  clasificacion: ClasificacionCompra;
+  importeTotal: number;
+  ordenes: number;
+  divisa: DivisaIndicador;
+};
+
+export function normalizarClasificacionCompra(
+  clasificacion?: string | null
+): ClasificacionCompra | null {
+  if (!clasificacion?.trim()) return null;
+
+  const valor = clasificacion.trim().toLowerCase().replace(/\s+/g, " ");
+
+  if (valor === "productiva" || valor === "productivo") return "PRODUCTIVA";
+  if (
+    valor === "no productiva" ||
+    valor === "no productivo" ||
+    valor === "noproductiva" ||
+    valor === "no_productiva"
+  ) {
+    return "NO_PRODUCTIVA";
+  }
+
+  return null;
+}
+
+export function crearImportesClasificacionVacios(
+  divisa: DivisaIndicador
+): ImportePorClasificacionCompra[] {
+  return CLASIFICACIONES_COMPRA.map((clasificacion) => ({
+    clasificacion,
+    importeTotal: 0,
+    ordenes: 0,
+    divisa,
+  }));
+}
+
+export function calcularImportePorClasificacionCompra(
+  ordenes: OrdenCompraIndicador[],
+  divisa: DivisaIndicador
+): ImportePorClasificacionCompra[] {
+  const indicadores = crearImportesClasificacionVacios(divisa);
+  const porClasificacion = new Map(
+    indicadores.map((item) => [item.clasificacion, item])
+  );
+
+  for (const orden of ordenes) {
+    if (inferirDivisaOrden(orden) !== divisa) continue;
+
+    const clasificacion = normalizarClasificacionCompra(
+      orden.clasificacion_compra
+    );
+    if (!clasificacion) continue;
+
+    const indicador = porClasificacion.get(clasificacion);
+    if (!indicador) continue;
+
+    indicador.ordenes += 1;
+    indicador.importeTotal += Number(orden.total) || 0;
+  }
+
+  return indicadores;
+}
+
+export function calcularImportePorClasificacionCompraPorDivisa(
+  ordenes: OrdenCompraIndicador[]
+): Record<DivisaIndicador, ImportePorClasificacionCompra[]> {
+  return {
+    USD: calcularImportePorClasificacionCompra(ordenes, "USD"),
+    EUR: calcularImportePorClasificacionCompra(ordenes, "EUR"),
+    ARS: calcularImportePorClasificacionCompra(ordenes, "ARS"),
+  };
+}
+
+export function consolidarImporteClasificacionEnArs(
+  porDivisa: Record<DivisaIndicador, ImportePorClasificacionCompra[]>,
+  tiposCambio: TiposCambioIndicador
+): ImportePorClasificacionCompra[] {
+  const consolidado = crearImportesClasificacionVacios("ARS");
+
+  for (const divisa of DIVISAS_INDICADOR) {
+    for (const item of porDivisa[divisa]) {
+      const destino = consolidado.find(
+        (c) => c.clasificacion === item.clasificacion
+      );
+      if (!destino) continue;
+
+      destino.ordenes += item.ordenes;
+      destino.importeTotal += convertirImporteAArs(
+        item.importeTotal,
+        divisa,
+        tiposCambio
+      );
+    }
+  }
+
+  return consolidado;
 }
 
 export function normalizarModalidadPago(

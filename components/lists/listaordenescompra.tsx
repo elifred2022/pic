@@ -55,6 +55,7 @@ interface OrdenCompra {
   condicion_pago?: string;
   condi_proceso?: string;
   tipo_pago?: string;
+  clasificacion_compra?: string | null;
   cod_cta?: string;
   sector?: string;
   created_at?: string;
@@ -410,6 +411,12 @@ export default function ListaOrdenesCompra() {
         return nocA - nocB;
       });
       const rows = ordenadasPorNoc.map((o) => {
+        const clasificacion =
+          o.clasificacion_compra === "productiva"
+            ? "Productiva"
+            : o.clasificacion_compra === "no productiva"
+              ? "No productiva"
+              : o.clasificacion_compra ?? "";
         const base = {
           estado: o.estado ?? "",
           noc: o.noc ?? "",
@@ -422,6 +429,7 @@ export default function ListaOrdenesCompra() {
               : "",
           proveedor: o.proveedor ?? "",
           condi_proceso: o.condi_proceso ?? "",
+          clasificacion_compra: clasificacion,
           cod_cta: o.cod_cta ?? "",
           tipo_pago: o.tipo_pago ?? "",
         };
