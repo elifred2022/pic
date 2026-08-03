@@ -136,7 +136,7 @@ export function CrearFormOrdenCompra() {
     condicion_pago: "",
     tipo_pago: "",
     condi_proceso: "",
-    importe_competencia: "0",
+    importe_competencia: "",
     divisa: "USD" as "USD" | "EUR" | "ARS"
   });
 
@@ -731,6 +731,11 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.fecha_prometida) {
+      setError("Debe indicar la fecha acordada de entrega");
+      return;
+    }
+
     if (!formData.sector) {
       setError("Debe seleccionar un sector");
       return;
@@ -741,6 +746,11 @@ export function CrearFormOrdenCompra() {
       return;
     }
 
+    if (!formData.divisa) {
+      setError("Debe seleccionar la divisa de la orden");
+      return;
+    }
+
     if (!formData.cod_cta || formData.cod_cta.trim() === "") {
       setError("Debe ingresar un código de cuenta");
       return;
@@ -748,6 +758,24 @@ export function CrearFormOrdenCompra() {
 
     if (!formData.condicion_pago) {
       setError("Debe seleccionar una condición de pago");
+      return;
+    }
+
+    if (!formData.tipo_pago) {
+      setError("Debe seleccionar un tipo de pago");
+      return;
+    }
+
+    if (!formData.condi_proceso) {
+      setError("Debe seleccionar una condición de proceso");
+      return;
+    }
+
+    if (
+      formData.importe_competencia.trim() === "" ||
+      parseNumero(formData.importe_competencia) <= 0
+    ) {
+      setError("Debe ingresar el importe de competencia (mayor a 0)");
       return;
     }
 
@@ -782,13 +810,13 @@ export function CrearFormOrdenCompra() {
         direccion: proveedorSeleccionado.direccionprov,
         telefono: proveedorSeleccionado.telefonoprov.toString(),
         lugar_entrega: formData.lugar_entrega,
-        fecha_prometida: formData.fecha_prometida || null,
+        fecha_prometida: formData.fecha_prometida,
         sector: formData.sector,
         clasificacion_compra: formData.clasificacion_compra,
         cod_cta: formData.cod_cta,
         condicion_pago: formData.condicion_pago,
-        tipo_pago: formData.tipo_pago || null,
-        condi_proceso: formData.condi_proceso || null,
+        tipo_pago: formData.tipo_pago,
+        condi_proceso: formData.condi_proceso,
         noc: formData.noc,
         total: totalOrden,
         importe_competencia: parseNumero(formData.importe_competencia),
@@ -909,7 +937,7 @@ export function CrearFormOrdenCompra() {
 
             {/* Fecha acordada de entrega */}
             <div>
-              <Label htmlFor="fecha_prometida">Fecha acordada de entrega</Label>
+              <Label htmlFor="fecha_prometida">Fecha acordada de entrega *</Label>
               <Input
                 id="fecha_prometida"
                 type="date"
@@ -917,6 +945,7 @@ export function CrearFormOrdenCompra() {
                 onChange={(e) =>
                   setFormData({ ...formData, fecha_prometida: e.target.value })
                 }
+                required
                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -963,7 +992,7 @@ export function CrearFormOrdenCompra() {
 
             {/* Divisa de la orden */}
             <div>
-              <Label htmlFor="divisa_orden">Divisa de la Orden</Label>
+              <Label htmlFor="divisa_orden">Divisa de la Orden *</Label>
               <select
                 id="divisa_orden"
                 name="divisa"
@@ -974,6 +1003,7 @@ export function CrearFormOrdenCompra() {
                     setFormData(prev => ({ ...prev, divisa: val }));
                   }
                 }}
+                required
                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="USD">USD</option>
@@ -1073,11 +1103,12 @@ export function CrearFormOrdenCompra() {
 
             {/* Tipo de Pago */}
             <div>
-              <Label htmlFor="tipo_pago">Tipo de Pago</Label>
+              <Label htmlFor="tipo_pago">Tipo de Pago *</Label>
               <select
                 id="tipo_pago"
                 value={formData.tipo_pago}
                 onChange={(e) => setFormData({ ...formData, tipo_pago: e.target.value })}
+                required
                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Seleccione tipo de pago</option>
@@ -1089,11 +1120,12 @@ export function CrearFormOrdenCompra() {
 
             {/* Condición de Proceso */}
             <div>
-              <Label htmlFor="condi_proceso">Condición de Proceso</Label>
+              <Label htmlFor="condi_proceso">Condición de Proceso *</Label>
               <select
                 id="condi_proceso"
                 value={formData.condi_proceso}
                 onChange={(e) => setFormData({ ...formData, condi_proceso: e.target.value })}
+                required
                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Seleccione condición de proceso</option>
@@ -1489,15 +1521,18 @@ export function CrearFormOrdenCompra() {
                   <span className="text-2xl font-bold text-green-600 whitespace-nowrap">{formData.divisa} {totalOrden.toLocaleString('es-AR')}</span>
                 </div>
                 <div>
-                  <Label htmlFor="importe_competencia" className="text-sm text-gray-600">Importe competencia</Label>
+                  <Label htmlFor="importe_competencia" className="text-sm text-gray-600">
+                    Importe competencia *
+                  </Label>
                   <Input
                     id="importe_competencia"
                     type="number"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     value={formData.importe_competencia}
                     onChange={(e) => setFormData({ ...formData, importe_competencia: e.target.value })}
                     placeholder="Precio que cobraría la competencia"
+                    required
                     className="mt-1"
                   />
                   {ahorroCalculado !== null && (
@@ -1530,7 +1565,21 @@ export function CrearFormOrdenCompra() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={loading || !proveedorSeleccionado || itemsOrden.length === 0 || !formData.sector || !formData.cod_cta || !formData.condicion_pago}
+                disabled={
+                  loading ||
+                  !proveedorSeleccionado ||
+                  itemsOrden.length === 0 ||
+                  !formData.fecha_prometida ||
+                  !formData.sector ||
+                  !formData.clasificacion_compra ||
+                  !formData.divisa ||
+                  !formData.cod_cta ||
+                  !formData.condicion_pago ||
+                  !formData.tipo_pago ||
+                  !formData.condi_proceso ||
+                  formData.importe_competencia.trim() === "" ||
+                  parseNumero(formData.importe_competencia) <= 0
+                }
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
               >
                 {loading ? "Creando..." : "✅ Crear Orden de Compra"}
