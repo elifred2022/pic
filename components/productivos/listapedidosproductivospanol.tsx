@@ -11,6 +11,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { fetchCurrentUserNombre } from "@/lib/user-rol";
 
 type Pedido = {
   id: string;
@@ -337,7 +338,8 @@ export default function ListaPedidosProductivos() {
     const historicoNuevo = appendHistoricoEstado(
       editingPedido.historico_estado,
       editingPedido.estado,
-      estadoNormalizado
+      estadoNormalizado,
+      await fetchCurrentUserNombre(supabase)
     );
     if (historicoNuevo) {
       payload.historico_estado = historicoNuevo;

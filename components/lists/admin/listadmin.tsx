@@ -31,6 +31,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { fetchCurrentUserNombre } from "@/lib/user-rol";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -184,7 +185,8 @@ export default function ListAdmin() {
     const historicoNuevo = appendHistoricoEstado(
       editingPedido.historico_estado,
       editingPedido.estado,
-      formData.estado
+      formData.estado,
+      await fetchCurrentUserNombre(supabase)
     );
     if (historicoNuevo) datosActualizar.historico_estado = historicoNuevo;
     
@@ -578,7 +580,8 @@ export default function ListAdmin() {
     const historicoNuevo = appendHistoricoEstado(
       verInfo.historico_estado,
       verInfo.estado,
-      formData.estado
+      formData.estado,
+      await fetchCurrentUserNombre(supabase)
     );
     if (historicoNuevo) datosActualizar.historico_estado = historicoNuevo;
 
@@ -823,6 +826,16 @@ export default function ListAdmin() {
               <tr>
                 <td><strong>Estado</strong></td>
                 <td>${verInfo.estado || '-'}</td>
+              </tr>
+              <tr>
+                <td><strong>Histórico de estado</strong></td>
+                <td>${
+                  parseHistoricoEstado(verInfo.historico_estado).length > 0
+                    ? parseHistoricoEstado(verInfo.historico_estado)
+                        .map((h) => formatHistoricoEntry(h))
+                        .join("<br/>")
+                    : "-"
+                }</td>
               </tr>
               <tr>
                 <td><strong>Aprobador</strong></td>
@@ -1309,13 +1322,13 @@ export default function ListAdmin() {
                 </div>
               </td>
              
-            <td className={tableCellClass}>
-              <div className="flex min-w-[7rem] flex-col gap-0.5">
+            <td className={`${tableCellClass} min-w-[14rem]`}>
+              <div className="flex flex-col gap-0.5">
                 <span
                     className={
-                    pedido.estado === "anulado"
+                    pedido.estado === "anulado" || pedido.estado === "no aprobado"
                          ? "px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full"
-                        : pedido.estado === "aprobado"
+                        : pedido.estado === "aprobado" || pedido.estado === "autorizado por finanza"
                          ? "px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full"
                         : pedido.estado === "iniciado"
                          ? "px-2 py-1 bg-orange-50 text-orange-500 text-xs font-semibold rounded-full"
@@ -1339,7 +1352,7 @@ export default function ListAdmin() {
                 {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
                   <span
                     key={`${h.estado}-${h.fecha}-${index}`}
-                    className="text-[10px] leading-tight text-slate-500 tabular-nums"
+                    className="text-[10px] leading-tight text-slate-500 tabular-nums whitespace-nowrap"
                   >
                     {formatHistoricoEntry(h)}
                   </span>

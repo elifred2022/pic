@@ -31,6 +31,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { fetchCurrentUserNombre } from "@/lib/user-rol";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -120,6 +121,7 @@ export default function ListaPedidosProductivosAdmin() {
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+    const [ocultarNoAprobados, setOcultarNoAprobados] = useState(false);
     const [comparativaPedido, setComparativaPedido] = useState<Pedido | null>(null); //modal comparativa
     
 
@@ -162,12 +164,14 @@ export default function ListaPedidosProductivosAdmin() {
      const savedAnulados = localStorage.getItem("ocultarAnulados");
      const savedStandBy = localStorage.getItem("ocultarStandBy");
      const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+     const savedNoAprobados = localStorage.getItem("ocultarNoAprobados");
    
      if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
      if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
      if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
      if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
      if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+     if (savedNoAprobados !== null) setOcultarNoAprobados(savedNoAprobados === "true");
    }, []);
    
    // Establecer fecha de impresión para evitar errores de hidratación
@@ -196,6 +200,10 @@ export default function ListaPedidosProductivosAdmin() {
      useEffect(() => {
      localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
    }, [ocultarConfirmado]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarNoAprobados", String(ocultarNoAprobados));
+  }, [ocultarNoAprobados]);
    
        // Recalcular comparativa cuando se abre el modal de edición
     useEffect(() => {
@@ -428,6 +436,7 @@ export default function ListaPedidosProductivosAdmin() {
     if (ocultarAnulados && pedido.estado === "anulado") return false;
     if (ocultarStandBy && pedido.estado === "stand by") return false;
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+    if (ocultarNoAprobados && pedido.estado === "no aprobado") return false;
     return true;
   });
 
@@ -758,7 +767,8 @@ const handleUpdatePedido = async () => {
     const historicoNuevo = appendHistoricoEstado(
       pedidoToUpdate.historico_estado,
       pedidoToUpdate.estado,
-      formData.estado
+      formData.estado,
+      await fetchCurrentUserNombre(supabase)
     );
     if (historicoNuevo) {
       dataToUpdate.historico_estado = historicoNuevo;
@@ -1265,6 +1275,15 @@ const handleUpdatePedido = async () => {
                   />
                   <span className="text-gray-700 font-medium text-xs">Ocultar stand by</span>
                 </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={ocultarNoAprobados}
+                    onChange={() => setOcultarNoAprobados((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar no aprobados</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1341,13 +1360,13 @@ const handleUpdatePedido = async () => {
                           )}
                         </div>
                       </td>
-                      <td className={`${tdClass} whitespace-nowrap`}>
-                        <div className="flex flex-col gap-0.5 min-w-[6.5rem]">
+                      <td className={`${tdClass} min-w-[14rem]`}>
+                        <div className="flex flex-col gap-0.5">
                           <span className={estadoBadgeClass(p.estado)}>{renderValue(p.estado)}</span>
                           {parseHistoricoEstado(p.historico_estado).map((h, i) => (
                             <span
                               key={`${h.estado}-${h.fecha}-${i}`}
-                              className="text-[10px] leading-tight text-slate-500 tabular-nums"
+                              className="text-[10px] leading-tight text-slate-500 tabular-nums whitespace-nowrap"
                               title={formatHistoricoEntry(h)}
                             >
                               {formatHistoricoEntry(h)}

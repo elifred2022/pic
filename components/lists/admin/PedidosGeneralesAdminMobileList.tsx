@@ -130,7 +130,7 @@ function ResumenPedido({
         {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
           <p
             key={`${h.estado}-${h.fecha}-${index}`}
-            className="text-[10px] leading-tight text-slate-500 tabular-nums"
+            className="text-[10px] leading-tight text-slate-500 tabular-nums whitespace-nowrap"
           >
             {formatHistoricoEntry(h)}
           </p>

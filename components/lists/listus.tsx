@@ -3,6 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import {
+  formatHistoricoEntry,
+  parseHistoricoEstado,
+  type HistoricoEstadoEntry,
+} from "@/lib/historico-estado-pedidos-productivos";
 
 
 type Pedido = {
@@ -27,6 +32,7 @@ type Pedido = {
    controlado: string;
   superviso: string;
   estado: string;
+  historico_estado?: HistoricoEstadoEntry[] | null;
   aprueba: string;
   notas_aprobador?: string;
   nota_aprobador?: string;
@@ -380,12 +386,13 @@ function renderValue(value: unknown): string {
           </button>
         </div>
       </td>
-                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center">
+                  <td className="px-4 py-3 border-b border-gray-200 align-top text-center min-w-[14rem]">
+       <div className="flex flex-col items-center gap-0.5">
        <span
                     className={
-                    pedido.estado === "anulado"
+                    pedido.estado === "anulado" || pedido.estado === "no aprobado"
                           ? "px-3 py-2 bg-red-100 text-red-800 text-sm font-semibold rounded-full"
-                        : pedido.estado === "aprobado"
+                        : pedido.estado === "aprobado" || pedido.estado === "autorizado por finanza"
                           ? "px-3 py-2 bg-green-100 text-green-800 text-sm font-semibold rounded-full"
                         : pedido.estado === "iniciado"
                           ? "px-3 py-2 bg-orange-50 text-orange-500 text-sm font-semibold rounded-full"
@@ -406,6 +413,15 @@ function renderValue(value: unknown): string {
                 >
                    {renderValue(pedido.estado)}
                 </span>
+                {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
+                  <span
+                    key={`${h.estado}-${h.fecha}-${index}`}
+                    className="text-[10px] leading-tight text-slate-500 tabular-nums whitespace-nowrap"
+                  >
+                    {formatHistoricoEntry(h)}
+                  </span>
+                ))}
+       </div>
       </td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center font-medium text-lg">{pedido.id}</td>
                   <td className="px-4 py-3 border-b border-gray-200 align-top text-center">{formatDate(pedido.created_at)}</td>
@@ -522,6 +538,19 @@ function renderValue(value: unknown): string {
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">📋 Detalles del Pedido</h3>
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Estado:</span> {editingPedido.estado}</p>
+                    {parseHistoricoEstado(editingPedido.historico_estado).length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="font-medium text-xs text-gray-600">Histórico:</p>
+                        {parseHistoricoEstado(editingPedido.historico_estado).map((h, index) => (
+                          <p
+                            key={`${h.estado}-${h.fecha}-${index}`}
+                            className="text-[11px] text-slate-500"
+                          >
+                            {formatHistoricoEntry(h)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     <p><span className="font-medium">Cantidad total:</span> {editingPedido.cant}</p>
                                          <p><span className="font-medium">Artículos:</span> {Array.isArray(editingPedido.articulos) ? editingPedido.articulos.length : 0}</p>
                   </div>
