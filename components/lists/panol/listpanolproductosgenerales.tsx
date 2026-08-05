@@ -8,7 +8,7 @@ import PicRealtimeListener from "../../realtime/picrealtimelistener";
 import { isPanolEmail } from "@/lib/panol-access";
 import {
   appendHistoricoEstado,
-  formatHistoricoFecha,
+  formatHistoricoEntry,
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
@@ -416,7 +416,7 @@ function renderValue(value: unknown): string {
                     key={`${h.estado}-${h.fecha}-${index}`}
                     className="text-[10px] leading-tight text-slate-500 tabular-nums"
                   >
-                    {h.estado} · {formatHistoricoFecha(h.fecha)}
+                    {formatHistoricoEntry(h)}
                   </span>
                 ))}
        </div>

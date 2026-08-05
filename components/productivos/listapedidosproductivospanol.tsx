@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isPanolEmail } from "@/lib/panol-access";
 import {
   appendHistoricoEstado,
-  formatHistoricoFecha,
+  formatHistoricoEntry,
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
@@ -545,7 +545,7 @@ export default function ListaPedidosProductivos() {
                           key={`${h.estado}-${h.fecha}-${index}`}
                           className="text-[10px] leading-tight text-slate-500 tabular-nums"
                         >
-                          {h.estado} · {formatHistoricoFecha(h.fecha)}
+                          {formatHistoricoEntry(h)}
                         </span>
                       ))}
                     </div>

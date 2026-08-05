@@ -9,14 +9,20 @@ import {
   useComparativaPresupuestoUrls,
   useOcFacturaAdjunto,
 } from "@/hooks/use-adjuntos-compras-view";
-import { canViewAdjuntosCompras } from "@/lib/panol-access";
-import { fetchUserRolByUuid } from "@/lib/user-rol";
+import { canViewAdjuntosCompras, isAprobEmail } from "@/lib/panol-access";
 import {
   appendHistoricoEstado,
-  formatHistoricoFecha,
+  formatHistoricoEntry,
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+
+const ESTADOS_APROBADOR = [
+  { value: "aprobado", label: "Aprobado" },
+  { value: "autorizado por finanza", label: "Autorizado por finanza" },
+  { value: "no aprobado", label: "No aprobado" },
+  { value: "stand by", label: "Stand By" },
+] as const;
 
 type ArticuloComparativa = {
   articulo: string;
@@ -91,11 +97,13 @@ export default function ListAprob() {
   const [comparativaOcId, setComparativaOcId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
+  const [userNombre, setUserNombre] = useState<string | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarAprobados, setOcultarAprobados] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [ocultarStandBy, setOcultarStandBy] = useState(false);
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+  const [ocultarNoAprobados, setOcultarNoAprobados] = useState(false);
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const supabase = createClient();
 
@@ -112,8 +120,13 @@ export default function ListAprob() {
       const user = data.user;
       setUserEmail(user?.email ?? null);
       if (user) {
-        const rol = await fetchUserRolByUuid(supabase, user.id);
-        setUserRol(rol);
+        const { data: perfil } = await supabase
+          .from("usuarios")
+          .select("rol, nombre")
+          .eq("uuid", user.id)
+          .maybeSingle();
+        setUserRol(perfil?.rol ?? null);
+        setUserNombre(perfil?.nombre?.trim() || user.email || null);
       }
     });
   }, [supabase]);
@@ -155,12 +168,14 @@ export default function ListAprob() {
     const savedAnulados = localStorage.getItem("ocultarAnulados");
     const savedStandBy = localStorage.getItem("ocultarStandBy");
     const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+    const savedNoAprobados = localStorage.getItem("ocultarNoAprobados");
    
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
     if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
     if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+    if (savedNoAprobados !== null) setOcultarNoAprobados(savedNoAprobados === "true");
   }, []);
    
   // Cada vez que cambia, actualizá localStorage
@@ -183,6 +198,10 @@ export default function ListAprob() {
   useEffect(() => {
     localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
   }, [ocultarConfirmado]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarNoAprobados", String(ocultarNoAprobados));
+  }, [ocultarNoAprobados]);
 
   // Cargar datos
   useEffect(() => {
@@ -249,6 +268,7 @@ export default function ListAprob() {
       if (ocultarAnulados && pedido.estado === "anulado") return false;
       if (ocultarStandBy && pedido.estado === "stand by") return false;
       if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+      if (ocultarNoAprobados && pedido.estado === "no aprobado") return false;
       return true;
     });
 
@@ -273,8 +293,14 @@ export default function ListAprob() {
 
   const estadoBadgeClass = (estado: string) => {
     const base = "inline-block px-1.5 py-0 text-[10px] leading-tight font-semibold rounded";
-    if (estado === "anulado") return `${base} bg-red-100 text-red-800`;
-    if (estado === "aprobado" || estado === "confirmado") return `${base} bg-green-100 text-green-800`;
+    if (estado === "anulado" || estado === "no aprobado") return `${base} bg-red-100 text-red-800`;
+    if (
+      estado === "aprobado" ||
+      estado === "confirmado" ||
+      estado === "autorizado por finanza"
+    ) {
+      return `${base} bg-green-100 text-green-800`;
+    }
     if (estado === "cotizado") return `${base} bg-yellow-100 text-yellow-800`;
     if (estado === "iniciado" || estado === "visto/recibido" || estado === "Visto/recibido") {
       return `${base} bg-orange-50 text-orange-500`;
@@ -378,6 +404,16 @@ export default function ListAprob() {
                 />
                 <span className="text-gray-700 font-medium text-xs">Ocultar stand by</span>
               </label>
+
+              <label className={filterLabelClass}>
+                <input
+                  type="checkbox"
+                  checked={ocultarNoAprobados}
+                  onChange={() => setOcultarNoAprobados((v) => !v)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-gray-700 font-medium text-xs">Ocultar no aprobados</span>
+              </label>
             </div>
           </div>
 
@@ -450,17 +486,17 @@ export default function ListAprob() {
                       </button>
                     </div>
                   </td>
-                  <td className={tdClass}>
-                    <div className="flex min-w-[7rem] flex-col gap-0.5">
+                  <td className={`${tdClass} min-w-[14rem]`}>
+                    <div className="flex flex-col gap-0.5">
                       <span className={estadoBadgeClass(pedido.estado)}>
                         {renderValue(pedido.estado)}
                       </span>
                       {parseHistoricoEstado(pedido.historico_estado).map((h, index) => (
                         <span
                           key={`${h.estado}-${h.fecha}-${index}`}
-                          className="text-[10px] leading-tight text-slate-500 tabular-nums"
+                          className="text-[10px] leading-tight text-slate-500 tabular-nums whitespace-nowrap"
                         >
-                          {h.estado} · {formatHistoricoFecha(h.fecha)}
+                          {formatHistoricoEntry(h)}
                         </span>
                       ))}
                     </div>
@@ -783,11 +819,29 @@ export default function ListAprob() {
                       setFormData({ ...formData, estado: e.target.value })
                     }
                   >
-                    <option value="">Seleccionar estado</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="stand by">Stand By</option>
-                    <option value="anulado">Anulado</option>
-                    <option value="Presentar presencial">Presentar presencial</option>
+                    {isAprobEmail(userEmail, userRol) ? (
+                      <>
+                        {formData.estado &&
+                          !ESTADOS_APROBADOR.some((e) => e.value === formData.estado) && (
+                            <option value={formData.estado}>
+                              {formData.estado}
+                            </option>
+                          )}
+                        {ESTADOS_APROBADOR.map((estado) => (
+                          <option key={estado.value} value={estado.value}>
+                            {estado.label}
+                          </option>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        <option value="">Seleccionar estado</option>
+                        <option value="aprobado">Aprobado</option>
+                        <option value="stand by">Stand By</option>
+                        <option value="anulado">Anulado</option>
+                        <option value="Presentar presencial">Presentar presencial</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -866,7 +920,8 @@ export default function ListAprob() {
                     const historicoNuevo = appendHistoricoEstado(
                       editingPedido.historico_estado,
                       editingPedido.estado,
-                      cleanFormData.estado
+                      cleanFormData.estado,
+                      userNombre
                     );
                     if (historicoNuevo) {
                       cleanFormData.historico_estado = historicoNuevo;

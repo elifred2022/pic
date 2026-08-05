@@ -170,7 +170,7 @@ export default function CrearFormUs() {
             solicita,
             sector,
             estado,
-            historico_estado: appendHistoricoEstado([], null, estado) ?? [],
+            historico_estado: appendHistoricoEstado([], null, estado, solicita) ?? [],
             aprueba,
             notas,
             uuid: user.id,

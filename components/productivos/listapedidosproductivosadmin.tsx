@@ -27,7 +27,7 @@ import {
 } from "@/lib/presupuestos-storage";
 import {
   appendHistoricoEstado,
-  formatHistoricoFecha,
+  formatHistoricoEntry,
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
@@ -1348,9 +1348,9 @@ const handleUpdatePedido = async () => {
                             <span
                               key={`${h.estado}-${h.fecha}-${i}`}
                               className="text-[10px] leading-tight text-slate-500 tabular-nums"
-                              title={`${h.estado} · ${formatHistoricoFecha(h.fecha)}`}
+                              title={formatHistoricoEntry(h)}
                             >
-                              {h.estado} · {formatHistoricoFecha(h.fecha)}
+                              {formatHistoricoEntry(h)}
                             </span>
                           ))}
                         </div>

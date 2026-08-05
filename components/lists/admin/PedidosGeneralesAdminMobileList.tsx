@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import {
-  formatHistoricoFecha,
+  formatHistoricoEntry,
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
@@ -132,7 +132,7 @@ function ResumenPedido({
             key={`${h.estado}-${h.fecha}-${index}`}
             className="text-[10px] leading-tight text-slate-500 tabular-nums"
           >
-            {h.estado} · {formatHistoricoFecha(h.fecha)}
+            {formatHistoricoEntry(h)}
           </p>
         ))}
       </div>

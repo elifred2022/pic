@@ -183,7 +183,7 @@ export default function CrearFormPedidoProductivo() {
       solicita,
       sector,
       estado,
-      historico_estado: appendHistoricoEstado([], null, estado) ?? [],
+      historico_estado: appendHistoricoEstado([], null, estado, solicita) ?? [],
       observ,
       aprueba,
       numero_oc: numeroOc || null,
