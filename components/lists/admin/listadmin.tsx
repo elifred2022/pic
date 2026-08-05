@@ -139,6 +139,7 @@ export default function ListAdmin() {
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [ocultarStandBy, setOcultarStandBy] = useState(false);
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+  const [ocultarNoAprobados, setOcultarNoAprobados] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Pedido>>({});
   const [exportandoExcel, setExportandoExcel] = useState(false);
@@ -317,6 +318,7 @@ export default function ListAdmin() {
     if (ocultarAnulados && pedido.estado === "anulado") return false;
     if (ocultarStandBy && pedido.estado === "stand by") return false;
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+    if (ocultarNoAprobados && pedido.estado === "no aprobado") return false;
     return true;
   });
 
@@ -970,12 +972,14 @@ export default function ListAdmin() {
     const savedAnulados = localStorage.getItem("ocultarAnulados");
     const savedStandBy = localStorage.getItem("ocultarStandBy");
     const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+    const savedNoAprobados = localStorage.getItem("ocultarNoAprobados");
 
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
     if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
     if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+    if (savedNoAprobados !== null) setOcultarNoAprobados(savedNoAprobados === "true");
   }, []);
 
   /* Cada vez que cambia, actualizá localStorage */
@@ -998,6 +1002,10 @@ export default function ListAdmin() {
   useEffect(() => {
     localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
   }, [ocultarConfirmado]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarNoAprobados", String(ocultarNoAprobados));
+  }, [ocultarNoAprobados]);
 
   // Cargar datos tabla pic
   useEffect(() => {
@@ -1241,6 +1249,16 @@ export default function ListAdmin() {
               className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
             <span className="text-gray-700 font-medium text-xs">Ocultar stand by</span>
+              </label>
+
+          <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1.5 py-1 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ocultarNoAprobados}
+                  onChange={() => setOcultarNoAprobados((v) => !v)}
+              className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                />
+            <span className="text-gray-700 font-medium text-xs">Ocultar no aprobados</span>
               </label>
         </div>
       </div>
