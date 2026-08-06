@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
-import { rolOpcionesForm, SIN_ROL } from "@/lib/panol-access";
+import { canEditUsuarios, rolOpcionesForm, SIN_ROL } from "@/lib/panol-access";
 
 type Usuario = {
   id: number;
@@ -25,7 +25,8 @@ const getRolLabel = (rol: string | null) => {
 };
 
 export default function ListUsuarios() {
-  const { canEdit } = useCanEditAsAdmin();
+  const { email, rol, loading: accessLoading } = useCanEditAsAdmin();
+  const canEdit = !accessLoading && canEditUsuarios(email, rol);
   const [search, setSearch] = useState("");
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);

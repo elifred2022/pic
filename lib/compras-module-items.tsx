@@ -191,7 +191,7 @@ export const aprobComprasModuleItems: ComprasModuleItem[] = [
   {
     href: "/auth/usuarios",
     title: "Usuarios",
-    description: "Consulta usuarios y roles",
+    description: "Consulta y edita usuarios y roles",
     icon: (
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30">
         <UserCog className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
