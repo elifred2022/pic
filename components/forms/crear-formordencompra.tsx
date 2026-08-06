@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  LEYENDA_AUTORIZACION_FINANZAS,
+  estadoInicialOrdenCompra,
+  necesitaAutorizacionFinanzas,
+} from "@/lib/oc-autorizacion-finanzas";
 
 
 interface Proveedor {
@@ -142,6 +147,11 @@ export function CrearFormOrdenCompra() {
 
   const router = useRouter();
   const supabase = createClient();
+
+  const mostrarLeyendaAutorizacion = necesitaAutorizacionFinanzas(
+    totalOrden,
+    formData.divisa
+  );
 
   const parseNumero = (valor: string) => {
     const normalizado = valor.replace(",", ".");
@@ -824,7 +834,7 @@ export function CrearFormOrdenCompra() {
         observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
         articulos: itemsOrden,
         entregas: [],
-        estado: formData.estado,
+        estado: estadoInicialOrdenCompra(totalOrden, divisa),
       };
       const { error } = await supabase
         .from("ordenes_compra")
@@ -856,8 +866,21 @@ export function CrearFormOrdenCompra() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
-      <Card className="mb-6">
+    <div className="w-full max-w-6xl mx-auto p-6 relative overflow-hidden">
+      {mostrarLeyendaAutorizacion && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
+        >
+          <p
+            className="select-none whitespace-nowrap text-center font-black uppercase tracking-wide text-red-600/35 text-[clamp(1.1rem,3.8vw,3.25rem)] leading-none drop-shadow-sm"
+            style={{ transform: "rotate(-32deg)" }}
+          >
+            {LEYENDA_AUTORIZACION_FINANZAS}
+          </p>
+        </div>
+      )}
+      <Card className="mb-6 relative z-0">
         <CardHeader>
           <CardTitle className="text-2xl">📋 Crear Nueva Orden de Compra</CardTitle>
         </CardHeader>

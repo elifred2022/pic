@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
+import { ESTADO_NECESITA_AUTORIZACION_FINANZAS } from "@/lib/oc-autorizacion-finanzas";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canViewImportesOrdenesCompra } from "@/lib/panol-access";
 import {
@@ -83,6 +84,8 @@ export default function ListaOrdenesCompra() {
   const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [soloPagoAnticipado, setSoloPagoAnticipado] = useState(false);
+  const [soloNecesitaAutorizacionFinanzas, setSoloNecesitaAutorizacionFinanzas] =
+    useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [exportandoDetalle, setExportandoDetalle] = useState(false);
@@ -101,12 +104,18 @@ export default function ListaOrdenesCompra() {
     const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcialOrdenes");
     const savedAnulados = localStorage.getItem("ocultarAnuladosOrdenes");
     const savedPagoAnticipado = localStorage.getItem("soloPagoAnticipadoOrdenes");
+    const savedAutorizacionFinanzas = localStorage.getItem(
+      "soloNecesitaAutorizacionFinanzasOrdenes"
+    );
 
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedPendientes !== null) setOcultarPendientes(savedPendientes === "true");
     if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
     if (savedPagoAnticipado !== null) setSoloPagoAnticipado(savedPagoAnticipado === "true");
+    if (savedAutorizacionFinanzas !== null) {
+      setSoloNecesitaAutorizacionFinanzas(savedAutorizacionFinanzas === "true");
+    }
   }, []);
 
   // Cada vez que cambia, actualizá localStorage
@@ -140,6 +149,15 @@ export default function ListaOrdenesCompra() {
     }
   }, [soloPagoAnticipado, hasMounted]);
 
+  useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem(
+        "soloNecesitaAutorizacionFinanzasOrdenes",
+        String(soloNecesitaAutorizacionFinanzas)
+      );
+    }
+  }, [soloNecesitaAutorizacionFinanzas, hasMounted]);
+
   const fetchOrdenes = useCallback(async () => {
     try {
       setLoading(true);
@@ -164,7 +182,14 @@ export default function ListaOrdenesCompra() {
     
     // Debug: mostrar estados y filtros
     console.log('Estados de las órdenes:', ordenes.map(o => o.estado));
-    console.log('Filtros activos:', { ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados, soloPagoAnticipado });
+    console.log('Filtros activos:', {
+      ocultarCumplidos,
+      ocultarPendientes,
+      ocultarEntregoParcial,
+      ocultarAnulados,
+      soloPagoAnticipado,
+      soloNecesitaAutorizacionFinanzas,
+    });
     
     // Aplicar filtros de checkbox primero
     ordenesFiltradas = ordenesFiltradas.filter(orden => {
@@ -190,6 +215,12 @@ export default function ListaOrdenesCompra() {
         if (!condicion.includes("pago anticipado")) {
           return false;
         }
+      }
+      if (
+        soloNecesitaAutorizacionFinanzas &&
+        orden.estado !== ESTADO_NECESITA_AUTORIZACION_FINANZAS
+      ) {
+        return false;
       }
       return true;
     });
@@ -270,7 +301,20 @@ export default function ListaOrdenesCompra() {
         // Búsqueda con mapeo de términos comunes
         const estadoMap: { [key: string]: string[] } = {
           'pendiente': ['pendiente', 'pending', 'p', 'pen'],
+          'necesita_autorizacion_de_finanzas': [
+            'necesita_autorizacion_de_finanzas',
+            'necesita autorizacion de finanzas',
+            'necesita autorización de finanzas',
+            'autorizacion',
+            'finanzas',
+          ],
           'aprobada': ['aprobada', 'approved', 'a', 'apr'],
+          'autorizada_por_finanzas': [
+            'autorizada_por_finanzas',
+            'autorizada por finanzas',
+            'autorizada',
+            'finanzas',
+          ],
           'rechazada': ['rechazada', 'rejected', 'r', 'rech'],
           'cumplida': ['cumplida', 'completed', 'c', 'comp'],
           'entrego_parcial': ['entrego_parcial', 'entrego parcial', 'parcial', 'ep'],
@@ -316,7 +360,7 @@ export default function ListaOrdenesCompra() {
     });
     
     setOrdenesFiltradas(ordenesFiltradas);
-  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados, soloPagoAnticipado]);
+  }, [filtroBusqueda, fechaDesde, fechaHasta, ordenes, ocultarCumplidos, ocultarPendientes, ocultarEntregoParcial, ocultarAnulados, soloPagoAnticipado, soloNecesitaAutorizacionFinanzas]);
 
   useEffect(() => {
     if (activeTab === 'ordenes') {
@@ -364,7 +408,15 @@ export default function ListaOrdenesCompra() {
   const getEstadoBadge = (estado: string) => {
     const estados = {
       pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
+      necesita_autorizacion_de_finanzas: {
+        color: "bg-red-100 text-red-800",
+        text: "Necesita autorizacion de finanzas",
+      },
       aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
+      autorizada_por_finanzas: {
+        color: "bg-emerald-100 text-emerald-800",
+        text: "Autorizada por finanzas",
+      },
       rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
       cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
       entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" },
@@ -1064,6 +1116,18 @@ export default function ListaOrdenesCompra() {
               className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
             <span className="text-gray-700 font-medium">Solo pago anticipado</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+            <input
+              type="checkbox"
+              checked={soloNecesitaAutorizacionFinanzas}
+              onChange={() => setSoloNecesitaAutorizacionFinanzas((v) => !v)}
+              className="w-5 h-5 text-red-600 rounded focus:ring-red-500"
+            />
+            <span className="text-gray-700 font-medium">
+              OC necesita autorización de finanzas
+            </span>
           </label>
         </div>
       </div>

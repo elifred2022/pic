@@ -25,11 +25,28 @@ import {
 } from "@/lib/fact-compras-storage";
 import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail, isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
+import {
+  appendHistoricoEstado,
+  formatHistoricoFecha,
+  parseHistoricoEstado,
+  type HistoricoEstadoEntry,
+} from "@/lib/historico-estado-pedidos-productivos";
+import {
+  LEYENDA_AUTORIZACION_FINANZAS,
+  necesitaAutorizacionFinanzas,
+} from "@/lib/oc-autorizacion-finanzas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 // Estilos para impresión A4 — layout compacto para aprovechar toda la hoja
 const printStyles = `
@@ -55,6 +72,32 @@ const printStyles = `
       width: 100% !important;
       margin: 0 !important;
       padding: 0 !important;
+      position: relative !important;
+      overflow: visible !important;
+    }
+
+    .oc-autorizacion-watermark {
+      display: flex !important;
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9999 !important;
+      align-items: center !important;
+      justify-content: center !important;
+      pointer-events: none !important;
+      overflow: hidden !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .oc-autorizacion-watermark span {
+      color: rgba(220, 38, 38, 0.32) !important;
+      font-size: 26px !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.04em !important;
+      text-transform: uppercase !important;
+      white-space: nowrap !important;
+      line-height: 1 !important;
+      transform: rotate(-32deg) !important;
     }
 
     .print-header {
@@ -890,6 +933,8 @@ interface OrdenCompra {
   telefono: string;
   email: string;
   estado: string;
+  /** Historial de cambios de estado: [{ estado, fecha, nombre? }] */
+  historico_estado?: HistoricoEstadoEntry[] | null;
   total: number;
   divisa?: string;
   importe_competencia?: number | null;
@@ -1007,10 +1052,14 @@ export default function VerOrdenCompraPage() {
   const [fechaAbonadoInput, setFechaAbonadoInput] = useState("");
   const [abonadoSaving, setAbonadoSaving] = useState(false);
   const [abonadoError, setAbonadoError] = useState<string | null>(null);
+  const [estadoSaving, setEstadoSaving] = useState(false);
+  const [estadoError, setEstadoError] = useState<string | null>(null);
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
   const canEdit = canEditAsAdmin(userEmail, userRol);
+  const canCambiarEstado =
+    canEdit || isAprobEmail(userEmail, userRol);
   const canCargarEntrega = canCargarEntregaOrdenes(userEmail, userRol);
   const canViewImportes =
     accessLoaded && canViewImportesOrdenesCompra(userEmail, userRol);
@@ -1217,12 +1266,98 @@ export default function VerOrdenCompraPage() {
 
   const ESTADOS_ORDEN = {
     pendiente: { color: "bg-yellow-100 text-yellow-800", text: "Pendiente" },
+    necesita_autorizacion_de_finanzas: {
+      color: "bg-red-100 text-red-800",
+      text: "Necesita autorizacion de finanzas",
+    },
     aprobada: { color: "bg-green-100 text-green-800", text: "Aprobada" },
+    autorizada_por_finanzas: {
+      color: "bg-emerald-100 text-emerald-800",
+      text: "Autorizada por finanzas",
+    },
     rechazada: { color: "bg-red-100 text-red-800", text: "Rechazada" },
     cumplida: { color: "bg-blue-100 text-blue-800", text: "Cumplida" },
     entrego_parcial: { color: "bg-orange-100 text-orange-800", text: "Entregó Parcial" },
     anulado: { color: "bg-red-100 text-red-800", text: "Anulado" },
   } as const;
+
+  const ESTADOS_CAMBIO_RAPIDO = [
+    {
+      value: "autorizada_por_finanzas",
+      label: "Autorizada por finanzas",
+    },
+    { value: "rechazada", label: "Rechazada" },
+  ] as const;
+
+  const handleCambiarEstado = async (nuevoEstado: string) => {
+    if (!orden || estadoSaving || orden.estado === nuevoEstado) return;
+    setEstadoSaving(true);
+    setEstadoError(null);
+    try {
+      let nombreUsuario: string | null = null;
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!userError && userData.user) {
+          const { data: perfil, error: perfilError } = await supabase
+            .from("usuarios")
+            .select("nombre")
+            .eq("uuid", userData.user.id)
+            .single();
+          if (!perfilError && perfil?.nombre) {
+            nombreUsuario = perfil.nombre;
+          } else {
+            nombreUsuario = userData.user.email || null;
+          }
+        }
+      } catch (err) {
+        console.error("Error obteniendo usuario para historico_estado:", err);
+        nombreUsuario = userEmail;
+      }
+
+      const historicoNuevo = appendHistoricoEstado(
+        orden.historico_estado,
+        orden.estado,
+        nuevoEstado,
+        nombreUsuario
+      );
+
+      const updatePayload: Record<string, unknown> = { estado: nuevoEstado };
+      if (historicoNuevo) {
+        updatePayload.historico_estado = historicoNuevo;
+      }
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update(updatePayload)
+        .eq("id", orden.id);
+
+      if (updateError) {
+        console.error("Error actualizando estado:", updateError);
+        setEstadoError(
+          getSupabaseErrorMessage(updateError) ||
+            "No se pudo actualizar el estado"
+        );
+        return;
+      }
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              estado: nuevoEstado,
+              ...(historicoNuevo
+                ? { historico_estado: historicoNuevo }
+                : {}),
+            }
+          : prev
+      );
+    } catch (err) {
+      console.error("Error cambiando estado:", err);
+      setEstadoError("No se pudo actualizar el estado");
+    } finally {
+      setEstadoSaving(false);
+    }
+  };
 
   const getEstadoText = (estado: string) =>
     ESTADOS_ORDEN[estado as keyof typeof ESTADOS_ORDEN]?.text ?? ESTADOS_ORDEN.pendiente.text;
@@ -2478,6 +2613,33 @@ export default function VerOrdenCompraPage() {
             orden.entregas
           );
 
+      let nombreUsuarioHistorico: string | null = null;
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!userError && userData.user) {
+          const { data: perfil, error: perfilError } = await supabase
+            .from("usuarios")
+            .select("nombre")
+            .eq("uuid", userData.user.id)
+            .single();
+          if (!perfilError && perfil?.nombre) {
+            nombreUsuarioHistorico = perfil.nombre;
+          } else {
+            nombreUsuarioHistorico = userData.user.email || null;
+          }
+        }
+      } catch (err) {
+        console.error("Error obteniendo usuario para historico_estado:", err);
+        nombreUsuarioHistorico = userEmail;
+      }
+
+      const historicoNuevo = appendHistoricoEstado(
+        orden.historico_estado,
+        orden.estado,
+        editData.estado,
+        nombreUsuarioHistorico
+      );
+
       const payload: Record<string, unknown> = {
         divisa: divisaOrden,
         noc: parseInt(editData.noc),
@@ -2502,6 +2664,10 @@ export default function VerOrdenCompraPage() {
         entregas,
         total: totalOrden,
       };
+
+      if (historicoNuevo) {
+        payload.historico_estado = historicoNuevo;
+      }
 
       if (esAnulado) {
         payload.devoluciones = [];
@@ -2565,6 +2731,7 @@ export default function VerOrdenCompraPage() {
         ...(esAnulado
           ? { devoluciones: [], importe_competencia: 0, ahorro: 0 }
           : {}),
+        ...(historicoNuevo ? { historico_estado: historicoNuevo } : {}),
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
 
@@ -2693,6 +2860,11 @@ export default function VerOrdenCompraPage() {
     (sum, item) => sum + getRowTotal(item),
     0
   ) || 0;
+  const mostrarLeyendaAutorizacion = necesitaAutorizacionFinanzas(
+    totalOrdenCalculado,
+    orden.divisa,
+    orden.estado
+  );
   const facturasOrden = parseFacturasFromOrden(orden);
   const fcImpresion = facturasOrden
     .map((item) => item.fc)
@@ -2708,9 +2880,19 @@ export default function VerOrdenCompraPage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      <div className={`w-full max-w-6xl mx-auto p-6 print-container${printSinImportes ? " print-sin-importes" : ""}${!canViewImportes ? " vista-sin-importes" : ""}`}>
+      <div className={`w-full max-w-6xl mx-auto p-6 relative overflow-hidden print-container${printSinImportes ? " print-sin-importes" : ""}${!canViewImportes ? " vista-sin-importes" : ""}`}>
+        {mostrarLeyendaAutorizacion && (
+          <div
+            aria-hidden
+            className="oc-autorizacion-watermark pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
+          >
+            <span className="select-none whitespace-nowrap text-center font-black uppercase tracking-wide text-red-600/35 text-[clamp(1.1rem,3.8vw,3.25rem)] leading-none drop-shadow-sm -rotate-[32deg]">
+              {LEYENDA_AUTORIZACION_FINANZAS}
+            </span>
+          </div>
+        )}
         {/* Encabezado compacto en impresión */}
-        <div className="mb-6 print-header">
+        <div className="mb-6 print-header relative z-0">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 print-header-company">
               Perfiles y Servicios SRL
@@ -2822,7 +3004,39 @@ export default function VerOrdenCompraPage() {
                 ✏️ Editar
               </Button>
             )}
+            {canCambiarEstado && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={estadoSaving}
+                    className="whitespace-nowrap border-indigo-500 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    {estadoSaving ? "Guardando..." : "Cambiar estado"}
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {ESTADOS_CAMBIO_RAPIDO.map((item) => (
+                    <DropdownMenuItem
+                      key={item.value}
+                      disabled={orden.estado === item.value || estadoSaving}
+                      onSelect={() => {
+                        void handleCambiarEstado(item.value);
+                      }}
+                    >
+                      {item.label}
+                      {orden.estado === item.value ? " ✓" : ""}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
+          {estadoError && (
+            <p className="text-sm text-red-600 print:hidden">{estadoError}</p>
+          )}
         </div>
 
       <div className="grid gap-4 print:gap-1">
@@ -2868,6 +3082,21 @@ export default function VerOrdenCompraPage() {
                 <div className="print-field print:hidden">
                   <p className="text-base text-gray-600 print-field-label">Estado</p>
                   <div className="mt-1">{getEstadoBadge(orden.estado)}</div>
+                  {parseHistoricoEstado(orden.historico_estado).length > 0 && (
+                    <div className="mt-2 flex flex-col gap-0.5">
+                      {parseHistoricoEstado(orden.historico_estado).map((h, index) => (
+                        <span
+                          key={`${h.estado}-${h.fecha}-${index}`}
+                          className="text-xs leading-tight text-slate-500"
+                        >
+                          {getEstadoText(h.estado)}
+                          {" · "}
+                          {formatHistoricoFecha(h.fecha)}
+                          {h.nombre?.trim() ? ` · ${h.nombre.trim()}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="print-field print:hidden space-y-3">
                   <div>
@@ -3237,7 +3466,11 @@ export default function VerOrdenCompraPage() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="pendiente">Pendiente</option>
+                      <option value="necesita_autorizacion_de_finanzas">
+                        Necesita autorizacion de finanzas
+                      </option>
                       <option value="aprobada">Aprobada</option>
+                      <option value="autorizada_por_finanzas">Autorizada por finanzas</option>
                       <option value="rechazada">Rechazada</option>
                       <option value="cumplida">Cumplida</option>
                       <option value="entrego_parcial">Entregó Parcial</option>
