@@ -10,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
+import { etiquetaSector } from "@/lib/indicadores-compras";
+import { SECTORES_CONSULTA } from "@/lib/consultas-articulos-comprados";
 import {
   aplanarConsultaOrdenesCompra,
   filtrarOrdenesConsultaOcPorFecha,
+  filtrarOrdenesConsultaOcPorSector,
   type ConsultaOrdenCompraFila,
   type OrdenCompraConsultaOc,
 } from "@/lib/consultas-ordenes-compra";
@@ -61,6 +64,7 @@ export function ConsultaOrdenesCompra() {
   const [busqueda, setBusqueda] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [filtroSector, setFiltroSector] = useState("todos");
   const [exportando, setExportando] = useState(false);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarPendientes, setOcultarPendientes] = useState(false);
@@ -147,7 +151,7 @@ export function ConsultaOrdenesCompra() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, estado, proveedor, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
+            "id, noc, estado, proveedor, sector, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -176,13 +180,14 @@ export function ConsultaOrdenesCompra() {
   }, [fetchData]);
 
   const rows = useMemo(() => {
-    const filtradas = filtrarOrdenesConsultaOcPorFecha(
+    const porFecha = filtrarOrdenesConsultaOcPorFecha(
       ordenes,
       fechaDesde,
       fechaHasta
     );
+    const filtradas = filtrarOrdenesConsultaOcPorSector(porFecha, filtroSector);
     return aplanarConsultaOrdenesCompra(filtradas);
-  }, [ordenes, fechaDesde, fechaHasta]);
+  }, [ordenes, fechaDesde, fechaHasta, filtroSector]);
 
   const filtrados = useMemo(() => {
     let result = rows.filter((row) => {
@@ -364,6 +369,24 @@ export function ConsultaOrdenesCompra() {
                 Limpiar fechas
               </Button>
             )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-oc-filtro-sector" className="text-xs text-gray-600">
+                Sector
+              </Label>
+              <select
+                id="consulta-oc-filtro-sector"
+                value={filtroSector}
+                onChange={(e) => setFiltroSector(e.target.value)}
+                className="h-8 w-[12rem] min-w-[12rem] rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="todos">Todos los sectores</option>
+                {SECTORES_CONSULTA.map((sector) => (
+                  <option key={sector} value={sector}>
+                    {etiquetaSector(sector)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">

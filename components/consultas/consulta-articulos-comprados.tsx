@@ -9,13 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseTipoCambio, DIVISA_LABELS, type FiltroDivisaIndicador } from "@/lib/indicadores-compras";
+import {
+  parseTipoCambio,
+  DIVISA_LABELS,
+  etiquetaSector,
+  type FiltroDivisaIndicador,
+} from "@/lib/indicadores-compras";
 import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import {
   convertirArticulosCompradosAArs,
   filtrarArticulosPorDivisa,
   filtrarOrdenesConsultaPorFecha,
+  filtrarOrdenesConsultaPorSector,
   resumirArticulosComprados,
+  SECTORES_CONSULTA,
   type ArticuloCompradoResumen,
   type OrdenCompraConsulta,
 } from "@/lib/consultas-articulos-comprados";
@@ -42,6 +49,7 @@ export function ConsultaArticulosComprados() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [filtroDivisa, setFiltroDivisa] = useState<FiltroDivisaIndicador>("todas");
+  const [filtroSector, setFiltroSector] = useState("todos");
   const [totalizarEnArs, setTotalizarEnArs] = useState(false);
   const [tcUsd, setTcUsd] = useState("");
   const [tcEur, setTcEur] = useState("");
@@ -60,7 +68,7 @@ export function ConsultaArticulosComprados() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, fecha, estado, total, importe_competencia, divisa, cod_cta, proveedor, articulos, entregas"
+            "id, noc, fecha, estado, total, importe_competencia, divisa, sector, cod_cta, proveedor, articulos, entregas"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -94,11 +102,12 @@ export function ConsultaArticulosComprados() {
     totalizarEnArs && tipoCambioUsd !== null && tipoCambioEur !== null;
 
   const rows = useMemo(() => {
-    const filtradas = filtrarOrdenesConsultaPorFecha(
+    const porFecha = filtrarOrdenesConsultaPorFecha(
       ordenes,
       fechaDesde,
       fechaHasta
     );
+    const filtradas = filtrarOrdenesConsultaPorSector(porFecha, filtroSector);
     const resumen = filtrarArticulosPorDivisa(
       resumirArticulosComprados(filtradas),
       totalizarEnArs ? "todas" : filtroDivisa
@@ -116,6 +125,7 @@ export function ConsultaArticulosComprados() {
     ordenes,
     fechaDesde,
     fechaHasta,
+    filtroSector,
     filtroDivisa,
     totalizarEnArs,
     tiposCambioValidos,
@@ -339,6 +349,24 @@ export function ConsultaArticulosComprados() {
                 <option value="USD">{DIVISA_LABELS.USD}</option>
                 <option value="EUR">{DIVISA_LABELS.EUR}</option>
                 <option value="ARS">{DIVISA_LABELS.ARS}</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-filtro-sector" className="text-xs text-gray-600">
+                Sector
+              </Label>
+              <select
+                id="consulta-filtro-sector"
+                value={filtroSector}
+                onChange={(e) => setFiltroSector(e.target.value)}
+                className="h-8 w-[12rem] min-w-[12rem] rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="todos">Todos los sectores</option>
+                {SECTORES_CONSULTA.map((sector) => (
+                  <option key={sector} value={sector}>
+                    {etiquetaSector(sector)}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

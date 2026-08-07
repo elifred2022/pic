@@ -20,6 +20,7 @@ export type OrdenCompraConsultaOc = {
   noc?: string | number | null;
   estado?: string | null;
   proveedor?: string | null;
+  sector?: string | null;
   fecha?: string | null;
   fecha_prometida?: string | null;
   fecha_entrega?: string | null;
@@ -81,6 +82,16 @@ export function filtrarOrdenesConsultaOcPorFecha(
   if (!fechaDesde && !fechaHasta) return ordenes;
   return ordenes.filter((orden) =>
     ordenEnRangoFechas(orden.fecha, fechaDesde, fechaHasta)
+  );
+}
+
+export function filtrarOrdenesConsultaOcPorSector(
+  ordenes: OrdenCompraConsultaOc[],
+  sector: string
+): OrdenCompraConsultaOc[] {
+  if (!sector || sector === "todos") return ordenes;
+  return ordenes.filter(
+    (orden) => String(orden.sector ?? "").trim() === sector
   );
 }
 

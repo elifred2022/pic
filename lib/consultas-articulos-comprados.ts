@@ -34,11 +34,32 @@ export type OrdenCompraConsulta = {
   total?: number | null;
   importe_competencia?: number | null;
   divisa?: string | null;
+  sector?: string | null;
   cod_cta?: string | null;
   proveedor?: string | null;
   articulos?: ArticuloOrdenConsulta[] | null;
   entregas?: unknown;
 };
+
+export const SECTORES_CONSULTA = [
+  "Compra directa",
+  "Panol Cardales",
+  "Panol Gascon",
+  "Mantenimiento",
+  "RRHH",
+  "Seguridad e Higiene",
+  "Vidrio",
+  "Pvc",
+  "Perf. Aluminio",
+  "Administracion",
+  "Colocaciones",
+  "Reparaciones",
+  "Mediciones",
+  "Maestranza",
+  "Compras",
+  "Calidad",
+  "Flota",
+] as const;
 
 export function filtrarOrdenesConsultaPorFecha(
   ordenes: OrdenCompraConsulta[],
@@ -48,6 +69,16 @@ export function filtrarOrdenesConsultaPorFecha(
   if (!fechaDesde && !fechaHasta) return ordenes;
   return ordenes.filter((orden) =>
     ordenEnRangoFechas(orden.fecha, fechaDesde, fechaHasta)
+  );
+}
+
+export function filtrarOrdenesConsultaPorSector(
+  ordenes: OrdenCompraConsulta[],
+  sector: string
+): OrdenCompraConsulta[] {
+  if (!sector || sector === "todos") return ordenes;
+  return ordenes.filter(
+    (orden) => String(orden.sector ?? "").trim() === sector
   );
 }
 
