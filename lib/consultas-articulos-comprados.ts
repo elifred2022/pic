@@ -61,6 +61,49 @@ export const SECTORES_CONSULTA = [
   "Flota",
 ] as const;
 
+export const COD_CTAS_CONSULTA = [
+  "1111 MAQ VIDRIERIA",
+  "1115 MAQ HERR GENERAL",
+  "1401 MATERIA PRIMA PVC",
+  "1402 MATERIA PRIMA ALUMINIO",
+  "1403 MATERIA PRIMA VIDRIO",
+  "1404 HERRAJES PANOL CARDALES",
+  "1408 SILICONA SELLADORES ESPUMA CARDALES",
+  "1412 TORNILLERIA CARDALES",
+  "1413 TELA MOSQUITERO",
+  "1414 BURLETE",
+  "1415 FELPAS Y CORDON",
+  "1416 INSUMOS DVH",
+  "1509 ALMUERZOS VIANDAS",
+  "1511 CAPACITACION DE PERSONAL",
+  "1512 INDUMENTARIA OPERARIOS",
+  "1514 EPP",
+  "1527 ALCOHOL ISOP",
+  "1528 FERRET INSUMOS CARDALES",
+  "1529 EMBALAJE",
+  "1530 LUBRICANTE MAQUINAS",
+  "1540 MANTENIMIENTO PVC",
+  "1541 MANT MAQ VIDRIO",
+  "1545 MANTENIM MAQ GENERAL",
+  "1548 MANT RODADOS Y FLOTA",
+  "1549 MANTENIMIENTO INMUEBLE",
+  "1604 BOTIQUIN PRIM AUX",
+  "1604 FARMACIA CARDALES",
+  "1606 LIBRERÍA CARDALES",
+  "1625 HONO SEG E HIG",
+  "1705 INV ESCOBAR",
+  "1706 INV EQUIP DE PRODUCCION",
+  "1708 INV MOBILIARIO CARDALES",
+  "1709 INV EQUI COMPUT",
+  "2114 MAQ EQUIP Y HERRAM REPAR COLOC",
+  "2404 HERRAJES GASCON",
+  "2408 SILICONA SELLADORES ESPUMA GASCON",
+  "2412 TORNILLERIA GASCON",
+  "2414 BURLETE GASCON",
+  "2415 FELPA Y CORDON GASCON",
+  "2528 FERRET INSUMOS GASCON",
+] as const;
+
 export function filtrarOrdenesConsultaPorFecha(
   ordenes: OrdenCompraConsulta[],
   fechaDesde: string,
@@ -79,6 +122,16 @@ export function filtrarOrdenesConsultaPorSector(
   if (!sector || sector === "todos") return ordenes;
   return ordenes.filter(
     (orden) => String(orden.sector ?? "").trim() === sector
+  );
+}
+
+export function filtrarOrdenesConsultaPorCodCta(
+  ordenes: OrdenCompraConsulta[],
+  codCta: string
+): OrdenCompraConsulta[] {
+  if (!codCta || codCta === "todos") return ordenes;
+  return ordenes.filter(
+    (orden) => String(orden.cod_cta ?? "").trim() === codCta
   );
 }
 

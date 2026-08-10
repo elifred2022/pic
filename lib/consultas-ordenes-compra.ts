@@ -21,6 +21,7 @@ export type OrdenCompraConsultaOc = {
   estado?: string | null;
   proveedor?: string | null;
   sector?: string | null;
+  cod_cta?: string | null;
   fecha?: string | null;
   fecha_prometida?: string | null;
   fecha_entrega?: string | null;
@@ -92,6 +93,16 @@ export function filtrarOrdenesConsultaOcPorSector(
   if (!sector || sector === "todos") return ordenes;
   return ordenes.filter(
     (orden) => String(orden.sector ?? "").trim() === sector
+  );
+}
+
+export function filtrarOrdenesConsultaOcPorCodCta(
+  ordenes: OrdenCompraConsultaOc[],
+  codCta: string
+): OrdenCompraConsultaOc[] {
+  if (!codCta || codCta === "todos") return ordenes;
+  return ordenes.filter(
+    (orden) => String(orden.cod_cta ?? "").trim() === codCta
   );
 }
 

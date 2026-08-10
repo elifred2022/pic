@@ -19,9 +19,11 @@ import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import {
   convertirArticulosCompradosAArs,
   filtrarArticulosPorDivisa,
+  filtrarOrdenesConsultaPorCodCta,
   filtrarOrdenesConsultaPorFecha,
   filtrarOrdenesConsultaPorSector,
   resumirArticulosComprados,
+  COD_CTAS_CONSULTA,
   SECTORES_CONSULTA,
   type ArticuloCompradoResumen,
   type OrdenCompraConsulta,
@@ -50,6 +52,7 @@ export function ConsultaArticulosComprados() {
   const [fechaHasta, setFechaHasta] = useState("");
   const [filtroDivisa, setFiltroDivisa] = useState<FiltroDivisaIndicador>("todas");
   const [filtroSector, setFiltroSector] = useState("todos");
+  const [filtroCodCta, setFiltroCodCta] = useState("todos");
   const [totalizarEnArs, setTotalizarEnArs] = useState(false);
   const [tcUsd, setTcUsd] = useState("");
   const [tcEur, setTcEur] = useState("");
@@ -107,7 +110,8 @@ export function ConsultaArticulosComprados() {
       fechaDesde,
       fechaHasta
     );
-    const filtradas = filtrarOrdenesConsultaPorSector(porFecha, filtroSector);
+    const porSector = filtrarOrdenesConsultaPorSector(porFecha, filtroSector);
+    const filtradas = filtrarOrdenesConsultaPorCodCta(porSector, filtroCodCta);
     const resumen = filtrarArticulosPorDivisa(
       resumirArticulosComprados(filtradas),
       totalizarEnArs ? "todas" : filtroDivisa
@@ -126,6 +130,7 @@ export function ConsultaArticulosComprados() {
     fechaDesde,
     fechaHasta,
     filtroSector,
+    filtroCodCta,
     filtroDivisa,
     totalizarEnArs,
     tiposCambioValidos,
@@ -365,6 +370,24 @@ export function ConsultaArticulosComprados() {
                 {SECTORES_CONSULTA.map((sector) => (
                   <option key={sector} value={sector}>
                     {etiquetaSector(sector)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-filtro-cod-cta" className="text-xs text-gray-600">
+                Cód. cuenta
+              </Label>
+              <select
+                id="consulta-filtro-cod-cta"
+                value={filtroCodCta}
+                onChange={(e) => setFiltroCodCta(e.target.value)}
+                className="h-8 w-[16rem] min-w-[16rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="todos">Todos los códigos</option>
+                {COD_CTAS_CONSULTA.map((codCta) => (
+                  <option key={codCta} value={codCta}>
+                    {codCta}
                   </option>
                 ))}
               </select>

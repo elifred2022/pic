@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import { etiquetaSector } from "@/lib/indicadores-compras";
-import { SECTORES_CONSULTA } from "@/lib/consultas-articulos-comprados";
+import { SECTORES_CONSULTA, COD_CTAS_CONSULTA } from "@/lib/consultas-articulos-comprados";
 import {
   aplanarConsultaOrdenesCompra,
+  filtrarOrdenesConsultaOcPorCodCta,
   filtrarOrdenesConsultaOcPorFecha,
   filtrarOrdenesConsultaOcPorSector,
   type ConsultaOrdenCompraFila,
@@ -65,6 +66,7 @@ export function ConsultaOrdenesCompra() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [filtroSector, setFiltroSector] = useState("todos");
+  const [filtroCodCta, setFiltroCodCta] = useState("todos");
   const [exportando, setExportando] = useState(false);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarPendientes, setOcultarPendientes] = useState(false);
@@ -151,7 +153,7 @@ export function ConsultaOrdenesCompra() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, estado, proveedor, sector, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
+            "id, noc, estado, proveedor, sector, cod_cta, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -185,9 +187,10 @@ export function ConsultaOrdenesCompra() {
       fechaDesde,
       fechaHasta
     );
-    const filtradas = filtrarOrdenesConsultaOcPorSector(porFecha, filtroSector);
+    const porSector = filtrarOrdenesConsultaOcPorSector(porFecha, filtroSector);
+    const filtradas = filtrarOrdenesConsultaOcPorCodCta(porSector, filtroCodCta);
     return aplanarConsultaOrdenesCompra(filtradas);
-  }, [ordenes, fechaDesde, fechaHasta, filtroSector]);
+  }, [ordenes, fechaDesde, fechaHasta, filtroSector, filtroCodCta]);
 
   const filtrados = useMemo(() => {
     let result = rows.filter((row) => {
@@ -383,6 +386,24 @@ export function ConsultaOrdenesCompra() {
                 {SECTORES_CONSULTA.map((sector) => (
                   <option key={sector} value={sector}>
                     {etiquetaSector(sector)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="consulta-oc-filtro-cod-cta" className="text-xs text-gray-600">
+                Cód. cuenta
+              </Label>
+              <select
+                id="consulta-oc-filtro-cod-cta"
+                value={filtroCodCta}
+                onChange={(e) => setFiltroCodCta(e.target.value)}
+                className="h-8 w-[16rem] min-w-[16rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="todos">Todos los códigos</option>
+                {COD_CTAS_CONSULTA.map((codCta) => (
+                  <option key={codCta} value={codCta}>
+                    {codCta}
                   </option>
                 ))}
               </select>
