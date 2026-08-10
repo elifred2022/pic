@@ -35,6 +35,8 @@ import {
   LEYENDA_AUTORIZACION_FINANZAS,
   necesitaAutorizacionFinanzas,
 } from "@/lib/oc-autorizacion-finanzas";
+import { SECTORES_CONSULTA } from "@/lib/consultas-articulos-comprados";
+import { etiquetaSector } from "@/lib/indicadores-compras";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -3805,14 +3807,25 @@ export default function VerOrdenCompraPage() {
 
                   <div>
                     <Label htmlFor="edit-sector">Sector</Label>
-                    <Input
+                    <select
                       id="edit-sector"
-                      type="text"
                       value={editData.sector || ''}
                       onChange={(e) => setEditData({ ...editData, sector: e.target.value })}
-                      placeholder="Ej: Compra directa, Ventas..."
-                      className="w-full"
-                    />
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccione el sector</option>
+                      {editData.sector &&
+                        !(SECTORES_CONSULTA as readonly string[]).includes(editData.sector) && (
+                          <option value={editData.sector}>
+                            {etiquetaSector(editData.sector)}
+                          </option>
+                        )}
+                      {SECTORES_CONSULTA.map((sector) => (
+                        <option key={sector} value={sector}>
+                          {etiquetaSector(sector)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
