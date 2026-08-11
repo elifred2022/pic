@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Plus, Minus, Pencil, Trash2 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 
 
@@ -162,6 +163,19 @@ export default function ListArticulos() {
 
   const handleExportarExcel = () => {
     const headers = [
+      "articulo",
+      "cod_int",
+      "cost_unit",
+      "desc",
+      "cost_unit_c_desc",
+      "divisa",
+      "fecha_actualizacion",
+      "ultimo_proveedor",
+      "cod_prov_sug",
+      "existencia",
+    ] as const;
+
+    const headerLabels = [
       "Articulo",
       "Cod int",
       "Cost. unit.",
@@ -174,32 +188,33 @@ export default function ListArticulos() {
       "existencia",
     ];
 
-    const rows = filteredArticulos.map((articulo) => [
-      articulo.articulo ?? "",
-      articulo.codint ?? "",
-      articulo.costunit ?? "",
-      articulo.descuento ?? "",
-      parseNumero(String(articulo.costunitcdesc ?? "")).toFixed(2),
-      articulo.divisa ?? "",
-      formatDate(articulo.updated_at) || "",
-      articulo.ultimo_prov ?? "",
-      articulo.codprovsug ?? "",
-      articulo.existencia ?? "",
-    ]);
+    const rows = filteredArticulos.map((articulo) => ({
+      articulo: articulo.articulo ?? "",
+      cod_int: articulo.codint ?? "",
+      cost_unit: parseNumero(String(articulo.costunit ?? "")),
+      desc: parseNumero(String(articulo.descuento ?? "")),
+      cost_unit_c_desc: parseNumero(String(articulo.costunitcdesc ?? "")),
+      divisa: articulo.divisa ?? "",
+      fecha_actualizacion: formatDate(articulo.updated_at) || "",
+      ultimo_proveedor: articulo.ultimo_prov ?? "",
+      cod_prov_sug: articulo.codprovsug ?? "",
+      existencia: parseNumero(String(articulo.existencia ?? "")),
+    }));
 
-    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const csv = [
-      headers.map(escapeCsv).join(","),
-      ...rows.map((row) => row.map((cell) => escapeCsv(String(cell))).join(",")),
-    ].join("\n");
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [...headers] });
+    XLSX.utils.sheet_add_aoa(ws, [headerLabels], { origin: "A1" });
+    XLSX.utils.sheet_add_json(ws, rows, {
+      header: [...headers],
+      skipHeader: true,
+      origin: "A2",
+    });
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "reporte_articulos.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Artículos");
+    XLSX.writeFile(
+      wb,
+      `reporte_articulos-${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
   };
 
   // funcion para formatear las fechas
