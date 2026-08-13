@@ -28,6 +28,7 @@ import {
   type ArticuloCompradoResumen,
   type OrdenCompraConsulta,
 } from "@/lib/consultas-articulos-comprados";
+import { formatRemitosRecepcion } from "@/lib/ordenes-compra-entregas";
 
 function formatCantidad(value: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -71,7 +72,7 @@ export function ConsultaArticulosComprados() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, fecha, estado, total, importe_competencia, divisa, sector, cod_cta, proveedor, articulos, entregas"
+            "id, noc, fecha, estado, total, importe_competencia, divisa, sector, cod_cta, proveedor, articulos, entregas, rt"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -149,7 +150,8 @@ export function ConsultaArticulosComprados() {
         row.noc.toLowerCase().includes(q) ||
         row.pic.toLowerCase().includes(q) ||
         row.proveedor.toLowerCase().includes(q) ||
-        row.divisa.toLowerCase().includes(q)
+        row.divisa.toLowerCase().includes(q) ||
+        formatRemitosRecepcion(row.remitosRecepcion).toLowerCase().includes(q)
     );
   }, [rows, busqueda]);
 
@@ -209,6 +211,7 @@ export function ConsultaArticulosComprados() {
         "total",
         "divisa",
         "codigo_cuenta",
+        "remitos_recepcion",
       ] as const;
 
       const headerLabels = [
@@ -227,6 +230,7 @@ export function ConsultaArticulosComprados() {
         "Total",
         "Divisa",
         "Código cuenta",
+        "Remitos recepción",
       ];
 
       const rows = filtrados.map((row) => ({
@@ -245,6 +249,7 @@ export function ConsultaArticulosComprados() {
         total: row.total,
         divisa: row.divisa,
         codigo_cuenta: row.codCta || "",
+        remitos_recepcion: formatRemitosRecepcion(row.remitosRecepcion),
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows, { header: [...headers] });
@@ -522,6 +527,7 @@ export function ConsultaArticulosComprados() {
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">Total</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Divisa</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Cód. cuenta</th>
+                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Remitos recepción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -600,6 +606,12 @@ export function ConsultaArticulosComprados() {
                       <td className="whitespace-nowrap px-2 py-1 text-slate-600">
                         {row.codCta || "—"}
                       </td>
+                      <td
+                        className="max-w-[10rem] truncate px-2 py-1 tabular-nums text-slate-600"
+                        title={formatRemitosRecepcion(row.remitosRecepcion) || undefined}
+                      >
+                        {formatRemitosRecepcion(row.remitosRecepcion) || "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -633,6 +645,7 @@ export function ConsultaArticulosComprados() {
                     <td className="whitespace-nowrap px-2 py-1.5">
                       {tiposCambioValidos ? "ARS" : ""}
                     </td>
+                    <td className="whitespace-nowrap px-2 py-1.5" />
                     <td className="whitespace-nowrap px-2 py-1.5" />
                   </tr>
                 </tfoot>

@@ -1,5 +1,7 @@
 /** Helpers de entregas en órdenes de compra (formato eventos + legacy). */
 
+import { coerceRtArray } from "@/lib/fact-compras-storage";
+
 /** Normaliza articulo_id para comparar (evita fallos por espacios en el nombre embebido). */
 export function normalizeArticuloId(value: unknown): string {
   return String(value ?? "").trim();
@@ -44,9 +46,14 @@ function parseEntregaRegistro(value: unknown): EntregaRegistro | null {
     .filter((item): item is EntregaItemCantidad => item !== null);
 
   const fechaRaw = record.fecha_entrega;
+  const toEntero = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
   return {
-    fc: null,
-    rt: null,
+    fc: toEntero(record.fc),
+    rt: toEntero(record.rt),
     fecha_entrega:
       typeof fechaRaw === "string" && fechaRaw.trim() ? fechaRaw.trim() : null,
     fact_path: typeof record.fact_path === "string" ? record.fact_path : "",
@@ -149,6 +156,66 @@ export function getCantidadesEntregaArticulo(
         ? legacy.pendientes
         : Math.max(0, cantidad - entregadas),
   };
+}
+
+function mergeRemitosUnicos(...lists: number[][]): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const list of lists) {
+    for (const n of list) {
+      if (!seen.has(n)) {
+        seen.add(n);
+        out.push(n);
+      }
+    }
+  }
+  return out;
+}
+
+/** Remitos de recepción (rt) de entregas que incluyen el artículo. */
+export function getRemitosRecepcionArticulo(
+  entregas: unknown,
+  articuloId: string,
+  index: number,
+  ordenRt?: unknown
+): number[] {
+  const fromEntregas: number[] = [];
+
+  if (Array.isArray(entregas) && entregas.length > 0 && isEntregaRegistro(entregas[0])) {
+    const idNorm = normalizeArticuloId(articuloId);
+    const seen = new Set<number>();
+    for (const raw of entregas) {
+      const reg = parseEntregaRegistro(raw);
+      if (!reg || reg.anulado || reg.rt === null) continue;
+      let matched = false;
+      for (const item of reg.items) {
+        if (normalizeArticuloId(item.articulo_id) === idNorm) {
+          matched = true;
+          break;
+        }
+      }
+      if (!matched && !idNorm && reg.items[index]) {
+        matched = true;
+      }
+      if (!matched || seen.has(reg.rt)) continue;
+      seen.add(reg.rt);
+      fromEntregas.push(reg.rt);
+    }
+  }
+
+  if (fromEntregas.length > 0) return fromEntregas;
+  return coerceRtArray(ordenRt);
+}
+
+export function formatRemitosRecepcion(remitos: number[]): string {
+  return remitos.length > 0 ? remitos.join(", ") : "";
+}
+
+export function mergeRemitosRecepcion(
+  actuales: number[],
+  extra: number[]
+): number[] {
+  return mergeRemitosUnicos(actuales, extra);
 }
 
 /** Fechas de eventos de entrega (formato nuevo), únicas y ordenadas. */

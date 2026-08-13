@@ -1,4 +1,9 @@
-import { getCantidadesEntregaArticulo, formatFechaExcel } from "@/lib/ordenes-compra-entregas";
+import {
+  getCantidadesEntregaArticulo,
+  getRemitosRecepcionArticulo,
+  mergeRemitosRecepcion,
+  formatFechaExcel,
+} from "@/lib/ordenes-compra-entregas";
 import {
   extractPicDisplayNumber,
   parsePicFromArticuloId,
@@ -39,6 +44,8 @@ export type OrdenCompraConsulta = {
   proveedor?: string | null;
   articulos?: ArticuloOrdenConsulta[] | null;
   entregas?: unknown;
+  /** JSONB array de remitos de recepción, ej. [1001, 1002] */
+  rt?: unknown;
 };
 
 export const SECTORES_CONSULTA = [
@@ -159,6 +166,8 @@ export type ArticuloCompradoResumen = {
   precioConDescuento: number;
   total: number;
   divisa: DivisaIndicador;
+  /** Números de remito de recepción asociados al artículo. */
+  remitosRecepcion: number[];
 };
 
 function articuloKey(item: ArticuloOrdenConsulta): string {
@@ -264,6 +273,12 @@ export function resumirArticulosComprados(
         index,
         cantidad
       );
+      const remitosRecepcion = getRemitosRecepcionArticulo(
+        orden.entregas,
+        articuloId,
+        index,
+        entregadas > 0 ? orden.rt : undefined
+      );
       const total = totalLinea(item, cantidad);
       const precioUnitario = precioUnitarioLinea(item);
       const descuento = descuentoLinea(item);
@@ -306,6 +321,10 @@ export function resumirArticulosComprados(
         ) {
           existing.articulo = String(item.articulo_nombre).trim();
         }
+        existing.remitosRecepcion = mergeRemitosRecepcion(
+          existing.remitosRecepcion,
+          remitosRecepcion
+        );
         return;
       }
 
@@ -330,6 +349,7 @@ export function resumirArticulosComprados(
           cantidad > 0 ? total / cantidad : precioConDescuento,
         total,
         divisa,
+        remitosRecepcion,
       });
     });
   }
