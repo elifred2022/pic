@@ -11,6 +11,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { fetchCurrentUserNombre } from "@/lib/user-rol";
 
 type Pedido = {
@@ -48,6 +49,7 @@ type Pedido = {
     provsug: string;
     codprovsug?: string;
     presentacion?: string;
+    imagenes?: string[];
   }[];
 };
 
@@ -575,6 +577,7 @@ export default function ListaPedidosProductivos() {
                             <div className="font-medium text-slate-800 truncate" title={art.articulo}>
                               {art.articulo}
                             </div>
+                            <ArticuloImagenesThumbs paths={art.imagenes} />
                             <div className="text-[10px] text-slate-500 truncate">
                               {renderValue(art.descripcion)}
                             </div>

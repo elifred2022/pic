@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 
 type Pedido = {
   id: string;
@@ -31,6 +32,7 @@ type Pedido = {
     existencia: number;
     cant: number;
     provsug: string;
+    imagenes?: string[];
   }[];
 };
 
@@ -311,7 +313,10 @@ const cellClass =
                     {p.articulos?.map((a, idx) => (
                         <tr key={idx}>
                         <td className="border px-1 py-1 text-xs">{a.codint}</td>
-                        <td className="border px-1 py-1 text-xs">{a.articulo}</td>
+                        <td className="border px-1 py-1 text-xs">
+                          {a.articulo}
+                          <ArticuloImagenesThumbs paths={a.imagenes} />
+                        </td>
                         <td className="border px-1 py-1 text-xs">
                           <div>{a.descripcion}</div>
                           <div className="text-[10px] text-gray-500">

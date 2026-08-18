@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import {
@@ -91,6 +92,7 @@ type Pedido = {
     codprovsug?: string;
     presentacion?: string;
     observacion: string;
+    imagenes?: string[];
   }[];
 };
 
@@ -107,6 +109,7 @@ export default function ListaPedidosProductivosAdmin() {
     codprovsug?: string;
     presentacion?: string;
     observacion: string;
+    imagenes?: string[];
   }
 
    const searchParams = useSearchParams();
@@ -1404,6 +1407,7 @@ const handleUpdatePedido = async () => {
                                 <div className="font-medium text-slate-800 truncate" title={art.articulo}>
                                   {art.articulo}
                                 </div>
+                                <ArticuloImagenesThumbs paths={art.imagenes} />
                                 <div className="text-[10px] text-slate-500 truncate">
                                   {renderValue(art.descripcion)}
                                 </div>
@@ -1523,7 +1527,10 @@ const handleUpdatePedido = async () => {
                      <div className="space-y-3">
                        {formData.articulos.map((art, index) => (
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                           <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                           <div className="font-medium text-gray-800 text-sm">
+                             {art.articulo}
+                             <ArticuloImagenesThumbs paths={art.imagenes} />
+                           </div>
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
                            <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
@@ -2083,7 +2090,10 @@ const handleUpdatePedido = async () => {
                      <div className="space-y-2">
                        {comparativaPedido.articulos.map((art, index) => (
                          <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                           <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                           <div className="font-medium text-gray-800 text-sm">
+                             {art.articulo}
+                             <ArticuloImagenesThumbs paths={art.imagenes} />
+                           </div>
                            <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
                            <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : '-'}</div>
                            <div className="text-gray-600 text-xs">Cant: {art.cant}</div>

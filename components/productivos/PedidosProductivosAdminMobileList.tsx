@@ -6,6 +6,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 
 type ArticuloComparativa = {
   codint: string;
@@ -33,6 +34,7 @@ type ArticuloPedido = {
   codprovsug?: string;
   presentacion?: string;
   observacion: string;
+  imagenes?: string[];
 };
 
 export type PedidoMobile = {
@@ -224,6 +226,7 @@ export default function PedidosProductivosAdminMobileList({
                     className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-gray-100"
                   >
                     <div className="font-medium text-slate-800">{art.articulo}</div>
+                    <ArticuloImagenesThumbs paths={art.imagenes} />
                     <p className="text-[10px] text-slate-500 truncate">
                       {renderValue(art.descripcion)}
                     </p>

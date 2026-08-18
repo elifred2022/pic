@@ -125,15 +125,18 @@ export function parseArticuloImagenes(value: unknown): string[] {
   return [];
 }
 
+export type ArticuloImagenScope = "pic" | "pp";
+
 export function getArticuloImagenStoragePath(
   pedidoId: string | number,
   artIndex: number,
   fileIndex: number,
-  extension: string
+  extension: string,
+  scope: ArticuloImagenScope = "pic"
 ): string {
   const ext = extension.replace(/^\./, "").toLowerCase() || "jpg";
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  return `pic/${pedidoId}/articulos/${artIndex}/imagen-${fileIndex}-${unique}.${ext}`;
+  return `${scope}/${pedidoId}/articulos/${artIndex}/imagen-${fileIndex}-${unique}.${ext}`;
 }
 
 export function validateArticuloImagenFile(file: File): string | null {
@@ -153,7 +156,8 @@ export async function uploadArticuloImagen(
   pedidoId: string | number,
   artIndex: number,
   fileIndex: number,
-  file: File
+  file: File,
+  scope: ArticuloImagenScope = "pic"
 ): Promise<{ storagePath: string; viewUrl: string | null } | { error: string }> {
   const invalid = validateArticuloImagenFile(file);
   if (invalid) return { error: invalid };
@@ -168,7 +172,8 @@ export async function uploadArticuloImagen(
     pedidoId,
     artIndex,
     fileIndex,
-    fileExt
+    fileExt,
+    scope
   );
   const contentType =
     file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;

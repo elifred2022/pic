@@ -16,6 +16,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 
 const ESTADOS_APROBADOR = [
   { value: "aprobado", label: "Aprobado" },
@@ -77,6 +78,7 @@ type Pedido = {
     existencia: number;
     cant: number;
     provsug: string;
+    imagenes?: string[];
   }[];
 };
 
@@ -604,6 +606,7 @@ const handleUpdatePedido = async () => {
                          {p.articulos.map((a, idx) => (
                            <div key={idx} className="bg-slate-50 px-1.5 py-1 rounded border border-gray-100">
                              <div className="font-medium text-slate-800 truncate" title={a.articulo}>{a.articulo}</div>
+                             <ArticuloImagenesThumbs paths={a.imagenes} />
                              <div className="text-[10px] text-slate-500 truncate">{a.descripcion || "-"}</div>
                              <div className="text-[10px] text-slate-600 flex flex-wrap gap-x-2">
                                <span>Cant: {a.cant}</span>
@@ -704,7 +707,10 @@ const handleUpdatePedido = async () => {
                     <div className="space-y-2">
                       {formData.articulos.map((art, index) => (
                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm">{art.articulo}</div>
+                          <div className="font-medium text-gray-800 text-sm">
+                            {art.articulo}
+                            <ArticuloImagenesThumbs paths={art.imagenes} />
+                          </div>
                           <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
                           <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
                           <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
