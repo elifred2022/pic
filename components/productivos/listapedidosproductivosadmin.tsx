@@ -42,8 +42,27 @@ type ArticuloComparativa = {
   articulo: string;
   precioUnitario: number | null;
   descuentoPorcentaje: number;
+  /** Texto en edición para no perder el punto/coma mientras se escribe. */
+  descuentoPorcentajeTexto?: string;
   subtotal: number;
 };
+
+function parseDescuentoPorcentajeInput(raw: string): number | null {
+  const texto = raw.trim();
+  if (texto === "") return 0;
+  if (!/^\d*([.,]\d*)?$/.test(texto)) return null;
+  if (texto === "." || texto === ",") return 0;
+  const parsed = parseFloat(texto.replace(",", "."));
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(100, Math.max(0, parsed));
+}
+
+function descuentoPorcentajeInputValue(art: ArticuloComparativa): string {
+  if (art.descuentoPorcentajeTexto != null) return art.descuentoPorcentajeTexto;
+  const n = art.descuentoPorcentaje;
+  if (n == null || n === 0) return "";
+  return String(n);
+}
 
 type ProveedorComparativa = {
   nombreProveedor: string;
@@ -778,7 +797,10 @@ const handleUpdatePedido = async () => {
     }
 
     if (editingPedido) {
-        dataToUpdate.comparativa_prov = comparativaForm;
+        dataToUpdate.comparativa_prov = comparativaForm.map((prov) => ({
+          ...prov,
+          articulos: prov.articulos.map(({ descuentoPorcentajeTexto: _texto, ...art }) => art),
+        }));
         dataToUpdate.nota_comprador = formData.nota_comprador;
         dataToUpdate.comprador = formData.comprador?.trim() || null;
     }
@@ -1687,23 +1709,28 @@ const handleUpdatePedido = async () => {
                                     </td>
                               <td className="px-2 py-2 text-right">
                                 <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                                  value={art.descuentoPorcentaje || 0}
+                                  value={descuentoPorcentajeInputValue(art)}
                                   onChange={(e) => {
                                     if (!comparativaForm) return;
 
+                                    const nuevoDescuento = parseDescuentoPorcentajeInput(e.target.value);
+                                    if (nuevoDescuento === null) return;
+
                                     const newComparativa = [...comparativaForm];
-                                    const nuevoDescuento = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                                     const precioUnitarioActual = newComparativa[provIndex].articulos[artIndex].precioUnitario;
 
                                     // Obtener la cantidad del artículo original del pedido
                                     const articuloOriginal = formData.articulos?.find(a => a.codint === art.codint);
                                     const cantidad = articuloOriginal?.cant || 0;
 
-                                    newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje = nuevoDescuento;
+                                    newComparativa[provIndex].articulos[artIndex].descuentoPorcentajeTexto =
+                                      e.target.value;
+                                    newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje =
+                                      nuevoDescuento;
                                     newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
                                       precioUnitarioActual,
                                       nuevoDescuento,

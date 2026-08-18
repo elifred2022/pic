@@ -405,6 +405,21 @@ type ArticuloOrdenItem = {
   codprovsug?: string | null;
 };
 
+function esEntradaDecimalValida(valor: string) {
+  return valor === "" || /^\d*[.,]?\d*$/.test(valor);
+}
+
+function parseCantidadDecimal(valor: string) {
+  const texto = valor.trim();
+  if (texto === "" || texto === "." || texto === ",") return 0;
+  const numero = parseFloat(texto.replace(",", "."));
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function parseDescuentoPorcentaje(valor: string) {
+  return Math.min(100, Math.max(0, parseCantidadDecimal(valor)));
+}
+
 /** Entrada legacy de la columna JSON `entregas` (array paralelo a `articulos`). */
 type EntregaOrdenItem = {
   entregadas: number | null;
@@ -1015,9 +1030,11 @@ export default function VerOrdenCompraPage() {
   const [nuevoArticulo, setNuevoArticulo] = useState({
     articulo_nombre: '',
     cantidad: 1,
-    precio_unitario: 0,
-    descuento: 0
+    precio_unitario: '0',
+    descuento: '0'
   });
+  const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
+  const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   const [showEntregaModal, setShowEntregaModal] = useState(false);
   const [entregaForm, setEntregaForm] = useState({
     fc: "",
@@ -2275,6 +2292,8 @@ export default function VerOrdenCompraPage() {
       setEditFacturas(parseFacturasFromOrden(orden));
       setNuevaFacturaFc('');
       setBusquedaProveedor('');
+      setPrecioEdicion({});
+      setDescuentoEdicion({});
       setShowEditModal(true);
     }
   };
@@ -2305,6 +2324,8 @@ export default function VerOrdenCompraPage() {
     setNuevaFacturaFc('');
     setBusquedaProveedor('');
     setFacturaUploadError(null);
+    setPrecioEdicion({});
+    setDescuentoEdicion({});
   };
 
   const persistirFacturas = async (facturas: FacturaOrdenItem[]) => {
@@ -2750,17 +2771,19 @@ export default function VerOrdenCompraPage() {
   const handleAgregarArticulo = () => {
     if (!nuevoArticulo.articulo_nombre.trim()) return;
     
+    const precioUnitario = parseCantidadDecimal(nuevoArticulo.precio_unitario);
+    const descuento = parseDescuentoPorcentaje(nuevoArticulo.descuento);
     const precioConDescuento = calcularPrecioConDescuento(
-      nuevoArticulo.precio_unitario,
-      nuevoArticulo.descuento
+      precioUnitario,
+      descuento
     );
     const divisaArt = normalizeDivisa(editData.divisa);
     const articulo = {
       articulo_id: `temp-${Date.now()}`,
       articulo_nombre: nuevoArticulo.articulo_nombre,
       cantidad: nuevoArticulo.cantidad,
-      precio_unitario: nuevoArticulo.precio_unitario,
-      descuento: nuevoArticulo.descuento,
+      precio_unitario: precioUnitario,
+      descuento,
       divisa: divisaArt,
       costunitcdesc: precioConDescuento,
       total: nuevoArticulo.cantidad * precioConDescuento
@@ -2774,17 +2797,30 @@ export default function VerOrdenCompraPage() {
     setNuevoArticulo({
       articulo_nombre: '',
       cantidad: 1,
-      precio_unitario: 0,
-      descuento: 0
+      precio_unitario: '0',
+      descuento: '0'
     });
     setShowArticuloModal(false);
   };
 
   const handleEliminarArticulo = (index: number) => {
+    const articuloId = editData.articulos[index]?.articulo_id;
     setEditData({
       ...editData,
       articulos: editData.articulos.filter((_, i) => i !== index)
     });
+    if (articuloId) {
+      setPrecioEdicion((prev) => {
+        const next = { ...prev };
+        delete next[articuloId];
+        return next;
+      });
+      setDescuentoEdicion((prev) => {
+        const next = { ...prev };
+        delete next[articuloId];
+        return next;
+      });
+    }
   };
 
   const handleEditarArticulo = (index: number, campo: string, valor: string | number) => {
@@ -3920,25 +3956,50 @@ export default function VerOrdenCompraPage() {
                           </div>
                           <div>
                             <Input
-                              type="number"
-                              value={articulo.precio_unitario}
-                              onChange={(e) => handleEditarArticulo(index, 'precio_unitario', parseFloat(e.target.value) || 0)}
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              value={precioEdicion[articulo.articulo_id] ?? String(articulo.precio_unitario)}
+                              onChange={(e) => {
+                                const valor = e.target.value;
+                                if (!esEntradaDecimalValida(valor)) return;
+                                setPrecioEdicion((prev) => ({ ...prev, [articulo.articulo_id]: valor }));
+                                handleEditarArticulo(index, 'precio_unitario', parseCantidadDecimal(valor));
+                              }}
+                              onBlur={(e) => {
+                                handleEditarArticulo(index, 'precio_unitario', parseCantidadDecimal(e.target.value));
+                                setPrecioEdicion((prev) => {
+                                  const next = { ...prev };
+                                  delete next[articulo.articulo_id];
+                                  return next;
+                                });
+                              }}
                               placeholder="Precio unit."
                               className="text-sm"
-                              min="0"
-                              step="0.01"
                             />
                           </div>
                           <div>
                             <Input
-                              type="number"
-                              value={articulo.descuento ?? 0}
-                              onChange={(e) => handleEditarArticulo(index, 'descuento', parseFloat(e.target.value) || 0)}
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              value={descuentoEdicion[articulo.articulo_id] ?? String(articulo.descuento ?? 0)}
+                              onChange={(e) => {
+                                const valor = e.target.value;
+                                if (!esEntradaDecimalValida(valor)) return;
+                                setDescuentoEdicion((prev) => ({ ...prev, [articulo.articulo_id]: valor }));
+                                handleEditarArticulo(index, 'descuento', parseDescuentoPorcentaje(valor));
+                              }}
+                              onBlur={(e) => {
+                                handleEditarArticulo(index, 'descuento', parseDescuentoPorcentaje(e.target.value));
+                                setDescuentoEdicion((prev) => {
+                                  const next = { ...prev };
+                                  delete next[articulo.articulo_id];
+                                  return next;
+                                });
+                              }}
                               placeholder="Desc. %"
                               className="text-sm"
-                              min="0"
-                              max="100"
-                              step="0.01"
                             />
                           </div>
                           <div className="text-sm text-right whitespace-nowrap self-center">
@@ -4042,23 +4103,44 @@ export default function VerOrdenCompraPage() {
                   <Label htmlFor="nuevo-articulo-precio">Precio Unitario</Label>
                   <Input
                     id="nuevo-articulo-precio"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={nuevoArticulo.precio_unitario}
-                    onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, precio_unitario: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    step="0.01"
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (!esEntradaDecimalValida(valor)) return;
+                      setNuevoArticulo({ ...nuevoArticulo, precio_unitario: valor });
+                    }}
+                    onBlur={() => {
+                      setNuevoArticulo((prev) => ({
+                        ...prev,
+                        precio_unitario: String(parseCantidadDecimal(prev.precio_unitario)),
+                      }));
+                    }}
+                    placeholder="0.00"
                   />
                 </div>
                 <div>
                   <Label htmlFor="nuevo-articulo-descuento">Descuento %</Label>
                   <Input
                     id="nuevo-articulo-descuento"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={nuevoArticulo.descuento}
-                    onChange={(e) => setNuevoArticulo({ ...nuevoArticulo, descuento: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    max="100"
-                    step="0.01"
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (!esEntradaDecimalValida(valor)) return;
+                      setNuevoArticulo({ ...nuevoArticulo, descuento: valor });
+                    }}
+                    onBlur={() => {
+                      setNuevoArticulo((prev) => ({
+                        ...prev,
+                        descuento: String(parseDescuentoPorcentaje(prev.descuento)),
+                      }));
+                    }}
+                    placeholder="0.00"
                   />
                 </div>
               </div>
@@ -4068,7 +4150,10 @@ export default function VerOrdenCompraPage() {
                   <span className="font-medium">Total:</span>
                   <span className="font-bold text-lg whitespace-nowrap">
                     {formatImporte(
-                      nuevoArticulo.cantidad * calcularPrecioConDescuento(nuevoArticulo.precio_unitario, nuevoArticulo.descuento),
+                      nuevoArticulo.cantidad * calcularPrecioConDescuento(
+                        parseCantidadDecimal(nuevoArticulo.precio_unitario),
+                        parseDescuentoPorcentaje(nuevoArticulo.descuento)
+                      ),
                       editData.divisa
                     )}
                   </span>
@@ -4083,8 +4168,8 @@ export default function VerOrdenCompraPage() {
                   setNuevoArticulo({
                     articulo_nombre: '',
                     cantidad: 1,
-                    precio_unitario: 0,
-                    descuento: 0
+                    precio_unitario: '0',
+                    descuento: '0'
                   });
                 }}
                 variant="outline"

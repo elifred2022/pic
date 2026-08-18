@@ -123,10 +123,11 @@ export function CrearFormOrdenCompra() {
     nombre: "",
     cantidad: "1",
     precio_unitario: "0",
-    descuento: 0
+    descuento: "0"
   });
   const [cantidadEdicion, setCantidadEdicion] = useState<Record<string, string>>({});
   const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
+  const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     cuit_proveedor: "",
@@ -580,7 +581,8 @@ export function CrearFormOrdenCompra() {
     }
     const idUnico = `sin-pic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const precioUnitario = parseCantidadDecimal(articuloSinPic.precio_unitario);
-    const precioConDescuento = calcularPrecioConDescuento(precioUnitario, articuloSinPic.descuento);
+    const descuento = Math.min(100, Math.max(0, parseCantidadDecimal(articuloSinPic.descuento)));
+    const precioConDescuento = calcularPrecioConDescuento(precioUnitario, descuento);
     const nuevoItem: ItemOrden = {
       articulo_id: idUnico,
       articulo_nombre: nombre,
@@ -588,13 +590,13 @@ export function CrearFormOrdenCompra() {
       codint: null,
       cantidad,
       precio_unitario: precioUnitario,
-      descuento: articuloSinPic.descuento,
+      descuento,
       costunitcdesc: precioConDescuento,
       divisa: formData.divisa,
       total: cantidad * precioConDescuento
     };
     setItemsOrden([...itemsOrden, nuevoItem]);
-    setArticuloSinPic({ nombre: "", cantidad: "1", precio_unitario: "0", descuento: 0 });
+    setArticuloSinPic({ nombre: "", cantidad: "1", precio_unitario: "0", descuento: "0" });
     setMostrarFormSinPic(false);
     setError(null);
   };
@@ -1246,12 +1248,24 @@ export function CrearFormOrdenCompra() {
                       <Label htmlFor="desc-sin-pic">Descuento %</Label>
                       <Input
                         id="desc-sin-pic"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                         value={articuloSinPic.descuento}
-                        onChange={(e) => setArticuloSinPic(prev => ({ ...prev, descuento: parseNumero(e.target.value) }))}
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          if (!esEntradaDecimalValida(valor)) return;
+                          setArticuloSinPic(prev => ({ ...prev, descuento: valor }));
+                        }}
+                        onBlur={() => {
+                          setArticuloSinPic(prev => ({
+                            ...prev,
+                            descuento: String(
+                              Math.min(100, Math.max(0, parseCantidadDecimal(prev.descuento)))
+                            ),
+                          }));
+                        }}
+                        placeholder="Ej: 10.5"
                       />
                     </div>
                   </div>
@@ -1488,12 +1502,32 @@ export function CrearFormOrdenCompra() {
                         <div>
                           <Label className="text-sm">Descuento %</Label>
                           <Input
-                            type="number"
-                            value={item.descuento}
-                            onChange={(e) => handleDescuentoChange(item.articulo_id, parseNumero(e.target.value))}
-                            min="0"
-                            max="100"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            value={descuentoEdicion[item.articulo_id] ?? String(item.descuento)}
+                            onChange={(e) => {
+                              const valor = e.target.value;
+                              if (!esEntradaDecimalValida(valor)) return;
+                              setDescuentoEdicion((prev) => ({ ...prev, [item.articulo_id]: valor }));
+                              handleDescuentoChange(
+                                item.articulo_id,
+                                Math.min(100, Math.max(0, parseCantidadDecimal(valor)))
+                              );
+                            }}
+                            onBlur={(e) => {
+                              const descuento = Math.min(
+                                100,
+                                Math.max(0, parseCantidadDecimal(e.target.value))
+                              );
+                              handleDescuentoChange(item.articulo_id, descuento);
+                              setDescuentoEdicion((prev) => {
+                                const next = { ...prev };
+                                delete next[item.articulo_id];
+                                return next;
+                              });
+                            }}
+                            placeholder="0.00"
                             className="w-24"
                           />
                         </div>

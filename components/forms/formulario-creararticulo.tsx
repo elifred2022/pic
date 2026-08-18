@@ -75,7 +75,7 @@ export default function FormularioCrearArticulo() {
   const [familia, setFamilia] = useState("");
   const [situacion, setSituacion] = useState("activo");
   const [cc, setCc] = useState<number>(0);
-  const [costunit, setCostunit] = useState<number>(0);
+  const [costunit, setCostunit] = useState("");
   const [descuento, setDescuento] = useState("");
   const [divisa, setDivisa] = useState("");
   const [articuloCommaWarning, setArticuloCommaWarning] = useState("");
@@ -110,7 +110,7 @@ export default function FormularioCrearArticulo() {
   };
 
   const calcularCostunitcdesc = () => {
-    const cost = costunit || 0;
+    const cost = parseNumero(costunit);
     const porcentaje = parseNumero(descuento);
     if (!cost || !descuento.trim()) return null;
     return (cost - (cost * porcentaje) / 100).toFixed(2);
@@ -138,7 +138,7 @@ export default function FormularioCrearArticulo() {
         setFamilia("");
         setSituacion("activo");
         setCc(0);
-        setCostunit(0);
+        setCostunit("");
         setDescuento("");
         setDivisa("");
 
@@ -216,7 +216,7 @@ export default function FormularioCrearArticulo() {
           familia: familia.trim() || null,
           situacion: situacion,
           cc: cc || 0,
-          costunit: costunit || 0,
+          costunit: parseNumero(costunit),
           descuento: descuento.trim() || null,
           costunitcdesc: calcularCostunitcdesc(),
           divisa: divisa.trim() || null,
@@ -239,7 +239,7 @@ export default function FormularioCrearArticulo() {
         situacion: situacion,
         uuid: user.id,
         cc: cc || 0,
-        costunit: costunit || 0,
+        costunit: parseNumero(costunit),
         descuento: descuento.trim() || null,
         costunitcdesc: calcularCostunitcdesc(),
         divisa: divisa.trim() || null,
@@ -445,11 +445,15 @@ export default function FormularioCrearArticulo() {
                 <Field label="Costo unitario" htmlFor="costunit">
                   <Input
                     id="costunit"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={costunit}
-                    onChange={(e) => setCostunit(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.01"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value !== "" && !/^\d*([.,]\d*)?$/.test(value)) return;
+                      setCostunit(value);
+                    }}
                     placeholder="0.00"
                   />
                 </Field>
