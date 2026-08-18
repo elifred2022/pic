@@ -16,6 +16,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 
 const ESTADOS_APROBADOR = [
   { value: "aprobado", label: "Aprobado" },
@@ -57,6 +58,7 @@ type Pedido = {
     cant_exist?: number;
     observacion?: string;
     link?: string;
+    imagenes?: string[];
   }>; // Array de artículos
  
   controlado: string;
@@ -532,7 +534,10 @@ export default function ListAprob() {
                           <tbody>
                             {pedido.articulos.map((a, idx: number) => (
                               <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                                <td className="px-1 py-0.5 font-medium">{a.articulo}</td>
+                                <td className="px-1 py-0.5 font-medium">
+                                  {a.articulo}
+                                  <ArticuloImagenesThumbs paths={a.imagenes} />
+                                </td>
                                 <td className="px-1 py-0.5 text-slate-600 max-w-32 break-words leading-tight">
                                   {a.descripcion && a.descripcion.length > 30
                                     ? `${a.descripcion.substring(0, 30)}...`
@@ -662,7 +667,10 @@ export default function ListAprob() {
                        <tbody>
                          {editingPedido.articulos.map((a, idx: number) => (
                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                             <td className="px-3 py-2 font-medium text-gray-800">{a.articulo}</td>
+                             <td className="px-3 py-2 font-medium text-gray-800">
+                               {a.articulo}
+                               <ArticuloImagenesThumbs paths={a.imagenes} />
+                             </td>
                              <td className="px-3 py-2 text-gray-700 max-w-32 break-words text-xs leading-tight">
                                {a.descripcion && a.descripcion.length > 30 
                                  ? `${a.descripcion.substring(0, 30)}...` 

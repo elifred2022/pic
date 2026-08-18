@@ -12,6 +12,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { fetchCurrentUserNombre } from "@/lib/user-rol";
 
 type Pedido = {
@@ -30,6 +31,7 @@ type Pedido = {
     cant: number;
     cant_exist?: number;
     observacion?: string;
+    imagenes?: string[];
   }>; // Array de artículos
   descripcion: string;
   controlado: string;
@@ -454,7 +456,10 @@ function renderValue(value: unknown): string {
                            <tbody>
                              {pedido.articulos.map((a, idx: number) => (
                                <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                                 <td className="px-1 py-0.5 font-medium">{a.articulo}</td>
+                                 <td className="px-1 py-0.5 font-medium">
+                                   {a.articulo}
+                                   <ArticuloImagenesThumbs paths={a.imagenes} />
+                                 </td>
                                  <td className="px-1 py-0.5 text-slate-600">{a.descripcion}</td>
                                  <td className="px-1 py-0.5 text-center font-semibold">{a.cant}</td>
                                  <td className="px-1 py-0.5 text-center">{a.cant_exist}</td>

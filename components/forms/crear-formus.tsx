@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { appendHistoricoEstado } from "@/lib/historico-estado-pedidos-productivos";
+import {
+  ARTICULO_IMAGEN_ACCEPT,
+  ARTICULO_IMAGEN_MAX_POR_ARTICULO,
+  uploadArticuloImagen,
+  validateArticuloImagenFile,
+} from "@/lib/presupuestos-storage";
+
+type ArticuloImagenLocal = {
+  id: string;
+  file: File;
+  previewUrl: string;
+};
 
 type ArticuloManual = {
   id: string;
@@ -17,7 +29,26 @@ type ArticuloManual = {
   existencia: number;
   provsug: string;
   link: string;
+  imagenesLocales: ArticuloImagenLocal[];
 };
+
+function revokeImagenesLocales(imagenes: ArticuloImagenLocal[]) {
+  imagenes.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+}
+
+function toArticuloDb(art: ArticuloManual, imagenes: string[] = []) {
+  return {
+    articulo: art.articulo,
+    descripcion: art.descripcion,
+    cant: art.cant,
+    observacion: art.observacion,
+    cc: art.cc || null,
+    existencia: art.existencia || 0,
+    provsug: art.provsug || null,
+    link: art.link || null,
+    imagenes,
+  };
+}
 
 export default function CrearFormUs() {
   const supabase = createClient();
@@ -40,11 +71,16 @@ export default function CrearFormUs() {
   const [existencia, setExistencia] = useState<number>(0);
   const [provsug, setProvsug] = useState("");
   const [link, setLink] = useState("");
-
+  const [imagenesPendientes, setImagenesPendientes] = useState<ArticuloImagenLocal[]>([]);
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<ArticuloManual[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [loadingNombre, setLoadingNombre] = useState(true);
+  const imagenInputRef = useRef<HTMLInputElement>(null);
+  const imagenesPendientesRef = useRef<ArticuloImagenLocal[]>([]);
+  const articulosSeleccionadosRef = useRef<ArticuloManual[]>([]);
+  imagenesPendientesRef.current = imagenesPendientes;
+  articulosSeleccionadosRef.current = articulosSeleccionados;
 
   // 🔄 Cargar nombre del usuario automáticamente
   useEffect(() => {
@@ -85,6 +121,62 @@ export default function CrearFormUs() {
     cargarNombreUsuario();
   }, [supabase]);
 
+  useEffect(() => {
+    return () => {
+      revokeImagenesLocales(imagenesPendientesRef.current);
+      articulosSeleccionadosRef.current.forEach((art) =>
+        revokeImagenesLocales(art.imagenesLocales)
+      );
+    };
+  }, []);
+
+  const handleSeleccionarImagenes = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const disponibles =
+      ARTICULO_IMAGEN_MAX_POR_ARTICULO - imagenesPendientes.length;
+    if (disponibles <= 0) {
+      setMessage(
+        `❌ Máximo ${ARTICULO_IMAGEN_MAX_POR_ARTICULO} imágenes por artículo`
+      );
+      return;
+    }
+
+    const nuevas: ArticuloImagenLocal[] = [];
+    const errores: string[] = [];
+    const selected = Array.from(files).slice(0, disponibles);
+
+    for (const file of selected) {
+      const invalid = validateArticuloImagenFile(file);
+      if (invalid) {
+        errores.push(`${file.name}: ${invalid}`);
+        continue;
+      }
+      nuevas.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+
+    if (nuevas.length > 0) {
+      setImagenesPendientes((prev) => [...prev, ...nuevas]);
+    }
+    if (errores.length > 0) {
+      setMessage(`❌ ${errores.join(" · ")}`);
+    } else if (nuevas.length > 0) {
+      setMessage("");
+    }
+  };
+
+  const handleQuitarImagenPendiente = (id: string) => {
+    setImagenesPendientes((prev) => {
+      const quitar = prev.find((img) => img.id === id);
+      if (quitar) URL.revokeObjectURL(quitar.previewUrl);
+      return prev.filter((img) => img.id !== id);
+    });
+  };
+
   // ➕ Agregar artículo a la lista temporal
   const handleAgregarArticulo = () => {
     if (articulo.trim() === "" || cant <= 0) {
@@ -102,6 +194,7 @@ export default function CrearFormUs() {
       existencia,
       provsug: provsug.trim(),
       link: link.trim(),
+      imagenesLocales: imagenesPendientes,
     };
 
     setArticulosSeleccionados((prev) => [...prev, nuevoArticulo]);
@@ -115,14 +208,18 @@ export default function CrearFormUs() {
     setExistencia(0);
     setProvsug("");
     setLink("");
+    setImagenesPendientes([]);
+    if (imagenInputRef.current) imagenInputRef.current.value = "";
     setMessage("✅ Artículo agregado correctamente");
   };
 
   // ❌ Eliminar artículo de la lista
   const handleEliminarArticulo = (id: string) => {
-    setArticulosSeleccionados((prev) =>
-      prev.filter((a) => a.id !== id)
-    );
+    setArticulosSeleccionados((prev) => {
+      const quitar = prev.find((a) => a.id === id);
+      if (quitar) revokeImagenesLocales(quitar.imagenesLocales);
+      return prev.filter((a) => a.id !== id);
+    });
   };
 
   // 📝 Crear pedido
@@ -174,16 +271,7 @@ export default function CrearFormUs() {
             aprueba,
             notas,
             uuid: user.id,
-            articulos: articulosSeleccionados.map((art) => ({
-              articulo: art.articulo,
-              descripcion: art.descripcion,
-              cant: art.cant,
-              observacion: art.observacion,
-              cc: art.cc || null,
-              existencia: art.existencia || 0,
-              provsug: art.provsug || null,
-              link: art.link || null,
-            })),
+            articulos: articulosSeleccionados.map((art) => toArticuloDb(art)),
           },
         ])
         .select("id, sector")
@@ -223,11 +311,60 @@ export default function CrearFormUs() {
       }
 
       if (idCreado) {
+        const hayImagenes = articulosSeleccionados.some(
+          (art) => art.imagenesLocales.length > 0
+        );
+        let imagenesError = "";
+
+        if (hayImagenes) {
+          const articulosConImagenes = [];
+          const erroresUpload: string[] = [];
+
+          for (let artIndex = 0; artIndex < articulosSeleccionados.length; artIndex++) {
+            const art = articulosSeleccionados[artIndex];
+            const imagenes: string[] = [];
+
+            for (let fileIndex = 0; fileIndex < art.imagenesLocales.length; fileIndex++) {
+              const result = await uploadArticuloImagen(
+                supabase,
+                idCreado,
+                artIndex,
+                fileIndex,
+                art.imagenesLocales[fileIndex].file
+              );
+              if ("error" in result) {
+                erroresUpload.push(`${art.articulo}: ${result.error}`);
+              } else {
+                imagenes.push(result.storagePath);
+              }
+            }
+
+            articulosConImagenes.push(toArticuloDb(art, imagenes));
+          }
+
+          const { error: updateImagenesError } = await supabase
+            .from("pic")
+            .update({ articulos: articulosConImagenes })
+            .eq("id", idCreado);
+
+          if (updateImagenesError) {
+            imagenesError =
+              " El pedido se creó, pero no se pudieron guardar las rutas de las imágenes.";
+          } else if (erroresUpload.length > 0) {
+            imagenesError = ` El pedido se creó, pero algunas imágenes no se subieron: ${erroresUpload.join(" · ")}`;
+          }
+        }
+
+        articulosSeleccionados.forEach((art) =>
+          revokeImagenesLocales(art.imagenesLocales)
+        );
+        revokeImagenesLocales(imagenesPendientes);
+
         setMessage(
-          `✅ Pedido creado con éxito. PIC #${idCreado} del sector ${sectorCreado || "—"}.`
+          `✅ Pedido creado con éxito. PIC #${idCreado} del sector ${sectorCreado || "—"}.${imagenesError}`
         );
         alert(
-          `✅ Se creó tu PIC #${idCreado} del sector ${sectorCreado || "—"}.`
+          `✅ Se creó tu PIC #${idCreado} del sector ${sectorCreado || "—"}.${imagenesError}`
         );
       } else {
         setMessage("✅ Pedido creado con éxito.");
@@ -239,6 +376,8 @@ export default function CrearFormUs() {
       setSector("");
       setEstado("iniciado");
       setArticulosSeleccionados([]);
+      setImagenesPendientes([]);
+      if (imagenInputRef.current) imagenInputRef.current.value = "";
    
       setAprueba("");
 
@@ -473,6 +612,45 @@ export default function CrearFormUs() {
               </p>
             </div>
 
+            <div className="col-span-2">
+              <label className="text-black">Imágenes de referencia</label>
+              <input
+                ref={imagenInputRef}
+                type="file"
+                accept={ARTICULO_IMAGEN_ACCEPT}
+                multiple
+                onChange={(e) => {
+                  handleSeleccionarImagenes(e.target.files);
+                  e.target.value = "";
+                }}
+                className="border p-2 w-full rounded text-black bg-white file:mr-3 file:rounded file:border-0 file:bg-slate-600 file:px-3 file:py-1 file:text-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                JPG, PNG o WEBP. Hasta {ARTICULO_IMAGEN_MAX_POR_ARTICULO} imágenes por artículo (máx. 8 MB c/u). Se guardan en el storage de presupuestos.
+              </p>
+              {imagenesPendientes.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {imagenesPendientes.map((img) => (
+                    <div key={img.id} className="relative">
+                      <img
+                        src={img.previewUrl}
+                        alt={img.file.name}
+                        className="h-16 w-16 rounded border border-gray-200 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleQuitarImagenPendiente(img.id)}
+                        className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white hover:bg-red-700"
+                        aria-label={`Quitar ${img.file.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-end">
               <button
                 type="button"
@@ -500,6 +678,7 @@ export default function CrearFormUs() {
                   <th className="border p-2">Existencia</th>
                   <th className="border p-2">Proveedor</th>
                   <th className="border p-2">Link Web</th>
+                  <th className="border p-2">Imágenes</th>
                   <th className="border p-2">Acciones</th>
                 </tr>
               </thead>
@@ -525,6 +704,22 @@ export default function CrearFormUs() {
                         </a>
                       ) : (
                         <span className="text-gray-400">Sin link</span>
+                      )}
+                    </td>
+                    <td className="border p-2">
+                      {art.imagenesLocales.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {art.imagenesLocales.map((img) => (
+                            <img
+                              key={img.id}
+                              src={img.previewUrl}
+                              alt={img.file.name}
+                              className="h-10 w-10 rounded border border-gray-200 object-cover"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Sin imágenes</span>
                       )}
                     </td>
                     <td className="border p-2 text-center">

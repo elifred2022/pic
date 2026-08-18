@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import {
   formatHistoricoEntry,
   parseHistoricoEstado,
@@ -27,6 +28,7 @@ type Pedido = {
     cant_exist?: number;
     observacion?: string;
     link?: string;
+    imagenes?: string[];
   }>; // Array de artículos
   descripcion: string;
    controlado: string;
@@ -456,7 +458,10 @@ function renderValue(value: unknown): string {
                                      <tbody>
                                        {pedido.articulos.map((a, idx: number) => (
                                          <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                                           <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                                           <td className="px-2 py-1 font-medium">
+                                             {a.articulo}
+                                             <ArticuloImagenesThumbs paths={a.imagenes} />
+                                           </td>
                                            <td className="px-2 py-1 text-gray-700">{a.descripcion}</td>
                                            <td className="px-2 py-1 text-center font-semibold">{a.cant}</td>
                                            <td className="px-2 py-1 text-center">{a.cant_exist}</td>
@@ -584,7 +589,10 @@ function renderValue(value: unknown): string {
                        <tbody>
                          {editingPedido.articulos.map((a, idx: number) => (
                            <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                             <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                             <td className="px-2 py-1 font-medium">
+                               {a.articulo}
+                               <ArticuloImagenesThumbs paths={a.imagenes} />
+                             </td>
                              <td className="px-2 py-1 text-gray-700">
                                <input
                                  type="text"

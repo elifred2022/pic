@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import PedidosGeneralesAdminMobileList from "@/components/lists/admin/PedidosGeneralesAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import {
@@ -70,6 +71,7 @@ type Pedido = {
     cant_exist?: number;
     observacion?: string;
     link?: string;
+    imagenes?: string[];
   }>; // Array de artículos
   notas?: string;
   controlado: string;
@@ -1409,7 +1411,10 @@ export default function ListAdmin() {
                       <tbody>
                         {pedido.articulos.map((a, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                            <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                            <td className="px-2 py-1 font-medium">
+                              {a.articulo}
+                              <ArticuloImagenesThumbs paths={a.imagenes} />
+                            </td>
                              <td className="px-2 py-1 text-gray-700">
                                {a.descripcion && a.descripcion.length > 30 
                                  ? `${a.descripcion.substring(0, 30)}...` 
@@ -1526,7 +1531,10 @@ export default function ListAdmin() {
                     <div className="space-y-3">
                       {formData.articulos.map((art, index) => (
                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm mb-2">{art.articulo}</div>
+                          <div className="font-medium text-gray-800 text-sm mb-2">
+                            {art.articulo}
+                            <ArticuloImagenesThumbs paths={art.imagenes} />
+                          </div>
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
                             <div className="text-gray-600 text-xs">Stock: {art.cant_exist}</div>
@@ -2156,7 +2164,10 @@ export default function ListAdmin() {
                       <tbody>
                         {verInfo.articulos.map((a, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 last:border-b-0">
-                            <td className="px-2 py-1 font-medium">{a.articulo}</td>
+                            <td className="px-2 py-1 font-medium">
+                              {a.articulo}
+                              <ArticuloImagenesThumbs paths={a.imagenes} />
+                            </td>
                             <td className="px-2 py-1 text-gray-700 max-w-xs">
                               <div className="break-words">
                                 {a.descripcion || "-"}

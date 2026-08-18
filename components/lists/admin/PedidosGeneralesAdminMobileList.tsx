@@ -6,6 +6,7 @@ import {
   parseHistoricoEstado,
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
+import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 
 type ArticuloComparativa = {
   articulo: string;
@@ -29,6 +30,7 @@ type ArticuloPedido = {
   cant_exist?: number;
   observacion?: string;
   link?: string;
+  imagenes?: string[];
 };
 
 export type PedidoGeneralesMobile = {
@@ -215,7 +217,10 @@ export default function PedidosGeneralesAdminMobileList({
               <div className="space-y-2">
                 {p.articulos.map((a, idx) => (
                   <div key={idx} className="text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <p className="font-medium text-gray-800">{a.articulo}</p>
+                    <p className="font-medium text-gray-800">
+                      {a.articulo}
+                      <ArticuloImagenesThumbs paths={a.imagenes} />
+                    </p>
                     <p className="text-gray-600 text-xs">Desc: {renderValue(a.descripcion)}</p>
                     <p className="text-gray-600">Cant: {Number(a.cant) || 0}</p>
                     <p className="text-gray-600">Stock: {Number(a.cant_exist) || 0}</p>
