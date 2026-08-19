@@ -797,10 +797,12 @@ const handleUpdatePedido = async () => {
     }
 
     if (editingPedido) {
-        dataToUpdate.comparativa_prov = comparativaForm.map((prov) => ({
-          ...prov,
-          articulos: prov.articulos.map(({ descuentoPorcentajeTexto: _texto, ...art }) => art),
-        }));
+        if (comparativaForm) {
+          dataToUpdate.comparativa_prov = comparativaForm.map((prov) => ({
+            ...prov,
+            articulos: prov.articulos.map(({ descuentoPorcentajeTexto: _texto, ...art }) => art),
+          }));
+        }
         dataToUpdate.nota_comprador = formData.nota_comprador;
         dataToUpdate.comprador = formData.comprador?.trim() || null;
     }
