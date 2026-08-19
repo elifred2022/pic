@@ -2,12 +2,19 @@
 
 import { Search } from "lucide-react";
 import { ComprasModuleCard } from "@/components/panels/compras-module-card";
+import type { ComprasModuleItem } from "@/components/panels/compras-module-card";
 import { consultasModuleItems } from "@/lib/consultas-module-items";
 
-export default function PanelModuloConsultas() {
+type PanelModuloConsultasProps = {
+  items?: ComprasModuleItem[];
+};
+
+export default function PanelModuloConsultas({
+  items = consultasModuleItems,
+}: PanelModuloConsultasProps) {
   return (
     <ComprasModuleCard
-      items={consultasModuleItems}
+      items={items}
       title="Consultas"
       description="Consultas y reportes del sistema"
       headerIcon={Search}

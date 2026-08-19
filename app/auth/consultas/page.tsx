@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { canAccessConsultas } from "@/lib/panol-access";
+import { canAccessConsultas, isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
+import {
+  consultasModuleItems,
+  panolConsultasModuleItems,
+} from "@/lib/consultas-module-items";
 import PanelModuloConsultas from "@/components/panels/panel-modulo-consultas";
 
 export default async function ConsultasPage() {
@@ -19,6 +23,10 @@ export default async function ConsultasPage() {
     redirect("/protected");
   }
 
+  const items = isPanolEmail(authData.user.email, rol)
+    ? panolConsultasModuleItems
+    : consultasModuleItems;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-6">
       <div className="mb-6">
@@ -30,7 +38,7 @@ export default async function ConsultasPage() {
         </Link>
       </div>
 
-      <PanelModuloConsultas />
+      <PanelModuloConsultas items={items} />
     </div>
   );
 }
