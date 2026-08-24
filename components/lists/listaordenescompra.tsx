@@ -23,9 +23,12 @@ import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canViewImportesOrdenesCompra } from "@/lib/panol-access";
 import {
   formatFechaExcel,
+  formatRemitosRecepcion,
   getCantidadesEntregaArticulo,
   getFechasEntregaEventos,
+  getRemitosRecepcionArticulo,
 } from "@/lib/ordenes-compra-entregas";
+import { parseFacturasFromOrden } from "@/lib/fact-compras-storage";
 
 interface OrdenCompra {
   id: number;
@@ -63,6 +66,58 @@ interface OrdenCompra {
   entregas?: unknown;
   fecha_entrega?: string | null;
   fecha_prometida?: string | null;
+  fc?: unknown;
+  rt?: unknown;
+  fact_path?: unknown;
+}
+
+const ESTADO_EXCEL_LABELS: Record<string, string> = {
+  pendiente: "Pendiente",
+  necesita_autorizacion_de_finanzas: "Necesita autorizacion de finanzas",
+  aprobada: "Aprobada",
+  autorizada_por_finanzas: "Autorizada por finanzas",
+  rechazada: "Rechazada",
+  cumplida: "Cumplida",
+  entrego_parcial: "Entregó Parcial",
+  anulado: "Anulado",
+};
+
+function formatEstadoExcel(estado?: string | null): string {
+  const key = String(estado ?? "").trim();
+  if (!key) return "";
+  return ESTADO_EXCEL_LABELS[key] ?? key;
+}
+
+function formatFacturasExcel(orden: {
+  fc?: unknown;
+  fact_path?: unknown;
+  entregas?: unknown;
+}): string {
+  const fromOrden = parseFacturasFromOrden(orden)
+    .map((item) => item.fc)
+    .filter((fc): fc is number => fc !== null);
+
+  const fromEntregas: number[] = [];
+  if (Array.isArray(orden.entregas)) {
+    for (const raw of orden.entregas) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const rec = raw as Record<string, unknown>;
+      if (rec.anulado === true) continue;
+      if (rec.fc === null || rec.fc === undefined || rec.fc === "") continue;
+      const n = Number(rec.fc);
+      if (Number.isFinite(n)) fromEntregas.push(n);
+    }
+  }
+
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const n of [...fromOrden, ...fromEntregas]) {
+    if (!seen.has(n)) {
+      seen.add(n);
+      out.push(n);
+    }
+  }
+  return out.join(", ");
 } 
 
 export default function ListaOrdenesCompra() {
@@ -584,6 +639,9 @@ export default function ListaOrdenesCompra() {
             it.cantidad ?? 0
           );
 
+          const fechaEntregaRecepcion =
+            formatFechaExcel(o.fecha_entrega) || fechasEventos;
+
           return {
             pic: parsed.pic,
             fecha_pic: fmtFecha(pedido?.created_at ?? null),
@@ -597,7 +655,7 @@ export default function ListaOrdenesCompra() {
             noc: o.noc ?? "",
             proveedor: o.proveedor ?? "",
             fecha_prometida: formatFechaExcel(o.fecha_prometida),
-            fecha_entrega: formatFechaExcel(o.fecha_entrega),
+            fecha_entrega: fechaEntregaRecepcion,
             fechas_entregas: fechasEventos,
             ...(canViewImportes
               ? {
@@ -609,6 +667,16 @@ export default function ListaOrdenesCompra() {
                   divisa: (it as any)?.divisa ?? o.divisa ?? "USD",
                 }
               : {}),
+            estado: formatEstadoExcel(o.estado),
+            factura: formatFacturasExcel(o),
+            remito: formatRemitosRecepcion(
+              getRemitosRecepcionArticulo(
+                o.entregas,
+                it.articulo_id ?? "",
+                index,
+                o.rt
+              )
+            ),
           };
         });
       });
@@ -633,6 +701,9 @@ export default function ListaOrdenesCompra() {
             "descuento",
             "precio_con_descuento",
             "divisa",
+            "estado",
+            "factura",
+            "remito",
           ]
         : [
             "pic",
@@ -649,6 +720,9 @@ export default function ListaOrdenesCompra() {
             "fecha_prometida",
             "fecha_entrega",
             "fechas_entregas",
+            "estado",
+            "factura",
+            "remito",
           ];
 
       const headerLabels = canViewImportes
@@ -665,12 +739,15 @@ export default function ListaOrdenesCompra() {
             "noc",
             "proveedor",
             "fecha acordada",
-            "fecha entrega",
+            "fecha de entrega o recepcion",
             "fechas entregas",
             "precio unitario",
             "descuento",
             "precio con descuento",
             "divisa",
+            "estado",
+            "factura",
+            "remito",
           ]
         : [
             "pic",
@@ -685,8 +762,11 @@ export default function ListaOrdenesCompra() {
             "noc",
             "proveedor",
             "fecha acordada",
-            "fecha entrega",
+            "fecha de entrega o recepcion",
             "fechas entregas",
+            "estado",
+            "factura",
+            "remito",
           ];
 
       const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
