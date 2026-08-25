@@ -41,20 +41,32 @@ type ArticuloComparativa = {
   cant: number;
   articulo: string;
   precioUnitario: number | null;
+  /** Texto en edición para no perder 0, punto/coma ni ceros (ej. 0.0066). */
+  precioUnitarioTexto?: string;
   descuentoPorcentaje: number;
   /** Texto en edición para no perder el punto/coma mientras se escribe. */
   descuentoPorcentajeTexto?: string;
   subtotal: number;
 };
 
-function parseDescuentoPorcentajeInput(raw: string): number | null {
+function parseDecimalNoNegativoInput(raw: string): number | null {
   const texto = raw.trim();
   if (texto === "") return 0;
   if (!/^\d*([.,]\d*)?$/.test(texto)) return null;
   if (texto === "." || texto === ",") return 0;
   const parsed = parseFloat(texto.replace(",", "."));
   if (!Number.isFinite(parsed)) return null;
-  return Math.min(100, Math.max(0, parsed));
+  return Math.max(0, parsed);
+}
+
+function parseDescuentoPorcentajeInput(raw: string): number | null {
+  const parsed = parseDecimalNoNegativoInput(raw);
+  if (parsed === null) return null;
+  return Math.min(100, parsed);
+}
+
+function parsePrecioUnitarioInput(raw: string): number | null {
+  return parseDecimalNoNegativoInput(raw);
 }
 
 function descuentoPorcentajeInputValue(art: ArticuloComparativa): string {
@@ -62,6 +74,19 @@ function descuentoPorcentajeInputValue(art: ArticuloComparativa): string {
   const n = art.descuentoPorcentaje;
   if (n == null || n === 0) return "";
   return String(n);
+}
+
+function precioUnitarioInputValue(art: ArticuloComparativa): string {
+  if (art.precioUnitarioTexto != null) return art.precioUnitarioTexto;
+  if (art.precioUnitario == null) return "";
+  return String(art.precioUnitario);
+}
+
+function formatImporteComparativa(n: number | null | undefined): string {
+  return (n || 0).toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
 }
 
 type ProveedorComparativa = {
@@ -800,7 +825,9 @@ const handleUpdatePedido = async () => {
         if (comparativaForm) {
           dataToUpdate.comparativa_prov = comparativaForm.map((prov) => ({
             ...prov,
-            articulos: prov.articulos.map(({ descuentoPorcentajeTexto: _texto, ...art }) => art),
+            articulos: prov.articulos.map(
+              ({ descuentoPorcentajeTexto: _descuentoTexto, precioUnitarioTexto: _precioTexto, ...art }) => art
+            ),
           }));
         }
         dataToUpdate.nota_comprador = formData.nota_comprador;
@@ -1130,9 +1157,9 @@ const handleUpdatePedido = async () => {
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
                         <td>${codProvSug}</td>
-                        <td>$${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>$${formatImporteComparativa(art.precioUnitario)}</td>
                         <td>${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
-                        <td>$${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>$${formatImporteComparativa(art.subtotal)}</td>
                       </tr>
                     `;
                     }).join('')}
@@ -1678,37 +1705,50 @@ const handleUpdatePedido = async () => {
                             <tr key={artIndex} className="border-b border-gray-100">
                               <td className="px-2 py-2 text-sm">{art.articulo}</td>
                               <td className="px-2 py-2 text-right">
-                                                                             <input
-                                         type="number"
-                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                                   value={art.precioUnitario || ''}
-                                                                                 onChange={(e) => {
-                                           if (!comparativaForm) return;
-                                           
-                                           const newComparativa = [...comparativaForm];
-                                           const newPrecio = parseFloat(e.target.value) || 0;
-                                          const descuentoPorcentajeActual = newComparativa[provIndex].articulos[artIndex].descuentoPorcentaje || 0;
-                                           
-                                           // Obtener la cantidad del artículo original del pedido
-                                           const articuloOriginal = formData.articulos?.find(a => a.codint === art.codint);
-                                           const cantidad = articuloOriginal?.cant || 0;
-                                           
-                                           newComparativa[provIndex].articulos[artIndex].precioUnitario = newPrecio;
-                                          newComparativa[provIndex].articulos[artIndex].subtotal = calcularSubtotalConDescuento(
-                                            newPrecio,
-                                            descuentoPorcentajeActual,
-                                            cantidad
-                                          );
-                                           
-                                           // Recalcular total del proveedor
-                                           newComparativa[provIndex].total = newComparativa[provIndex].articulos.reduce(
-                                             (sum, articulo) => sum + (articulo.subtotal || 0), 0
-                                           );
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  value={precioUnitarioInputValue(art)}
+                                  onChange={(e) => {
+                                    if (!comparativaForm) return;
 
-                                           setComparativaForm(newComparativa);
-                                         }}
-                                      />
-                                    </td>
+                                    const newPrecio = parsePrecioUnitarioInput(e.target.value);
+                                    if (newPrecio === null) return;
+
+                                    const newComparativa = [...comparativaForm];
+                                    const descuentoPorcentajeActual =
+                                      newComparativa[provIndex].articulos[artIndex]
+                                        .descuentoPorcentaje || 0;
+
+                                    const articuloOriginal = formData.articulos?.find(
+                                      (a) => a.codint === art.codint
+                                    );
+                                    const cantidad = articuloOriginal?.cant || 0;
+
+                                    newComparativa[provIndex].articulos[artIndex].precioUnitarioTexto =
+                                      e.target.value;
+                                    newComparativa[provIndex].articulos[artIndex].precioUnitario =
+                                      newPrecio;
+                                    newComparativa[provIndex].articulos[artIndex].subtotal =
+                                      calcularSubtotalConDescuento(
+                                        newPrecio,
+                                        descuentoPorcentajeActual,
+                                        cantidad
+                                      );
+
+                                    newComparativa[provIndex].total = newComparativa[
+                                      provIndex
+                                    ].articulos.reduce(
+                                      (sum, articulo) => sum + (articulo.subtotal || 0),
+                                      0
+                                    );
+
+                                    setComparativaForm(newComparativa);
+                                  }}
+                                />
+                              </td>
                               <td className="px-2 py-2 text-right">
                                 <input
                                   type="text"
@@ -2191,13 +2231,13 @@ const handleUpdatePedido = async () => {
                                  })()}
                                </td>
                                <td className="px-2 py-2 text-center text-sm">
-                                 ${(art.precioUnitario || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                 ${formatImporteComparativa(art.precioUnitario)}
                                </td>
                               <td className="px-2 py-2 text-center text-sm">
                                 {(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
                               </td>
                                <td className="px-2 py-2 text-center text-sm">
-                                 ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                 ${formatImporteComparativa(art.subtotal)}
                                </td>
                                              </tr>
                                          ))}
