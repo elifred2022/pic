@@ -26,15 +26,51 @@ export function normalizeDivisaAutorizacion(
   return "USD";
 }
 
-/** True cuando el total supera el umbral y aún no está autorizada por finanzas. */
+function normalizeEstadoAutorizacion(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function historicoIncluyeEstado(
+  historicoEstado: unknown,
+  estadoBuscado: string
+): boolean {
+  if (!Array.isArray(historicoEstado)) return false;
+  return historicoEstado.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return (
+      normalizeEstadoAutorizacion((item as { estado?: unknown }).estado) ===
+      estadoBuscado
+    );
+  });
+}
+
+/** True si Finanzas ya autorizó la OC (estado actual o histórico). */
+export function fueAutorizadaPorFinanzas(
+  estado?: string | null,
+  historicoEstado?: unknown
+): boolean {
+  return (
+    normalizeEstadoAutorizacion(estado) === ESTADO_AUTORIZADA_POR_FINANZAS ||
+    historicoIncluyeEstado(historicoEstado, ESTADO_AUTORIZADA_POR_FINANZAS)
+  );
+}
+
+/**
+ * True cuando corresponde la leyenda de autorización de finanzas.
+ * Si Finanzas ya autorizó, no vuelve a mostrarse aunque cambie el estado.
+ * Sin estado (alta de OC) usa el umbral de importe.
+ */
 export function necesitaAutorizacionFinanzas(
   total: number,
   divisa: unknown,
-  estado?: string | null
+  estado?: string | null,
+  historicoEstado?: unknown
 ): boolean {
-  const estadoNorm = (estado ?? "").trim().toLowerCase();
-  if (estadoNorm === ESTADO_AUTORIZADA_POR_FINANZAS) return false;
+  if (fueAutorizadaPorFinanzas(estado, historicoEstado)) return false;
+
+  const estadoNorm = normalizeEstadoAutorizacion(estado);
   if (estadoNorm === ESTADO_NECESITA_AUTORIZACION_FINANZAS) return true;
+  if (estadoNorm) return false;
 
   const key = normalizeDivisaAutorizacion(divisa);
   return Number.isFinite(total) && total > LIMITE_AUTORIZACION_FINANZAS[key];

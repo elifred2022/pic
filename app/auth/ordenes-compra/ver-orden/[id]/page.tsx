@@ -2901,7 +2901,8 @@ export default function VerOrdenCompraPage() {
   const mostrarLeyendaAutorizacion = necesitaAutorizacionFinanzas(
     totalOrdenCalculado,
     orden.divisa,
-    orden.estado
+    orden.estado,
+    orden.historico_estado
   );
   const facturasOrden = parseFacturasFromOrden(orden);
   const fcImpresion = facturasOrden
