@@ -2327,23 +2327,26 @@ export default function ListOrdenesProduccion() {
     return map;
   }, [ordenes]);
 
-  const filteredOrdenes = useMemo(() => {
+  const searchFilteredOrdenes = useMemo(() => {
     const s = search.trim().toLowerCase();
+    if (!s) return ordenes;
     return ordenes.filter((orden) => {
-      if (s) {
-        const haystack = ordenSearchIndex.get(orden.id) ?? "";
-        if (!haystack.includes(s)) return false;
-      }
-      if (fechaDesde || fechaHasta) {
-        const created = orden.created_at ? new Date(orden.created_at) : null;
-        if (!created) return false;
-        const fecha = created.toISOString().slice(0, 10);
-        if (fechaDesde && fecha < fechaDesde) return false;
-        if (fechaHasta && fecha > fechaHasta) return false;
-      }
+      const haystack = ordenSearchIndex.get(orden.id) ?? "";
+      return haystack.includes(s);
+    });
+  }, [ordenes, search, ordenSearchIndex]);
+
+  const filteredOrdenes = useMemo(() => {
+    if (!fechaDesde && !fechaHasta) return searchFilteredOrdenes;
+    return searchFilteredOrdenes.filter((orden) => {
+      const created = orden.created_at ? new Date(orden.created_at) : null;
+      if (!created) return false;
+      const fecha = created.toISOString().slice(0, 10);
+      if (fechaDesde && fecha < fechaDesde) return false;
+      if (fechaHasta && fecha > fechaHasta) return false;
       return true;
     });
-  }, [ordenes, search, fechaDesde, fechaHasta, ordenSearchIndex]);
+  }, [searchFilteredOrdenes, fechaDesde, fechaHasta]);
 
   const estadoObraTipologiasFiltradas = estadoObraTipologias
     .map((tipologia, idx) => ({ tipologia, idx }))
@@ -2639,10 +2642,13 @@ export default function ListOrdenesProduccion() {
       )}
       {showTotalArticulosModal && (
         <TotalArticulosTerminadosModal
-          ordenes={filteredOrdenes.map((o) => ({
+          ordenes={searchFilteredOrdenes.map((o) => ({
             id: o.id,
+            created_at: o.created_at,
             estado_obra: o.estado_obra,
           }))}
+          fechaDesdeInicial={fechaDesde}
+          fechaHastaInicial={fechaHasta}
           onClose={() => setShowTotalArticulosModal(false)}
         />
       )}

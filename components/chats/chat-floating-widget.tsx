@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, X } from "lucide-react";
 import { ChatUsersIcon } from "./chat-users-icon";
@@ -34,6 +34,55 @@ type AvisoRemitente = {
 
 type View = "users" | "chat";
 
+const CHAT_BUBBLE_POS_KEY = "pic-chat-bubble-pos";
+const CHAT_BUBBLE_DEFAULT_POS = { right: 20, bottom: 20 };
+const CHAT_BUBBLE_DRAG_THRESHOLD = 8;
+const CHAT_BUBBLE_MARGIN = 8;
+
+type ChatBubblePos = { right: number; bottom: number };
+
+function readChatBubblePos(): ChatBubblePos {
+  if (typeof window === "undefined") return CHAT_BUBBLE_DEFAULT_POS;
+  try {
+    const raw = localStorage.getItem(CHAT_BUBBLE_POS_KEY);
+    if (!raw) return CHAT_BUBBLE_DEFAULT_POS;
+    const parsed = JSON.parse(raw) as { right?: unknown; bottom?: unknown };
+    if (typeof parsed.right === "number" && typeof parsed.bottom === "number") {
+      return { right: parsed.right, bottom: parsed.bottom };
+    }
+  } catch {
+    // ignore
+  }
+  return CHAT_BUBBLE_DEFAULT_POS;
+}
+
+function persistChatBubblePos(pos: ChatBubblePos) {
+  try {
+    localStorage.setItem(CHAT_BUBBLE_POS_KEY, JSON.stringify(pos));
+  } catch {
+    // ignore
+  }
+}
+
+function clampChatBubblePos(
+  pos: ChatBubblePos,
+  size: { width: number; height: number }
+): ChatBubblePos {
+  if (typeof window === "undefined") return pos;
+  const maxRight = Math.max(
+    CHAT_BUBBLE_MARGIN,
+    window.innerWidth - size.width - CHAT_BUBBLE_MARGIN
+  );
+  const maxBottom = Math.max(
+    CHAT_BUBBLE_MARGIN,
+    window.innerHeight - size.height - CHAT_BUBBLE_MARGIN
+  );
+  return {
+    right: Math.min(Math.max(pos.right, CHAT_BUBBLE_MARGIN), maxRight),
+    bottom: Math.min(Math.max(pos.bottom, CHAT_BUBBLE_MARGIN), maxBottom),
+  };
+}
+
 export function ChatFloatingWidget() {
   const supabase = createClient();
   const [authChecked, setAuthChecked] = useState(false);
@@ -54,6 +103,19 @@ export function ChatFloatingWidget() {
   const [avisoRemitente, setAvisoRemitente] = useState<AvisoRemitente | null>(
     null,
   );
+  const [bubblePos, setBubblePos] = useState<ChatBubblePos>(CHAT_BUBBLE_DEFAULT_POS);
+  const [draggingBubble, setDraggingBubble] = useState(false);
+  const bubbleButtonRef = useRef<HTMLButtonElement>(null);
+  const bubbleDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startRight: number;
+    startBottom: number;
+    moved: boolean;
+  } | null>(null);
+  const bubblePosRef = useRef(bubblePos);
+  bubblePosRef.current = bubblePos;
 
   const { onlineUuidSet, ready, presenceError } =
     useOnlinePresence(authenticated);
@@ -331,6 +393,78 @@ export function ChatFloatingWidget() {
     setError(null);
   };
 
+  const getBubbleSize = useCallback(() => {
+    const el = bubbleButtonRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }
+    return { width: 56, height: 56 };
+  }, []);
+
+  const clampCurrentBubblePos = useCallback(
+    (pos: ChatBubblePos) => clampChatBubblePos(pos, getBubbleSize()),
+    [getBubbleSize]
+  );
+
+  useEffect(() => {
+    setBubblePos(clampChatBubblePos(readChatBubblePos(), { width: 120, height: 56 }));
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      setBubblePos((prev) => clampCurrentBubblePos(prev));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [clampCurrentBubblePos]);
+
+  const handleBubblePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    bubbleDragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startRight: bubblePosRef.current.right,
+      startBottom: bubblePosRef.current.bottom,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleBubblePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    const drag = bubbleDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < CHAT_BUBBLE_DRAG_THRESHOLD) return;
+    drag.moved = true;
+    setDraggingBubble(true);
+    const next = clampCurrentBubblePos({
+      right: drag.startRight - dx,
+      bottom: drag.startBottom - dy,
+    });
+    setBubblePos(next);
+  };
+
+  const handleBubblePointerUp = (e: PointerEvent<HTMLButtonElement>) => {
+    const drag = bubbleDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    bubbleDragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // already released
+    }
+    if (drag.moved) {
+      persistChatBubblePos(clampCurrentBubblePos(bubblePosRef.current));
+      setDraggingBubble(false);
+      return;
+    }
+    setDraggingBubble(false);
+    setOpen((prev) => !prev);
+  };
+
   if (!authChecked || !authenticated) return null;
 
   return (
@@ -343,7 +477,10 @@ export function ChatFloatingWidget() {
         />
       )}
 
-      <div className="fixed bottom-5 right-5 z-[999] flex flex-col items-end gap-3">
+      <div
+        className="fixed z-[999] flex flex-col items-end gap-3"
+        style={{ right: bubblePos.right, bottom: bubblePos.bottom }}
+      >
         {avisoRemitente && getActiveChatConversationId() !== avisoRemitente.conversacionId && (
           <ChatIncomingToast
             nombre={avisoRemitente.nombre}
@@ -438,10 +575,17 @@ export function ChatFloatingWidget() {
         )}
 
         <button
+          ref={bubbleButtonRef}
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
+          onPointerDown={handleBubblePointerDown}
+          onPointerMove={handleBubblePointerMove}
+          onPointerUp={handleBubblePointerUp}
+          onPointerCancel={handleBubblePointerUp}
           className={cn(
-            "relative flex items-center justify-center gap-2 rounded-full bg-blue-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2",
+            "relative flex items-center justify-center gap-2 rounded-full bg-blue-600 text-white shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2",
+            "touch-none select-none",
+            draggingBubble ? "cursor-grabbing" : "cursor-grab hover:bg-blue-700",
+            !draggingBubble && "transition-all hover:scale-105",
             open ? "h-14 w-14" : "h-14 px-4",
             totalNoLeidos > 0 && !open && "ring-2 ring-red-400 ring-offset-2",
           )}
@@ -452,6 +596,7 @@ export function ChatFloatingWidget() {
                 ? "Cerrar chats"
                 : "Abrir chats"
           }
+          title="Arrastrá para mover la burbuja"
         >
           {open ? (
             <X className="h-6 w-6" />
