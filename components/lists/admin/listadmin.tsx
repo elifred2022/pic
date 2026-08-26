@@ -33,6 +33,16 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { fetchCurrentUserNombre } from "@/lib/user-rol";
+import {
+  claseCajaTotalRango,
+  claseCssImpresionPrecio,
+  claseCssImpresionTotal,
+  claseInputRangoPrecio,
+  claseTextoRangoPrecio,
+  rangoPrecioArticulo,
+  rangoTotalProveedor,
+  resumenRangosPreciosComparativa,
+} from "@/lib/comparativa-precio-mas-barato";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -688,6 +698,7 @@ export default function ListAdmin() {
     
     const ventanaImpresion = window.open('', '_blank');
     if (!ventanaImpresion) return;
+    const resumenImpresion = resumenRangosPreciosComparativa(verInfo.comparativa_prov);
 
     const contenidoHTML = `
       <!DOCTYPE html>
@@ -756,6 +767,21 @@ export default function ListAdmin() {
             font-weight: bold;
             color: #1e40af;
           }
+          .precio-rango-bajo {
+            color: #16a34a !important;
+            font-weight: 700;
+          }
+          .precio-rango-medio {
+            color: #ea580c !important;
+            font-weight: 700;
+          }
+          .precio-rango-alto {
+            color: #dc2626 !important;
+            font-weight: 700;
+          }
+          .total-rango-bajo { color: #15803d !important; }
+          .total-rango-medio { color: #c2410c !important; }
+          .total-rango-alto { color: #b91c1c !important; }
           .articulos-table {
             width: 100%;
             border-collapse: collapse;
@@ -937,26 +963,35 @@ export default function ListAdmin() {
         <div class="info-section">
           <h3>Comparativa de Proveedores</h3>
           <div class="presupuestos-grid">
-            ${verInfo.comparativa_prov.map((prov, provIndex) => `
+            ${verInfo.comparativa_prov.map((prov, provIndex) => {
+              const rangoTotal = rangoTotalProveedor(prov.total, resumenImpresion);
+              const claseTotal = claseCssImpresionTotal(rangoTotal);
+              return `
               <div class="presupuesto-card">
                 <h4>${prov.nombreProveedor || 'Proveedor ' + (provIndex + 1)}</h4>
                 ${prov.articulos && prov.articulos.length > 0 ? `
                   <div style="margin: 5px 0; font-size: 8px;">
-                    ${prov.articulos.map(art => `
+                    ${prov.articulos.map(art => {
+                      const rangoPrecio = rangoPrecioArticulo(art, resumenImpresion);
+                      const claseRango = claseCssImpresionPrecio(rangoPrecio);
+                      const attrClase = claseRango ? ` class="${claseRango}"` : '';
+                      return `
                       <div style="margin: 2px 0; padding: 2px; background: #f8fafc; border-radius: 2px;">
                         <strong>${art.articulo}</strong><br>
-                        <span>Precio: $${(art.precioUnitario || 0).toLocaleString('es-AR')}</span><br>
+                        <span${attrClase}>Precio: $${(art.precioUnitario || 0).toLocaleString('es-AR')}</span><br>
                         <span>Desc.: ${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</span><br>
-                        <span>Subtotal: $${(art.subtotal || 0).toLocaleString('es-AR')}</span>
+                        <span${attrClase}>Subtotal: $${(art.subtotal || 0).toLocaleString('es-AR')}</span>
                       </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                   </div>
                 ` : ''}
-                <div class="presupuesto-valor" style="margin-top: 5px;">
+                <div class="presupuesto-valor${claseTotal ? ` ${claseTotal}` : ''}" style="margin-top: 5px;">
                   Total: $${(prov.total || 0).toLocaleString('es-AR')}
                 </div>
               </div>
-            `).join('')}
+            `;
+            }).join('')}
           </div>
           <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
             <h4 style="margin: 0 0 6px 0; font-size: 10px;">Notas del comprador</h4>
@@ -1172,6 +1207,11 @@ export default function ListAdmin() {
     "whitespace-nowrap px-2 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 sticky top-0 z-10";
   const tableCellClass =
     "px-2 py-1.5 align-top text-xs text-slate-700 border-t-2 border-slate-200";
+
+  const resumenComparativaForm = resumenRangosPreciosComparativa(comparativaForm);
+  const resumenComparativaVista = resumenRangosPreciosComparativa(
+    verInfo?.comparativa_prov
+  );
 
   return (
     <div className="flex-1 w-full p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-slate-100 min-h-screen">
@@ -1794,13 +1834,18 @@ export default function ListAdmin() {
                           </tr>
                         </thead>
                         <tbody>
-                          {prov.articulos.map((art, artIndex) => (
+                          {prov.articulos.map((art, artIndex) => {
+                            const rangoPrecio = rangoPrecioArticulo(
+                              art,
+                              resumenComparativaForm
+                            );
+                            return (
                             <tr key={artIndex} className="border-b border-gray-100">
                               <td className="px-2 py-2 text-sm">{art.articulo}</td>
                               <td className="px-2 py-2 text-right">
                                 <input
                                   type="number"
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  className={`w-20 px-2 py-1 border rounded text-right text-sm ${claseInputRangoPrecio(rangoPrecio)}`}
                                   value={art.precioUnitario || ''}
                                   onChange={(e) => {
                                     if (!comparativaForm) return;
@@ -1866,14 +1911,18 @@ export default function ListAdmin() {
                                   }}
                                 />
                               </td>
-                              <td className="px-2 py-2 text-right text-sm font-medium">
+                              <td className={`px-2 py-2 text-right text-sm font-medium ${claseTextoRangoPrecio(rangoPrecio)}`}>
                                 ${(art.subtotal || 0).toFixed(0)}
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
-                      <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
+                      <div className={`mt-3 text-center font-bold p-2 rounded border text-sm ${claseCajaTotalRango(
+                        rangoTotalProveedor(prov.total, resumenComparativaForm),
+                        "text-gray-800 bg-gray-100"
+                      )}`}>
                         Total: ${(prov.total || 0).toFixed(0)}
                       </div>
                       <div className="mt-3 border-t border-gray-200 pt-3">
@@ -2249,25 +2298,34 @@ export default function ListAdmin() {
                                    </tr>
                                  </thead>
                                  <tbody>
-                                   {prov.articulos.map((art, artIndex) => (
+                                   {prov.articulos.map((art, artIndex) => {
+                                     const rangoPrecio = rangoPrecioArticulo(
+                                       art,
+                                       resumenComparativaVista
+                                     );
+                                     return (
                                      <tr key={artIndex} className="border-b border-gray-100 last:border-b-0">
                                        <td className="px-2 py-1 text-sm font-medium">{art.articulo}</td>
-                                       <td className="px-2 py-1 text-right text-gray-700">
+                                       <td className={`px-2 py-1 text-right ${claseTextoRangoPrecio(rangoPrecio) || "text-gray-700"}`}>
                                          ${(art.precioUnitario || 0).toLocaleString("es-AR")}
                                        </td>
                                        <td className="px-2 py-1 text-right text-gray-700">
                                          {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
                                        </td>
-                                       <td className="px-2 py-1 text-right font-medium text-gray-800">
+                                       <td className={`px-2 py-1 text-right font-medium ${claseTextoRangoPrecio(rangoPrecio) || "text-gray-800"}`}>
                                          ${(art.subtotal || 0).toLocaleString("es-AR")}
                                        </td>
                                      </tr>
-                                   ))}
+                                     );
+                                   })}
                                  </tbody>
                                </table>
                              )}
                              
-                             <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-2 rounded border text-sm">
+                             <div className={`mt-3 text-center font-bold p-2 rounded border text-sm ${claseCajaTotalRango(
+                               rangoTotalProveedor(prov.total, resumenComparativaVista),
+                               "text-gray-800 bg-gray-50"
+                             )}`}>
                                Total: ${(prov.total || 0).toLocaleString("es-AR")}
                              </div>
                              {prov.presupuesto_path && comparativaPresupuestoUrls[provIndex] && (

@@ -17,6 +17,13 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import {
+  claseCajaTotalRango,
+  claseTextoRangoPrecio,
+  rangoPrecioArticulo,
+  rangoTotalProveedor,
+  resumenRangosPreciosComparativa,
+} from "@/lib/comparativa-precio-mas-barato";
 
 const ESTADOS_APROBADOR = [
   { value: "aprobado", label: "Aprobado" },
@@ -316,6 +323,10 @@ export default function ListAprob() {
     }
     return `${base} bg-gray-100 text-gray-600`;
   };
+
+  const resumenComparativaVista = resumenRangosPreciosComparativa(
+    editingPedido?.comparativa_prov
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
@@ -719,16 +730,29 @@ export default function ListAprob() {
                         
                         {prov.articulos && prov.articulos.length > 0 && (
                           <div className="space-y-2 text-sm">
-                            {prov.articulos.map((art, artIndex) => (
+                            {prov.articulos.map((art, artIndex) => {
+                              const rangoPrecio = rangoPrecioArticulo(
+                                art,
+                                resumenComparativaVista
+                              );
+                              return (
                               <div key={artIndex} className="bg-white p-2 rounded border">
                                 <div className="font-medium text-gray-800 text-xs">{art.articulo}</div>
                                 <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
-                                <div className="text-gray-600 text-xs">Precio: ${(art.precioUnitario || 0).toLocaleString("es-AR")}</div>
+                                <div className={`text-xs ${claseTextoRangoPrecio(rangoPrecio) || "text-gray-600"}`}>
+                                  Precio: ${(art.precioUnitario || 0).toLocaleString("es-AR")}
+                                </div>
                                 <div className="text-gray-600 text-xs">Desc.: {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</div>
-                                <div className="text-gray-600 text-xs font-semibold">Subtotal: ${(art.subtotal || 0).toLocaleString("es-AR")}</div>
+                                <div className={`text-xs font-semibold ${claseTextoRangoPrecio(rangoPrecio) || "text-gray-600"}`}>
+                                  Subtotal: ${(art.subtotal || 0).toLocaleString("es-AR")}
+                                </div>
                               </div>
-                            ))}
-                            <div className="mt-3 text-center font-bold text-gray-800 bg-gray-50 p-2 rounded border text-sm">
+                              );
+                            })}
+                            <div className={`mt-3 text-center font-bold p-2 rounded border text-sm ${claseCajaTotalRango(
+                              rangoTotalProveedor(prov.total, resumenComparativaVista),
+                              "text-gray-800 bg-gray-50"
+                            )}`}>
                               Total: ${(prov.total || 0).toLocaleString("es-AR")}
                             </div>
                             {puedeVerAdjuntos && prov.presupuesto_path && (

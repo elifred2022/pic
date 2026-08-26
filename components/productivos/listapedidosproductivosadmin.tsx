@@ -33,6 +33,16 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { fetchCurrentUserNombre } from "@/lib/user-rol";
+import {
+  claseCajaTotalRango,
+  claseCssImpresionPrecio,
+  claseCssImpresionTotal,
+  claseInputRangoPrecio,
+  claseTextoRangoPrecio,
+  rangoPrecioArticulo,
+  rangoTotalProveedor,
+  resumenRangosPreciosComparativa,
+} from "@/lib/comparativa-precio-mas-barato";
 
 const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
 
@@ -898,6 +908,7 @@ const handleUpdatePedido = async () => {
     
     const ventanaImpresion = window.open('', '_blank');
     if (!ventanaImpresion) return;
+    const resumenImpresion = resumenRangosPreciosComparativa(comparativaPedido.comparativa_prov);
 
     const contenidoHTML = `
       <!DOCTYPE html>
@@ -1009,6 +1020,18 @@ const handleUpdatePedido = async () => {
           .tabla-articulos td:last-child {
             text-align: right;
           }
+          .precio-rango-bajo {
+            color: #16a34a !important;
+            font-weight: 700;
+          }
+          .precio-rango-medio {
+            color: #ea580c !important;
+            font-weight: 700;
+          }
+          .precio-rango-alto {
+            color: #dc2626 !important;
+            font-weight: 700;
+          }
           .total-proveedor {
             background: #fef3c7;
             padding: 8px;
@@ -1018,6 +1041,21 @@ const handleUpdatePedido = async () => {
             font-weight: bold;
             color: #92400e;
             font-size: 10px;
+          }
+          .total-rango-bajo {
+            background: #dcfce7;
+            border-color: #16a34a;
+            color: #15803d;
+          }
+          .total-rango-medio {
+            background: #ffedd5;
+            border-color: #ea580c;
+            color: #c2410c;
+          }
+          .total-rango-alto {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #b91c1c;
           }
           .fecha-impresion {
             text-align: center;
@@ -1043,6 +1081,24 @@ const handleUpdatePedido = async () => {
             .proveedor-header { background: #fff; border-color: #000; }
             .tabla-articulos th { background: #fff; border-color: #000; }
             .total-proveedor { background: #fff; border-color: #000; color: #000; }
+            .precio-rango-bajo { color: #16a34a !important; font-weight: 700; }
+            .precio-rango-medio { color: #ea580c !important; font-weight: 700; }
+            .precio-rango-alto { color: #dc2626 !important; font-weight: 700; }
+            .total-proveedor.total-rango-bajo {
+              background: #dcfce7;
+              border-color: #16a34a;
+              color: #15803d;
+            }
+            .total-proveedor.total-rango-medio {
+              background: #ffedd5;
+              border-color: #ea580c;
+              color: #c2410c;
+            }
+            .total-proveedor.total-rango-alto {
+              background: #fee2e2;
+              border-color: #dc2626;
+              color: #b91c1c;
+            }
           }
         </style>
       </head>
@@ -1152,21 +1208,27 @@ const handleUpdatePedido = async () => {
                     ${prov.articulos.map(art => {
                       const articuloOriginal = comparativaPedido.articulos?.find(a => a.codint === art.codint);
                       const codProvSug = articuloOriginal?.codprovsug?.trim() ? articuloOriginal.codprovsug : '-';
+                      const rangoPrecio = rangoPrecioArticulo(art, resumenImpresion);
+                      const claseRango = claseCssImpresionPrecio(rangoPrecio);
+                      const attrClase = claseRango ? ` class="${claseRango}"` : '';
                       return `
                       <tr>
                         <td title="${art.articulo}">${art.articulo}</td>
                         <td>${art.cant}</td>
                         <td>${codProvSug}</td>
-                        <td>$${formatImporteComparativa(art.precioUnitario)}</td>
+                        <td${attrClase}>$${formatImporteComparativa(art.precioUnitario)}</td>
                         <td>${(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%</td>
-                        <td>$${formatImporteComparativa(art.subtotal)}</td>
+                        <td${attrClase}>$${formatImporteComparativa(art.subtotal)}</td>
                       </tr>
                     `;
                     }).join('')}
                   </tbody>
                 </table>
                 
-                <div class="total-proveedor">
+                <div class="total-proveedor${(() => {
+                  const claseTotal = claseCssImpresionTotal(rangoTotalProveedor(prov.total, resumenImpresion));
+                  return claseTotal ? ` ${claseTotal}` : '';
+                })()}">
                   Total: $${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
@@ -1227,6 +1289,11 @@ const handleUpdatePedido = async () => {
     }
     return `${base} bg-gray-100 text-gray-600`;
   };
+
+  const resumenComparativaVista = resumenRangosPreciosComparativa(
+    comparativaPedido?.comparativa_prov
+  );
+  const resumenComparativaForm = resumenRangosPreciosComparativa(comparativaForm);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
@@ -1701,7 +1768,12 @@ const handleUpdatePedido = async () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {prov.articulos.map((art, artIndex) => (
+                                {prov.articulos.map((art, artIndex) => {
+                            const rangoPrecio = rangoPrecioArticulo(
+                              art,
+                              resumenComparativaForm
+                            );
+                            return (
                             <tr key={artIndex} className="border-b border-gray-100">
                               <td className="px-2 py-2 text-sm">{art.articulo}</td>
                               <td className="px-2 py-2 text-right">
@@ -1709,7 +1781,7 @@ const handleUpdatePedido = async () => {
                                   type="text"
                                   inputMode="decimal"
                                   autoComplete="off"
-                                  className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                  className={`w-24 px-2 py-1 border rounded text-right text-sm ${claseInputRangoPrecio(rangoPrecio)}`}
                                   value={precioUnitarioInputValue(art)}
                                   onChange={(e) => {
                                     if (!comparativaForm) return;
@@ -1788,14 +1860,18 @@ const handleUpdatePedido = async () => {
                                   }}
                                 />
                               </td>
-                              <td className="px-2 py-2 text-right text-sm font-medium">
+                              <td className={`px-2 py-2 text-right text-sm font-medium ${claseTextoRangoPrecio(rangoPrecio)}`}>
                                 ${(art.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                   </tr>
-                                ))}
+                                );
+                                })}
                               </tbody>
                             </table>
-                      <div className="mt-3 text-center font-bold text-gray-800 bg-gray-100 p-2 rounded border text-sm">
+                      <div className={`mt-3 text-center font-bold p-2 rounded border text-sm ${claseCajaTotalRango(
+                        rangoTotalProveedor(prov.total, resumenComparativaForm),
+                        "text-gray-800 bg-gray-100"
+                      )}`}>
                         Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                       <div className="mt-3 border-t border-gray-200 pt-3">
@@ -2210,7 +2286,12 @@ const handleUpdatePedido = async () => {
                                          </tr>
                                      </thead>
                                      <tbody>
-                                         {prov.articulos.map((art, artIndex) => (
+                                         {prov.articulos.map((art, artIndex) => {
+                             const rangoPrecio = rangoPrecioArticulo(
+                               art,
+                               resumenComparativaVista
+                             );
+                             return (
                              <tr key={artIndex} className="border-b border-gray-100">
                                <td className="px-2 py-2 text-sm break-words" title={art.articulo}>
                                  <div className="max-w-full">
@@ -2230,20 +2311,24 @@ const handleUpdatePedido = async () => {
                                    return articuloOriginal?.codprovsug?.trim() ? articuloOriginal.codprovsug : '-';
                                  })()}
                                </td>
-                               <td className="px-2 py-2 text-center text-sm">
+                               <td className={`px-2 py-2 text-center text-sm ${claseTextoRangoPrecio(rangoPrecio)}`}>
                                  ${formatImporteComparativa(art.precioUnitario)}
                                </td>
                               <td className="px-2 py-2 text-center text-sm">
                                 {(art.descuentoPorcentaje || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
                               </td>
-                               <td className="px-2 py-2 text-center text-sm">
+                               <td className={`px-2 py-2 text-center text-sm ${claseTextoRangoPrecio(rangoPrecio)}`}>
                                  ${formatImporteComparativa(art.subtotal)}
                                </td>
                                              </tr>
-                                         ))}
+                                         );
+                                         })}
                                      </tbody>
                                  </table>
-                      <div className="mt-3 text-center font-bold text-gray-800 bg-white p-3 rounded border text-sm">
+                      <div className={`mt-3 text-center font-bold p-3 rounded border text-sm ${claseCajaTotalRango(
+                        rangoTotalProveedor(prov.total, resumenComparativaVista),
+                        "text-gray-800 bg-white"
+                      )}`}>
                         Total: ${(prov.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                       {prov.presupuesto_path && comparativaPresupuestoUrls[provIndex] && (
