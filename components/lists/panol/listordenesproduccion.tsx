@@ -12,6 +12,7 @@ import Link from "next/link";
 import {
   canAccessOrdenesProduccion,
   canDeleteObservacionesObra,
+  canMarcarArticuloTerminadoSinProcesos,
   isAdminEmail,
   isAprobEmail,
   isInventarioPvcEmail,
@@ -30,9 +31,17 @@ import {
   getFechaGuardadaParaItem,
   getProcesosConItemsParaTipologia,
 } from "@/lib/panol/estado-obra";
-import { describeExcelImportFormat, parseEstadoObraExcelBuffer } from "@/lib/panol/estado-obra-excel-import";
+import {
+  collectTipologiaExtraHeaders,
+  describeExcelImportFormat,
+  estadoObraExcelTipologiaHeaders,
+  parseEstadoObraExcelBuffer,
+  sheetFromRowsWithHeaders,
+  tipologiaToExcelRow,
+} from "@/lib/panol/estado-obra-excel-import";
 import { inicialesDesdeNombre, MARCA_OPERADOR_LONGITUD } from "@/lib/utils";
 import ProgresoProduccionModal, { type OrdenProgreso } from "@/components/panol/ProgresoProduccionModal";
+import TotalArticulosTerminadosModal from "@/components/panol/TotalArticulosTerminadosModal";
 import OrdenesProduccionMobileList from "@/components/lists/panol/OrdenesProduccionMobileList";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
@@ -192,6 +201,31 @@ function formatFechaISO(iso: string): string {
     return iso;
   }
 }
+
+function ordenExcelMeta(orden: { num_carpeta?: string | null; obra?: string | null; mes?: string | null; semana?: string | null }, fecha: string): Record<string, string | number> {
+  return {
+    Carpeta: orden.num_carpeta ?? "",
+    Obra: orden.obra ?? "",
+    Mes: orden.mes ?? "",
+    Semana: orden.semana ?? "",
+    Fecha: fecha,
+  };
+}
+
+function downloadXlsxWorkbook(wb: XLSX.WorkBook, filename: string) {
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+const EXCEL_ORDEN_META_HEADERS = ["Carpeta", "Obra", "Mes", "Semana", "Fecha"] as const;
 
 type EstadoObraParsed = EstadoObraConTipologias & { _backup?: TipologiaItem[] };
 
@@ -1077,6 +1111,7 @@ export default function ListOrdenesProduccion() {
   const [updatingEstadoObra, setUpdatingEstadoObra] = useState(false);
   const [importandoEstadoObra, setImportandoEstadoObra] = useState(false);
   const [showProgresoModal, setShowProgresoModal] = useState(false);
+  const [showTotalArticulosModal, setShowTotalArticulosModal] = useState(false);
   const [selectedMobileOrdenId, setSelectedMobileOrdenId] = useState<string | null>(null);
   const estadoObraFileInputRef = React.useRef<HTMLInputElement>(null);
   const estadoObraInicialRef = React.useRef<{ tipologias: TipologiaItem[]; fechas: Record<string, string> } | null>(null);
@@ -1085,6 +1120,7 @@ export default function ListOrdenesProduccion() {
   const estadoObraTerminadoRef = React.useRef(estadoObraTerminado);
   const estadoObraInicialesRef = React.useRef(estadoObraIniciales);
   const estadoObraInicialesPorItemRef = React.useRef(estadoObraInicialesPorItem);
+  const estadoObraArticuloTerminadoRef = React.useRef(estadoObraArticuloTerminado);
   const estadoObraArticuloObservacionesRef = React.useRef(estadoObraArticuloObservaciones);
   const estadoObraObservacionesRef = React.useRef(estadoObraObservaciones);
   const estadoObraHydratingRef = React.useRef(false);
@@ -1102,6 +1138,7 @@ export default function ListOrdenesProduccion() {
   estadoObraTerminadoRef.current = estadoObraTerminado;
   estadoObraInicialesRef.current = estadoObraIniciales;
   estadoObraInicialesPorItemRef.current = estadoObraInicialesPorItem;
+  estadoObraArticuloTerminadoRef.current = estadoObraArticuloTerminado;
   estadoObraArticuloObservacionesRef.current = estadoObraArticuloObservaciones;
   estadoObraObservacionesRef.current = estadoObraObservaciones;
   const soloVista = isOrdenesProduccionSoloVista(userEmail, userRol);
@@ -1123,6 +1160,8 @@ export default function ListOrdenesProduccion() {
   const canEditFullModalEnModal = canEditFullModal && !estadoObraSoloVista;
   const canEditObservaciones = canEditCheckboxes;
   const canEditObservacionesEnModal = canEditObservaciones && !estadoObraSoloVista;
+  const canMarcarArticuloTerminadoManual =
+    canMarcarArticuloTerminadoSinProcesos(userEmail, userRol) && !estadoObraSoloVista;
   const canDeleteObservaciones = canDeleteObservacionesObra(userEmail, userRol);
   const showAccionesColumn =
     !isReadOnly ||
@@ -1605,7 +1644,7 @@ export default function ListOrdenesProduccion() {
         terminado: terminadoActual,
         iniciales: inicialesActual,
         inicialesPorItem: inicialesPorItemActual,
-        articuloTerminado: {},
+        articuloTerminado: estadoObraArticuloTerminadoRef.current,
       },
       estadoObraRemovedKeysRef.current
     );
@@ -1689,9 +1728,16 @@ export default function ListOrdenesProduccion() {
       });
     }
     const articuloTerminado: Record<string, { terminado: boolean; iniciales: string }> = {};
+    const articuloTerminadoManual = merged.articuloTerminado;
     tipologiasActuales.forEach((t, tipIdx) => {
       const key = String(tipIdx);
-      if (areAllProcesosTerminadosParaTipologia(tipIdx, t, terminadoParaGuardar, ESTADO_OBRA_KEY_SEP)) {
+      const autoPorProcesos = areAllProcesosTerminadosParaTipologia(
+        tipIdx,
+        t,
+        terminadoParaGuardar,
+        ESTADO_OBRA_KEY_SEP
+      );
+      if (autoPorProcesos || articuloTerminadoManual[key]) {
         articuloTerminado[key] = { terminado: true, iniciales: "" };
       }
     });
@@ -1863,6 +1909,7 @@ export default function ListOrdenesProduccion() {
     estadoObraInicialesPorItem,
     estadoObraObservaciones,
     estadoObraArticuloObservaciones,
+    estadoObraArticuloTerminado,
     showEstadoObraModal,
     estadoObraOrden,
     canEditCheckboxesEnModal,
@@ -1961,73 +2008,37 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleDownloadTerminados = () => {
-    const rows: Array<{
-      Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
-      Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
-    }> = [];
+    const pendientes: Array<{ orden: OrdenProduccion; tipologia: TipologiaItem; fecha: string }> = [];
     for (const orden of filteredOrdenes) {
-      const raw = orden.estado_obra;
-      if (!raw || typeof raw !== "object") continue;
-      const obj = raw as Record<string, unknown>;
-      const articuloTerminado = obj.articuloTerminado;
-      if (!articuloTerminado || typeof articuloTerminado !== "object" || Array.isArray(articuloTerminado)) continue;
-      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
+      const session = buildEstadoObraCheckboxState(orden.estado_obra);
       const fecha = orden.created_at ? formatFechaISO(orden.created_at) : "—";
-      for (const [key, val] of Object.entries(articuloTerminado)) {
-        if (!val || typeof val !== "object") continue;
-        const v = val as Record<string, unknown>;
-        if (!v.terminado) continue;
-        const tipIdx = parseInt(key, 10);
-        if (Number.isNaN(tipIdx) || tipIdx < 0 || tipIdx >= tipologias.length) continue;
-        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
-        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
-          ? String(tipologia.nombre ?? "")
-          : `Tipología ${tipIdx + 1}`;
-        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
-        const marco = tipologia && typeof tipologia.marco !== "undefined" && tipologia.marco != null ? String(tipologia.marco) : "";
-        const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
-        const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
-        const hojasMosq = tipologia && typeof tipologia.hojas_mosq !== "undefined" && tipologia.hojas_mosq != null ? String(tipologia.hojas_mosq) : "";
-        const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
-        const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
-        const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
-        rows.push({
-          Carpeta: orden.num_carpeta ?? "",
-          Obra: orden.obra ?? "",
-          Mes: orden.mes ?? "",
-          Semana: orden.semana ?? "",
-          Fecha: fecha,
-          Tipologia: tipologiaNombre,
-          Desc: desc,
-          Marco: marco,
-          Hojas: hojas,
-          Guias: guias,
-          "Hojas Mosq": hojasMosq,
-          Umbral: umbral,
-          Ancho: ancho,
-          Alto: alto,
-        });
-      }
+      session.tipologias.forEach((tipologia, idx) => {
+        const marcado =
+          !!session.articuloTerminado[String(idx)] ||
+          areAllProcesosTerminadosParaTipologia(idx, tipologia, session.terminado, ESTADO_OBRA_KEY_SEP);
+        if (!marcado) return;
+        pendientes.push({ orden, tipologia, fecha });
+      });
     }
-    if (rows.length === 0) {
+    if (pendientes.length === 0) {
       alert("No hay artículos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
       return;
     }
+    const extraHeaders = collectTipologiaExtraHeaders(pendientes.map((p) => p.tipologia));
+    const headers = [
+      ...EXCEL_ORDEN_META_HEADERS,
+      ...estadoObraExcelTipologiaHeaders(extraHeaders),
+    ];
+    const rows = pendientes.map(({ orden, tipologia, fecha }) => ({
+      ...ordenExcelMeta(orden, fecha),
+      ...tipologiaToExcelRow(tipologia, extraHeaders),
+    }));
     setDescargandoExcel(true);
     try {
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = sheetFromRowsWithHeaders(rows, headers);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Artículos terminados");
-      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `articulos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadXlsxWorkbook(wb, `articulos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
       console.error("Error al descargar:", err);
       alert("Error al generar el archivo Excel.");
@@ -2037,76 +2048,43 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleDownloadProcesosTerminados = () => {
-    const rows: Array<{
-      Carpeta: string; Obra: string; Mes: string; Semana: string; Fecha: string;
-      Tipologia: string; Desc: string; Marco: string; Hojas: string; Guias: string; "Hojas Mosq": string; Umbral: string; Ancho: string; Alto: string;
-      Proceso: string;
+    const pendientes: Array<{
+      orden: OrdenProduccion;
+      tipologia: TipologiaItem;
+      fecha: string;
+      proceso: string;
     }> = [];
     for (const orden of filteredOrdenes) {
-      const raw = orden.estado_obra;
-      if (!raw || typeof raw !== "object") continue;
-      const obj = raw as Record<string, unknown>;
-      const procesoTerminado = obj.procesoTerminado;
-      if (!procesoTerminado || typeof procesoTerminado !== "object" || Array.isArray(procesoTerminado)) continue;
-      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
+      const session = buildEstadoObraCheckboxState(orden.estado_obra);
       const fecha = orden.created_at ? formatFechaISO(orden.created_at) : "—";
-      for (const [key, val] of Object.entries(procesoTerminado)) {
-        if (!val || typeof val !== "object") continue;
-        const v = val as Record<string, unknown>;
-        if (!v.terminado) continue;
-        const parts = String(key).split(ESTADO_OBRA_KEY_SEP);
-        const tipIdx = parseInt(parts[0] ?? "0", 10);
-        const proceso = parts[1] ?? "";
-        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
-        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
-          ? String(tipologia.nombre ?? "")
-          : `Tipología ${tipIdx + 1}`;
-        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
-        const marco = tipologia && typeof tipologia.marco !== "undefined" && tipologia.marco != null ? String(tipologia.marco) : "";
-        const hojas = tipologia && typeof tipologia.hojas !== "undefined" && tipologia.hojas != null ? String(tipologia.hojas) : "";
-        const guias = tipologia && typeof tipologia.guias !== "undefined" && tipologia.guias != null ? String(tipologia.guias) : "";
-        const hojasMosq = tipologia && typeof tipologia.hojas_mosq !== "undefined" && tipologia.hojas_mosq != null ? String(tipologia.hojas_mosq) : "";
-        const umbral = tipologia && typeof tipologia.umbral !== "undefined" && tipologia.umbral != null ? String(tipologia.umbral) : "";
-        const ancho = tipologia && typeof tipologia.ancho !== "undefined" && tipologia.ancho != null ? String(tipologia.ancho) : "";
-        const alto = tipologia && typeof tipologia.alto !== "undefined" && tipologia.alto != null ? String(tipologia.alto) : "";
-        rows.push({
-          Carpeta: orden.num_carpeta ?? "",
-          Obra: orden.obra ?? "",
-          Mes: orden.mes ?? "",
-          Semana: orden.semana ?? "",
-          Fecha: fecha,
-          Tipologia: tipologiaNombre,
-          Desc: desc,
-          Marco: marco,
-          Hojas: hojas,
-          Guias: guias,
-          "Hojas Mosq": hojasMosq,
-          Umbral: umbral,
-          Ancho: ancho,
-          Alto: alto,
-          Proceso: proceso,
-        });
-      }
+      session.tipologias.forEach((tipologia, tipIdx) => {
+        for (const [proceso] of Object.entries(ESTADOS_OBRA_STRUCTURE)) {
+          const key = `${tipIdx}${ESTADO_OBRA_KEY_SEP}${proceso}`;
+          if (!session.terminado[key]) continue;
+          pendientes.push({ orden, tipologia, fecha, proceso });
+        }
+      });
     }
-    if (rows.length === 0) {
+    if (pendientes.length === 0) {
       alert("No hay procesos marcados como terminados en las órdenes actuales (o en el filtro aplicado).");
       return;
     }
+    const extraHeaders = collectTipologiaExtraHeaders(pendientes.map((p) => p.tipologia));
+    const headers = [
+      ...EXCEL_ORDEN_META_HEADERS,
+      ...estadoObraExcelTipologiaHeaders(extraHeaders, ["Proceso"]),
+    ];
+    const rows = pendientes.map(({ orden, tipologia, fecha, proceso }) => ({
+      ...ordenExcelMeta(orden, fecha),
+      ...tipologiaToExcelRow(tipologia, extraHeaders),
+      Proceso: proceso,
+    }));
     setDescargandoExcel(true);
     try {
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = sheetFromRowsWithHeaders(rows, headers);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Procesos terminados");
-      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `procesos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadXlsxWorkbook(wb, `procesos-terminados-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
       console.error("Error al descargar:", err);
       alert("Error al generar el archivo Excel.");
@@ -2116,79 +2094,74 @@ export default function ListOrdenesProduccion() {
   };
 
   const handleDownloadEstadisticasIniciales = () => {
-    const rows: Array<{
-      Carpeta: string; Obra: string; Tipologia: string; Descripcion: string;
-      Proceso: string; Item: string; Iniciales: string; Fecha: string;
+    const pendientes: Array<{
+      orden: OrdenProduccion;
+      tipologia: TipologiaItem;
+      fechaOrden: string;
+      proceso: string;
+      item: string;
+      iniciales: string;
+      fechaItem: string;
     }> = [];
     for (const orden of filteredOrdenes) {
-      const raw = orden.estado_obra;
-      if (!raw || typeof raw !== "object") continue;
-      const obj = raw as Record<string, unknown>;
-      const inicialesPorItem = (obj.inicialesPorItem && typeof obj.inicialesPorItem === "object" && !Array.isArray(obj.inicialesPorItem))
-        ? obj.inicialesPorItem as Record<string, string>
-        : {};
-      const tipologias = Array.isArray(obj.tipologias) ? obj.tipologias : [];
-      for (const [key, ini] of Object.entries(inicialesPorItem)) {
+      const session = buildEstadoObraCheckboxState(orden.estado_obra);
+      const fechaOrden = orden.created_at ? formatFechaISO(orden.created_at) : "—";
+      for (const [key, ini] of Object.entries(session.inicialesPorItem)) {
         const val = typeof ini === "string" ? ini.trim().slice(0, MARCA_OPERADOR_LONGITUD).toUpperCase() : "";
         if (!val) continue;
         const parts = String(key).split(ESTADO_OBRA_KEY_SEP);
         if (parts.length < 3) continue;
         const tipIdx = parseInt(parts[0] ?? "0", 10);
         const proceso = parts[1] ?? "";
-        const item = parts[2] ?? "";
-        const tipologia = tipologias[tipIdx] as Record<string, unknown> | undefined;
-        const tipologiaNombre = tipologia && typeof tipologia === "object" && "nombre" in tipologia
-          ? String(tipologia.nombre ?? "")
-          : `Tipología ${tipIdx + 1}`;
-        const desc = tipologia && typeof tipologia.descripcion !== "undefined" ? String(tipologia.descripcion ?? "") : "";
-        let fecha = "";
-        if (tipologia && typeof tipologia === "object" && "estados" in tipologia) {
-          const estados = tipologia.estados as Record<string, Record<string, string>> | undefined;
-          const procesoData = estados?.[proceso];
-          const fechaIso = procesoData?.[item];
-          fecha = fechaIso ? formatFechaISO(fechaIso) : "";
-        }
-        rows.push({
-          Carpeta: orden.num_carpeta ?? "",
-          Obra: orden.obra ?? "",
-          Tipologia: tipologiaNombre,
-          Descripcion: desc,
-          Proceso: proceso,
-          Item: item,
-          Iniciales: val,
-          Fecha: fecha,
+        const item = parts.slice(2).join(ESTADO_OBRA_KEY_SEP);
+        const tipologia = session.tipologias[tipIdx];
+        if (!tipologia) continue;
+        const fechaIso = session.fechas[key];
+        pendientes.push({
+          orden,
+          tipologia,
+          fechaOrden,
+          proceso,
+          item,
+          iniciales: val,
+          fechaItem: fechaIso ? formatFechaISO(fechaIso) : "",
         });
       }
     }
-    if (rows.length === 0) {
+    if (pendientes.length === 0) {
       alert("No hay procesos con iniciales en las órdenes actuales (o en el filtro aplicado).");
       return;
     }
+    const extraHeaders = collectTipologiaExtraHeaders(pendientes.map((p) => p.tipologia));
+    const reporteCols = ["Proceso", "Item", "Iniciales", "Fecha ítem"] as const;
+    const headers = [
+      ...EXCEL_ORDEN_META_HEADERS,
+      ...estadoObraExcelTipologiaHeaders(extraHeaders, reporteCols),
+    ];
+    const rows = pendientes.map(({ orden, tipologia, fechaOrden, proceso, item, iniciales, fechaItem }) => ({
+      ...ordenExcelMeta(orden, fechaOrden),
+      ...tipologiaToExcelRow(tipologia, extraHeaders),
+      Proceso: proceso,
+      Item: item,
+      Iniciales: iniciales,
+      "Fecha ítem": fechaItem,
+    }));
     setDescargandoExcel(true);
     try {
       const wb = XLSX.utils.book_new();
       const conteoIniciales = new Map<string, number>();
       for (const row of rows) {
         const ini = row.Iniciales || "";
-        if (ini) conteoIniciales.set(ini, (conteoIniciales.get(ini) ?? 0) + 1);
+        if (ini) conteoIniciales.set(String(ini), (conteoIniciales.get(String(ini)) ?? 0) + 1);
       }
       const resumenRows = Array.from(conteoIniciales.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([Iniciales, Cantidad]) => ({ Iniciales, Cantidad }));
-      const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
+      const wsResumen = sheetFromRowsWithHeaders(resumenRows, ["Iniciales", "Cantidad"]);
       XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen por iniciales");
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = sheetFromRowsWithHeaders(rows, headers);
       XLSX.utils.book_append_sheet(wb, ws, "Detalle por proceso");
-      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `procesos-terminados-operarios-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadXlsxWorkbook(wb, `procesos-terminados-operarios-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
       console.error("Error al descargar:", err);
       alert("Error al generar el archivo Excel.");
@@ -2584,14 +2557,24 @@ export default function ListOrdenesProduccion() {
               </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setShowProgresoModal(true)}
-            className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
-            title="Ver barra de progreso de producción"
-          >
-            📊 Ver progreso de producción
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowProgresoModal(true)}
+              className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
+              title="Ver barra de progreso de producción"
+            >
+              📊 Ver progreso de producción
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTotalArticulosModal(true)}
+              className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
+              title="Ver total de artículos terminados"
+            >
+              🪟 Mostrar total artículo terminado
+            </button>
+          </div>
           {!sinGestionCarpetaExcel && (
             <div className="flex items-center gap-2">
               <select
@@ -2654,6 +2637,15 @@ export default function ListOrdenesProduccion() {
           onClose={() => setShowProgresoModal(false)}
         />
       )}
+      {showTotalArticulosModal && (
+        <TotalArticulosTerminadosModal
+          ordenes={filteredOrdenes.map((o) => ({
+            id: o.id,
+            estado_obra: o.estado_obra,
+          }))}
+          onClose={() => setShowTotalArticulosModal(false)}
+        />
+      )}
       {showEstadoObraModal && estadoObraOrden && (
         <div
           className={`fixed inset-0 flex items-center justify-center bg-black/50 p-4 ${estadoObraModalSoloVista ? "z-[70]" : "z-[55]"}`}
@@ -2690,7 +2682,7 @@ export default function ListOrdenesProduccion() {
               </div>
             </div>
             <p className="shrink-0 text-sm text-gray-500 mb-4">
-              {estadoObraSoloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
+              {estadoObraSoloVista ? "Vista de estados (solo visualización):" : tabletSoloMarcar ? "Marca los ítems y proceso terminado en cada etapa. Artículo terminado se activa al completar Armado y Junquillos. Solo producción/supervisores pueden desmarcar." : canMarcarArticuloTerminadoManual ? "Agrega tipologías y marca los ítems culminados por proceso. Artículo terminado se puede marcar aunque no estén todos los procesos." : "Agrega tipologías y marca los ítems culminados por proceso en cada una:"}
             </p>
             {(canEditFullModalEnModal ||
               estadoObraTipologias.length > 0 ||
@@ -3169,19 +3161,41 @@ export default function ListOrdenesProduccion() {
                         ESTADO_OBRA_KEY_SEP
                       );
                       const articuloKey = String(idx);
+                      const articuloMarcado =
+                        todosProcesosTerminados || !!estadoObraArticuloTerminado[articuloKey];
+                      const articuloTitle = estadoObraSoloVista
+                        ? "Solo visualización"
+                        : canMarcarArticuloTerminadoManual
+                          ? todosProcesosTerminados
+                            ? "Se activa al completar Armado y Junquillos; también puede marcarlo manualmente"
+                            : "Puede marcar el artículo como terminado aunque no estén todos los procesos"
+                          : todosProcesosTerminados
+                            ? "Se activa automáticamente cuando Armado y Junquillos están terminados"
+                            : "Marque Armado y Junquillos como procesos terminados";
                       return (
                         <div>
                         <div className="flex items-center gap-2">
                           <label
-                            className="flex items-center gap-1.5 cursor-default"
-                            title={todosProcesosTerminados ? "Se activa automáticamente cuando Armado y Junquillos están terminados" : "Marque Armado y Junquillos como procesos terminados"}
+                            className={`flex items-center gap-1.5 ${canMarcarArticuloTerminadoManual ? "cursor-pointer" : "cursor-default"}`}
+                            title={articuloTitle}
                           >
                             <input
                               type="checkbox"
-                              checked={todosProcesosTerminados}
-                              readOnly
-                              tabIndex={-1}
-                              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                              checked={articuloMarcado}
+                              disabled={estadoObraSoloVista}
+                              readOnly={!canMarcarArticuloTerminadoManual}
+                              tabIndex={canMarcarArticuloTerminadoManual ? 0 : -1}
+                              onChange={(e) => {
+                                if (!canMarcarArticuloTerminadoManual) return;
+                                if (e.target.checked && !confirmActivarCheckboxEstadoObra()) return;
+                                if (!e.target.checked && todosProcesosTerminados) return;
+                                estadoObraUserEditedRef.current = true;
+                                setEstadoObraArticuloTerminado((prev) => ({
+                                  ...prev,
+                                  [articuloKey]: e.target.checked,
+                                }));
+                              }}
+                              className={`w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${canMarcarArticuloTerminadoManual ? "" : "pointer-events-none"}`}
                             />
                             <span className="text-xs font-semibold">Artículo terminado</span>
                           </label>

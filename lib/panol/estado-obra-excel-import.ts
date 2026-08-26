@@ -319,3 +319,101 @@ export function describeExcelImportFormat(): string {
   ];
   return `La planilla puede incluir encabezados con nombres similares a: ${known.join(", ")}. Las columnas adicionales con cantidades numéricas (ej. Tapas) también generan checkboxes automáticamente. El orden de las columnas no es obligatorio si hay encabezados.`;
 }
+
+/** Encabezados canónicos de la planilla; Ancho y Alto van al final en la descarga. */
+export const ESTADO_OBRA_EXCEL_COLUMNS: ReadonlyArray<{
+  field: ExcelFieldDef["field"];
+  label: string;
+}> = [
+  { field: "nombre", label: "Tipología" },
+  { field: "descripcion", label: "Descripción" },
+  { field: "marco", label: "Marco" },
+  { field: "hojas", label: "Hojas" },
+  { field: "guias", label: "Guía aluminio" },
+  { field: "guia_mosquitero", label: "Guía mosquitero" },
+  { field: "mosq_comun", label: "Mosq. común" },
+  { field: "mosq_riel", label: "Mosq. riel" },
+  { field: "mosquitero_fijo", label: "Mosq. fijo" },
+  { field: "guia_emb", label: "Guía emb." },
+  { field: "umbral_pvc", label: "Umbral PVC" },
+  { field: "umbral_aluminio", label: "Umbral aluminio" },
+  { field: "unidades_mq", label: "Unid. mq" },
+  { field: "ancho", label: "Ancho" },
+  { field: "alto", label: "Alto" },
+];
+
+function isDimensionExcelField(field: ExcelFieldDef["field"]): boolean {
+  return field === "ancho" || field === "alto";
+}
+
+/** Encabezados de tipología con Ancho y Alto al final, después de columnas extra y columnas extra del reporte. */
+export function estadoObraExcelTipologiaHeaders(
+  extraHeaders: readonly string[] = [],
+  extraBeforeDimensions: readonly string[] = []
+): string[] {
+  const before = ESTADO_OBRA_EXCEL_COLUMNS.filter((c) => !isDimensionExcelField(c.field)).map((c) => c.label);
+  const dimensions = ESTADO_OBRA_EXCEL_COLUMNS.filter((c) => isDimensionExcelField(c.field)).map((c) => c.label);
+  return [...before, ...extraHeaders, ...extraBeforeDimensions, ...dimensions];
+}
+
+function excelCellFromUnknown(val: unknown): string | number {
+  if (val === undefined || val === null) return "";
+  if (typeof val === "number") return Number.isNaN(val) ? "" : val;
+  const str = String(val).trim();
+  return str;
+}
+
+export function getTipologiaExcelFieldValue(
+  item: TipologiaItem,
+  field: ExcelFieldDef["field"]
+): string | number {
+  if (field === "nombre") return item.nombre ?? "";
+  if (field === "descripcion") return item.descripcion ?? "";
+  if (field === "unidades_mq" || field === "hojas_mosq") {
+    return excelCellFromUnknown(item.unidades_mq ?? item.hojas_mosq);
+  }
+  if (field === "umbral_pvc" || field === "umbral") {
+    return excelCellFromUnknown(item.umbral_pvc ?? item.umbral);
+  }
+  return excelCellFromUnknown(item[field]);
+}
+
+export function collectTipologiaExtraHeaders(tipologias: TipologiaItem[]): string[] {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const t of tipologias) {
+    if (!t.columnas_extra) continue;
+    for (const key of Object.keys(t.columnas_extra)) {
+      const label = key.trim();
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      keys.push(label);
+    }
+  }
+  return keys;
+}
+
+export function tipologiaToExcelRow(
+  item: TipologiaItem,
+  extraHeaders: readonly string[]
+): Record<string, string | number> {
+  const row: Record<string, string | number> = {};
+  for (const col of ESTADO_OBRA_EXCEL_COLUMNS) {
+    row[col.label] = getTipologiaExcelFieldValue(item, col.field);
+  }
+  for (const extra of extraHeaders) {
+    row[extra] = excelCellFromUnknown(item.columnas_extra?.[extra]);
+  }
+  return row;
+}
+
+export function sheetFromRowsWithHeaders(
+  rows: Array<Record<string, string | number>>,
+  headers: readonly string[]
+): XLSX.WorkSheet {
+  const aoa: (string | number)[][] = [headers.slice()];
+  for (const row of rows) {
+    aoa.push(headers.map((h) => (row[h] === undefined || row[h] === null ? "" : row[h])));
+  }
+  return XLSX.utils.aoa_to_sheet(aoa);
+}

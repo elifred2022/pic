@@ -273,6 +273,15 @@ export const canCreatePedidosProductivos = (
   isPanolEmail(email, rol) ||
   isAprobEmail(email, rol);
 
+/** Admin, aprobación y producción pueden marcar artículo terminado sin completar todos los procesos. */
+export const canMarcarArticuloTerminadoSinProcesos = (
+  email?: string | null,
+  rol?: string | null,
+) =>
+  isAdminEmail(email, rol) ||
+  isAprobEmail(email, rol) ||
+  isProduccionEmail(email, rol);
+
 export const canAccessOrdenesProduccion = (
   email?: string | null,
   rol?: string | null,

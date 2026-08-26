@@ -388,3 +388,71 @@ export function getArticulosTerminadosProgress(estadoObra: unknown): { completed
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   return { completed, total, percent };
 }
+
+const ARTICULO_TERMINADO_KEY_SEP = "::";
+
+function parseTerminadoFlagMap(raw: unknown): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v === true) {
+      result[k] = true;
+      continue;
+    }
+    if (v && typeof v === "object" && "terminado" in v) {
+      result[k] = !!(v as { terminado?: unknown }).terminado;
+    }
+  }
+  return result;
+}
+
+export type ArticuloTerminadoListado = {
+  tip: string;
+  descripcion: string;
+};
+
+export type ArticuloTerminadoTotal = {
+  tip: string;
+  descripcion: string;
+  cantidad: number;
+};
+
+/** Tipologías marcadas como artículo terminado (manual o Armado + Junquillos). */
+export function listArticulosTerminados(estadoObra: unknown): ArticuloTerminadoListado[] {
+  const parsed = parseEstadoObra(estadoObra);
+  const raw = estadoObra && typeof estadoObra === "object" ? (estadoObra as Record<string, unknown>) : null;
+  const articuloTerminado = parseTerminadoFlagMap(raw?.articuloTerminado);
+  const procesoTerminado = parseTerminadoFlagMap(raw?.procesoTerminado);
+  const items: ArticuloTerminadoListado[] = [];
+  parsed.tipologias.forEach((tipologia, idx) => {
+    const marcado =
+      !!articuloTerminado[String(idx)] ||
+      areAllProcesosTerminadosParaTipologia(idx, tipologia, procesoTerminado, ARTICULO_TERMINADO_KEY_SEP);
+    if (!marcado) return;
+    items.push({
+      tip: (tipologia.nombre ?? "").trim() || "—",
+      descripcion: (tipologia.descripcion ?? "").trim() || "—",
+    });
+  });
+  return items;
+}
+
+export function agruparTotalesArticulosTerminados(
+  items: ArticuloTerminadoListado[]
+): ArticuloTerminadoTotal[] {
+  const grouped = new Map<string, ArticuloTerminadoTotal>();
+  for (const item of items) {
+    const key = `${item.tip}\0${item.descripcion}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.cantidad += 1;
+    } else {
+      grouped.set(key, { tip: item.tip, descripcion: item.descripcion, cantidad: 1 });
+    }
+  }
+  return Array.from(grouped.values()).sort((a, b) => {
+    const tipCmp = a.tip.localeCompare(b.tip, "es", { sensitivity: "base" });
+    if (tipCmp !== 0) return tipCmp;
+    return a.descripcion.localeCompare(b.descripcion, "es", { sensitivity: "base" });
+  });
+}
