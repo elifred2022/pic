@@ -44,6 +44,8 @@ export default function ListPanolProductosGeneralesVer() {
   const [ocultarAnulados, setOcultarAnulados] = useState(false);
   const [ocultarStandBy, setOcultarStandBy] = useState(false);
   const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+  const [ocultarCotizados, setOcultarCotizados] = useState(false);
+  const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
   
   const supabase = createClient();
 
@@ -54,12 +56,16 @@ export default function ListPanolProductosGeneralesVer() {
          const savedAnulados = localStorage.getItem("ocultarAnulados");
          const savedStandBy = localStorage.getItem("ocultarStandBy");
          const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+         const savedCotizados = localStorage.getItem("ocultarCotizados");
+         const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcial");
        
          if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
          if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
          if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
          if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
          if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+         if (savedCotizados !== null) setOcultarCotizados(savedCotizados === "true");
+         if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
        }, []);
        
        
@@ -83,6 +89,14 @@ export default function ListPanolProductosGeneralesVer() {
        useEffect(() => {
          localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
        }, [ocultarConfirmado]);
+
+       useEffect(() => {
+         localStorage.setItem("ocultarCotizados", String(ocultarCotizados));
+       }, [ocultarCotizados]);
+
+       useEffect(() => {
+         localStorage.setItem("ocultarEntregoParcial", String(ocultarEntregoParcial));
+       }, [ocultarEntregoParcial]);
 
   // Cargar datos
   useEffect(() => {
@@ -178,6 +192,13 @@ const filteredPedidos = pedidos
   if (ocultarAnulados && pedido.estado === "anulado") return false;
   if (ocultarStandBy && pedido.estado === "stand by") return false;
   if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+  if (ocultarCotizados && pedido.estado === "cotizado") return false;
+  if (
+    ocultarEntregoParcial &&
+    (pedido.estado === "entrego parcial" || pedido.estado === "entrego_parcial")
+  ) {
+    return false;
+  }
   return true;
 });
 

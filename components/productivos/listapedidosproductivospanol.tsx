@@ -71,6 +71,8 @@ export default function ListaPedidosProductivos() {
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
+    const [ocultarCotizados, setOcultarCotizados] = useState(false);
+    const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
     const supabase = createClient();
     const searchParams = useSearchParams();
     const editarAbiertoRef = useRef<string | null>(null);
@@ -125,12 +127,16 @@ export default function ListaPedidosProductivos() {
     const savedAnulados = localStorage.getItem("ocultarAnulados");
     const savedStandBy = localStorage.getItem("ocultarStandBy");
     const savedConfirmado = localStorage.getItem("ocultarConfirmado");
+    const savedCotizados = localStorage.getItem("ocultarCotizados");
+    const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcial");
   
     if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
     if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
     if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
     if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
     if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
+    if (savedCotizados !== null) setOcultarCotizados(savedCotizados === "true");
+    if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
   }, []);
   
   
@@ -154,6 +160,14 @@ export default function ListaPedidosProductivos() {
   useEffect(() => {
     localStorage.setItem("ocultarConfirmado", String(ocultarConfirmado));
   }, [ocultarConfirmado]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarCotizados", String(ocultarCotizados));
+  }, [ocultarCotizados]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarEntregoParcial", String(ocultarEntregoParcial));
+  }, [ocultarEntregoParcial]);
   
   
   // Cargar datos
@@ -289,6 +303,13 @@ export default function ListaPedidosProductivos() {
     if (ocultarAnulados && pedido.estado === "anulado") return false;
     if (ocultarStandBy && pedido.estado === "stand by") return false;
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
+    if (ocultarCotizados && pedido.estado === "cotizado") return false;
+    if (
+      ocultarEntregoParcial &&
+      (pedido.estado === "entrego parcial" || pedido.estado === "entrego_parcial")
+    ) {
+      return false;
+    }
     return true;
   });
   
@@ -480,6 +501,16 @@ export default function ListaPedidosProductivos() {
               <label className={filterLabelClass}>
                 <input
                   type="checkbox"
+                  checked={ocultarCotizados}
+                  onChange={() => setOcultarCotizados((v) => !v)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-gray-700 font-medium text-xs">Ocultar cotizados</span>
+              </label>
+
+              <label className={filterLabelClass}>
+                <input
+                  type="checkbox"
                   checked={ocultarAnulados}
                   onChange={() => setOcultarAnulados((v) => !v)}
                   className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
@@ -495,6 +526,16 @@ export default function ListaPedidosProductivos() {
                   className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <span className="text-gray-700 font-medium text-xs">Ocultar stand-by</span>
+              </label>
+
+              <label className={filterLabelClass}>
+                <input
+                  type="checkbox"
+                  checked={ocultarEntregoParcial}
+                  onChange={() => setOcultarEntregoParcial((v) => !v)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-gray-700 font-medium text-xs">Ocultar entrego parcial</span>
               </label>
             </div>
           </div>

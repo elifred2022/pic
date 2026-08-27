@@ -178,7 +178,8 @@ export default function ListaPedidosProductivosAdmin() {
     const [ocultarAnulados, setOcultarAnulados] = useState(false);
     const [ocultarStandBy, setOcultarStandBy] = useState(false);
     const [ocultarConfirmado, setOcultarConfirmado] = useState(false);
-    const [ocultarNoAprobados, setOcultarNoAprobados] = useState(false);
+    const [ocultarCotizados, setOcultarCotizados] = useState(false);
+    const [ocultarEntregoParcial, setOcultarEntregoParcial] = useState(false);
     const [comparativaPedido, setComparativaPedido] = useState<Pedido | null>(null); //modal comparativa
     
 
@@ -221,14 +222,16 @@ export default function ListaPedidosProductivosAdmin() {
      const savedAnulados = localStorage.getItem("ocultarAnulados");
      const savedStandBy = localStorage.getItem("ocultarStandBy");
      const savedConfirmado = localStorage.getItem("ocultarConfirmado");
-     const savedNoAprobados = localStorage.getItem("ocultarNoAprobados");
+     const savedCotizados = localStorage.getItem("ocultarCotizados");
+     const savedEntregoParcial = localStorage.getItem("ocultarEntregoParcial");
    
      if (savedCumplidos !== null) setOcultarCumplidos(savedCumplidos === "true");
      if (savedAprobados !== null) setOcultarAprobados(savedAprobados === "true");
      if (savedAnulados !== null) setOcultarAnulados(savedAnulados === "true");
      if (savedStandBy !== null) setOcultarStandBy(savedStandBy === "true");
      if (savedConfirmado !== null) setOcultarConfirmado(savedConfirmado === "true");
-     if (savedNoAprobados !== null) setOcultarNoAprobados(savedNoAprobados === "true");
+     if (savedCotizados !== null) setOcultarCotizados(savedCotizados === "true");
+     if (savedEntregoParcial !== null) setOcultarEntregoParcial(savedEntregoParcial === "true");
    }, []);
    
    // Establecer fecha de impresión para evitar errores de hidratación
@@ -259,8 +262,12 @@ export default function ListaPedidosProductivosAdmin() {
    }, [ocultarConfirmado]);
 
   useEffect(() => {
-    localStorage.setItem("ocultarNoAprobados", String(ocultarNoAprobados));
-  }, [ocultarNoAprobados]);
+    localStorage.setItem("ocultarCotizados", String(ocultarCotizados));
+  }, [ocultarCotizados]);
+
+  useEffect(() => {
+    localStorage.setItem("ocultarEntregoParcial", String(ocultarEntregoParcial));
+  }, [ocultarEntregoParcial]);
    
        // Recalcular comparativa cuando se abre el modal de edición
     useEffect(() => {
@@ -493,7 +500,13 @@ export default function ListaPedidosProductivosAdmin() {
     if (ocultarAnulados && pedido.estado === "anulado") return false;
     if (ocultarStandBy && pedido.estado === "stand by") return false;
     if (ocultarConfirmado && pedido.estado === "confirmado") return false;
-    if (ocultarNoAprobados && pedido.estado === "no aprobado") return false;
+    if (ocultarCotizados && pedido.estado === "cotizado") return false;
+    if (
+      ocultarEntregoParcial &&
+      (pedido.estado === "entrego parcial" || pedido.estado === "entrego_parcial")
+    ) {
+      return false;
+    }
     return true;
   });
 
@@ -1381,6 +1394,15 @@ const handleUpdatePedido = async () => {
                 <label className={filterLabelClass}>
                   <input
                     type="checkbox"
+                    checked={ocultarCotizados}
+                    onChange={() => setOcultarCotizados((v) => !v)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium text-xs">Ocultar cotizados</span>
+                </label>
+                <label className={filterLabelClass}>
+                  <input
+                    type="checkbox"
                     checked={ocultarAnulados}
                     onChange={() => setOcultarAnulados((v) => !v)}
                     className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
@@ -1399,11 +1421,11 @@ const handleUpdatePedido = async () => {
                 <label className={filterLabelClass}>
                   <input
                     type="checkbox"
-                    checked={ocultarNoAprobados}
-                    onChange={() => setOcultarNoAprobados((v) => !v)}
+                    checked={ocultarEntregoParcial}
+                    onChange={() => setOcultarEntregoParcial((v) => !v)}
                     className="w-3.5 h-3.5 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <span className="text-gray-700 font-medium text-xs">Ocultar no aprobados</span>
+                  <span className="text-gray-700 font-medium text-xs">Ocultar entrego parcial</span>
                 </label>
               </div>
             </div>
