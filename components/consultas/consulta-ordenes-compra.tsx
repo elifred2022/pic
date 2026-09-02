@@ -14,11 +14,14 @@ import { etiquetaSector } from "@/lib/indicadores-compras";
 import { SECTORES_CONSULTA, COD_CTAS_CONSULTA } from "@/lib/consultas-articulos-comprados";
 import {
   aplanarConsultaOrdenesCompra,
+  filtrarFilasConsultaOcPorSector,
   filtrarOrdenesConsultaOcPorCodCta,
   filtrarOrdenesConsultaOcPorFecha,
-  filtrarOrdenesConsultaOcPorSector,
+  mapearSectoresPedidosConsultaOc,
+  recopilarIdsPedidosConsultaOc,
   type ConsultaOrdenCompraFila,
   type OrdenCompraConsultaOc,
+  type PedidoConsultaOc,
 } from "@/lib/consultas-ordenes-compra";
 
 function formatCantidad(value: number): string {
@@ -57,9 +60,36 @@ function getEstadoBadge(estado: string) {
   );
 }
 
+async function fetchPedidosPorIds(
+  supabase: ReturnType<typeof createClient>,
+  tabla: "pic" | "pedidos_productivos",
+  ids: string[]
+): Promise<PedidoConsultaOc[]> {
+  if (ids.length === 0) return [];
+
+  const pageSize = 500;
+  const all: PedidoConsultaOc[] = [];
+
+  for (let i = 0; i < ids.length; i += pageSize) {
+    const chunk = ids.slice(i, i + pageSize);
+    const { data, error } = await supabase
+      .from(tabla)
+      .select("id, sector")
+      .in("id", chunk);
+
+    if (error) throw error;
+    all.push(...((data as PedidoConsultaOc[]) || []));
+  }
+
+  return all;
+}
+
 export function ConsultaOrdenesCompra() {
   const supabase = useMemo(() => createClient(), []);
   const [ordenes, setOrdenes] = useState<OrdenCompraConsultaOc[]>([]);
+  const [sectorPorPedido, setSectorPorPedido] = useState<Record<string, string>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -153,7 +183,7 @@ export function ConsultaOrdenesCompra() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, estado, proveedor, sector, cod_cta, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
+            "id, noc, estado, proveedor, cod_cta, fecha, fecha_prometida, fecha_entrega, articulos, entregas"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -167,11 +197,19 @@ export function ConsultaOrdenesCompra() {
         from += pageSize;
       }
 
+      const { productivoIds, generalIds } = recopilarIdsPedidosConsultaOc(all);
+      const [productivos, generales] = await Promise.all([
+        fetchPedidosPorIds(supabase, "pedidos_productivos", productivoIds),
+        fetchPedidosPorIds(supabase, "pic", generalIds),
+      ]);
+
+      setSectorPorPedido(mapearSectoresPedidosConsultaOc(productivos, generales));
       setOrdenes(all);
     } catch (err) {
       console.error("Error cargando consulta de órdenes:", err);
       setError("No se pudieron cargar las órdenes de compra.");
       setOrdenes([]);
+      setSectorPorPedido({});
     } finally {
       setLoading(false);
     }
@@ -187,10 +225,10 @@ export function ConsultaOrdenesCompra() {
       fechaDesde,
       fechaHasta
     );
-    const porSector = filtrarOrdenesConsultaOcPorSector(porFecha, filtroSector);
-    const filtradas = filtrarOrdenesConsultaOcPorCodCta(porSector, filtroCodCta);
-    return aplanarConsultaOrdenesCompra(filtradas);
-  }, [ordenes, fechaDesde, fechaHasta, filtroSector, filtroCodCta]);
+    const filtradas = filtrarOrdenesConsultaOcPorCodCta(porFecha, filtroCodCta);
+    const aplanadas = aplanarConsultaOrdenesCompra(filtradas, sectorPorPedido);
+    return filtrarFilasConsultaOcPorSector(aplanadas, filtroSector);
+  }, [ordenes, sectorPorPedido, fechaDesde, fechaHasta, filtroSector, filtroCodCta]);
 
   const filtrados = useMemo(() => {
     let result = rows.filter((row) => {

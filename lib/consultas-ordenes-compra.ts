@@ -87,14 +87,77 @@ export function filtrarOrdenesConsultaOcPorFecha(
   );
 }
 
-export function filtrarOrdenesConsultaOcPorSector(
-  ordenes: OrdenCompraConsultaOc[],
+export type PedidoConsultaOc = {
+  id?: number | string | null;
+  sector?: string | null;
+};
+
+function clavePedidoConsultaOc(tipo: "productivo" | "general", id: string): string {
+  return `${tipo}:${id}`;
+}
+
+export function recopilarIdsPedidosConsultaOc(ordenes: OrdenCompraConsultaOc[]): {
+  productivoIds: string[];
+  generalIds: string[];
+} {
+  const productivoIds = new Set<string>();
+  const generalIds = new Set<string>();
+
+  for (const orden of ordenes) {
+    for (const item of orden.articulos ?? []) {
+      const parsed = parsePicFromArticuloId(String(item.articulo_id ?? "").trim());
+      if (!parsed.pedidoId) continue;
+      if (parsed.tipo === "productivo") productivoIds.add(parsed.pedidoId);
+      if (parsed.tipo === "general") generalIds.add(parsed.pedidoId);
+    }
+  }
+
+  return {
+    productivoIds: [...productivoIds],
+    generalIds: [...generalIds],
+  };
+}
+
+export function mapearSectoresPedidosConsultaOc(
+  productivos: PedidoConsultaOc[],
+  generales: PedidoConsultaOc[]
+): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  for (const pedido of productivos) {
+    const id = String(pedido.id ?? "").trim();
+    const sector = String(pedido.sector ?? "").trim();
+    if (id && sector) map[clavePedidoConsultaOc("productivo", id)] = sector;
+  }
+  for (const pedido of generales) {
+    const id = String(pedido.id ?? "").trim();
+    const sector = String(pedido.sector ?? "").trim();
+    if (id && sector) map[clavePedidoConsultaOc("general", id)] = sector;
+  }
+
+  return map;
+}
+
+function sectorDesdePedido(
+  articuloId: string,
+  sectorPorPedido: Record<string, string>
+): string {
+  const parsed = parsePicFromArticuloId(articuloId);
+  if (
+    (parsed.tipo !== "productivo" && parsed.tipo !== "general") ||
+    !parsed.pedidoId
+  ) {
+    return "";
+  }
+  return sectorPorPedido[clavePedidoConsultaOc(parsed.tipo, parsed.pedidoId)] ?? "";
+}
+
+export function filtrarFilasConsultaOcPorSector(
+  filas: ConsultaOrdenCompraFila[],
   sector: string
-): OrdenCompraConsultaOc[] {
-  if (!sector || sector === "todos") return ordenes;
-  return ordenes.filter(
-    (orden) => String(orden.sector ?? "").trim() === sector
-  );
+): ConsultaOrdenCompraFila[] {
+  if (!sector || sector === "todos") return filas;
+  return filas.filter((fila) => String(fila.sector ?? "").trim() === sector);
 }
 
 export function filtrarOrdenesConsultaOcPorCodCta(
@@ -109,7 +172,8 @@ export function filtrarOrdenesConsultaOcPorCodCta(
 
 /** Una fila por artículo de cada orden de compra. */
 export function aplanarConsultaOrdenesCompra(
-  ordenes: OrdenCompraConsultaOc[]
+  ordenes: OrdenCompraConsultaOc[],
+  sectorPorPedido: Record<string, string> = {}
 ): ConsultaOrdenCompraFila[] {
   const rows: ConsultaOrdenCompraFila[] = [];
 
@@ -118,7 +182,6 @@ export function aplanarConsultaOrdenesCompra(
     const noc = String(orden.noc ?? "").trim();
     const estado = String(orden.estado ?? "").trim();
     const proveedor = String(orden.proveedor ?? "").trim();
-    const sector = String(orden.sector ?? "").trim();
     const fechaCreacion = formatFechaCreacion(orden);
     const fechaRaw = fechaCreacionRaw(orden);
     const fechaPrometida = formatFechaExcel(orden.fecha_prometida) || "—";
@@ -134,7 +197,7 @@ export function aplanarConsultaOrdenesCompra(
         articuloId: "",
         estado,
         proveedor,
-        sector,
+        sector: "",
         fechaCreacion,
         fechaCreacionRaw: fechaRaw,
         fechaPrometida,
@@ -165,7 +228,7 @@ export function aplanarConsultaOrdenesCompra(
         articuloId,
         estado,
         proveedor,
-        sector,
+        sector: sectorDesdePedido(articuloId, sectorPorPedido),
         fechaCreacion,
         fechaCreacionRaw: fechaRaw,
         fechaPrometida,
