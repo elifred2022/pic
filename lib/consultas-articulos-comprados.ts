@@ -116,6 +116,14 @@ export const COD_CTAS_CONSULTA = [
   "2528 FERRET INSUMOS GASCON",
 ] as const;
 
+/** Acorta el código de cuenta para filtros y celdas; el valor completo va en title. */
+export function acortarCodCta(codCta: string, maxChars = 16): string {
+  const t = String(codCta ?? "").trim();
+  if (!t) return "";
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, Math.max(1, maxChars - 3))}...`;
+}
+
 export function filtrarOrdenesConsultaPorFecha(
   ordenes: OrdenCompraConsulta[],
   fechaDesde: string,

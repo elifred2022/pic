@@ -23,6 +23,7 @@ import {
   filtrarOrdenesConsultaPorCodCta,
   filtrarOrdenesConsultaPorFecha,
   resumirArticulosComprados,
+  acortarCodCta,
   COD_CTAS_CONSULTA,
   SECTORES_CONSULTA,
   type ArticuloCompradoResumen,
@@ -439,12 +440,13 @@ export function ConsultaArticulosComprados() {
                 id="consulta-filtro-cod-cta"
                 value={filtroCodCta}
                 onChange={(e) => setFiltroCodCta(e.target.value)}
-                className="h-8 w-[16rem] min-w-[16rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                title={filtroCodCta !== "todos" ? filtroCodCta : undefined}
+                className="h-8 w-[12rem] min-w-[12rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="todos">Todos los códigos</option>
                 {COD_CTAS_CONSULTA.map((codCta) => (
-                  <option key={codCta} value={codCta}>
-                    {codCta}
+                  <option key={codCta} value={codCta} title={codCta}>
+                    {acortarCodCta(codCta)}
                   </option>
                 ))}
               </select>
@@ -578,7 +580,7 @@ export function ConsultaArticulosComprados() {
                     </th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">Total</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Divisa</th>
-                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Cód. cuenta</th>
+                    <th className="max-w-[7rem] px-2 py-1.5 font-semibold">Cód. cuenta</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Sector</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Remitos recepción</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Factura</th>
@@ -657,8 +659,11 @@ export function ConsultaArticulosComprados() {
                         {formatImporte(row.total)}
                       </td>
                       <td className="whitespace-nowrap px-2 py-1 text-slate-600">{row.divisa}</td>
-                      <td className="whitespace-nowrap px-2 py-1 text-slate-600">
-                        {row.codCta || "—"}
+                      <td
+                        className="max-w-[7rem] truncate px-2 py-1 text-slate-600"
+                        title={row.codCta || undefined}
+                      >
+                        {row.codCta ? acortarCodCta(row.codCta) : "—"}
                       </td>
                       <td
                         className="max-w-[9rem] truncate px-2 py-1 text-slate-700"

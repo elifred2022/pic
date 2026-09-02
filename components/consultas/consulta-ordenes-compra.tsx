@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import { etiquetaSector } from "@/lib/indicadores-compras";
-import { SECTORES_CONSULTA, COD_CTAS_CONSULTA } from "@/lib/consultas-articulos-comprados";
+import { SECTORES_CONSULTA, COD_CTAS_CONSULTA, acortarCodCta } from "@/lib/consultas-articulos-comprados";
 import {
   aplanarConsultaOrdenesCompra,
   filtrarFilasConsultaOcPorSector,
@@ -441,12 +441,13 @@ export function ConsultaOrdenesCompra() {
                 id="consulta-oc-filtro-cod-cta"
                 value={filtroCodCta}
                 onChange={(e) => setFiltroCodCta(e.target.value)}
-                className="h-8 w-[16rem] min-w-[16rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                title={filtroCodCta !== "todos" ? filtroCodCta : undefined}
+                className="h-8 w-[12rem] min-w-[12rem] max-w-full rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="todos">Todos los códigos</option>
                 {COD_CTAS_CONSULTA.map((codCta) => (
-                  <option key={codCta} value={codCta}>
-                    {codCta}
+                  <option key={codCta} value={codCta} title={codCta}>
+                    {acortarCodCta(codCta)}
                   </option>
                 ))}
               </select>
