@@ -8,6 +8,12 @@ import {
   extractPicDisplayNumber,
   parsePicFromArticuloId,
 } from "@/lib/pic-links";
+import {
+  mapearSectoresPedidos,
+  recopilarIdsPedidosDesdeOrdenes,
+  sectorPedidoDesdeArticuloId,
+  type PedidoSectorConsulta,
+} from "@/lib/consultas-sector-pedido";
 
 export type ArticuloOrdenConsultaOc = {
   articulo_id?: string | null;
@@ -87,70 +93,10 @@ export function filtrarOrdenesConsultaOcPorFecha(
   );
 }
 
-export type PedidoConsultaOc = {
-  id?: number | string | null;
-  sector?: string | null;
-};
+export type PedidoConsultaOc = PedidoSectorConsulta;
 
-function clavePedidoConsultaOc(tipo: "productivo" | "general", id: string): string {
-  return `${tipo}:${id}`;
-}
-
-export function recopilarIdsPedidosConsultaOc(ordenes: OrdenCompraConsultaOc[]): {
-  productivoIds: string[];
-  generalIds: string[];
-} {
-  const productivoIds = new Set<string>();
-  const generalIds = new Set<string>();
-
-  for (const orden of ordenes) {
-    for (const item of orden.articulos ?? []) {
-      const parsed = parsePicFromArticuloId(String(item.articulo_id ?? "").trim());
-      if (!parsed.pedidoId) continue;
-      if (parsed.tipo === "productivo") productivoIds.add(parsed.pedidoId);
-      if (parsed.tipo === "general") generalIds.add(parsed.pedidoId);
-    }
-  }
-
-  return {
-    productivoIds: [...productivoIds],
-    generalIds: [...generalIds],
-  };
-}
-
-export function mapearSectoresPedidosConsultaOc(
-  productivos: PedidoConsultaOc[],
-  generales: PedidoConsultaOc[]
-): Record<string, string> {
-  const map: Record<string, string> = {};
-
-  for (const pedido of productivos) {
-    const id = String(pedido.id ?? "").trim();
-    const sector = String(pedido.sector ?? "").trim();
-    if (id && sector) map[clavePedidoConsultaOc("productivo", id)] = sector;
-  }
-  for (const pedido of generales) {
-    const id = String(pedido.id ?? "").trim();
-    const sector = String(pedido.sector ?? "").trim();
-    if (id && sector) map[clavePedidoConsultaOc("general", id)] = sector;
-  }
-
-  return map;
-}
-
-function sectorDesdePedido(
-  articuloId: string,
-  sectorPorPedido: Record<string, string>
-): string {
-  const parsed = parsePicFromArticuloId(articuloId);
-  if (
-    (parsed.tipo !== "productivo" && parsed.tipo !== "general") ||
-    !parsed.pedidoId
-  ) {
-    return "";
-  }
-  return sectorPorPedido[clavePedidoConsultaOc(parsed.tipo, parsed.pedidoId)] ?? "";
-}
+export const recopilarIdsPedidosConsultaOc = recopilarIdsPedidosDesdeOrdenes;
+export const mapearSectoresPedidosConsultaOc = mapearSectoresPedidos;
 
 export function filtrarFilasConsultaOcPorSector(
   filas: ConsultaOrdenCompraFila[],
@@ -228,7 +174,7 @@ export function aplanarConsultaOrdenesCompra(
         articuloId,
         estado,
         proveedor,
-        sector: sectorDesdePedido(articuloId, sectorPorPedido),
+        sector: sectorPedidoDesdeArticuloId(articuloId, sectorPorPedido),
         fechaCreacion,
         fechaCreacionRaw: fechaRaw,
         fechaPrometida,

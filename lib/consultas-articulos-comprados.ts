@@ -1,13 +1,16 @@
 import {
   getCantidadesEntregaArticulo,
   getRemitosRecepcionArticulo,
+  getFacturasRecepcionArticulo,
   mergeRemitosRecepcion,
+  mergeFacturasRecepcion,
   formatFechaExcel,
 } from "@/lib/ordenes-compra-entregas";
 import {
   extractPicDisplayNumber,
   parsePicFromArticuloId,
 } from "@/lib/pic-links";
+import { sectorPedidoDesdeArticuloId } from "@/lib/consultas-sector-pedido";
 import {
   convertirImporteAArs,
   inferirDivisaOrden,
@@ -46,6 +49,8 @@ export type OrdenCompraConsulta = {
   entregas?: unknown;
   /** JSONB array de remitos de recepción, ej. [1001, 1002] */
   rt?: unknown;
+  fc?: unknown;
+  fact_path?: unknown;
 };
 
 export const SECTORES_CONSULTA = [
@@ -122,14 +127,12 @@ export function filtrarOrdenesConsultaPorFecha(
   );
 }
 
-export function filtrarOrdenesConsultaPorSector(
-  ordenes: OrdenCompraConsulta[],
+export function filtrarArticulosCompradosPorSector(
+  rows: ArticuloCompradoResumen[],
   sector: string
-): OrdenCompraConsulta[] {
-  if (!sector || sector === "todos") return ordenes;
-  return ordenes.filter(
-    (orden) => String(orden.sector ?? "").trim() === sector
-  );
+): ArticuloCompradoResumen[] {
+  if (!sector || sector === "todos") return rows;
+  return rows.filter((row) => String(row.sector ?? "").trim() === sector);
 }
 
 export function filtrarOrdenesConsultaPorCodCta(
@@ -155,6 +158,8 @@ export type ArticuloCompradoResumen = {
   articuloId: string;
   codint: string;
   codCta: string;
+  /** Sector del pedido PIC (no de la orden de compra). */
+  sector: string;
   cantidadComprada: number;
   cantidadEntregada: number;
   cantidadPendiente: number;
@@ -168,6 +173,8 @@ export type ArticuloCompradoResumen = {
   divisa: DivisaIndicador;
   /** Números de remito de recepción asociados al artículo. */
   remitosRecepcion: number[];
+  /** Números de factura (FC) asociados al artículo / orden. */
+  facturas: number[];
 };
 
 function articuloKey(item: ArticuloOrdenConsulta): string {
@@ -249,7 +256,8 @@ function resolvePicDisplay(articuloId: string): string {
 
 /** Agrupa ítems por artículo + fecha de orden y suma cantidades / importes. */
 export function resumirArticulosComprados(
-  ordenes: OrdenCompraConsulta[]
+  ordenes: OrdenCompraConsulta[],
+  sectorPorPedido: Record<string, string> = {}
 ): ArticuloCompradoResumen[] {
   const map = new Map<string, ArticuloCompradoResumen>();
 
@@ -265,6 +273,7 @@ export function resumirArticulosComprados(
       const divisa = resolveDivisa(item, orden);
       const articuloId = String(item.articulo_id ?? "").trim();
       const pic = resolvePicDisplay(articuloId);
+      const sector = sectorPedidoDesdeArticuloId(articuloId, sectorPorPedido);
       const key = `${articuloKey(item)}|${fechaRaw}|${ordenId || noc || "sin-oc"}|${divisa}`;
       const cantidad = Number(item.cantidad) || 0;
       const { entregadas, pendientes } = getCantidadesEntregaArticulo(
@@ -278,6 +287,13 @@ export function resumirArticulosComprados(
         articuloId,
         index,
         entregadas > 0 ? orden.rt : undefined
+      );
+      const facturas = getFacturasRecepcionArticulo(
+        orden.entregas,
+        articuloId,
+        index,
+        orden.fc,
+        orden.fact_path
       );
       const total = totalLinea(item, cantidad);
       const precioUnitario = precioUnitarioLinea(item);
@@ -315,6 +331,9 @@ export function resumirArticulosComprados(
         if ((!existing.pic || existing.pic === "—") && pic !== "—") {
           existing.pic = pic;
         }
+        if (!existing.sector && sector) {
+          existing.sector = sector;
+        }
         if (
           (!existing.articulo || existing.articulo === "Sin nombre") &&
           item.articulo_nombre
@@ -325,6 +344,7 @@ export function resumirArticulosComprados(
           existing.remitosRecepcion,
           remitosRecepcion
         );
+        existing.facturas = mergeFacturasRecepcion(existing.facturas, facturas);
         return;
       }
 
@@ -340,6 +360,7 @@ export function resumirArticulosComprados(
         articuloId,
         codint: String(item.codint ?? "").trim(),
         codCta,
+        sector,
         cantidadComprada: cantidad,
         cantidadEntregada: entregadas,
         cantidadPendiente: pendientes,
@@ -350,6 +371,7 @@ export function resumirArticulosComprados(
         total,
         divisa,
         remitosRecepcion,
+        facturas,
       });
     });
   }

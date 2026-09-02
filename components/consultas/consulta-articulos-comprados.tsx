@@ -18,17 +18,22 @@ import {
 import { getVerOrdenCompraUrl, getComparativaPedidoUrl } from "@/lib/pic-links";
 import {
   convertirArticulosCompradosAArs,
+  filtrarArticulosCompradosPorSector,
   filtrarArticulosPorDivisa,
   filtrarOrdenesConsultaPorCodCta,
   filtrarOrdenesConsultaPorFecha,
-  filtrarOrdenesConsultaPorSector,
   resumirArticulosComprados,
   COD_CTAS_CONSULTA,
   SECTORES_CONSULTA,
   type ArticuloCompradoResumen,
   type OrdenCompraConsulta,
 } from "@/lib/consultas-articulos-comprados";
-import { formatRemitosRecepcion } from "@/lib/ordenes-compra-entregas";
+import { formatRemitosRecepcion, formatFacturasRecepcion } from "@/lib/ordenes-compra-entregas";
+import {
+  mapearSectoresPedidos,
+  recopilarIdsPedidosDesdeOrdenes,
+  type PedidoSectorConsulta,
+} from "@/lib/consultas-sector-pedido";
 
 function formatCantidad(value: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -43,9 +48,36 @@ function formatImporte(value: number): string {
   }).format(value);
 }
 
+async function fetchPedidosPorIds(
+  supabase: ReturnType<typeof createClient>,
+  tabla: "pic" | "pedidos_productivos",
+  ids: string[]
+): Promise<PedidoSectorConsulta[]> {
+  if (ids.length === 0) return [];
+
+  const pageSize = 500;
+  const all: PedidoSectorConsulta[] = [];
+
+  for (let i = 0; i < ids.length; i += pageSize) {
+    const chunk = ids.slice(i, i + pageSize);
+    const { data, error } = await supabase
+      .from(tabla)
+      .select("id, sector")
+      .in("id", chunk);
+
+    if (error) throw error;
+    all.push(...((data as PedidoSectorConsulta[]) || []));
+  }
+
+  return all;
+}
+
 export function ConsultaArticulosComprados() {
   const supabase = useMemo(() => createClient(), []);
   const [ordenes, setOrdenes] = useState<OrdenCompraConsulta[]>([]);
+  const [sectorPorPedido, setSectorPorPedido] = useState<Record<string, string>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -72,7 +104,7 @@ export function ConsultaArticulosComprados() {
         const { data, error: fetchError } = await supabase
           .from("ordenes_compra")
           .select(
-            "id, noc, fecha, estado, total, importe_competencia, divisa, sector, cod_cta, proveedor, articulos, entregas, rt"
+            "id, noc, fecha, estado, total, importe_competencia, divisa, cod_cta, proveedor, articulos, entregas, rt, fc, fact_path"
           )
           .order("fecha", { ascending: false })
           .range(from, from + pageSize - 1);
@@ -86,11 +118,19 @@ export function ConsultaArticulosComprados() {
         from += pageSize;
       }
 
+      const { productivoIds, generalIds } = recopilarIdsPedidosDesdeOrdenes(all);
+      const [productivos, generales] = await Promise.all([
+        fetchPedidosPorIds(supabase, "pedidos_productivos", productivoIds),
+        fetchPedidosPorIds(supabase, "pic", generalIds),
+      ]);
+
+      setSectorPorPedido(mapearSectoresPedidos(productivos, generales));
       setOrdenes(all);
     } catch (err) {
       console.error("Error cargando artículos comprados:", err);
       setError("No se pudieron cargar los artículos comprados.");
       setOrdenes([]);
+      setSectorPorPedido({});
     } finally {
       setLoading(false);
     }
@@ -111,11 +151,13 @@ export function ConsultaArticulosComprados() {
       fechaDesde,
       fechaHasta
     );
-    const porSector = filtrarOrdenesConsultaPorSector(porFecha, filtroSector);
-    const filtradas = filtrarOrdenesConsultaPorCodCta(porSector, filtroCodCta);
-    const resumen = filtrarArticulosPorDivisa(
-      resumirArticulosComprados(filtradas),
-      totalizarEnArs ? "todas" : filtroDivisa
+    const filtradas = filtrarOrdenesConsultaPorCodCta(porFecha, filtroCodCta);
+    const resumen = filtrarArticulosCompradosPorSector(
+      filtrarArticulosPorDivisa(
+        resumirArticulosComprados(filtradas, sectorPorPedido),
+        totalizarEnArs ? "todas" : filtroDivisa
+      ),
+      filtroSector
     );
 
     if (!tiposCambioValidos || tipoCambioUsd === null || tipoCambioEur === null) {
@@ -128,6 +170,7 @@ export function ConsultaArticulosComprados() {
     });
   }, [
     ordenes,
+    sectorPorPedido,
     fechaDesde,
     fechaHasta,
     filtroSector,
@@ -147,11 +190,14 @@ export function ConsultaArticulosComprados() {
         row.articulo.toLowerCase().includes(q) ||
         row.codint.toLowerCase().includes(q) ||
         row.codCta.toLowerCase().includes(q) ||
+        row.sector.toLowerCase().includes(q) ||
+        etiquetaSector(row.sector).toLowerCase().includes(q) ||
         row.noc.toLowerCase().includes(q) ||
         row.pic.toLowerCase().includes(q) ||
         row.proveedor.toLowerCase().includes(q) ||
         row.divisa.toLowerCase().includes(q) ||
-        formatRemitosRecepcion(row.remitosRecepcion).toLowerCase().includes(q)
+        formatRemitosRecepcion(row.remitosRecepcion).toLowerCase().includes(q) ||
+        formatFacturasRecepcion(row.facturas).toLowerCase().includes(q)
     );
   }, [rows, busqueda]);
 
@@ -211,7 +257,9 @@ export function ConsultaArticulosComprados() {
         "total",
         "divisa",
         "codigo_cuenta",
+        "sector",
         "remitos_recepcion",
+        "factura",
       ] as const;
 
       const headerLabels = [
@@ -230,7 +278,9 @@ export function ConsultaArticulosComprados() {
         "Total",
         "Divisa",
         "Código cuenta",
+        "Sector",
         "Remitos recepción",
+        "Factura",
       ];
 
       const rows = filtrados.map((row) => ({
@@ -249,7 +299,9 @@ export function ConsultaArticulosComprados() {
         total: row.total,
         divisa: row.divisa,
         codigo_cuenta: row.codCta || "",
+        sector: row.sector ? etiquetaSector(row.sector) : "",
         remitos_recepcion: formatRemitosRecepcion(row.remitosRecepcion),
+        factura: formatFacturasRecepcion(row.facturas),
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows, { header: [...headers] });
@@ -292,7 +344,7 @@ export function ConsultaArticulosComprados() {
           </div>
           <Input
             type="search"
-            placeholder="Buscar artículo, código, OC, PIC o proveedor..."
+            placeholder="Buscar artículo, código, OC, PIC, sector, proveedor o factura..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="h-8 sm:max-w-xs bg-white text-xs"
@@ -527,7 +579,9 @@ export function ConsultaArticulosComprados() {
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-right">Total</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Divisa</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Cód. cuenta</th>
+                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Sector</th>
                     <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Remitos recepción</th>
+                    <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Factura</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -607,10 +661,22 @@ export function ConsultaArticulosComprados() {
                         {row.codCta || "—"}
                       </td>
                       <td
+                        className="max-w-[9rem] truncate px-2 py-1 text-slate-700"
+                        title={row.sector ? etiquetaSector(row.sector) : undefined}
+                      >
+                        {row.sector ? etiquetaSector(row.sector) : "—"}
+                      </td>
+                      <td
                         className="max-w-[10rem] truncate px-2 py-1 tabular-nums text-slate-600"
                         title={formatRemitosRecepcion(row.remitosRecepcion) || undefined}
                       >
                         {formatRemitosRecepcion(row.remitosRecepcion) || "—"}
+                      </td>
+                      <td
+                        className="max-w-[10rem] truncate px-2 py-1 tabular-nums text-slate-600"
+                        title={formatFacturasRecepcion(row.facturas) || undefined}
+                      >
+                        {formatFacturasRecepcion(row.facturas) || "—"}
                       </td>
                     </tr>
                   ))}
@@ -645,6 +711,8 @@ export function ConsultaArticulosComprados() {
                     <td className="whitespace-nowrap px-2 py-1.5">
                       {tiposCambioValidos ? "ARS" : ""}
                     </td>
+                    <td className="whitespace-nowrap px-2 py-1.5" />
+                    <td className="whitespace-nowrap px-2 py-1.5" />
                     <td className="whitespace-nowrap px-2 py-1.5" />
                     <td className="whitespace-nowrap px-2 py-1.5" />
                   </tr>

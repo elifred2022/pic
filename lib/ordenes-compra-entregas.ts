@@ -1,6 +1,6 @@
 /** Helpers de entregas en órdenes de compra (formato eventos + legacy). */
 
-import { coerceRtArray } from "@/lib/fact-compras-storage";
+import { coerceRtArray, parseFacturasFromOrden } from "@/lib/fact-compras-storage";
 
 /** Normaliza articulo_id para comparar (evita fallos por espacios en el nombre embebido). */
 export function normalizeArticuloId(value: unknown): string {
@@ -205,6 +205,73 @@ export function getRemitosRecepcionArticulo(
 
   if (fromEntregas.length > 0) return fromEntregas;
   return coerceRtArray(ordenRt);
+}
+
+function numerosUnicosDesdeEntregasArticulo(
+  entregas: unknown,
+  articuloId: string,
+  index: number,
+  campo: "rt" | "fc"
+): number[] {
+  const out: number[] = [];
+  if (!Array.isArray(entregas) || entregas.length === 0 || !isEntregaRegistro(entregas[0])) {
+    return out;
+  }
+
+  const idNorm = normalizeArticuloId(articuloId);
+  const seen = new Set<number>();
+  for (const raw of entregas) {
+    const reg = parseEntregaRegistro(raw);
+    if (!reg || reg.anulado || reg[campo] === null) continue;
+    let matched = false;
+    for (const item of reg.items) {
+      if (normalizeArticuloId(item.articulo_id) === idNorm) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched && !idNorm && reg.items[index]) {
+      matched = true;
+    }
+    const valor = reg[campo];
+    if (!matched || valor === null || seen.has(valor)) continue;
+    seen.add(valor);
+    out.push(valor);
+  }
+  return out;
+}
+
+/** Facturas (fc) de entregas que incluyen el artículo; si no hay, las de la orden. */
+export function getFacturasRecepcionArticulo(
+  entregas: unknown,
+  articuloId: string,
+  index: number,
+  ordenFc?: unknown,
+  ordenFactPath?: unknown
+): number[] {
+  const fromEntregas = numerosUnicosDesdeEntregasArticulo(
+    entregas,
+    articuloId,
+    index,
+    "fc"
+  );
+  if (fromEntregas.length > 0) return fromEntregas;
+
+  return parseFacturasFromOrden({ fc: ordenFc, fact_path: ordenFactPath })
+    .map((item) => item.fc)
+    .filter((fc): fc is number => fc !== null)
+    .filter((fc, i, arr) => arr.indexOf(fc) === i);
+}
+
+export function formatFacturasRecepcion(facturas: number[]): string {
+  return facturas.length > 0 ? facturas.join(", ") : "";
+}
+
+export function mergeFacturasRecepcion(
+  actuales: number[],
+  extra: number[]
+): number[] {
+  return mergeRemitosUnicos(actuales, extra);
 }
 
 export function formatRemitosRecepcion(remitos: number[]): string {
