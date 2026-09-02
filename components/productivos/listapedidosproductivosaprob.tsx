@@ -32,6 +32,13 @@ const ESTADOS_APROBADOR = [
   { value: "stand by", label: "Stand By" },
 ] as const;
 
+function formatImporteAprob(n: number | null | undefined): string {
+  return (n || 0).toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
+}
+
 type ArticuloComparativa = {
   codint: string;
   cant: number;
@@ -85,6 +92,7 @@ type Pedido = {
     existencia: number;
     cant: number;
     provsug: string;
+    codprovsug?: string;
     imagenes?: string[];
   }[];
 };
@@ -125,7 +133,7 @@ export default function ListaPedidosProductivosAprob() {
 
       const { data } = await supabase
         .from("articulos")
-        .select("codint, presentacion")
+        .select("codint, presentacion, codprovsug")
         .in("codint", codints);
 
       const datosPorCodint = new Map(
@@ -139,6 +147,7 @@ export default function ListaPedidosProductivosAprob() {
           return {
             ...art,
             presentacion: art.presentacion ?? desdeBd?.presentacion ?? "",
+            codprovsug: art.codprovsug ?? desdeBd?.codprovsug ?? "",
           };
         }),
       }));
@@ -710,12 +719,12 @@ const handleUpdatePedido = async () => {
       {/* Modal de comparativa */}
       {comparativaPedido && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-[98vw] max-w-[1900px] max-h-[95vh] overflow-y-auto overflow-x-hidden">
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-xl">
               <h2 className="text-2xl font-bold">📊 Comparativa de Proveedores #{formData.id}</h2>
               <p className="text-green-100 mt-2">Vista de comparativa y edición de estado</p>
             </div>
-            <div className="p-6">
+            <div className="p-6 min-w-0">
               {/* Información del pedido */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -732,6 +741,7 @@ const handleUpdatePedido = async () => {
                         {formData.nota_solicitante}
                       </p>
                     ) : null}
+                    <p><span className="font-medium">Aprueba:</span> {comparativaPedido.aprueba}</p>
                   </div>
                 </div>
 
@@ -745,9 +755,12 @@ const handleUpdatePedido = async () => {
                             {art.articulo}
                             <ArticuloImagenesThumbs paths={art.imagenes} />
                           </div>
-                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mb-2">Código: {art.codint}</div>
+                          <div className="text-gray-600 text-xs">Desc: {renderValue(art.descripcion)}</div>
+                          <div className="text-gray-600 text-xs">Presentacion: {art.presentacion?.trim() ? art.presentacion : "-"}</div>
                           <div className="text-gray-600 text-xs">Cant: {art.cant}</div>
-                          <div className="text-gray-600 text-xs">Stock: {art.existencia}</div>
+                          <div className="text-gray-600 text-xs">Stock: {art.existencia ?? "-"}</div>
+                          <div className="text-gray-600 text-xs">Cod. prov. sug.: {art.codprovsug?.trim() ? art.codprovsug : "-"}</div>
+                          <div className="text-gray-600 text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">Código: {art.codint}</div>
                         </div>
                       ))}
                     </div>
@@ -758,64 +771,78 @@ const handleUpdatePedido = async () => {
               </div>
               
               {/* Sección de Comparativa de Proveedores (Solo lectura) */}
-              <div className="mb-6">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="mb-6 min-w-0">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm min-w-0">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <span className="mr-2">💰</span>
                     Cotizaciones de Proveedores
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {comparativaPedido.comparativa_prov?.map((prov, provIndex) => (
-                    <div key={provIndex} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm min-w-0">
-                      <label className="block mb-3 text-sm font-medium text-gray-700">Proveedor:</label>
+                    <div key={provIndex} className="bg-white border border-gray-200 p-2.5 rounded-lg shadow-sm min-w-0 overflow-hidden">
+                      <label className="block mb-1.5 text-xs font-medium text-gray-700">Proveedor:</label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-gray-800 font-semibold bg-white text-center text-sm"
+                        className="w-full min-w-0 px-2 py-1 border border-gray-300 rounded-md mb-2 text-gray-800 font-semibold bg-white text-center text-xs truncate"
                         value={prov.nombreProveedor}
                         readOnly
+                        title={prov.nombreProveedor}
                       />
 
-                      <table className="w-full text-gray-700 text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="px-2 py-2 text-left font-medium">Artículo</th>
-                            <th className="px-2 py-2 text-center font-medium">Cant.</th>
-                            <th className="px-2 py-2 text-center font-medium">Precio</th>
-                            <th className="px-2 py-2 text-center font-medium">Desc. %</th>
-                            <th className="px-2 py-2 text-center font-medium">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {prov.articulos.map((art, artIndex) => {
-                            const rangoPrecio = rangoPrecioArticulo(
-                              art,
-                              resumenComparativaVista
-                            );
-                            return (
-                            <tr key={artIndex} className="border-b border-gray-100">
-                              <td className="px-2 py-2 text-sm truncate" title={art.articulo}>
-                                {art.articulo}
-                              </td>
-                              <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
-                              <td className={`px-2 py-2 text-center text-sm ${claseTextoRangoPrecio(rangoPrecio)}`}>
-                                ${(art.precioUnitario || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="px-2 py-2 text-center text-sm">
-                                {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
-                              </td>
-                              <td className={`px-2 py-2 text-center text-sm ${claseTextoRangoPrecio(rangoPrecio)}`}>
-                                ${(art.subtotal || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
+                      <table className="w-full table-fixed text-gray-700 text-xs leading-tight">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="w-[22%] px-0.5 py-1 text-left font-medium">Artículo</th>
+                              <th className="w-[8%] px-0.5 py-1 text-center font-medium">Cant.</th>
+                              <th className="w-[8%] px-0.5 py-1 text-center font-medium">Stock</th>
+                              <th className="w-[14%] px-0.5 py-1 text-center font-medium">Cód.</th>
+                              <th className="w-[18%] px-0.5 py-1 text-right font-medium">Precio</th>
+                              <th className="w-[10%] px-0.5 py-1 text-center font-medium">Desc.</th>
+                              <th className="w-[20%] px-0.5 py-1 text-right font-medium">Subt.</th>
                             </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      <div className={`mt-3 text-center font-bold p-3 rounded border text-sm ${claseCajaTotalRango(
+                          </thead>
+                          <tbody>
+                            {prov.articulos.map((art, artIndex) => {
+                              const rangoPrecio = rangoPrecioArticulo(
+                                art,
+                                resumenComparativaVista
+                              );
+                              const articuloOriginal = comparativaPedido.articulos.find(
+                                (a) => a.codint === art.codint
+                              );
+                              return (
+                              <tr key={artIndex} className="border-b border-gray-100">
+                                <td className="px-0.5 py-1 break-words align-top" title={art.articulo}>
+                                  {art.articulo}
+                                </td>
+                                <td className="px-0.5 py-1 text-center tabular-nums align-top">{art.cant}</td>
+                                <td className="px-0.5 py-1 text-center tabular-nums align-top">
+                                  {articuloOriginal?.existencia || 0}
+                                </td>
+                                <td className="px-0.5 py-1 text-center font-mono break-all align-top" title={articuloOriginal?.codprovsug?.trim() || "-"}>
+                                  {articuloOriginal?.codprovsug?.trim() ? articuloOriginal.codprovsug : "-"}
+                                </td>
+                                <td className={`px-0.5 py-1 text-right tabular-nums break-all align-top ${claseTextoRangoPrecio(rangoPrecio)}`}>
+                                  ${formatImporteAprob(art.precioUnitario)}
+                                </td>
+                                <td className="px-0.5 py-1 text-center tabular-nums align-top">
+                                  {(art.descuentoPorcentaje || 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
+                                </td>
+                                <td className={`px-0.5 py-1 text-right tabular-nums break-all align-top ${claseTextoRangoPrecio(rangoPrecio)}`}>
+                                  ${formatImporteAprob(art.subtotal)}
+                                </td>
+                              </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      <div className={`mt-2 text-center font-bold p-1.5 rounded border text-xs ${claseCajaTotalRango(
                         rangoTotalProveedor(prov.total, resumenComparativaVista),
-                        "text-gray-800 bg-gray-50"
+                        "text-gray-800 bg-white"
                       )}`}>
-                        Total: ${(prov.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span className="break-all tabular-nums">
+                          Total: ${formatImporteAprob(prov.total)}
+                        </span>
                       </div>
                       {puedeVerAdjuntos && prov.presupuesto_path && (
                         <p className="mt-2 text-center text-sm">

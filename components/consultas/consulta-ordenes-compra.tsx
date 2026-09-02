@@ -207,6 +207,8 @@ export function ConsultaOrdenesCompra() {
       (row) =>
         row.noc.toLowerCase().includes(q) ||
         row.pic.toLowerCase().includes(q) ||
+        row.sector.toLowerCase().includes(q) ||
+        etiquetaSector(row.sector).toLowerCase().includes(q) ||
         row.estado.toLowerCase().includes(q) ||
         row.proveedor.toLowerCase().includes(q) ||
         row.articulo.toLowerCase().includes(q)
@@ -244,6 +246,7 @@ export function ConsultaOrdenesCompra() {
         "estado",
         "noc",
         "pic",
+        "sector",
         "proveedor",
         "fecha_creacion",
         "fecha_prometida",
@@ -258,6 +261,7 @@ export function ConsultaOrdenesCompra() {
         "Estado",
         "OC",
         "PIC",
+        "Sector",
         "Proveedor",
         "Fecha creación",
         "Fecha prometida",
@@ -272,6 +276,7 @@ export function ConsultaOrdenesCompra() {
         estado: row.estado || "",
         noc: row.noc || "",
         pic: row.pic === "—" ? "" : row.pic,
+        sector: row.sector || "",
         proveedor: row.proveedor || "",
         fecha_creacion: row.fechaCreacion,
         fecha_prometida: row.fechaPrometida,
@@ -322,7 +327,7 @@ export function ConsultaOrdenesCompra() {
           </div>
           <Input
             type="search"
-            placeholder="Buscar OC, PIC, proveedor o artículo..."
+            placeholder="Buscar OC, PIC, sector, proveedor o artículo..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="h-8 sm:max-w-xs bg-white text-xs"
@@ -492,6 +497,7 @@ export function ConsultaOrdenesCompra() {
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Estado</th>
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">OC</th>
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">PIC</th>
+                  <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Sector</th>
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">Proveedor</th>
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">F. creación</th>
                   <th className="whitespace-nowrap px-2 py-1.5 font-semibold">F. prometida</th>
@@ -549,6 +555,12 @@ export function ConsultaOrdenesCompra() {
                       })()}
                     </td>
                     <td
+                      className="max-w-[9rem] truncate px-2 py-1 text-slate-700"
+                      title={row.sector ? etiquetaSector(row.sector) : undefined}
+                    >
+                      {row.sector ? etiquetaSector(row.sector) : "—"}
+                    </td>
+                    <td
                       className="max-w-[10rem] truncate px-2 py-1 text-slate-800"
                       title={row.proveedor || undefined}
                     >
@@ -583,7 +595,7 @@ export function ConsultaOrdenesCompra() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold text-slate-800">
-                  <td className="px-2 py-1.5" colSpan={8}>
+                  <td className="px-2 py-1.5" colSpan={9}>
                     Totales ({filtrados.length} filas)
                   </td>
                   <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">

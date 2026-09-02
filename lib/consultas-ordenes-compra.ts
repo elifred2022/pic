@@ -35,6 +35,7 @@ export type ConsultaOrdenCompraFila = {
   noc: string;
   pic: string;
   articuloId: string;
+  sector: string;
   estado: string;
   proveedor: string;
   fechaCreacion: string;
@@ -117,6 +118,7 @@ export function aplanarConsultaOrdenesCompra(
     const noc = String(orden.noc ?? "").trim();
     const estado = String(orden.estado ?? "").trim();
     const proveedor = String(orden.proveedor ?? "").trim();
+    const sector = String(orden.sector ?? "").trim();
     const fechaCreacion = formatFechaCreacion(orden);
     const fechaRaw = fechaCreacionRaw(orden);
     const fechaPrometida = formatFechaExcel(orden.fecha_prometida) || "—";
@@ -132,6 +134,7 @@ export function aplanarConsultaOrdenesCompra(
         articuloId: "",
         estado,
         proveedor,
+        sector,
         fechaCreacion,
         fechaCreacionRaw: fechaRaw,
         fechaPrometida,
@@ -162,6 +165,7 @@ export function aplanarConsultaOrdenesCompra(
         articuloId,
         estado,
         proveedor,
+        sector,
         fechaCreacion,
         fechaCreacionRaw: fechaRaw,
         fechaPrometida,
