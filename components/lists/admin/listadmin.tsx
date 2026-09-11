@@ -33,6 +33,9 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { fetchCurrentUserNombre } from "@/lib/user-rol";
+import NuevoPicGeneralAlertListener, {
+  NUEVO_PIC_GENERAL_EVENT,
+} from "@/components/realtime/nuevopicgeneralalertlistener";
 import {
   claseCajaTotalRango,
   claseCssImpresionPrecio,
@@ -1086,6 +1089,14 @@ export default function ListAdmin() {
     };
 
     fetchPedidos();
+
+    const onNuevoPic = () => {
+      void fetchPedidos();
+    };
+    window.addEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+    return () => {
+      window.removeEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+    };
   }, [supabase]);
 
   useEffect(() => {
@@ -1228,6 +1239,7 @@ export default function ListAdmin() {
 
   return (
     <div className="flex-1 w-full p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-slate-100 min-h-screen">
+      <NuevoPicGeneralAlertListener />
       {/* Header con navegación */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-md p-3 sm:p-4 mb-3">
         <div className="flex flex-wrap gap-2 items-center justify-between mb-3">

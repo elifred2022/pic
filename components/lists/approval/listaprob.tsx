@@ -17,6 +17,9 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import NuevoPicGeneralAlertListener, {
+  NUEVO_PIC_GENERAL_EVENT,
+} from "@/components/realtime/nuevopicgeneralalertlistener";
 import {
   claseCajaTotalRango,
   claseTextoRangoPrecio,
@@ -228,6 +231,14 @@ export default function ListAprob() {
       else setPedidos(data);
     };
     fetchPedidos();
+
+    const onNuevoPic = () => {
+      void fetchPedidos();
+    };
+    window.addEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+    return () => {
+      window.removeEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+    };
   }, [supabase]);
 
   // Función para formatear las fechas
@@ -343,6 +354,7 @@ export default function ListAprob() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
+      <NuevoPicGeneralAlertListener />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Link
           href="/auth/modulo-compras"

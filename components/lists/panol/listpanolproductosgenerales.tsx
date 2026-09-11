@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import PicRealtimeListener from "../../realtime/picrealtimelistener";
+import NuevoPicGeneralAlertListener, {
+  NUEVO_PIC_GENERAL_EVENT,
+} from "@/components/realtime/nuevopicgeneralalertlistener";
 import { isPanolEmail } from "@/lib/panol-access";
 import {
   appendHistoricoEstado,
@@ -181,6 +184,14 @@ export default function ListPanolProductosGenerales() {
   };
 
   fetchPedidos();
+
+  const onNuevoPic = () => {
+    void fetchPedidos();
+  };
+  window.addEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+  return () => {
+    window.removeEventListener(NUEVO_PIC_GENERAL_EVENT, onNuevoPic);
+  };
 }, [supabase]);
 
   useEffect(() => {
@@ -314,6 +325,7 @@ function renderValue(value: unknown): string {
       </div>
 
       <PicRealtimeListener />
+      <NuevoPicGeneralAlertListener />
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 sm:px-6 sm:py-4">

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ChatFloatingWidget } from "@/components/chats";
+import NuevoPicProductivoAlertListener from "@/components/realtime/nuevopicproductivoalertlistener";
+import NuevoPicGeneralAlertListener from "@/components/realtime/nuevopicgeneralalertlistener";
 import { hasEnvVars } from "@/lib/utils";
 import "./globals.css";
 
@@ -46,6 +48,8 @@ export default function RootLayout({
         >
           {children}
           {hasEnvVars ? <ChatFloatingWidget /> : null}
+          {hasEnvVars ? <NuevoPicProductivoAlertListener /> : null}
+          {hasEnvVars ? <NuevoPicGeneralAlertListener /> : null}
         </ThemeProvider>
       </body>
     </html>

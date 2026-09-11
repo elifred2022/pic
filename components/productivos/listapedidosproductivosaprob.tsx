@@ -17,6 +17,9 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import NuevoPicProductivoAlertListener, {
+  NUEVO_PIC_PRODUCTIVO_EVENT,
+} from "@/components/realtime/nuevopicproductivoalertlistener";
 import {
   claseCajaTotalRango,
   claseTextoRangoPrecio,
@@ -278,6 +281,14 @@ export default function ListaPedidosProductivosAprob() {
     };
   
     fetchPedidos();
+
+    const onNuevoPic = () => {
+      void fetchPedidos();
+    };
+    window.addEventListener(NUEVO_PIC_PRODUCTIVO_EVENT, onNuevoPic);
+    return () => {
+      window.removeEventListener(NUEVO_PIC_PRODUCTIVO_EVENT, onNuevoPic);
+    };
   }, [supabase]);
 
 
@@ -462,6 +473,7 @@ const handleUpdatePedido = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
+      <NuevoPicProductivoAlertListener />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Link
           href="/auth/modulo-compras"
