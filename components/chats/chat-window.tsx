@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, ImagePlus, Send, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./message-bubble";
@@ -13,6 +13,11 @@ import {
   sendMensaje,
 } from "./chat-api";
 import { setActiveChatConversationId } from "./chat-notification-state";
+import {
+  CHAT_IMAGEN_ACCEPT,
+  uploadChatImagen,
+  validateChatImagenFile,
+} from "@/lib/chat-storage";
 import type { ConversacionResumen, Mensaje } from "./types";
 
 type ChatWindowProps = {
@@ -32,10 +37,14 @@ export function ChatWindow({
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [otroLastReadAt, setOtroLastReadAt] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
+  const [foto, setFoto] = useState<{ file: File; previewUrl: string } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const onMessageSentRef = useRef(onMessageSent);
   const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -172,20 +181,76 @@ export function ChatWindow({
     };
   }, []);
 
+  const quitarFoto = useCallback(() => {
+    setFoto((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const elegirFoto = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) return;
+      const invalid = validateChatImagenFile(file);
+      if (invalid) {
+        setError(invalid);
+        return;
+      }
+      setError(null);
+      setFoto((prev) => {
+        if (prev) URL.revokeObjectURL(prev.previewUrl);
+        return { file, previewUrl: URL.createObjectURL(file) };
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    quitarFoto();
+    setTexto("");
+    setError(null);
+  }, [conversacionId, quitarFoto]);
+
+  useEffect(() => {
+    return () => {
+      if (foto) URL.revokeObjectURL(foto.previewUrl);
+    };
+  }, [foto]);
+
   const handleEnviar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!conversacionId || !texto.trim() || sending) return;
+    if (!conversacionId || sending) return;
+    if (!texto.trim() && !foto) return;
 
     setSending(true);
     setError(null);
     try {
+      let imagenPath: string | null = null;
+      if (foto) {
+        const subida = await uploadChatImagen(
+          supabase,
+          conversacionId,
+          currentUserUuid,
+          foto.file,
+        );
+        if ("error" in subida) {
+          setError(subida.error);
+          setSending(false);
+          return;
+        }
+        imagenPath = subida.storagePath;
+      }
+
       const mensaje = await sendMensaje(
         supabase,
         conversacionId,
         currentUserUuid,
         texto,
+        imagenPath,
       );
       setTexto("");
+      quitarFoto();
       setMensajes((prev) => {
         if (prev.some((m) => m.id === mensaje.id)) return prev;
         return [...prev, mensaje];
@@ -267,31 +332,86 @@ export function ChatWindow({
       </div>
 
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-sm text-red-600">
+        <p className="border-t bg-red-50 px-4 py-2 text-sm text-red-600">
           {error}
         </p>
       )}
 
+      {foto && (
+        <div className="flex items-start gap-2 border-t bg-card px-4 pt-3">
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={foto.previewUrl}
+              alt="Vista previa"
+              className="h-16 w-16 rounded-md object-cover"
+            />
+            <button
+              type="button"
+              onClick={quitarFoto}
+              className="absolute -right-2 -top-2 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"
+              aria-label="Quitar foto"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <p className="truncate pt-1 text-xs text-muted-foreground">
+            {foto.file.name}
+          </p>
+        </div>
+      )}
+
       <form
         onSubmit={handleEnviar}
-        className="flex items-end gap-2 border-t bg-card p-4"
+        className="flex items-end gap-2 border-t bg-card p-3"
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={CHAT_IMAGEN_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            elegirFoto(e.target.files?.[0]);
+            e.currentTarget.value = "";
+          }}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sending}
+          aria-label="Adjuntar foto"
+        >
+          <ImagePlus className="h-5 w-5" />
+        </Button>
         <textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Escribí un mensaje..."
+          placeholder={foto ? "Agregá un comentario (opcional)..." : "Escribí un mensaje..."}
           rows={2}
           className="min-h-[44px] flex-1 resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              handleEnviar(e);
+              void handleEnviar(e);
+            }
+          }}
+          onPaste={(e) => {
+            const item = Array.from(e.clipboardData.items).find((i) =>
+              i.type.startsWith("image/"),
+            );
+            const file = item?.getAsFile();
+            if (file) {
+              e.preventDefault();
+              elegirFoto(file);
             }
           }}
         />
         <Button
           type="submit"
-          disabled={!texto.trim() || sending}
+          disabled={sending || (!texto.trim() && !foto)}
           className="shrink-0"
         >
           <Send className="h-4 w-4" />

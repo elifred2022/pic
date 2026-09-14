@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { UserStatusList } from "./user-status-list";
+import { previewTextoMensaje } from "./chat-api";
 import type { ConversacionResumen, UsuarioChat } from "./types";
 
 type ConversationListProps = {
@@ -48,7 +49,7 @@ export function ConversationList({
     return conversaciones.filter((c) => {
       const nombre = c.otro_usuario?.nombre?.toLowerCase() ?? "";
       const email = c.otro_usuario?.email?.toLowerCase() ?? "";
-      const preview = c.ultimo_mensaje?.contenido?.toLowerCase() ?? "";
+      const preview = previewTextoMensaje(c.ultimo_mensaje).toLowerCase();
       return nombre.includes(q) || email.includes(q) || preview.includes(q);
     });
   }, [busqueda, conversaciones]);
@@ -113,7 +114,7 @@ export function ConversationList({
               </div>
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-sm text-muted-foreground">
-                  {conv.ultimo_mensaje?.contenido ?? "Sin mensajes aún"}
+                  {previewTextoMensaje(conv.ultimo_mensaje)}
                 </p>
                 {conv.no_leidos > 0 && (
                   <Badge className="shrink-0">{conv.no_leidos}</Badge>

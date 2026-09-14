@@ -10,6 +10,7 @@ export type Mensaje = {
   conversacion_id: string;
   remitente_uuid: string;
   contenido: string;
+  imagen_path?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -14,6 +14,7 @@ import {
   getOrCreateDirectConversation,
   listConversaciones,
   listUsuarios,
+  previewTextoMensaje,
 } from "./chat-api";
 import { useOnlinePresence } from "./use-online-presence";
 import {
@@ -213,7 +214,7 @@ export function ChatFloatingWidget() {
           conversacionId,
           remitenteUuid: mensaje.remitente_uuid,
           nombre: remitente?.nombre ?? "Usuario",
-          contenido: mensaje.contenido,
+          contenido: previewTextoMensaje(mensaje),
         });
       }
 
@@ -259,7 +260,7 @@ export function ChatFloatingWidget() {
         (conv.ultimo_mensaje.remitente_uuid !== userUuid
           ? conv.ultimo_mensaje.remitente_uuid
           : null);
-      if (uuid) map.set(uuid, conv.ultimo_mensaje.contenido);
+      if (uuid) map.set(uuid, previewTextoMensaje(conv.ultimo_mensaje));
     }
     return map;
   }, [conversaciones, userUuid]);

@@ -21,9 +21,14 @@ CREATE TABLE IF NOT EXISTS mensajes (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     conversacion_id UUID NOT NULL REFERENCES conversaciones(id) ON DELETE CASCADE,
     remitente_uuid UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    contenido TEXT NOT NULL CHECK (char_length(trim(contenido)) > 0),
+    contenido TEXT NOT NULL DEFAULT '',
+    imagen_path TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT mensajes_contenido_o_imagen_check CHECK (
+      char_length(trim(contenido)) > 0
+      OR (imagen_path IS NOT NULL AND char_length(trim(imagen_path)) > 0)
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_participantes_usuario ON conversacion_participantes(usuario_uuid);

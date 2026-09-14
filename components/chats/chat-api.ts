@@ -181,9 +181,11 @@ export async function sendMensaje(
   conversacionId: string,
   remitenteUuid: string,
   contenido: string,
+  imagenPath?: string | null,
 ): Promise<Mensaje> {
   const texto = contenido.trim();
-  if (!texto) throw new Error("El mensaje no puede estar vacío");
+  const imagen = imagenPath?.trim() || null;
+  if (!texto && !imagen) throw new Error("El mensaje no puede estar vacío");
 
   const { data, error } = await supabase
     .from("mensajes")
@@ -191,12 +193,23 @@ export async function sendMensaje(
       conversacion_id: conversacionId,
       remitente_uuid: remitenteUuid,
       contenido: texto,
+      imagen_path: imagen,
     })
     .select("*")
     .single();
 
   if (error) throw error;
   return data as Mensaje;
+}
+
+export function previewTextoMensaje(
+  mensaje: Pick<Mensaje, "contenido" | "imagen_path"> | null | undefined,
+): string {
+  if (!mensaje) return "Sin mensajes aún";
+  const texto = mensaje.contenido?.trim() ?? "";
+  if (texto) return texto;
+  if (mensaje.imagen_path?.trim()) return "📷 Foto";
+  return "Sin mensajes aún";
 }
 
 export async function markConversacionAsRead(
