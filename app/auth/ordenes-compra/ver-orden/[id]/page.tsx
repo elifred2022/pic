@@ -405,6 +405,24 @@ type ArticuloOrdenItem = {
   codprovsug?: string | null;
 };
 
+type ArticuloCatalogoOrden = {
+  id: string;
+  codint: string | null;
+  articulo: string;
+  descripcion: string | null;
+  presentacion: string | null;
+  codprovsug: string | null;
+  costunit: number | string | null;
+  descuento: number | string | null;
+};
+
+const catalogoArticuloVacio = {
+  codint: "",
+  cantidad: "1",
+  precio_unitario: "0",
+  descuento: "0",
+};
+
 function esEntradaDecimalValida(valor: string) {
   return valor === "" || /^\d*[.,]?\d*$/.test(valor);
 }
@@ -1033,6 +1051,12 @@ export default function VerOrdenCompraPage() {
     precio_unitario: '0',
     descuento: '0'
   });
+  const [showCatalogoModal, setShowCatalogoModal] = useState(false);
+  const [catalogoForm, setCatalogoForm] = useState(catalogoArticuloVacio);
+  const [catalogoEncontrado, setCatalogoEncontrado] = useState<ArticuloCatalogoOrden | null>(null);
+  const [catalogoResultados, setCatalogoResultados] = useState<ArticuloCatalogoOrden[]>([]);
+  const [catalogoBuscando, setCatalogoBuscando] = useState(false);
+  const [catalogoError, setCatalogoError] = useState<string | null>(null);
   const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
   const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   const [showEntregaModal, setShowEntregaModal] = useState(false);
@@ -1242,6 +1266,79 @@ export default function VerOrdenCompraPage() {
     window.addEventListener("afterprint", resetPrintMode);
     return () => window.removeEventListener("afterprint", resetPrintMode);
   }, []);
+
+  useEffect(() => {
+    if (!showCatalogoModal) return;
+    const term = catalogoForm.codint.trim();
+    if (term.length < 1) {
+      setCatalogoResultados([]);
+      setCatalogoBuscando(false);
+      return;
+    }
+
+    if (
+      catalogoEncontrado &&
+      (catalogoEncontrado.codint ?? "").trim().toLowerCase() === term.toLowerCase()
+    ) {
+      setCatalogoResultados([]);
+      setCatalogoBuscando(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCatalogoBuscando(true);
+    const timer = setTimeout(async () => {
+      const codigo = term.replace(/%/g, "");
+      const { data, error: searchError } = await supabase
+        .from("articulos")
+        .select("id, codint, articulo, descripcion, presentacion, codprovsug, costunit, descuento")
+        .ilike("codint", `%${codigo}%`)
+        .limit(12);
+
+      if (cancelled) return;
+      setCatalogoBuscando(false);
+      if (searchError) {
+        console.error("Error buscando artículo por codint:", searchError);
+        setCatalogoResultados([]);
+        setCatalogoError("No se pudo buscar en la tabla de artículos.");
+        return;
+      }
+
+      const rows = (data as ArticuloCatalogoOrden[]) || [];
+      const exacto =
+        rows.length === 1 &&
+        (rows[0].codint ?? "").trim().toLowerCase() === term.toLowerCase()
+          ? rows[0]
+          : null;
+
+      if (exacto) {
+        if (catalogoEncontrado?.id !== exacto.id) {
+          setCatalogoEncontrado(exacto);
+          setCatalogoForm((form) => ({
+            ...form,
+            precio_unitario: exacto.costunit != null ? String(exacto.costunit) : "0",
+            descuento: exacto.descuento != null ? String(exacto.descuento) : "0",
+          }));
+        }
+        setCatalogoResultados([]);
+        setCatalogoError(null);
+        return;
+      }
+
+      setCatalogoResultados(rows);
+      if (
+        catalogoEncontrado &&
+        (catalogoEncontrado.codint ?? "").trim().toLowerCase() !== term.toLowerCase()
+      ) {
+        setCatalogoEncontrado(null);
+      }
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [catalogoForm.codint, catalogoEncontrado?.id, showCatalogoModal, supabase]);
 
   useEffect(() => {
     if (!orden) {
@@ -2530,6 +2627,28 @@ export default function VerOrdenCompraPage() {
           update_usuario: updateUsuario,
           updated_at: new Date().toISOString(),
         };
+        const codintArticulo = item.codint?.trim();
+        if (codintArticulo) {
+          const { data: byCodint, error: codintError } = await supabase
+            .from("articulos")
+            .select("id")
+            .eq("codint", codintArticulo)
+            .limit(1)
+            .maybeSingle();
+
+          if (codintError) {
+            return { error: codintError };
+          }
+
+          if (byCodint?.id) {
+            const { error: updateError } = await supabase
+              .from("articulos")
+              .update(payload)
+              .eq("id", byCodint.id);
+            return { error: updateError ?? null };
+          }
+        }
+
         const { data: exactMatch, error: exactError } = await supabase
           .from("articulos")
           .select("id")
@@ -2801,6 +2920,76 @@ export default function VerOrdenCompraPage() {
       descuento: '0'
     });
     setShowArticuloModal(false);
+  };
+
+  const cerrarCatalogoModal = () => {
+    setShowCatalogoModal(false);
+    setCatalogoForm(catalogoArticuloVacio);
+    setCatalogoEncontrado(null);
+    setCatalogoResultados([]);
+    setCatalogoBuscando(false);
+    setCatalogoError(null);
+  };
+
+  const seleccionarArticuloCatalogo = (art: ArticuloCatalogoOrden) => {
+    setCatalogoEncontrado(art);
+    setCatalogoForm((prev) => ({
+      ...prev,
+      codint: art.codint?.trim() || prev.codint,
+      precio_unitario: art.costunit != null ? String(art.costunit) : "0",
+      descuento: art.descuento != null ? String(art.descuento) : "0",
+    }));
+    setCatalogoResultados([]);
+    setCatalogoError(null);
+  };
+
+  const handleAgregarArticuloCatalogo = () => {
+    if (!catalogoEncontrado) {
+      setCatalogoError("Busque y seleccione un artículo por código interno.");
+      return;
+    }
+
+    const cantidad = parseCantidadDecimal(catalogoForm.cantidad);
+    if (cantidad <= 0) {
+      setCatalogoError("La cantidad debe ser mayor a 0.");
+      return;
+    }
+
+    const codint = catalogoEncontrado.codint?.trim() || "";
+    const yaEsta = editData.articulos.some((item) => {
+      if (codint && normalizeArticuloId(item.codint ?? "") === normalizeArticuloId(codint)) {
+        return true;
+      }
+      return item.articulo_id === `catalogo-${catalogoEncontrado.id}`;
+    });
+    if (yaEsta) {
+      setCatalogoError("Este artículo ya está en la orden.");
+      return;
+    }
+
+    const precioUnitario = parseCantidadDecimal(catalogoForm.precio_unitario);
+    const descuento = parseDescuentoPorcentaje(catalogoForm.descuento);
+    const precioConDescuento = calcularPrecioConDescuento(precioUnitario, descuento);
+    const articulo: ArticuloOrdenItem = {
+      articulo_id: `catalogo-${catalogoEncontrado.id}`,
+      articulo_nombre: String(catalogoEncontrado.articulo ?? "").trim(),
+      cantidad,
+      precio_unitario: precioUnitario,
+      descuento,
+      divisa: normalizeDivisa(editData.divisa),
+      costunitcdesc: precioConDescuento,
+      total: cantidad * precioConDescuento,
+      codint: codint || null,
+      descripcion: catalogoEncontrado.descripcion?.trim() || null,
+      presentacion: catalogoEncontrado.presentacion?.trim() || null,
+      codprovsug: catalogoEncontrado.codprovsug?.trim() || null,
+    };
+
+    setEditData({
+      ...editData,
+      articulos: [...editData.articulos, articulo],
+    });
+    cerrarCatalogoModal();
   };
 
   const handleEliminarArticulo = (index: number) => {
@@ -3887,12 +4076,25 @@ export default function VerOrdenCompraPage() {
               <div className="bg-purple-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-semibold text-purple-800">📦 Artículos de la Orden</h4>
-                  <Button
-                    onClick={() => setShowArticuloModal(true)}
-                    className="bg-purple-600 hover:bg-purple-700 text-sm"
-                  >
-                    ➕ Agregar Artículo
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setCatalogoError(null);
+                        setShowCatalogoModal(true);
+                      }}
+                      className="bg-sky-600 hover:bg-sky-700 text-sm"
+                    >
+                      ➕ Agregar por Cod. Int.
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setShowArticuloModal(true)}
+                      className="bg-purple-600 hover:bg-purple-700 text-sm"
+                    >
+                      ➕ Agregar Artículo
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="bg-gray-100 print:bg-gray-200">
@@ -3931,6 +4133,10 @@ export default function VerOrdenCompraPage() {
                               className="text-sm"
                             />
                             <div className="flex flex-col gap-1 text-xs text-gray-600 pl-0.5">
+                              <p className="leading-snug">
+                                <span className="text-gray-500">Cod. Int.: </span>
+                                {articulo.codint?.trim() ? articulo.codint : "-"}
+                              </p>
                               <p className="leading-snug">
                                 <span className="text-gray-500">Descripción: </span>
                                 {articulo.descripcion?.trim() ? articulo.descripcion : "-"}
@@ -4039,12 +4245,25 @@ export default function VerOrdenCompraPage() {
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <p>No hay artículos en esta orden</p>
-                    <Button
-                      onClick={() => setShowArticuloModal(true)}
-                      className="mt-2 bg-purple-600 hover:bg-purple-700"
-                    >
-                      Agregar el primer artículo
-                    </Button>
+                    <div className="mt-2 flex flex-wrap justify-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setCatalogoError(null);
+                          setShowCatalogoModal(true);
+                        }}
+                        className="bg-sky-600 hover:bg-sky-700"
+                      >
+                        Agregar por Cod. Int.
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setShowArticuloModal(true)}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        Agregar el primer artículo
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -4183,6 +4402,181 @@ export default function VerOrdenCompraPage() {
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 Agregar Artículo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCatalogoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-1">Agregar artículo del catálogo</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Busque por código interno en la tabla de artículos. El precio y el descuento se completan desde el catálogo y puede ajustarlos.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="catalogo-codint">Código interno</Label>
+                <Input
+                  id="catalogo-codint"
+                  type="text"
+                  value={catalogoForm.codint}
+                  onChange={(e) => {
+                    setCatalogoForm((prev) => ({ ...prev, codint: e.target.value }));
+                    setCatalogoEncontrado(null);
+                    setCatalogoError(null);
+                  }}
+                  placeholder="Ej: 1416"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {catalogoBuscando ? "Buscando..." : "Escriba el código interno del artículo"}
+                </p>
+              </div>
+
+              {catalogoResultados.length > 0 && (
+                <div className="border rounded-lg max-h-40 overflow-y-auto divide-y">
+                  {catalogoResultados.map((art) => (
+                    <button
+                      key={art.id}
+                      type="button"
+                      onClick={() => seleccionarArticuloCatalogo(art)}
+                      className="w-full text-left px-3 py-2 hover:bg-sky-50"
+                    >
+                      <span className="font-medium text-sm">{art.articulo}</span>
+                      <span className="ml-2 text-xs text-sky-800">Cod. Int.: {art.codint}</span>
+                      {art.descripcion?.trim() && (
+                        <p className="text-xs text-gray-500 mt-0.5">{art.descripcion}</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!catalogoBuscando &&
+                catalogoForm.codint.trim().length > 0 &&
+                catalogoResultados.length === 0 &&
+                !catalogoEncontrado && (
+                  <p className="text-sm text-amber-700">
+                    No hay artículos con ese código interno.
+                  </p>
+                )}
+
+              {catalogoEncontrado && (
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm">
+                  <p className="font-medium">{catalogoEncontrado.articulo}</p>
+                  <p className="text-gray-600 mt-1">
+                    Descripción: {catalogoEncontrado.descripcion?.trim() || "-"}
+                  </p>
+                  <p className="text-red-600 font-semibold mt-0.5">
+                    Presentación: {catalogoEncontrado.presentacion?.trim() || "-"}
+                  </p>
+                  <p className="text-gray-600 mt-0.5">
+                    Cod. prov. sug.: {catalogoEncontrado.codprovsug?.trim() || "-"}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="catalogo-cantidad">Cantidad</Label>
+                  <Input
+                    id="catalogo-cantidad"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={catalogoForm.cantidad}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (!esEntradaDecimalValida(valor)) return;
+                      setCatalogoForm((prev) => ({ ...prev, cantidad: valor }));
+                    }}
+                    onBlur={() => {
+                      setCatalogoForm((prev) => ({
+                        ...prev,
+                        cantidad: String(parseCantidadDecimal(prev.cantidad) || ""),
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="catalogo-precio">Precio</Label>
+                  <Input
+                    id="catalogo-precio"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={catalogoForm.precio_unitario}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (!esEntradaDecimalValida(valor)) return;
+                      setCatalogoForm((prev) => ({ ...prev, precio_unitario: valor }));
+                    }}
+                    onBlur={() => {
+                      setCatalogoForm((prev) => ({
+                        ...prev,
+                        precio_unitario: String(parseCantidadDecimal(prev.precio_unitario)),
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="catalogo-descuento">Descuento %</Label>
+                  <Input
+                    id="catalogo-descuento"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={catalogoForm.descuento}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (!esEntradaDecimalValida(valor)) return;
+                      setCatalogoForm((prev) => ({ ...prev, descuento: valor }));
+                    }}
+                    onBlur={() => {
+                      setCatalogoForm((prev) => ({
+                        ...prev,
+                        descuento: String(parseDescuentoPorcentaje(prev.descuento)),
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Subtotal</span>
+                  <span className="font-bold text-lg whitespace-nowrap">
+                    {formatImporte(
+                      parseCantidadDecimal(catalogoForm.cantidad) *
+                        calcularPrecioConDescuento(
+                          parseCantidadDecimal(catalogoForm.precio_unitario),
+                          parseDescuentoPorcentaje(catalogoForm.descuento)
+                        ),
+                      editData.divisa
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {catalogoError && (
+                <p className="text-sm text-red-600">{catalogoError}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button type="button" onClick={cerrarCatalogoModal} variant="outline">
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAgregarArticuloCatalogo}
+                disabled={!catalogoEncontrado || parseCantidadDecimal(catalogoForm.cantidad) <= 0}
+                className="bg-sky-600 hover:bg-sky-700"
+              >
+                Agregar artículo
               </Button>
             </div>
           </div>
