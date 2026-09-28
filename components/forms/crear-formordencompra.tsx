@@ -119,6 +119,9 @@ export function CrearFormOrdenCompra() {
   const [busquedaArticuloCatalogo, setBusquedaArticuloCatalogo] = useState("");
   const [articulosCatalogo, setArticulosCatalogo] = useState<ArticuloCatalogo[]>([]);
   const [buscandoCatalogo, setBuscandoCatalogo] = useState(false);
+  const [showPicModal, setShowPicModal] = useState(false);
+  const [picBusqueda, setPicBusqueda] = useState("");
+  const [picLoading, setPicLoading] = useState(false);
   const [articuloSinPic, setArticuloSinPic] = useState({
     nombre: "",
     cantidad: "1",
@@ -333,121 +336,139 @@ export function CrearFormOrdenCompra() {
   }, [supabase]);
 
   const fetchArticulosAprobados = useCallback(async () => {
+    setPicLoading(true);
     try {
-      console.log("🔍 Intentando obtener artículos aprobados...");
-      
-      // Obtener artículos aprobados de pedidos productivos
-      const { data: articulosProductivosData, error: articulosProductivosError } = await supabase
-        .from("pedidos_productivos")
-        .select("*")
-        .eq("estado", "aprobado");
+      const pageSize = 1000;
+      const estadosPic = ["aprobado", "confirmado"];
 
-      if (articulosProductivosError) {
-        console.error("❌ Error obteniendo artículos productivos:", articulosProductivosError);
-        throw articulosProductivosError;
-      }
-
-      // Obtener artículos aprobados de pedidos generales (tabla pic)
-      const { data: articulosGeneralesData, error: articulosGeneralesError } = await supabase
-        .from("pic")
-        .select("*")
-        .eq("estado", "aprobado");
-
-      if (articulosGeneralesError) {
-        console.error("❌ Error obteniendo artículos generales:", articulosGeneralesError);
-        throw articulosGeneralesError;
-      }
-
-      // Obtener órdenes de compra existentes
-      const { data: ordenesData, error: ordenesError } = await supabase
-        .from("ordenes_compra")
-        .select("articulos");
-
-      if (ordenesError) {
-        console.error("❌ Error obteniendo órdenes:", ordenesError);
-        throw ordenesError;
-      }
-
-      // Extraer IDs de artículos ya usados en órdenes
-      const articulosUsados = new Set<string>();
-      ordenesData?.forEach(orden => {
-        if (orden.articulos) {
-          orden.articulos.forEach((item: ArticuloOrden) => {
-            articulosUsados.add(item.articulo_id);
-          });
+      const cargarPedidos = async (origen: "productivo" | "general") => {
+        const todos: Array<{
+          id: string | number;
+          articulos?: ArticuloPedido[] | null;
+          categoria?: string;
+          sector?: string;
+          solicita?: string;
+          aprueba?: string;
+          necesidad?: string;
+          estado?: string;
+        }> = [];
+        let from = 0;
+        while (true) {
+          const query =
+            origen === "productivo"
+              ? supabase
+                  .from("pedidos_productivos")
+                  .select("id, articulos, categoria, sector, solicita, aprueba, necesidad, estado")
+                  .in("estado", estadosPic)
+                  .order("id", { ascending: true })
+                  .range(from, from + pageSize - 1)
+              : supabase
+                  .from("pic")
+                  .select("id, articulos, categoria, sector, solicita, aprueba, necesidad, estado")
+                  .in("estado", estadosPic)
+                  .order("id", { ascending: true })
+                  .range(from, from + pageSize - 1);
+          const { data, error } = await query;
+          if (error) throw error;
+          const batch =
+            (data as unknown as typeof todos | null) ?? [];
+          todos.push(...batch);
+          if (batch.length < pageSize) break;
+          from += pageSize;
         }
+        return todos;
+      };
+
+      const cargarOrdenes = async () => {
+        const todos: Array<{ articulos?: ArticuloOrden[] | null }> = [];
+        let from = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("ordenes_compra")
+            .select("id, articulos")
+            .order("id", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (error) throw error;
+          const batch = (data as unknown as typeof todos | null) ?? [];
+          todos.push(...batch);
+          if (batch.length < pageSize) break;
+          from += pageSize;
+        }
+        return todos;
+      };
+
+      const [articulosProductivosData, articulosGeneralesData, ordenesData] = await Promise.all([
+        cargarPedidos("productivo"),
+        cargarPedidos("general"),
+        cargarOrdenes(),
+      ]);
+
+      const articulosUsados = new Set<string>();
+      ordenesData.forEach((orden) => {
+        (orden.articulos ?? []).forEach((item) => {
+          const id = String(item.articulo_id ?? "").trim();
+          if (id) articulosUsados.add(id);
+        });
       });
 
-      console.log("📋 Artículos ya usados:", Array.from(articulosUsados));
-      
-      // Procesar artículos de pedidos productivos
-      const articulosProductivosProcesados = articulosProductivosData?.flatMap(pedido => 
-        pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
-          id: `productivo-${pedido.id}-${index}-${String(articulo.articulo ?? "").trim()}`,
-          pedido_id: pedido.id, // ID del pedido original
-          articulo: articulo.articulo,
-          descripcion: articulo.descripcion,
-          cantidad: articulo.cant,
-          cant_exist: articulo.cant_exist,
-          observacion: articulo.observacion,
-          codint: articulo.codint,
-          codprovsug: articulo.codprovsug,
-          categoria: pedido.categoria,
-          sector: pedido.sector,
-          solicita: pedido.solicita,
-          aprueba: pedido.aprueba,
-          necesidad: pedido.necesidad,
-          estado: pedido.estado,
-          origen: 'productivo' as const
-        })) || []
-      ) || [];
+      const mapear = (
+        pedidos: typeof articulosProductivosData,
+        origen: "productivo" | "general"
+      ) =>
+        pedidos.flatMap((pedido) =>
+          (pedido.articulos ?? []).map((articulo, index) => ({
+            id: `${origen}-${pedido.id}-${index}-${String(articulo.articulo ?? "").trim()}`,
+            pedido_id: String(pedido.id),
+            articulo: articulo.articulo,
+            descripcion: articulo.descripcion,
+            cantidad: articulo.cant,
+            cant_exist: articulo.cant_exist,
+            observacion: articulo.observacion || "",
+            codint: articulo.codint,
+            codprovsug: articulo.codprovsug,
+            categoria: pedido.categoria ?? "",
+            sector: pedido.sector ?? "",
+            solicita: pedido.solicita ?? "",
+            aprueba: pedido.aprueba ?? "",
+            necesidad: pedido.necesidad ?? "",
+            estado: pedido.estado ?? "",
+            origen,
+          }))
+        );
 
-      // Procesar artículos de pedidos generales (tabla pic)
-      const articulosGeneralesProcesados = articulosGeneralesData?.flatMap(pedido => 
-        pedido.articulos?.map((articulo: ArticuloPedido, index: number) => ({
-          id: `general-${pedido.id}-${index}-${String(articulo.articulo ?? "").trim()}`,
-          pedido_id: pedido.id, // ID del pedido original
-          articulo: articulo.articulo,
-          descripcion: articulo.descripcion,
-          cantidad: articulo.cant,
-          cant_exist: articulo.cant_exist,
-          observacion: articulo.observacion || '',
-          categoria: pedido.categoria,
-          sector: pedido.sector,
-          solicita: pedido.solicita,
-          aprueba: pedido.aprueba,
-          necesidad: pedido.necesidad,
-          estado: pedido.estado,
-          origen: 'general' as const
-        })) || []
-      ) || [];
-      
-      // Combinar ambos tipos de artículos
-      const todosLosArticulos = [...articulosProductivosProcesados, ...articulosGeneralesProcesados];
-      
-      // Filtrar artículos que ya están en órdenes
-      const articulosDisponibles = todosLosArticulos.filter(
-        articulo => !articulosUsados.has(articulo.id)
+      const articulosDisponibles = [
+        ...mapear(articulosProductivosData, "productivo"),
+        ...mapear(articulosGeneralesData, "general"),
+      ].filter(
+        (articulo) =>
+          String(articulo.articulo ?? "").trim() &&
+          !articulosUsados.has(articulo.id)
       );
 
       const articulosEnriquecidos = await enriquecerArticulosConCatalogo(articulosDisponibles);
-      
-      console.log("✅ Artículos productivos procesados:", articulosProductivosProcesados);
-      console.log("✅ Artículos generales procesados:", articulosGeneralesProcesados);
-      console.log("✅ Artículos disponibles (filtrados):", articulosEnriquecidos);
-      
+      articulosEnriquecidos.sort((a, b) =>
+        String(a.articulo ?? "").localeCompare(String(b.articulo ?? ""), "es")
+      );
       setArticulosAprobados(articulosEnriquecidos);
     } catch (err) {
-      console.error("💥 Error completo:", err);
-      setError("Error al cargar los artículos aprobados: " + (err as Error).message);
+      console.error("Error cargando artículos de PIC:", err);
+      setError("Error al cargar los artículos de PIC libres: " + (err as Error).message);
+    } finally {
+      setPicLoading(false);
     }
   }, [supabase, enriquecerArticulosConCatalogo]);
 
   useEffect(() => {
     fetchProveedores();
-    fetchArticulosAprobados();
     fetchUltimoNOC();
-  }, [fetchProveedores, fetchArticulosAprobados, fetchUltimoNOC]);
+  }, [fetchProveedores, fetchUltimoNOC]);
+
+  const abrirModalPic = () => {
+    setError(null);
+    setPicBusqueda("");
+    setShowPicModal(true);
+    void fetchArticulosAprobados();
+  };
 
   useEffect(() => {
     const term = busquedaArticuloCatalogo.trim();
@@ -1349,68 +1370,17 @@ export function CrearFormOrdenCompra() {
               )}
             </div>
 
-            {/* Artículos Aprobados */}
-            <div>
-              <Label className="text-lg font-semibold">Artículos Aprobados Disponibles</Label>
-              <div className="mt-3 grid gap-3">
-                                 {articulosAprobados.map((articulo) => (
-                   <div key={articulo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                     <div className="flex-1">
-                       <div className="flex items-center gap-2 mb-1">
-                         <h4 className="font-medium">{articulo.articulo}</h4>
-                         <span className={`px-2 py-1 text-xs rounded-full ${
-                           articulo.origen === 'productivo' 
-                             ? 'bg-blue-100 text-blue-800' 
-                             : 'bg-green-100 text-green-800'
-                         }`}>
-                           {articulo.origen === 'productivo' ? '🏭 Productivo' : '📋 General'}
-                         </span>
-                         <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
-                           ID Artículo: {articulo.id}
-                         </span>
-                         <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                           ID Pedido: {articulo.pedido_id}
-                         </span>
-                       </div>
-                       <p className="text-sm text-gray-600">
-                         Cantidad: {articulo.cantidad} | Categoría: {articulo.categoria} | 
-                         Sector: {articulo.sector} | Solicita: {articulo.solicita}
-                       </p>
-                       {articulo.descripcion && (
-                         <p className="text-xs text-gray-500 mt-1">
-                           Descripción: {articulo.descripcion}
-                         </p>
-                       )}
-                       <p className="text-xs text-gray-500 mt-0.5">
-                         Cod. prov. sug.:{" "}
-                         {articulo.codprovsug?.trim() ? articulo.codprovsug : "-"}
-                       </p>
-                       {articulo.costunit != null && (
-                         <p className="text-xs text-gray-600 mt-0.5">
-                           Precio catálogo:{" "}
-                           {parseNumero(String(articulo.costunit)).toLocaleString("es-AR")}
-                           {articulo.descuento && parseNumero(String(articulo.descuento)) > 0
-                             ? ` (desc. ${articulo.descuento}%)`
-                             : ""}
-                         </p>
-                       )}
-                       {articulo.observacion && (
-                         <p className="text-xs text-gray-500 mt-1">
-                           Observación: {articulo.observacion}
-                         </p>
-                       )}
-                     </div>
-                     <Button
-                       type="button"
-                       onClick={() => handleAgregarArticulo(articulo)}
-                       className="bg-blue-600 hover:bg-blue-700"
-                       disabled={itemsOrden.some(item => item.articulo_id === articulo.id)}
-                     >
-                       {itemsOrden.some(item => item.articulo_id === articulo.id) ? "✅ Agregado" : "➕ Agregar"}
-                     </Button>
-                   </div>
-                 ))}
-              </div>
+            <div className="border border-dashed border-emerald-300 rounded-lg p-4 bg-emerald-50/50">
+              <Button
+                type="button"
+                onClick={abrirModalPic}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                Tomar artículo de PIC
+              </Button>
+              <p className="text-sm text-emerald-800 mt-1">
+                PIC aprobados o confirmados cuyo artículo todavía no está en otra orden de compra.
+              </p>
             </div>
 
             {/* Artículos de la Orden */}
@@ -1654,6 +1624,128 @@ export function CrearFormOrdenCompra() {
           </form>
         </CardContent>
       </Card>
+
+      {showPicModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-1">Tomar artículo de PIC</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Solo se listan artículos de PIC aprobados o confirmados que no están tomados en otra orden de compra.
+            </p>
+
+            <div className="mb-4">
+              <Label htmlFor="pic-busqueda-crear">Buscar</Label>
+              <Input
+                id="pic-busqueda-crear"
+                type="text"
+                value={picBusqueda}
+                onChange={(e) => setPicBusqueda(e.target.value)}
+                placeholder="Artículo, PIC, código interno, sector o solicitante"
+                autoComplete="off"
+              />
+            </div>
+
+            {picLoading && (
+              <p className="text-sm text-gray-600">Cargando artículos libres...</p>
+            )}
+
+            {!picLoading && (() => {
+              const termino = picBusqueda.trim().toLowerCase();
+              const visibles = articulosAprobados.filter((articulo) => {
+                if (!termino) return true;
+                const texto = [
+                  articulo.articulo,
+                  articulo.pedido_id,
+                  articulo.codint,
+                  articulo.sector,
+                  articulo.solicita,
+                  articulo.descripcion,
+                  articulo.estado,
+                  articulo.categoria,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+                return texto.includes(termino);
+              });
+
+              if (visibles.length === 0) {
+                return (
+                  <p className="text-sm text-gray-500">
+                    No hay artículos de PIC libres para esa búsqueda.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                  {visibles.map((articulo) => {
+                    const yaAgregado = itemsOrden.some(
+                      (item) => item.articulo_id.trim() === articulo.id.trim()
+                    );
+                    return (
+                      <div
+                        key={articulo.id}
+                        className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{articulo.articulo}</span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                articulo.origen === "productivo"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {articulo.origen === "productivo" ? "Productivo" : "General"}
+                            </span>
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-700">
+                              PIC {articulo.pedido_id}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                articulo.estado === "confirmado"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {articulo.estado}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Cantidad: {articulo.cantidad}
+                            {articulo.sector ? ` | Sector: ${articulo.sector}` : ""}
+                            {articulo.solicita ? ` | Solicita: ${articulo.solicita}` : ""}
+                            {articulo.codint ? ` | Cod. Int.: ${articulo.codint}` : ""}
+                          </p>
+                          {articulo.descripcion && (
+                            <p className="text-xs text-gray-500 mt-0.5">{articulo.descripcion}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => handleAgregarArticulo(articulo)}
+                          disabled={yaAgregado}
+                          className="shrink-0 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {yaAgregado ? "Agregado" : "Tomar"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end mt-6">
+              <Button type="button" variant="outline" onClick={() => setShowPicModal(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
