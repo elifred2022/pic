@@ -3047,7 +3047,7 @@ export default function VerOrdenCompraPage() {
           if (estados) query = query.in("estado", estados);
           const { data, error } = await query;
           if (error) throw error;
-          const batch = (data as Record<string, unknown>[] | null) ?? [];
+          const batch = (data as unknown as Record<string, unknown>[] | null) ?? [];
           all.push(...batch);
           if (batch.length < pageSize) break;
           from += pageSize;
@@ -3124,14 +3124,16 @@ export default function VerOrdenCompraPage() {
         ...new Set(lista.filter((art) => !art.codint).map((art) => art.nombre)),
       ];
 
-      const porCodint = new Map<
-        string,
-        { descripcion?: string; presentacion?: string; codprovsug?: string; costunit?: number; descuento?: number }
-      >();
-      const porNombre = new Map<
-        string,
-        { codint?: string; descripcion?: string; presentacion?: string; codprovsug?: string; costunit?: number; descuento?: number }
-      >();
+      type CatalogoPic = {
+        codint?: string;
+        descripcion?: string;
+        presentacion?: string;
+        codprovsug?: string;
+        costunit?: number;
+        descuento?: number;
+      };
+      const porCodint = new Map<string, CatalogoPic>();
+      const porNombre = new Map<string, CatalogoPic>();
 
       if (codints.length > 0) {
         const { data } = await supabase
