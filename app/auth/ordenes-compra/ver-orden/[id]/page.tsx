@@ -423,6 +423,39 @@ const catalogoArticuloVacio = {
   descuento: "0",
 };
 
+type ArticuloPicTomable = {
+  id: string;
+  pedidoId: string;
+  nombre: string;
+  descripcion: string;
+  cantidad: number;
+  sector: string;
+  solicita: string;
+  estado: string;
+  origen: "productivo" | "general";
+  codint: string | null;
+  codprovsug: string | null;
+  presentacion: string | null;
+  costunit: number;
+  descuento: number;
+  tomadoEnNoc: number | null;
+};
+
+type PedidoPicRow = {
+  id: string | number;
+  articulos?: Array<{
+    articulo?: string;
+    descripcion?: string;
+    cant?: number | string;
+    observacion?: string;
+    codint?: string;
+    codprovsug?: string;
+  }> | null;
+  sector?: string | null;
+  solicita?: string | null;
+  estado?: string | null;
+};
+
 function esEntradaDecimalValida(valor: string) {
   return valor === "" || /^\d*[.,]?\d*$/.test(valor);
 }
@@ -1057,6 +1090,11 @@ export default function VerOrdenCompraPage() {
   const [catalogoResultados, setCatalogoResultados] = useState<ArticuloCatalogoOrden[]>([]);
   const [catalogoBuscando, setCatalogoBuscando] = useState(false);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
+  const [showPicModal, setShowPicModal] = useState(false);
+  const [picArticulos, setPicArticulos] = useState<ArticuloPicTomable[]>([]);
+  const [picBusqueda, setPicBusqueda] = useState("");
+  const [picLoading, setPicLoading] = useState(false);
+  const [picError, setPicError] = useState<string | null>(null);
   const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
   const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   const [showEntregaModal, setShowEntregaModal] = useState(false);
@@ -2992,6 +3030,223 @@ export default function VerOrdenCompraPage() {
     cerrarCatalogoModal();
   };
 
+  const fetchArticulosPicTomables = useCallback(async () => {
+    setPicLoading(true);
+    setPicError(null);
+    try {
+      const pageSize = 1000;
+      const fetchAll = async (
+        table: "pedidos_productivos" | "pic" | "ordenes_compra",
+        columns: string,
+        estados?: string[]
+      ) => {
+        const all: Record<string, unknown>[] = [];
+        let from = 0;
+        while (true) {
+          let query = supabase.from(table).select(columns).range(from, from + pageSize - 1);
+          if (estados) query = query.in("estado", estados);
+          const { data, error } = await query;
+          if (error) throw error;
+          const batch = (data as Record<string, unknown>[] | null) ?? [];
+          all.push(...batch);
+          if (batch.length < pageSize) break;
+          from += pageSize;
+        }
+        return all;
+      };
+
+      const [productivos, generales, ordenesRows] = await Promise.all([
+        fetchAll(
+          "pedidos_productivos",
+          "id, articulos, sector, solicita, estado",
+          ["aprobado", "confirmado"]
+        ),
+        fetchAll("pic", "id, articulos, sector, solicita, estado", [
+          "aprobado",
+          "confirmado",
+        ]),
+        fetchAll("ordenes_compra", "id, noc, articulos"),
+      ]);
+
+      const ordenActualId = orden?.id;
+      const tomadoPorId = new Map<string, number>();
+      ordenesRows.forEach((row) => {
+        if (ordenActualId != null && Number(row.id) === Number(ordenActualId)) return;
+        const noc = Number(row.noc);
+        const items = Array.isArray(row.articulos) ? row.articulos : [];
+        items.forEach((item) => {
+          const articulo = item as { articulo_id?: string };
+          const id = normalizeArticuloId(articulo?.articulo_id);
+          if (!id || tomadoPorId.has(id)) return;
+          tomadoPorId.set(id, Number.isFinite(noc) ? noc : 0);
+        });
+      });
+
+      const mapear = (
+        pedidos: PedidoPicRow[] | null,
+        origen: "productivo" | "general"
+      ): ArticuloPicTomable[] =>
+        (pedidos ?? []).flatMap((pedido) => {
+          const articulos = Array.isArray(pedido.articulos) ? pedido.articulos : [];
+          return articulos.map((articulo, index) => {
+            const nombre = String(articulo.articulo ?? "").trim();
+            const id = `${origen}-${pedido.id}-${index}-${nombre}`;
+            const cantidad = Number(articulo.cant);
+            return {
+              id,
+              pedidoId: String(pedido.id),
+              nombre,
+              descripcion: String(articulo.descripcion ?? "").trim(),
+              cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1,
+              sector: String(pedido.sector ?? "").trim(),
+              solicita: String(pedido.solicita ?? "").trim(),
+              estado: String(pedido.estado ?? "").trim(),
+              origen,
+              codint: articulo.codint?.trim() || null,
+              codprovsug: articulo.codprovsug?.trim() || null,
+              presentacion: null,
+              costunit: 0,
+              descuento: 0,
+              tomadoEnNoc: tomadoPorId.get(normalizeArticuloId(id)) ?? null,
+            };
+          });
+        });
+
+      const lista = [
+        ...mapear(productivos as unknown as PedidoPicRow[], "productivo"),
+        ...mapear(generales as unknown as PedidoPicRow[], "general"),
+      ].filter((art) => art.nombre);
+
+      const codints = [
+        ...new Set(lista.map((art) => art.codint).filter(Boolean)),
+      ] as string[];
+      const nombres = [
+        ...new Set(lista.filter((art) => !art.codint).map((art) => art.nombre)),
+      ];
+
+      const porCodint = new Map<
+        string,
+        { descripcion?: string; presentacion?: string; codprovsug?: string; costunit?: number; descuento?: number }
+      >();
+      const porNombre = new Map<
+        string,
+        { codint?: string; descripcion?: string; presentacion?: string; codprovsug?: string; costunit?: number; descuento?: number }
+      >();
+
+      if (codints.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, descripcion, presentacion, codprovsug, costunit, descuento")
+          .in("codint", codints);
+        (data ?? []).forEach((row) => {
+          if (!row.codint) return;
+          porCodint.set(row.codint, {
+            descripcion: row.descripcion ?? undefined,
+            presentacion: row.presentacion ?? undefined,
+            codprovsug: row.codprovsug ?? undefined,
+            costunit: row.costunit != null ? Number(row.costunit) : undefined,
+            descuento: row.descuento != null ? Number(row.descuento) : undefined,
+          });
+        });
+      }
+
+      if (nombres.length > 0) {
+        const { data } = await supabase
+          .from("articulos")
+          .select("codint, articulo, descripcion, presentacion, codprovsug, costunit, descuento")
+          .in("articulo", nombres);
+        (data ?? []).forEach((row) => {
+          if (!row.articulo) return;
+          porNombre.set(row.articulo, {
+            codint: row.codint ?? undefined,
+            descripcion: row.descripcion ?? undefined,
+            presentacion: row.presentacion ?? undefined,
+            codprovsug: row.codprovsug ?? undefined,
+            costunit: row.costunit != null ? Number(row.costunit) : undefined,
+            descuento: row.descuento != null ? Number(row.descuento) : undefined,
+          });
+        });
+      }
+
+      const enriquecidos = lista.map((art) => {
+        const catalogo = (art.codint ? porCodint.get(art.codint) : undefined) ?? porNombre.get(art.nombre);
+        if (!catalogo) return art;
+        return {
+          ...art,
+          codint: art.codint || catalogo.codint || null,
+          descripcion: art.descripcion || catalogo.descripcion || "",
+          presentacion: catalogo.presentacion ?? null,
+          codprovsug: art.codprovsug || catalogo.codprovsug || null,
+          costunit: Number.isFinite(catalogo.costunit) ? catalogo.costunit! : 0,
+          descuento: Number.isFinite(catalogo.descuento) ? catalogo.descuento! : 0,
+        };
+      });
+
+      enriquecidos.sort((a, b) => {
+        const aTomado = a.tomadoEnNoc != null ? 1 : 0;
+        const bTomado = b.tomadoEnNoc != null ? 1 : 0;
+        if (aTomado !== bTomado) return aTomado - bTomado;
+        return a.nombre.localeCompare(b.nombre, "es");
+      });
+
+      setPicArticulos(enriquecidos);
+    } catch (err) {
+      console.error("Error cargando artículos de PIC:", err);
+      setPicArticulos([]);
+      setPicError("No se pudieron cargar los artículos de PIC aprobados o confirmados.");
+    } finally {
+      setPicLoading(false);
+    }
+  }, [orden?.id, supabase]);
+
+  const abrirModalPic = () => {
+    setPicError(null);
+    setPicBusqueda("");
+    setShowPicModal(true);
+    void fetchArticulosPicTomables();
+  };
+
+  const handleTomarArticuloPic = (articulo: ArticuloPicTomable) => {
+    if (articulo.tomadoEnNoc != null) {
+      setPicError(
+        articulo.tomadoEnNoc > 0
+          ? `Este artículo ya está tomado en la orden ${articulo.tomadoEnNoc}.`
+          : "Este artículo ya está tomado en otra orden de compra."
+      );
+      return;
+    }
+
+    const yaEnOrden = editData.articulos.some(
+      (item) => normalizeArticuloId(item.articulo_id) === normalizeArticuloId(articulo.id)
+    );
+    if (yaEnOrden) {
+      setPicError("Este artículo ya está en esta orden.");
+      return;
+    }
+
+    const precioConDescuento = calcularPrecioConDescuento(articulo.costunit, articulo.descuento);
+    const nuevo: ArticuloOrdenItem = {
+      articulo_id: articulo.id,
+      articulo_nombre: articulo.nombre,
+      cantidad: articulo.cantidad,
+      precio_unitario: articulo.costunit,
+      descuento: articulo.descuento,
+      divisa: normalizeDivisa(editData.divisa),
+      costunitcdesc: precioConDescuento,
+      total: articulo.cantidad * precioConDescuento,
+      codint: articulo.codint,
+      descripcion: articulo.descripcion || null,
+      presentacion: articulo.presentacion,
+      codprovsug: articulo.codprovsug,
+    };
+
+    setEditData((prev) => ({
+      ...prev,
+      articulos: [...prev.articulos, nuevo],
+    }));
+    setPicError(null);
+  };
+
   const handleEliminarArticulo = (index: number) => {
     const articuloId = editData.articulos[index]?.articulo_id;
     setEditData({
@@ -4094,6 +4349,13 @@ export default function VerOrdenCompraPage() {
                     >
                       ➕ Agregar Artículo
                     </Button>
+                    <Button
+                      type="button"
+                      onClick={abrirModalPic}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-sm"
+                    >
+                      Tomar de PIC
+                    </Button>
                   </div>
                 </div>
 
@@ -4262,6 +4524,13 @@ export default function VerOrdenCompraPage() {
                         className="bg-purple-600 hover:bg-purple-700"
                       >
                         Agregar el primer artículo
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={abrirModalPic}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Tomar de PIC
                       </Button>
                     </div>
                   </div>
@@ -4577,6 +4846,149 @@ export default function VerOrdenCompraPage() {
                 className="bg-sky-600 hover:bg-sky-700"
               >
                 Agregar artículo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPicModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-1">Tomar artículo de PIC</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Solo PIC aprobados o confirmados. Si el artículo ya está en otra orden de compra, no se puede tomar.
+            </p>
+
+            <div className="mb-4">
+              <Label htmlFor="pic-busqueda">Buscar</Label>
+              <Input
+                id="pic-busqueda"
+                type="text"
+                value={picBusqueda}
+                onChange={(e) => setPicBusqueda(e.target.value)}
+                placeholder="Artículo, PIC, código interno, sector o solicitante"
+                autoComplete="off"
+              />
+            </div>
+
+            {picLoading && (
+              <p className="text-sm text-gray-600">Cargando artículos...</p>
+            )}
+
+            {picError && (
+              <p className="text-sm text-red-600 mb-3">{picError}</p>
+            )}
+
+            {!picLoading && (() => {
+              const termino = picBusqueda.trim().toLowerCase();
+              const visibles = picArticulos.filter((art) => {
+                if (!termino) return true;
+                const texto = [
+                  art.nombre,
+                  art.pedidoId,
+                  art.codint,
+                  art.sector,
+                  art.solicita,
+                  art.descripcion,
+                  art.estado,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+                return texto.includes(termino);
+              });
+
+              if (visibles.length === 0) {
+                return (
+                  <p className="text-sm text-gray-500">
+                    No hay artículos de PIC aprobados o confirmados para esa búsqueda.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                  {visibles.map((art) => {
+                    const yaEnOrden = editData.articulos.some(
+                      (item) =>
+                        normalizeArticuloId(item.articulo_id) === normalizeArticuloId(art.id)
+                    );
+                    const tomado = art.tomadoEnNoc != null;
+                    const bloqueado = tomado || yaEnOrden;
+                    const motivo = tomado
+                      ? art.tomadoEnNoc && art.tomadoEnNoc > 0
+                        ? `Tomado en OC ${art.tomadoEnNoc}`
+                        : "Tomado en otra orden"
+                      : yaEnOrden
+                        ? "Ya está en esta orden"
+                        : "Tomar";
+
+                    return (
+                      <div
+                        key={art.id}
+                        className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{art.nombre}</span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                art.origen === "productivo"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {art.origen === "productivo" ? "Productivo" : "General"}
+                            </span>
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-700">
+                              PIC {art.pedidoId}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                art.estado === "confirmado"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {art.estado}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Cantidad: {art.cantidad}
+                            {art.sector ? ` | Sector: ${art.sector}` : ""}
+                            {art.solicita ? ` | Solicita: ${art.solicita}` : ""}
+                            {art.codint ? ` | Cod. Int.: ${art.codint}` : ""}
+                          </p>
+                          {art.descripcion && (
+                            <p className="text-xs text-gray-500 mt-0.5">{art.descripcion}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => handleTomarArticuloPic(art)}
+                          disabled={bloqueado}
+                          className="shrink-0 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300"
+                        >
+                          {motivo}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowPicModal(false);
+                  setPicError(null);
+                }}
+              >
+                Cerrar
               </Button>
             </div>
           </div>
