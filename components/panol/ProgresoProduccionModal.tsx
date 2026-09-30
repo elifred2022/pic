@@ -49,7 +49,7 @@ export default function ProgresoProduccionModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white shrink-0">
           <h2 className="text-xl font-bold text-gray-800">
-            📊 Barra de progreso de producción
+            Progreso de producción
           </h2>
           <button
             type="button"
@@ -91,7 +91,7 @@ export default function ProgresoProduccionModal({
                       {total > 0 ? (
                         <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+                            className="h-full bg-[#1B6454]"
                             style={{ width: `${percent}%` }}
                           />
                         </div>
@@ -106,7 +106,7 @@ export default function ProgresoProduccionModal({
                         <button
                           type="button"
                           onClick={() => onVerEstadoObra(orden)}
-                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                          className="rounded-md bg-[#1F5F7A] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#184C62]"
                         >
                           Ver estado de obra
                         </button>
@@ -115,7 +115,7 @@ export default function ProgresoProduccionModal({
                         <button
                           type="button"
                           onClick={() => onVerOrdenCorte(orden)}
-                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          className="rounded-md border border-[#C5D5DA] bg-white px-3 py-1.5 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4]"
                         >
                           Ver orden de corte
                         </button>
@@ -124,7 +124,7 @@ export default function ProgresoProduccionModal({
                         <button
                           type="button"
                           onClick={() => onVerMedicion(orden)}
-                          className="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          className="rounded-md border border-[#C5D5DA] bg-white px-3 py-1.5 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4]"
                         >
                           Ver medición
                         </button>

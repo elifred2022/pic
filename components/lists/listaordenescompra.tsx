@@ -1026,8 +1026,7 @@ export default function ListaOrdenesCompra() {
 
   const renderOrdenesTab = () => (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">📋 Órdenes de Compra</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
@@ -1404,20 +1403,8 @@ export default function ListaOrdenesCompra() {
   if (!hasMounted) return null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-6">
-      {/* Botón de volver */}
-      <div className="mb-6">
-        <Button 
-          onClick={() => router.push("/auth/modulo-compras")}
-          variant="outline"
-          className="border-gray-300 text-gray-700 hover:bg-gray-50"
-        >
-          Volver
-        </Button>
-      </div>
-      
-      {/* Tabs de Navegación */}
-      <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
+    <div className="w-full p-4 sm:p-5">
+      <div className="mb-5 flex gap-1 rounded-lg bg-[#E7EEF0] p-1">
         <button
           onClick={() => setActiveTab('ordenes')}
           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${

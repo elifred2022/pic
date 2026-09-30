@@ -83,7 +83,7 @@ export default function TotalArticulosTerminadosModal({
               type="date"
               value={fechaDesde}
               onChange={(e) => setFechaDesde(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="rounded-md border border-[#C5D5DA] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
             />
             <label className="text-sm font-medium text-gray-600" htmlFor="total-articulos-fecha-hasta">
               Hasta:
@@ -93,7 +93,7 @@ export default function TotalArticulosTerminadosModal({
               type="date"
               value={fechaHasta}
               onChange={(e) => setFechaHasta(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="rounded-md border border-[#C5D5DA] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
             />
             {(fechaDesde || fechaHasta) && (
               <button
@@ -146,7 +146,7 @@ export default function TotalArticulosTerminadosModal({
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-gray-300 bg-emerald-50">
+                  <tr className="border-t-2 border-[#D3E0E3] bg-[#E3F3EE]">
                     <td className="px-4 py-3 font-bold text-gray-800" colSpan={2}>
                       Total
                     </td>

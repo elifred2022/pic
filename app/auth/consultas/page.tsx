@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessConsultas, isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
@@ -28,17 +28,13 @@ export default async function ConsultasPage() {
     : consultasModuleItems;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-6">
-      <div className="mb-6">
-        <Link
-          href="/auth/modulo-compras"
-          className="inline-block px-4 sm:px-6 py-3 bg-slate-600 text-white font-semibold rounded-lg shadow-md hover:bg-slate-700 transition-all duration-200 text-center touch-manipulation"
-        >
-          Volver al módulo de compras
-        </Link>
-      </div>
-
+    <ComprasAreaFrame
+      title="Consultas"
+      description="Elegí el reporte que necesitás."
+      tab="Consultas"
+      width="desk"
+    >
       <PanelModuloConsultas items={items} />
-    </div>
+    </ComprasAreaFrame>
   );
 }

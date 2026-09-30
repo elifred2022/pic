@@ -55,11 +55,7 @@ type Pedido = {
   // Agregá más campos si los usás en el .map()
 };
 
-type ListUsProps = {
-  soloPedidosGenerales?: boolean;
-};
-
-export default function ListUs({ soloPedidosGenerales = false }: ListUsProps) {
+export default function ListUs() {
   const [search, setSearch] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editingPedido, setEditingPedido] = useState<Pedido | null>(null);
@@ -254,22 +250,8 @@ function renderValue(value: unknown): string {
 
 
   return (
-    <div className="w-full p-4 bg-gray-50 min-h-screen">
-      {/* Header con navegación */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
-          {!soloPedidosGenerales && (
-            <Link
-              href="/protected"
-              className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
-            >
-              ← Home
-            </Link>
-          )}
-
-          <h1 className="text-3xl font-bold text-gray-800">📋 Pedidos de Compras No Productivas</h1>
-        </div>
-        
+    <div className="w-full p-4 sm:p-5">
+      <div className="mb-4">
      <div className="flex flex-wrap gap-4 items-center">
        <Link
             href="/auth/crear-formus"
@@ -368,29 +350,29 @@ function renderValue(value: unknown): string {
       <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
         <div className="overflow-x-auto max-h-[70vh] overflow-y-auto w-full">
           <table className="w-full table-auto border-collapse">
-            <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+            <thead className="sticky top-0 z-10 bg-[#E7EEF0] text-[#16303A]">
               <tr>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-left">Acciones</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Estado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Categoría</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Solicita</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Sector</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Notas</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Comprador</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">OC</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Confirm</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Prometida</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fecha Entrega</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Rto</th>
-                <th className="px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center">Fact</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-left">Acciones</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Estado</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Nº PIC</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fecha Sol</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fecha Nec</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Categoría</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Solicita</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Sector</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Cod Cta</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Artículos Solicitados</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Notas</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Controlado/Revisado</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Comprador</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Aprueba</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">OC</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Proveedor Selec.</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fecha Confirm</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fecha Prometida</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fecha Entrega</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Rto</th>
+                <th className="px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center">Fact</th>
           </tr>
         </thead>
        <tbody>

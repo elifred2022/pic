@@ -1,12 +1,14 @@
 import ListaOrdenesCompra from "@/components/lists/listaordenescompra";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 
 export default function OrdenesCompraPage() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="flex flex-col gap-2 items-start">
-        <ListaOrdenesCompra />
-      </div>
-    </div>
+    <ComprasAreaFrame
+      title="Órdenes de compra"
+      description="Altas, seguimiento y recepción."
+      tab="Órdenes"
+    >
+      <ListaOrdenesCompra />
+    </ComprasAreaFrame>
   );
 }
-

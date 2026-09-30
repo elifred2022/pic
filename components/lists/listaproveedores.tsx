@@ -161,17 +161,7 @@ const cellClass =
   "px-2 py-1 border align-top text-sm text-justify whitespace-pre-wrap break-words";
 
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
-        <Link
-              href="/auth/modulo-compras"
-              className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-            >
-              Volver
-            </Link>
-
-        <h1 className="text-xl font-bold mb-4">Modulo Proveedores</h1>
-
-
+    <div className="w-full overflow-auto p-4 sm:p-5">
         <div className="flex flex-wrap gap-4 items-center">
           {canEdit && (
              <Link

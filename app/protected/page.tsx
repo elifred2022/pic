@@ -12,6 +12,7 @@ import {
   soloPedidosGeneralesPorRol,
 } from "@/lib/panol-access";
 import ListUs from "@/components/lists/listus";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 import ListBiComponentAdmin from "@/components/panels/listbicomponentadmin";
 import ListBiComponentFinanzas from "@/components/panels/listbicomponentfinanzas";
 import ListBiComponentAprob from "@/components/panels/listbicomponenteaprob";
@@ -47,39 +48,31 @@ export default async function ProtectedPage() {
 
   const rol = userProfile.rol;
 
-  if (soloPedidosGeneralesPorRol(rol)) {
-    return (
-      <div className="flex-1 w-full flex flex-col gap-12">
-        <div className="flex flex-col gap-2 items-start">
-          <ListUs soloPedidosGenerales />
-        </div>
-      </div>
-    );
+  if (soloPedidosGeneralesPorRol(rol) || !hasRolAsignado(rol)) {
+    return <PedidosGeneralesHome />;
   }
 
-  let ComponentToRender = <ListUs soloPedidosGenerales />;
+  if (isAdminRol(rol)) return <ListBiComponentAdmin />;
+  if (isFinanzasRol(rol)) return <ListBiComponentFinanzas />;
+  if (isAprobRol(rol)) return <ListBiComponentAprob />;
+  if (isProduccionRol(rol)) return <ListBiComponenteProduccion />;
+  if (isPanolRol(rol)) return <ListBiComponentePanol />;
+  if (isTabletRol(rol)) return <ListBiComponenteTablet />;
+  if (isInventarioPvcRol(rol)) return <ListBiComponenteInventarioPvc />;
 
-  if (hasRolAsignado(rol)) {
-    if (isAdminRol(rol)) {
-      ComponentToRender = <ListBiComponentAdmin />;
-    } else if (isFinanzasRol(rol)) {
-      ComponentToRender = <ListBiComponentFinanzas />;
-    } else if (isAprobRol(rol)) {
-      ComponentToRender = <ListBiComponentAprob />;
-    } else if (isProduccionRol(rol)) {
-      ComponentToRender = <ListBiComponenteProduccion />;
-    } else if (isPanolRol(rol)) {
-      ComponentToRender = <ListBiComponentePanol />;
-    } else if (isTabletRol(rol)) {
-      ComponentToRender = <ListBiComponenteTablet />;
-    } else if (isInventarioPvcRol(rol)) {
-      ComponentToRender = <ListBiComponenteInventarioPvc />;
-    }
-  }
+  return <PedidosGeneralesHome />;
+}
 
+function PedidosGeneralesHome() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="flex flex-col gap-2 items-start">{ComponentToRender}</div>
-    </div>
+    <ComprasAreaFrame
+      hideBack
+      width="full"
+      title="Pedidos generales"
+      description="Tus pedidos de compras no productivas."
+      tab="PIC"
+    >
+      <ListUs />
+    </ComprasAreaFrame>
   );
 }

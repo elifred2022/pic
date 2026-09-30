@@ -4,12 +4,23 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { ShoppingCart } from "lucide-react";
 
+export type ComprasAreaTone =
+  | "proveedores"
+  | "usuarios"
+  | "articulos"
+  | "pedidos"
+  | "productivos"
+  | "ordenes"
+  | "indicadores"
+  | "consultas";
+
 export type ComprasModuleItem = {
   href: string;
   title: string;
   description: string;
   icon: React.ReactNode;
-  linkClassName: string;
+  linkClassName?: string;
+  tone?: ComprasAreaTone;
 };
 
 type ComprasModuleCardProps = {
@@ -45,7 +56,7 @@ export function ComprasModuleCard({
             <Link
               key={item.href}
               href={item.href}
-              className={`group relative overflow-hidden text-white p-5 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] ${item.linkClassName}`}
+              className={`group relative overflow-hidden text-white p-5 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] ${item.linkClassName ?? ""}`}
             >
               <div className="relative z-10">
                 <div className="mb-3">{item.icon}</div>

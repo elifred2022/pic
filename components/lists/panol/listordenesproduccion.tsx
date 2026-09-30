@@ -8,7 +8,6 @@ import React, {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
 import {
   canAccessOrdenesProduccion,
   canDeleteObservacionesObra,
@@ -951,7 +950,7 @@ function ObservacionesAcumulativas({
               type="button"
               onClick={() => void handleSave()}
               disabled={saving || !draft.trim()}
-              className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-md bg-[#1B6454] px-2 py-1 text-xs font-bold text-white hover:bg-[#164F43] disabled:opacity-50"
             >
               {saving ? "Guardando..." : "Agregar"}
             </button>
@@ -2384,12 +2383,12 @@ export default function ListOrdenesProduccion() {
   );
 
   const headerClass =
-    "px-4 py-3 border-b border-blue-500 text-sm font-bold whitespace-nowrap text-center";
+    "px-4 py-3 border-b border-[#D3E0E3] text-sm font-bold whitespace-nowrap text-center text-[#16303A]";
   const cellClass =
     "px-4 py-3 border-b border-gray-200 align-top text-sm text-center whitespace-pre-wrap break-words";
 
   const mobileBtnBase =
-    "w-full min-h-[48px] px-4 py-3 text-base font-semibold rounded-xl shadow-sm transition active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed";
+    "w-full min-h-12 rounded-md px-4 py-3 text-base font-bold touch-manipulation disabled:cursor-not-allowed disabled:opacity-50";
 
   const selectMobileOrden = (id: string) => {
     setSelectedMobileOrdenId(id);
@@ -2406,7 +2405,7 @@ export default function ListOrdenesProduccion() {
         </div>
         <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+            className="h-full bg-[#1B6454]"
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -2429,7 +2428,7 @@ export default function ListOrdenesProduccion() {
 
     const btn = mobile
       ? mobileBtnBase
-      : "inline-block px-3 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-200";
+      : "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-bold";
 
     const openArchivosModal = (items: ImageItem[]) => {
       setArchivosModalItems(items);
@@ -2443,7 +2442,7 @@ export default function ListOrdenesProduccion() {
             <button
               type="button"
               onClick={() => openArchivosModal(corteItems)}
-              className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+              className={mobile ? `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]` : `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]`}
             >
               {mobile ? "Ver imágenes" : "Ver orden de corte"}
             </button>
@@ -2451,15 +2450,15 @@ export default function ListOrdenesProduccion() {
               type="button"
               onClick={() => handleDownloadCarpeta(orden)}
               disabled={downloadingOrdenId === orden.id}
-              className={mobile ? `${btn} bg-emerald-600 text-white hover:bg-emerald-700` : `${btn} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${btn} bg-[#1B6454] text-white hover:bg-[#164F43] disabled:cursor-not-allowed disabled:opacity-50`}
             >
-              {downloadingOrdenId === orden.id ? "⏳ Descargando..." : "📥 Descargar carpeta"}
+              {downloadingOrdenId === orden.id ? "Descargando..." : "Descargar carpeta"}
             </button>
             {medicionItems.length > 0 && (
               <button
                 type="button"
                 onClick={() => openArchivosModal(medicionItems)}
-                className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+                className={mobile ? `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]` : `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]`}
               >
                 Ver medición
               </button>
@@ -2469,9 +2468,9 @@ export default function ListOrdenesProduccion() {
                 type="button"
                 onClick={() => handleEliminarCarpeta(orden)}
                 disabled={deletingOrdenId === orden.id}
-                className={mobile ? `${btn} bg-red-600 text-white hover:bg-red-700` : `${btn} bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`${btn} border border-red-300 bg-white text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50`}
               >
-                {deletingOrdenId === orden.id ? "⏳ Eliminando..." : "🗑️ Eliminar carpeta"}
+                {deletingOrdenId === orden.id ? "Eliminando..." : "Eliminar carpeta"}
               </button>
             )}
           </>
@@ -2480,7 +2479,7 @@ export default function ListOrdenesProduccion() {
           <button
             type="button"
             onClick={() => openArchivosModal(medicionItems)}
-            className={mobile ? `${btn} bg-blue-500 text-white hover:bg-blue-600` : `${btn} bg-blue-500 text-white hover:bg-blue-600`}
+            className={mobile ? `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]` : `${btn} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]`}
           >
             Ver medición
           </button>
@@ -2491,28 +2490,21 @@ export default function ListOrdenesProduccion() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <p className="text-gray-500">Cargando órdenes de producción...</p>
+      <div className="flex min-h-[200px] items-center justify-center">
+        <p className="text-sm text-[#4E6570]">Cargando órdenes de producción.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 w-full p-2 sm:p-4 bg-gray-50 min-h-screen">
-      {/* Header con navegación */}
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center justify-between mb-4">
-          <Link
-            href="/protected"
-            className="inline-block px-4 sm:px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 text-center touch-manipulation"
-          >
-            Volver a panel
-          </Link>
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">
-            🏭 Órdenes de Producción{soloVista ? " (solo visualización)" : ""}
-          </h1>
-        </div>
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
+    <div className="w-full p-3 sm:p-4">
+      {soloVista && (
+        <p className="mb-3 text-sm text-[#4E6570]">
+          Solo visualización. Podés consultar las obras, sin modificarlas.
+        </p>
+      )}
+      <div className="mb-4">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
           {!isReadOnly && (
             <button
               type="button"
@@ -2525,15 +2517,15 @@ export default function ListOrdenesProduccion() {
                 setFormSuccess("");
                 setShowModal(true);
               }}
-              className="w-full sm:w-auto inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 touch-manipulation min-h-[48px]"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[#1B6454] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#164F43] touch-manipulation sm:w-auto"
             >
-              ➕ Nueva obra
+              Nueva obra
             </button>
           )}
           <DebouncedSearchInput
-            placeholder="🔍 Buscar por carpeta, obra, mes, semana..."
+            placeholder="Buscar por carpeta, obra, mes o semana"
             onDebouncedChange={onSearchDebounced}
-            className="px-4 py-3 border-2 border-gray-300 rounded-lg w-full sm:max-w-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-h-[48px]"
+            className="h-12 w-full rounded-md border border-[#C5D5DA] bg-white px-3 text-sm text-[#16303A] placeholder:text-[#6A8088] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A] sm:max-w-md"
           />
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm font-medium text-gray-600">Desde:</label>
@@ -2541,14 +2533,14 @@ export default function ListOrdenesProduccion() {
               type="date"
               value={fechaDesde}
               onChange={(e) => setFechaDesde(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="rounded-md border border-[#C5D5DA] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
             />
             <label className="text-sm font-medium text-gray-600">Hasta:</label>
             <input
               type="date"
               value={fechaHasta}
               onChange={(e) => setFechaHasta(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="rounded-md border border-[#C5D5DA] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
             />
             {(fechaDesde || fechaHasta) && (
               <button
@@ -2564,18 +2556,18 @@ export default function ListOrdenesProduccion() {
             <button
               type="button"
               onClick={() => setShowProgresoModal(true)}
-              className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
+              className="min-h-12 rounded-md border border-[#C5D5DA] bg-white px-4 py-2.5 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4] touch-manipulation"
               title="Ver barra de progreso de producción"
             >
-              📊 Ver progreso de producción
+              Ver progreso
             </button>
             <button
               type="button"
               onClick={() => setShowTotalArticulosModal(true)}
-              className="px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 touch-manipulation min-h-[48px]"
+              className="min-h-12 rounded-md border border-[#C5D5DA] bg-white px-4 py-2.5 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4] touch-manipulation"
               title="Ver total de artículos terminados"
             >
-              🪟 Mostrar total artículo terminado
+              Total de artículos terminados
             </button>
           </div>
           {!sinGestionCarpetaExcel && (
@@ -2583,7 +2575,7 @@ export default function ListOrdenesProduccion() {
               <select
                 value={excelDownloadTipo}
                 onChange={(e) => setExcelDownloadTipo(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 min-w-[280px]"
+                className="min-w-[280px] rounded-md border border-[#C5D5DA] bg-white px-4 py-3 text-sm font-bold text-[#16303A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                 title="Selecciona el tipo de descarga Excel"
               >
                 <option value="">— Seleccionar descarga Excel —</option>
@@ -2595,10 +2587,10 @@ export default function ListOrdenesProduccion() {
                 type="button"
                 onClick={handleDescargarExcelSeleccionado}
                 disabled={descargandoExcel || !excelDownloadTipo}
-                className="px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="rounded-md bg-[#1B6454] px-4 py-3 text-sm font-bold text-white hover:bg-[#164F43] disabled:cursor-not-allowed disabled:opacity-50"
                 title="Descargar el Excel seleccionado"
               >
-                {descargandoExcel ? "⏳ Generando..." : "📥 Descargar"}
+                {descargandoExcel ? "Generando..." : "Descargar"}
               </button>
             </div>
           )}
@@ -2672,7 +2664,7 @@ export default function ListOrdenesProduccion() {
                   type="button"
                   onClick={handleUpdateEstadoObra}
                   disabled={updatingEstadoObra}
-                  className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="rounded-md bg-[#1F5F7A] px-4 py-2 text-sm font-bold text-white hover:bg-[#184C62] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
                 </button>
@@ -2700,9 +2692,9 @@ export default function ListOrdenesProduccion() {
                       type="button"
                       onClick={() => estadoObraFileInputRef.current?.click()}
                       disabled={importandoEstadoObra}
-                      className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      className="rounded-md bg-[#1B6454] px-4 py-2 text-sm font-bold text-white hover:bg-[#164F43] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {importandoEstadoObra ? "Importando..." : "📤 Importar Excel"}
+                      {importandoEstadoObra ? "Importando..." : "Importar Excel"}
                     </button>
                     {estadoObraTipologias.length > 0 && (
                       <>
@@ -2710,10 +2702,10 @@ export default function ListOrdenesProduccion() {
                           type="button"
                           onClick={handleEliminarTodasTipologias}
                           disabled={updatingEstadoObra}
-                          className="px-4 py-2 border border-red-300 text-red-600 font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+                          className="rounded-md border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
                           title="Eliminar todas las tipologías"
                         >
-                          🗑️ Eliminar todas
+                          Eliminar todas
                         </button>
                         {renderFiltroTipologiaControls()}
                       </>
@@ -3243,7 +3235,7 @@ export default function ListOrdenesProduccion() {
                 </div>
               ))}
               {canEditFullModalEnModal && (mostrarAgregarTipologia ? (
-                <div className="border-2 border-dashed border-amber-400 rounded-lg p-3 bg-amber-50/50">
+                <div className="rounded-md border border-dashed border-[#C5D5DA] bg-[#F7FBFC] p-3">
                   <input
                     type="text"
                     value={nuevaTipologiaNombre}
@@ -3260,7 +3252,7 @@ export default function ListOrdenesProduccion() {
                     <button
                       type="button"
                       onClick={handleAgregarTipologia}
-                      className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600"
+                      className="rounded-md bg-[#1F5F7A] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#184C62]"
                     >
                       Agregar
                     </button>
@@ -3280,9 +3272,9 @@ export default function ListOrdenesProduccion() {
                 <button
                   type="button"
                   onClick={() => setMostrarAgregarTipologia(true)}
-                  className="w-full py-3 border-2 border-dashed border-amber-400 text-amber-600 rounded-lg hover:bg-amber-50 font-medium"
+                  className="w-full rounded-md border border-dashed border-[#C5D5DA] py-3 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4]"
                 >
-                  ➕ Agregar tipología
+                  Agregar tipología
                 </button>
               ))}
             </div>
@@ -3292,7 +3284,7 @@ export default function ListOrdenesProduccion() {
                 type="button"
                 onClick={handleUpdateEstadoObra}
                 disabled={updatingEstadoObra}
-                className="flex-1 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 rounded-md bg-[#1F5F7A] px-4 py-2 text-sm font-bold text-white hover:bg-[#184C62] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {updatingEstadoObra ? "Actualizando..." : "Actualizar"}
               </button>
@@ -3336,7 +3328,7 @@ export default function ListOrdenesProduccion() {
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-800 font-medium transition-colors break-words"
+                      className="block break-words rounded-md px-3 py-2 font-bold text-[#1F5F7A] hover:bg-[#E7F2F4]"
                       title={item.name}
                     >
                       {item.name}
@@ -3370,7 +3362,7 @@ export default function ListOrdenesProduccion() {
                     type="text"
                     value={formData.num_carpeta}
                     onChange={(e) => setFormData((p) => ({ ...p, num_carpeta: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-md border border-[#C5D5DA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                     placeholder="Ej: 001"
                   />
                 </div>
@@ -3383,7 +3375,7 @@ export default function ListOrdenesProduccion() {
                     type="text"
                     value={formData.obra}
                     onChange={(e) => setFormData((p) => ({ ...p, obra: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-md border border-[#C5D5DA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                     placeholder="Nombre de la obra"
                   />
                 </div>
@@ -3395,7 +3387,7 @@ export default function ListOrdenesProduccion() {
                     id="mes"
                     value={formData.mes}
                     onChange={(e) => setFormData((p) => ({ ...p, mes: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-md border border-[#C5D5DA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                   >
                     <option value="">Seleccionar mes</option>
                     {MESES.map((m) => (
@@ -3411,7 +3403,7 @@ export default function ListOrdenesProduccion() {
                     id="semana"
                     value={formData.semana}
                     onChange={(e) => setFormData((p) => ({ ...p, semana: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-md border border-[#C5D5DA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                   >
                     <option value="">Seleccionar semana</option>
                     {SEMANAS.map((s) => (
@@ -3428,7 +3420,7 @@ export default function ListOrdenesProduccion() {
                     type="text"
                     value={formData.alertas}
                     onChange={(e) => setFormData((p) => ({ ...p, alertas: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-md border border-[#C5D5DA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
                     placeholder="Texto de alertas"
                   />
                 </div>
@@ -3437,7 +3429,7 @@ export default function ListOrdenesProduccion() {
                     Orden de corte (PDF o JPG) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:rounded-md file:border-0 file:bg-[#E3F3EE] file:px-3 file:py-1 file:text-sm file:font-bold file:text-[#1B6454]">
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
@@ -3445,9 +3437,9 @@ export default function ListOrdenesProduccion() {
                         onChange={handleImagenesSueltasChange}
                         className="hidden"
                       />
-                      📁 Seleccionar archivos
+                      Seleccionar archivos
                     </label>
-                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:rounded-md file:border-0 file:bg-[#E3F3EE] file:px-3 file:py-1 file:text-sm file:font-bold file:text-[#1B6454]">
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
@@ -3455,7 +3447,7 @@ export default function ListOrdenesProduccion() {
                         onChange={handleCarpetaOrdenCorteChange}
                         className="hidden"
                       />
-                      📂 Cargar carpeta orden de corte
+                      Cargar carpeta de orden de corte
                     </label>
                   </div>
                   {imagenFiles.length > 0 && (
@@ -3469,7 +3461,7 @@ export default function ListOrdenesProduccion() {
                     Medición (PDF o JPG) {editingOrden && "(dejar vacío para mantener las actuales)"}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-purple-100 file:text-purple-800">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:rounded-md file:border-0 file:bg-[#E3F0F5] file:px-3 file:py-1 file:text-sm file:font-bold file:text-[#1F5F7A]">
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
@@ -3477,9 +3469,9 @@ export default function ListOrdenesProduccion() {
                         onChange={handleMedicionArchivosSueltosChange}
                         className="hidden"
                       />
-                      📁 Seleccionar archivos
+                      Seleccionar archivos
                     </label>
-                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-purple-100 file:text-purple-800">
+                    <label className="inline-flex items-center px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 file:mr-2 file:rounded-md file:border-0 file:bg-[#E3F0F5] file:px-3 file:py-1 file:text-sm file:font-bold file:text-[#1F5F7A]">
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
@@ -3487,7 +3479,7 @@ export default function ListOrdenesProduccion() {
                         onChange={handleCarpetaMedicionChange}
                         className="hidden"
                       />
-                      📂 Cargar carpeta de medición
+                      Cargar carpeta de medición
                     </label>
                   </div>
                   {medicionFiles.length > 0 && (
@@ -3506,7 +3498,7 @@ export default function ListOrdenesProduccion() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 rounded-md bg-[#1B6454] px-4 py-2 text-sm font-bold text-white hover:bg-[#164F43] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {submitting ? "Guardando..." : editingOrden ? "Actualizar" : "Guardar"}
                   </button>
@@ -3525,7 +3517,7 @@ export default function ListOrdenesProduccion() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-[#D3E0E3] bg-white">
         {isDesktopViewport == null ? (
           <p className="px-4 py-10 text-center text-gray-400 text-sm">Cargando lista…</p>
         ) : !isDesktopViewport ? (
@@ -3559,7 +3551,7 @@ export default function ListOrdenesProduccion() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse">
-              <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+              <thead className="bg-[#E7EEF0] text-[#16303A]">
                 <tr>
                   {showAccionesColumn && <th className={headerClass}>Acciones</th>}
                   <th className={headerClass}>Fecha</th>
@@ -3584,7 +3576,7 @@ export default function ListOrdenesProduccion() {
                   </tr>
                 ) : (
                   filteredOrdenes.map((orden) => (
-                    <tr key={orden.id} className="hover:bg-gray-50 transition-colors duration-200">
+                    <tr key={orden.id} className="hover:bg-[#E7F2F4]">
                       {showAccionesColumn && (
                         <td className={cellClass}>
                           <div className="flex flex-col gap-2 items-center">
@@ -3593,16 +3585,16 @@ export default function ListOrdenesProduccion() {
                                 <button
                                   type="button"
                                   onClick={() => handleEdit(orden)}
-                                  className="px-3 py-2 bg-blue-500 text-white font-medium rounded-lg shadow-md hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                                  className="rounded-md border border-[#C5D5DA] bg-white px-3 py-2 text-sm font-bold text-[#16303A] hover:bg-[#E7F2F4]"
                                 >
-                                  ✏️ Editar
+                                  Editar
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(orden)}
-                                  className="px-3 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 transform hover:scale-105 text-sm"
+                                  className="rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50"
                                 >
-                                  🗑️ Eliminar
+                                  Eliminar
                                 </button>
                               </>
                             )}
@@ -3617,7 +3609,7 @@ export default function ListOrdenesProduccion() {
                                   </div>
                                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <div
-                                      className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+                                      className="h-full bg-[#1B6454]"
                                       style={{ width: `${percent}%` }}
                                     />
                                   </div>
@@ -3655,10 +3647,10 @@ export default function ListOrdenesProduccion() {
                         <button
                           type="button"
                           onClick={() => handleOpenEstadoObra(orden)}
-                          className="inline-block px-3 py-2 bg-amber-500 text-white font-medium rounded-lg shadow-md hover:bg-amber-600 transition-all duration-200 text-sm"
+                          className="inline-block rounded-md bg-[#1F5F7A] px-3 py-2 text-sm font-bold text-white hover:bg-[#184C62]"
                           title="Estado de obra"
                         >
-                          📋 Estado
+                          Estado
                         </button>
                         {(() => {
                           const data = parseEstadoObra(orden.estado_obra);

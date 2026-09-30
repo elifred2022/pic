@@ -4,6 +4,7 @@ import { canAccessOrdenesProduccion } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListOrdenesProduccion from "@/components/lists/panol/listordenesproduccion";
 import OrdenesProduccionAlertasRealtimeListener from "@/components/realtime/ordenesproduccionalertasrealtimelistener";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -20,9 +21,16 @@ export default async function Page() {
   }
 
   return (
-    <div className="p-4">
+    <ComprasAreaFrame
+      title="Órdenes de producción"
+      description="Obras, carpetas y avance de producción."
+      tab="Producción"
+      backHref="/protected"
+      backLabel="Volver al panel"
+      width="full"
+    >
       <OrdenesProduccionAlertasRealtimeListener />
       <ListOrdenesProduccion />
-    </div>
+    </ComprasAreaFrame>
   );
 }

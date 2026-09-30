@@ -1238,21 +1238,9 @@ export default function ListAdmin() {
   );
 
   return (
-    <div className="flex-1 w-full p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-slate-100 min-h-screen">
+    <div className="w-full p-3 sm:p-4">
       <NuevoPicGeneralAlertListener />
-      {/* Header con navegación */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-md p-3 sm:p-4 mb-3">
-        <div className="flex flex-wrap gap-2 items-center justify-between mb-3">
-             <Link
-              href="/auth/modulo-compras"
-            className="inline-block px-4 py-2 bg-slate-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-slate-700 transition-all duration-200"
-            >
-            Volver
-            </Link>
-           
-          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Pedidos Generales</h1>
-        </div>
-      
+      <div className="mb-3">
         <div className="flex flex-wrap gap-2 items-center">
           {canCreatePedidosGenerales && (
           <Link

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canEditUsuarios, rolOpcionesForm, SIN_ROL } from "@/lib/panol-access";
@@ -102,15 +101,7 @@ export default function ListUsuarios() {
   };
 
   return (
-    <div className="flex-1 w-full overflow-auto p-4">
-      <Link
-        href="/auth/modulo-compras"
-        className="inline-block px-4 py-2 mb-4 bg-white text-black font-semibold rounded-md shadow hover:bg-blue-700 transition-colors duration-200"
-      >
-        Volver
-      </Link>
-
-      <h1 className="text-xl font-bold mb-4">Módulo Usuarios</h1>
+    <div className="w-full overflow-auto p-4 sm:p-5">
       {!canEdit && (
         <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
           Modo solo lectura: podés consultar usuarios pero no modificarlos.

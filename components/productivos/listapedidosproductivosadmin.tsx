@@ -1320,15 +1320,9 @@ const handleUpdatePedido = async () => {
   const resumenComparativaForm = resumenRangosPreciosComparativa(comparativaForm);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-3 sm:p-4">
+    <div className="w-full p-3 sm:p-4">
       <NuevoPicProductivoAlertListener />
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Link
-          href="/auth/modulo-compras"
-          className="inline-block px-4 sm:px-5 py-2 bg-slate-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-slate-700 transition-all duration-200 text-center touch-manipulation"
-        >
-          Volver
-        </Link>
         {canEdit && (
           <Link
             href="/auth/rutaproductivos/crear-formpedidosproductivos"
@@ -1339,24 +1333,15 @@ const handleUpdatePedido = async () => {
         )}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold text-white">
-                Pedidos productivos admin
-              </h1>
-              <p className="text-blue-100 text-xs mt-0.5">
-                Gestión y seguimiento de pedidos productivos
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="overflow-hidden rounded-lg border border-[#D3E0E3] bg-white">
+        <div className="border-b border-[#D3E0E3] px-4 py-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
                 type="search"
                 placeholder="Buscar pedido productivo..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 w-full sm:max-w-xs rounded-md border border-white/30 bg-white/95 px-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
+                className="h-9 w-full sm:max-w-xs rounded-md border border-[#C5D5DA] bg-white px-3 text-sm text-[#16303A] placeholder:text-[#6A8088] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1F6B5A]"
               />
               <button
                 type="button"
@@ -1369,7 +1354,6 @@ const handleUpdatePedido = async () => {
               </button>
             </div>
           </div>
-        </div>
 
         <div className="p-3 sm:p-4 space-y-3">
           <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">

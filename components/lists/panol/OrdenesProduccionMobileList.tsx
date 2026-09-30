@@ -49,19 +49,19 @@ function ResumenOrden({
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       <div>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Nº Carpeta</span>
+        <span className="text-xs font-bold text-[#4E6570]">Nº Carpeta</span>
         <p className="text-base font-bold text-gray-900 mt-0.5 break-words">{renderValue(orden.num_carpeta)}</p>
       </div>
       <div>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Mes</span>
+        <span className="text-xs font-bold text-[#4E6570]">Mes</span>
         <p className="text-sm font-semibold text-gray-800 mt-0.5">{renderValue(orden.mes)}</p>
       </div>
       <div className="col-span-2">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Obra</span>
+        <span className="text-xs font-bold text-[#4E6570]">Obra</span>
         <div className="mt-0.5">{renderObraCell(orden)}</div>
       </div>
       <div>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Semana</span>
+        <span className="text-xs font-bold text-[#4E6570]">Semana</span>
         <p className="text-sm font-semibold text-gray-800 mt-0.5">
           {orden.semana ? `Semana ${orden.semana}` : "-"}
         </p>
@@ -101,14 +101,14 @@ function OrdenesProduccionMobileList({
   if (selected) {
     const summary = estadoSummary(selected);
     return (
-      <article className="lg:hidden bg-blue-50/30">
+      <article className="lg:hidden bg-[#F7FBFC]">
         <div className="p-4 border-b border-gray-200 bg-white">
           <button
             type="button"
             onClick={onClearSelection}
-            className="w-full min-h-[44px] mb-3 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl touch-manipulation active:bg-blue-100"
+            className="mb-3 min-h-11 w-full rounded-md border border-[#C5D5DA] bg-white px-4 py-2.5 text-sm font-bold text-[#1F5F7A] touch-manipulation hover:bg-[#E7F2F4]"
           >
-            ← Volver a la lista
+            Volver a la lista
           </button>
           <ResumenOrden orden={selected} renderValue={renderValue} renderObraCell={renderObraCell} />
         </div>
@@ -128,13 +128,13 @@ function OrdenesProduccionMobileList({
             </div>
           </div>
           <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs font-bold uppercase text-gray-500">Estado de obra</p>
+            <p className="text-xs font-bold text-[#4E6570]">Estado de obra</p>
             <button
               type="button"
               onClick={() => onOpenEstado(selected)}
-              className={`${mobileBtnBase} bg-amber-500 text-white hover:bg-amber-600`}
+              className={`${mobileBtnBase} bg-[#1F5F7A] text-white hover:bg-[#184C62]`}
             >
-              📋 Estado de obra
+              Estado de obra
             </button>
             {summary ? (
               <p className="text-xs text-gray-500 px-1 break-words" title={summary}>
@@ -143,28 +143,28 @@ function OrdenesProduccionMobileList({
             ) : null}
           </div>
           <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs font-bold uppercase text-gray-500">Imágenes</p>
+            <p className="text-xs font-bold text-[#4E6570]">Imágenes</p>
             {renderImagenButtons(selected)}
           </div>
           {showAccionesColumn && (
             <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs font-bold uppercase text-gray-500">Acciones</p>
+              <p className="text-xs font-bold text-[#4E6570]">Acciones</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!isTabletUser && (
                   <>
                     <button
                       type="button"
                       onClick={() => onEdit(selected)}
-                      className={`${mobileBtnBase} bg-blue-500 text-white hover:bg-blue-600`}
+                      className={`${mobileBtnBase} border border-[#C5D5DA] bg-white text-[#16303A] hover:bg-[#E7F2F4]`}
                     >
-                      ✏️ Editar
+                      Editar
                     </button>
                     <button
                       type="button"
                       onClick={() => onDelete(selected)}
-                      className={`${mobileBtnBase} bg-red-500 text-white hover:bg-red-600`}
+                      className={`${mobileBtnBase} border border-red-300 bg-white text-red-700 hover:bg-red-50`}
                     >
-                      🗑️ Eliminar
+                      Eliminar
                     </button>
                   </>
                 )}
@@ -194,24 +194,24 @@ function OrdenesProduccionMobileList({
               onSelect(orden.id);
             }
           }}
-          className="w-full text-left p-4 bg-white active:bg-blue-50 touch-manipulation transition-colors cursor-pointer"
+          className="w-full cursor-pointer bg-white p-4 text-left touch-manipulation hover:bg-[#E7F2F4]"
         >
           {/* Lista compacta: texto plano (sin ObraConObservaciones) para no re-montar formularios pesados al filtrar */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Nº Carpeta</span>
+              <span className="text-xs font-bold text-[#4E6570]">Nº Carpeta</span>
               <p className="text-base font-bold text-gray-900 mt-0.5 break-words">{renderValue(orden.num_carpeta)}</p>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Mes</span>
+              <span className="text-xs font-bold text-[#4E6570]">Mes</span>
               <p className="text-sm font-semibold text-gray-800 mt-0.5">{renderValue(orden.mes)}</p>
             </div>
             <div className="col-span-2">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Obra</span>
+              <span className="text-xs font-bold text-[#4E6570]">Obra</span>
               <p className="text-sm font-semibold text-gray-800 mt-0.5 break-words">{renderValue(orden.obra)}</p>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Semana</span>
+              <span className="text-xs font-bold text-[#4E6570]">Semana</span>
               <p className="text-sm font-semibold text-gray-800 mt-0.5">
                 {orden.semana ? `Semana ${orden.semana}` : "-"}
               </p>

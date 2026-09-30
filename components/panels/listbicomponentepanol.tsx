@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import PicRealtimeListener from "../realtime/picrealtimelistener";
 import PicRealtimeListenerStock from "../realtime/picrealtimelistenerproductivo";
 import { DashboardModuleCards } from "@/components/panels/dashboard-module-cards";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 
 function ListBiComponentePanol() {
   const [hasMounted, setHasMounted] = useState(false);
@@ -15,29 +16,19 @@ function ListBiComponentePanol() {
   if (!hasMounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="bg-white shadow-2xl border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-              🏭 Panel de Control Panol
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Sistema integral de gestión para pedidos generales, productivos y artículos del almacén Panol
-            </p>
-          </div>
-        </div>
+    <ComprasAreaFrame
+      hideBack
+      width="desk"
+      title="¿Qué vas a trabajar hoy?"
+      description="Pedidos y artículos del almacén."
+      tab="PIC"
+    >
+      <div className="space-y-4 border-b border-[#D3E0E3] p-4 dark:border-[#2C4652]">
+        <PicRealtimeListenerStock />
+        <PicRealtimeListener />
       </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8 space-y-4">
-          <PicRealtimeListenerStock />
-          <PicRealtimeListener />
-        </div>
-
-        <DashboardModuleCards />
-      </div>
-    </div>
+      <DashboardModuleCards />
+    </ComprasAreaFrame>
   );
 }
 

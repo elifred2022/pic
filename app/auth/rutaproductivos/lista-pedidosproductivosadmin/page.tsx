@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdminOrFinanzasEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import ListaPedidosProductivosAdmin from "@/components/productivos/listapedidosproductivosadmin";
+import { ComprasAreaFrame } from "@/components/panels/compras-area-frame";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -20,10 +21,15 @@ export default async function Page() {
   }
 
   return (
-    <div className="w-full">
+    <ComprasAreaFrame
+      title="Pedidos productivos"
+      description="Pedidos del área de producción."
+      tab="Productivos"
+      width="full"
+    >
       <Suspense fallback={<div className="p-6 text-center">Cargando...</div>}>
         <ListaPedidosProductivosAdmin />
       </Suspense>
-    </div>
+    </ComprasAreaFrame>
   );
 }

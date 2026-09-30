@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
+import { ClipboardList, Factory } from "lucide-react";
 import PicRealtimeListener from "../realtime/picrealtimelistener";
 import PicRealtimeListenerStock from "../realtime/picrealtimelistenerproductivo";
+import { ComprasAreaFrame, ComprasFolderList } from "@/components/panels/compras-area-frame";
 
 function ListBiComponenteProduccion() {
   const [hasMounted, setHasMounted] = useState(false);
@@ -15,63 +16,37 @@ function ListBiComponenteProduccion() {
   if (!hasMounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="bg-white shadow-2xl border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-              🏭 Panel de Producción
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Gestión de pedidos generales y órdenes de producción
-            </p>
-          </div>
-        </div>
+    <ComprasAreaFrame
+      hideBack
+      width="desk"
+      title="¿Qué vas a trabajar hoy?"
+      description="Pedidos generales y órdenes de producción."
+      tab="PIC"
+    >
+      <div className="space-y-4 border-b border-[#D3E0E3] p-4 dark:border-[#2C4652]">
+        <PicRealtimeListenerStock />
+        <PicRealtimeListener />
       </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8 space-y-4">
-          <PicRealtimeListenerStock />
-          <PicRealtimeListener />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Link
-            href="/auth/list-panolpedidosgenerales"
-            className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-100 overflow-hidden"
-          >
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                <span className="text-2xl text-white">📋</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-green-600 transition-colors duration-300">
-                Pedidos Generales
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Administrar pedidos generales del sistema
-              </p>
-            </div>
-          </Link>
-
-          <Link
-            href="/auth/ordenes-produccion"
-            className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-100 overflow-hidden"
-          >
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                <span className="text-2xl text-white">🏭</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-amber-600 transition-colors duration-300">
-                Órdenes de Producción
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Administrar órdenes de producción
-              </p>
-            </div>
-          </Link>
-        </div>
-      </div>
-    </div>
+      <ComprasFolderList
+        label="Áreas de producción"
+        items={[
+          {
+            href: "/auth/list-panolpedidosgenerales",
+            title: "Pedidos generales",
+            description: "Administrar pedidos generales del sistema",
+            tone: "pedidos",
+            icon: <ClipboardList className="h-5 w-5" strokeWidth={1.75} aria-hidden />,
+          },
+          {
+            href: "/auth/ordenes-produccion",
+            title: "Órdenes de producción",
+            description: "Administrar órdenes de producción",
+            tone: "productivos",
+            icon: <Factory className="h-5 w-5" strokeWidth={1.75} aria-hidden />,
+          },
+        ]}
+      />
+    </ComprasAreaFrame>
   );
 }
 
