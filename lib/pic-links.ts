@@ -1,3 +1,5 @@
+import { isAprobEmail, isPanolEmail } from "@/lib/panol-access";
+
 export type PicTipo = "productivo" | "general" | "sin-pic" | "otro";
 
 export type PicParsed = {
@@ -35,6 +37,20 @@ export type ComparativaLinkOptions = {
 
 export function getVerOrdenCompraUrl(ordenCompraId: number | string): string {
   return `/auth/ordenes-compra/ver-orden/${ordenCompraId}`;
+}
+
+/** Lista de pedidos productivos según el rol. Aprobación no entra a la lista de admin (esa redirige a /protected). */
+export function getListaPedidosProductivosUrl(
+  email?: string | null,
+  rol?: string | null,
+): string {
+  if (isPanolEmail(email, rol)) {
+    return "/auth/rutaproductivos/lista-pedidosproductivos";
+  }
+  if (isAprobEmail(email, rol)) {
+    return "/auth/list-aprobpedidosproductivos";
+  }
+  return "/auth/rutaproductivos/lista-pedidosproductivosadmin";
 }
 
 export function getComparativaPedidoUrl(

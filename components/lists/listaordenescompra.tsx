@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { parseFechaOrdenLocal, inferirDivisaOrden } from "@/lib/indicadores-compras";
+import { getListaPedidosProductivosUrl } from "@/lib/pic-links";
 import { ESTADO_NECESITA_AUTORIZACION_FINANZAS } from "@/lib/oc-autorizacion-finanzas";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canViewImportesOrdenesCompra } from "@/lib/panol-access";
@@ -1029,7 +1030,11 @@ export default function ListaOrdenesCompra() {
       <div className="mb-6 flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
+            onClick={() => {
+              if (accessLoading) return;
+              router.push(getListaPedidosProductivosUrl(email, rol));
+            }}
+            disabled={accessLoading}
             variant="outline"
             className="border-orange-500 text-orange-600 hover:bg-orange-50"
           >
@@ -1380,7 +1385,10 @@ export default function ListaOrdenesCompra() {
           </CardContent>
         </Card>
         
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivos")}>
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
+          if (accessLoading) return;
+          router.push(getListaPedidosProductivosUrl(email, rol));
+        }}>
           <CardContent className="p-6 text-center">
             <div className="text-4xl mb-4">📋</div>
             <h3 className="text-lg font-semibold">Pedidos Productivos</h3>

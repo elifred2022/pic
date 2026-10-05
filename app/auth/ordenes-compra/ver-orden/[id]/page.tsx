@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   extractPicDisplayNumber,
   getComparativaPedidoUrl,
+  getListaPedidosProductivosUrl,
   parsePicFromArticuloId,
 } from "@/lib/pic-links";
 import {
@@ -3417,7 +3418,11 @@ export default function VerOrdenCompraPage() {
             </h2>
             <div className="flex flex-row flex-wrap items-center gap-2">
               <Button
-                onClick={() => router.push("/auth/rutaproductivos/lista-pedidosproductivosadmin")}
+                onClick={() => {
+                  if (!accessLoaded) return;
+                  router.push(getListaPedidosProductivosUrl(userEmail, userRol));
+                }}
+                disabled={!accessLoaded}
                 variant="outline"
                 size="sm"
                 className="whitespace-nowrap border-orange-500 text-orange-600 hover:bg-orange-50"
