@@ -4722,7 +4722,8 @@ export default function VerOrdenCompraPage() {
                       className="w-full text-left px-3 py-2 hover:bg-sky-50"
                     >
                       <span className="font-medium text-sm">{art.articulo}</span>
-                      <span className="ml-2 text-xs text-sky-800">Cod. Int.: {art.codint}</span>
+                      <span className="ml-2 text-xs text-sky-800">Cod. Int.: {art.codint?.trim() || "-"}</span>
+                      <span className="ml-2 text-xs text-gray-600">Cód. proveedor: {art.codprovsug?.trim() || "-"}</span>
                       {art.descripcion?.trim() && (
                         <p className="text-xs text-gray-500 mt-0.5">{art.descripcion}</p>
                       )}
@@ -4744,13 +4745,16 @@ export default function VerOrdenCompraPage() {
                 <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm">
                   <p className="font-medium">{catalogoEncontrado.articulo}</p>
                   <p className="text-gray-600 mt-1">
+                    Cod. Int.: {catalogoEncontrado.codint?.trim() || "-"}
+                  </p>
+                  <p className="text-gray-600 mt-0.5">
+                    Cód. proveedor: {catalogoEncontrado.codprovsug?.trim() || "-"}
+                  </p>
+                  <p className="text-gray-600 mt-1">
                     Descripción: {catalogoEncontrado.descripcion?.trim() || "-"}
                   </p>
                   <p className="text-red-600 font-semibold mt-0.5">
                     Presentación: {catalogoEncontrado.presentacion?.trim() || "-"}
-                  </p>
-                  <p className="text-gray-600 mt-0.5">
-                    Cod. prov. sug.: {catalogoEncontrado.codprovsug?.trim() || "-"}
                   </p>
                 </div>
               )}
@@ -4965,7 +4969,7 @@ export default function VerOrdenCompraPage() {
                             Cantidad: {art.cantidad}
                             {art.sector ? ` | Sector: ${art.sector}` : ""}
                             {art.solicita ? ` | Solicita: ${art.solicita}` : ""}
-                            {art.codint ? ` | Cod. Int.: ${art.codint}` : ""}
+                            {` | Cod. Int.: ${art.codint?.trim() || "-"} | Cód. proveedor: ${art.codprovsug?.trim() || "-"}`}
                           </p>
                           {art.descripcion && (
                             <p className="text-xs text-gray-500 mt-0.5">{art.descripcion}</p>
@@ -5147,6 +5151,9 @@ export default function VerOrdenCompraPage() {
                     >
                       <div className="md:col-span-6">
                         <p className="font-medium text-gray-900">{art.articulo_nombre}</p>
+                        <p className="text-xs text-gray-600">
+                          Cod. Int.: {art.codint?.trim() || "-"} · Cód. proveedor: {art.codprovsug?.trim() || "-"}
+                        </p>
                         <p className="text-xs text-gray-500">
                           Pedido: {art.cantidad} · Entregadas: {formatCantidadEntrega(entrega.entregadas)} · Pendientes: {formatCantidadEntrega(pendiente)}
                         </p>
@@ -5239,10 +5246,10 @@ export default function VerOrdenCompraPage() {
                 orden.entregas,
                 orden.articulos || []
               );
-              const nombrePorId = new Map(
+              const articuloPorId = new Map(
                 (orden.articulos || []).map((art) => [
                   normalizeArticuloId(art.articulo_id),
-                  art.articulo_nombre,
+                  art,
                 ])
               );
 
@@ -5437,9 +5444,19 @@ export default function VerOrdenCompraPage() {
                                           : "text-gray-800"
                                       }`}
                                     >
-                                      {nombrePorId.get(
-                                        normalizeArticuloId(item.articulo_id)
-                                      ) || item.articulo_id}
+                                      {(() => {
+                                        const art = articuloPorId.get(
+                                          normalizeArticuloId(item.articulo_id)
+                                        );
+                                        return (
+                                          <>
+                                            <p>{art?.articulo_nombre || item.articulo_id}</p>
+                                            <p className="text-xs text-gray-500">
+                                              Cod. Int.: {art?.codint?.trim() || "-"} · Cód. proveedor: {art?.codprovsug?.trim() || "-"}
+                                            </p>
+                                          </>
+                                        );
+                                      })()}
                                     </td>
                                     <td
                                       className={`py-1.5 text-right font-medium ${
