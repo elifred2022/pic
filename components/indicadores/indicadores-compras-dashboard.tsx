@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,6 +52,7 @@ import { ImportePorSectorChart } from "@/components/indicadores/importe-por-sect
 import { EstadoSolicitudesChart } from "@/components/indicadores/estado-solicitudes-chart";
 import { ImporteArticuloCcChart } from "@/components/indicadores/importe-articulo-cc-chart";
 import { ImportePorProveedorChart } from "@/components/indicadores/importe-por-proveedor-chart";
+import { descargarIndicadoresPdf } from "@/lib/indicadores-pdf";
 
 export function IndicadoresComprasDashboard() {
   const supabase = useMemo(() => createClient(), []);
@@ -65,6 +67,9 @@ export function IndicadoresComprasDashboard() {
   const [totalizarEnArs, setTotalizarEnArs] = useState(false);
   const [tcUsd, setTcUsd] = useState("");
   const [tcEur, setTcEur] = useState("");
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const graficosRef = useRef<HTMLDivElement>(null);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -489,6 +494,29 @@ export function IndicadoresComprasDashboard() {
     }
   };
 
+  const descargarGraficosPdf = async () => {
+    const root = graficosRef.current;
+    if (!root || exportandoPdf) return;
+
+    const periodo =
+      fechaDesde || fechaHasta
+        ? `${fechaDesde ? fechaDesde.split("-").reverse().join("/") : "..."} - ${
+            fechaHasta ? fechaHasta.split("-").reverse().join("/") : "..."
+          }`
+        : "Todas las fechas";
+
+    try {
+      setExportandoPdf(true);
+      setPdfError(null);
+      await descargarIndicadoresPdf(root, { periodo });
+    } catch (err) {
+      console.error("Error al exportar indicadores a PDF:", err);
+      setPdfError("No se pudo generar el PDF. Probá de nuevo.");
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6 sm:p-8">
       <Card className="border-gray-200 shadow-sm">
@@ -545,6 +573,15 @@ export function IndicadoresComprasDashboard() {
                 Limpiar fechas
               </Button>
             )}
+            <Button
+              type="button"
+              className="ml-auto"
+              onClick={() => void descargarGraficosPdf()}
+              disabled={loading || Boolean(error) || exportandoPdf}
+            >
+              <Download aria-hidden />
+              {exportandoPdf ? "Generando PDF..." : "Descargar PDF"}
+            </Button>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -601,6 +638,8 @@ export function IndicadoresComprasDashboard() {
             )}
           </div>
 
+          {pdfError && <p className="text-sm text-red-600">{pdfError}</p>}
+
           <p className="text-sm text-gray-500">
             {ordenesFiltradas.length}{" "}
             {ordenesFiltradas.length === 1 ? "orden" : "órdenes"} en el período
@@ -629,7 +668,7 @@ export function IndicadoresComprasDashboard() {
       )}
 
       {!loading && !error && (
-        <>
+        <div ref={graficosRef} className="space-y-6">
         <Card className="border-gray-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl text-gray-800">Ahorros alcanzados</CardTitle>
@@ -904,7 +943,7 @@ export function IndicadoresComprasDashboard() {
             )}
           </CardContent>
         </Card>
-        </>
+        </div>
       )}
     </div>
   );
