@@ -10,6 +10,7 @@ import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
+import { canIrAOrdenesCompra } from "@/lib/panol-access";
 import {
   buildOcFacturaFormSavePayload,
   emptyOcFacturaForm,
@@ -145,7 +146,9 @@ type Pedido = {
 };
 
 export default function ListAdmin() {
-  const { canEdit, canCreatePedidosGenerales } = useCanEditAsAdmin();
+  const { canEdit, canCreatePedidosGenerales, email, rol, loading: accesoCargando } =
+    useCanEditAsAdmin();
+  const puedeIrAOrdenes = !accesoCargando && canIrAOrdenesCompra(email, rol);
   const searchParams = useSearchParams();
   const { ocVolver, resolveOcParaPedido } = useOcVolver();
   const [comparativaOc, setComparativaOc] = useState<OcVolver | null>(null);
@@ -1248,6 +1251,14 @@ export default function ListAdmin() {
             className="inline-block px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200"
           >
             ➕ Crear nuevo pedido general
+          </Link>
+          )}
+          {puedeIrAOrdenes && (
+          <Link
+            href="/auth/ordenes-compra"
+            className="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-md transition-all duration-200 hover:bg-blue-700"
+          >
+            Órdenes de compra
           </Link>
           )}
           

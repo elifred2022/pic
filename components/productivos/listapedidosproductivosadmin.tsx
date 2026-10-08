@@ -10,6 +10,7 @@ import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
+import { canIrAOrdenesCompra } from "@/lib/panol-access";
 import {
   buildOcFacturaFormSavePayload,
   emptyOcFacturaForm,
@@ -154,7 +155,8 @@ type Pedido = {
 };
 
 export default function ListaPedidosProductivosAdmin() {
-  const { canEdit } = useCanEditAsAdmin();
+  const { canEdit, email, rol, loading: accesoCargando } = useCanEditAsAdmin();
+  const puedeIrAOrdenes = !accesoCargando && canIrAOrdenesCompra(email, rol);
 
   interface Articulo {
     codint: string;
@@ -1329,6 +1331,14 @@ const handleUpdatePedido = async () => {
             className="inline-block px-4 sm:px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 text-center touch-manipulation"
           >
             Crear pedido productivo
+          </Link>
+        )}
+        {puedeIrAOrdenes && (
+          <Link
+            href="/auth/ordenes-compra"
+            className="inline-block px-4 sm:px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 text-center touch-manipulation"
+          >
+            Órdenes de compra
           </Link>
         )}
       </div>

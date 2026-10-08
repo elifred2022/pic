@@ -9,7 +9,7 @@ import {
   useComparativaPresupuestoUrls,
   useOcFacturaAdjunto,
 } from "@/hooks/use-adjuntos-compras-view";
-import { canViewAdjuntosCompras, isAprobEmail } from "@/lib/panol-access";
+import { canIrAOrdenesCompra, canViewAdjuntosCompras, isAprobEmail } from "@/lib/panol-access";
 import {
   appendHistoricoEstado,
   formatHistoricoEntry,
@@ -109,6 +109,7 @@ export default function ListAprob() {
   const [comparativaOcId, setComparativaOcId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
+  const [accesoListo, setAccesoListo] = useState(false);
   const [userNombre, setUserNombre] = useState<string | null>(null);
   const [ocultarCumplidos, setOcultarCumplidos] = useState(false);
   const [ocultarAprobados, setOcultarAprobados] = useState(false);
@@ -141,6 +142,7 @@ export default function ListAprob() {
         setUserRol(perfil?.rol ?? null);
         setUserNombre(perfil?.nombre?.trim() || user.email || null);
       }
+      setAccesoListo(true);
     });
   }, [supabase]);
 
@@ -362,6 +364,14 @@ export default function ListAprob() {
         >
           Crear pedido general
         </Link>
+        {accesoListo && canIrAOrdenesCompra(userEmail, userRol) && (
+          <Link
+            href="/auth/ordenes-compra"
+            className="inline-block px-4 sm:px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200 touch-manipulation"
+          >
+            Órdenes de compra
+          </Link>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[#D3E0E3] bg-white">

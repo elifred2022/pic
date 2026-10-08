@@ -182,6 +182,12 @@ export const canEditUsuarios = (
   rol?: string | null,
 ) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
 
+/** Desde las listas de pedidos, solo administrador y aprobador van a órdenes de compra. */
+export const canIrAOrdenesCompra = (
+  email?: string | null,
+  rol?: string | null,
+) => isAdminEmail(email, rol) || isAprobEmail(email, rol);
+
 /** Admin, finanzas, aprobadores y pañol pueden acceder al módulo de consultas. */
 export const canAccessConsultas = (
   email?: string | null,
