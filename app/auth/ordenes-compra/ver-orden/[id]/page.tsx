@@ -10,6 +10,7 @@ import {
   getListaPedidosProductivosUrl,
   parsePicFromArticuloId,
 } from "@/lib/pic-links";
+import { descargarLegajoOrden } from "@/lib/legajo-orden-pdf";
 import {
   getFactComprasBucket,
   getFacturaStoragePathUnique,
@@ -123,6 +124,13 @@ const printStyles = `
       font-weight: 600 !important;
       color: #333 !important;
       margin-bottom: 2px !important;
+    }
+
+    .print-header-cuit {
+      text-align: center !important;
+      font-size: 8px !important;
+      color: #333 !important;
+      margin: 0 0 2px !important;
     }
 
     .print-header-title {
@@ -1045,6 +1053,9 @@ export default function VerOrdenCompraPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCargarFactura, setShowCargarFactura] = useState(false);
+  const [legajoDescargando, setLegajoDescargando] = useState(false);
+  const [legajoError, setLegajoError] = useState<string | null>(null);
   const [editData, setEditData] = useState({
     noc: '',
     proveedor: '',
@@ -2410,7 +2421,12 @@ export default function VerOrdenCompraPage() {
         observaciones: orden.observaciones || '',
         condicion_pago: orden.condicion_pago || '',
         tipo_pago: orden.tipo_pago || '',
-        lugar_entrega: orden.lugar_entrega,
+        lugar_entrega:
+          orden.lugar_entrega === "Parque industrial ruta 6, lote 26, Los Cardales"
+            ? "Parque industrial ruta 6, lote 26, Los Cardales horario lun a vie de 8 a 16 hrs"
+            : orden.lugar_entrega === "Gascon 74 Boulogne horario 8 a 16 hrs"
+              ? "Gascon 74 Boulogne horario lun a vie de 8 a 16 hrs"
+              : orden.lugar_entrega,
         cod_cta: orden.cod_cta || '',
         sector: orden.sector || '',
         clasificacion_compra: orden.clasificacion_compra || '',
@@ -2520,7 +2536,8 @@ export default function VerOrdenCompraPage() {
       return;
     }
 
-    const fcDuplicado = editFacturas.some((item) => item.fc === fcNumero);
+    const facturasBase = showEditModal ? editFacturas : parseFacturasFromOrden(orden);
+    const fcDuplicado = facturasBase.some((item) => item.fc === fcNumero);
     if (fcDuplicado) {
       setFacturaUploadError(`Ya existe una factura con el FC ${fcNumero}.`);
       return;
@@ -2543,25 +2560,15 @@ export default function VerOrdenCompraPage() {
       }
 
       const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
-      const contentType = file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+      const contentType =
+        fileExt === "pdf"
+          ? "application/pdf"
+          : file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from(getFactComprasBucket())
-        .upload(storagePath, file, {
-          upsert: false,
-          contentType: fileExt === "pdf" ? "application/pdf" : contentType,
-        });
-
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        setFacturaUploadError(
-          `No se pudo subir al storage: ${getSupabaseErrorMessage(uploadError)}`
-        );
-        return;
-      }
+      await uploadFacturaRaw(supabase, storagePath, file, contentType);
 
       const facturasActualizadas: FacturaOrdenItem[] = [
-        ...editFacturas,
+        ...facturasBase,
         { fc: fcNumero, path: storagePath },
       ];
       const { error: persistError } = await persistirFacturas(facturasActualizadas);
@@ -3298,6 +3305,41 @@ export default function VerOrdenCompraPage() {
     });
   };
 
+  const handleDescargarLegajo = async () => {
+    if (!orden || legajoDescargando) return;
+    setLegajoDescargando(true);
+    setLegajoError(null);
+    try {
+      await descargarLegajoOrden(supabase, {
+        id: orden.id,
+        noc: orden.noc,
+        fecha: orden.fecha,
+        cuit: orden.cuit,
+        proveedor: orden.proveedor,
+        direccion: orden.direccion,
+        telefono: orden.telefono,
+        email: orden.email,
+        estado: orden.estado,
+        divisa: orden.divisa,
+        observaciones: orden.observaciones,
+        condicion_pago: orden.condicion_pago,
+        tipo_pago: orden.tipo_pago,
+        lugar_entrega: orden.lugar_entrega,
+        sector: orden.sector,
+        fc: orden.fc,
+        fact_path: orden.fact_path,
+        entregas: orden.entregas,
+        articulos: orden.articulos,
+        incluirImportes: canViewImportes,
+      });
+    } catch (err) {
+      console.error("Error armando legajo:", err);
+      setLegajoError(getSupabaseErrorMessage(err));
+    } finally {
+      setLegajoDescargando(false);
+    }
+  };
+
   const handleImprimir = (sinImportes = false) => {
     try {
       setPrintSinImportes(sinImportes);
@@ -3383,6 +3425,9 @@ export default function VerOrdenCompraPage() {
             <h1 className="text-2xl font-bold text-gray-800 print-header-company">
               Perfiles y Servicios SRL
             </h1>
+            <p className="text-sm text-gray-700 print-header-cuit">
+              Cuit 33-70835626-9
+            </p>
             <h2 className="hidden print:block print-header-title print-title-oc text-gray-900">
               Orden de Compra #{orden.noc}
             </h2>
@@ -3486,6 +3531,20 @@ export default function VerOrdenCompraPage() {
             </Button>
             {canEdit && (
               <Button
+                type="button"
+                onClick={() => {
+                  setFacturaUploadError(null);
+                  setShowCargarFactura((open) => !open);
+                }}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-sky-600 text-sky-700 hover:bg-sky-50"
+              >
+                Cargar factura
+              </Button>
+            )}
+            {canEdit && (
+              <Button
                 onClick={handleOpenEditModal}
                 variant="outline"
                 size="sm"
@@ -3526,6 +3585,49 @@ export default function VerOrdenCompraPage() {
           </div>
           {estadoError && (
             <p className="text-sm text-red-600 print:hidden">{estadoError}</p>
+          )}
+          {canEdit && showCargarFactura && (
+            <div className="rounded-md border border-dashed border-gray-300 bg-white p-3">
+              <p className="mb-2 text-sm font-medium text-gray-700">Agregar factura</p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="view-nueva-fc">Nº de factura (FC) *</Label>
+                  <Input
+                    id="view-nueva-fc"
+                    type="number"
+                    value={nuevaFacturaFc}
+                    onChange={(e) => setNuevaFacturaFc(e.target.value)}
+                    placeholder="Ej: 12345"
+                    min="0"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="view-factura-imagen">Imagen / PDF de factura</Label>
+                  <Input
+                    id="view-factura-imagen"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
+                    disabled={facturaUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleSubirImagenFactura(file);
+                      e.target.value = "";
+                    }}
+                    className="cursor-pointer"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ingrese el FC y luego el archivo. Cada factura requiere número e imagen/PDF.
+                  </p>
+                  {facturaUploading && (
+                    <p className="mt-1 text-sm text-blue-600">Subiendo imagen...</p>
+                  )}
+                  {facturaUploadError && (
+                    <p className="mt-1 text-sm text-red-600">{facturaUploadError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -3906,7 +4008,18 @@ export default function VerOrdenCompraPage() {
         </Card>
 
         {/* Acciones impresión */}
-        <div className="flex justify-center gap-4 print-hidden">
+        <div className="flex flex-col items-center gap-2 print-hidden">
+        <div className="flex flex-wrap justify-center gap-4">
+          <Button
+            type="button"
+            onClick={() => {
+              void handleDescargarLegajo();
+            }}
+            disabled={legajoDescargando}
+            className="px-8 bg-slate-800 hover:bg-slate-900"
+          >
+            {legajoDescargando ? "Armando legajo..." : "Descargar legajo"}
+          </Button>
           {canViewImportes && (
             <Button
               onClick={() => handleImprimir(false)}
@@ -3921,6 +4034,10 @@ export default function VerOrdenCompraPage() {
           >
             🖨️ Imprimir OR
           </Button>
+        </div>
+        {legajoError && (
+          <p className="text-sm text-red-600">{legajoError}</p>
+        )}
         </div>
       </div>
       </div>
@@ -4037,11 +4154,11 @@ export default function VerOrdenCompraPage() {
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Seleccione el lugar de entrega</option>
-                      <option value="Gascon 74 Boulogne horario 8 a 16 hrs">
-                        Gascon 74 Boulogne horario 8 a 16 hrs
+                      <option value="Gascon 74 Boulogne horario lun a vie de 8 a 16 hrs">
+                        Gascon 74 Boulogne horario lun a vie de 8 a 16 hrs
                       </option>
-                      <option value="Parque industrial ruta 6, lote 26, Los Cardales">
-                        Parque industrial ruta 6, lote 26, Los Cardales
+                      <option value="Parque industrial ruta 6, lote 26, Los Cardales horario lun a vie de 8 a 16 hrs">
+                        Parque industrial ruta 6, lote 26, Los Cardales horario lun a vie de 8 a 16 hrs
                       </option>
                     </select>
                   </div>

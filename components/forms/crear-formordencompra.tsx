@@ -972,11 +972,11 @@ export function CrearFormOrdenCompra() {
                 required
               >
                 <option value="">Seleccione el lugar de entrega</option>
-                <option value="Gascon 74 Boulogne horario 8 a 16 hrs">
-                  Gascon 74 Boulogne horario 8 a 16 hrs
+                <option value="Gascon 74 Boulogne horario lun a vie de 8 a 16 hrs">
+                  Gascon 74 Boulogne horario lun a vie de 8 a 16 hrs
                 </option>
-                <option value="Parque industrial ruta 6, lote 26, Los Cardales">
-                  Parque industrial ruta 6, lote 26, Los Cardales
+                <option value="Parque industrial ruta 6, lote 26, Los Cardales horario lun a vie de 8 a 16 hrs">
+                  Parque industrial ruta 6, lote 26, Los Cardales horario lun a vie de 8 a 16 hrs
                 </option>
               </select>
             </div>
