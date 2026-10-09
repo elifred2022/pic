@@ -1085,6 +1085,7 @@ export default function VerOrdenCompraPage() {
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
   const [saving, setSaving] = useState(false);
   const [facturaUploading, setFacturaUploading] = useState(false);
+  const [facturaEliminando, setFacturaEliminando] = useState<number | null>(null);
   const [facturaUploadError, setFacturaUploadError] = useState<string | null>(null);
   const [facturaViewUrls, setFacturaViewUrls] = useState<Record<string, string>>({});
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -2666,6 +2667,26 @@ export default function VerOrdenCompraPage() {
     }
   };
 
+  const handleEliminarFactura = async (index: number) => {
+    if (!orden) return;
+    const actuales = parseFacturasFromOrden(orden);
+    const factura = actuales[index];
+    if (!factura) return;
+
+    const label = factura.fc != null ? `la factura FC ${factura.fc}` : `la factura ${index + 1}`;
+    if (!window.confirm(`¿Eliminar ${label}?`)) return;
+
+    setFacturaEliminando(index);
+    setFacturaUploadError(null);
+    const { error } = await persistirFacturas(actuales.filter((_, i) => i !== index));
+    if (error) {
+      setFacturaUploadError(
+        `No se pudo eliminar la factura: ${getSupabaseErrorMessage(error)}`
+      );
+    }
+    setFacturaEliminando(null);
+  };
+
   const handleActualizarFcFactura = (index: number, value: string) => {
     setEditFacturas((prev) =>
       prev.map((item, i) => {
@@ -3867,10 +3888,25 @@ export default function VerOrdenCompraPage() {
                             ) : factura.path ? (
                               <span className="text-sm text-gray-500">Imagen adjunta</span>
                             ) : null}
+                            {canEdit && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                disabled={facturaEliminando !== null || facturaUploading}
+                                onClick={() => void handleEliminarFactura(index)}
+                              >
+                                {facturaEliminando === index ? "Eliminando..." : "Eliminar factura"}
+                              </Button>
+                            )}
                           </li>
                         );
                       })}
                     </ul>
+                    {facturaUploadError && !showCargarFactura && (
+                      <p className="mt-2 text-sm text-red-600">{facturaUploadError}</p>
+                    )}
                   </div>
                 )}
                 {formatRtDisplay(orden.rt) && (
