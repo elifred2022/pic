@@ -1,4 +1,12 @@
-import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFArray,
+  PDFDocument,
+  PDFName,
+  PDFStream,
+  StandardFonts,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getFactComprasBucket,
@@ -350,6 +358,58 @@ class Escritor {
   }
 }
 
+/** Nombres cortos del PDF (ISO) que pdf-lib no reconoce. `/Fl` es FlateDecode. */
+const FILTROS_ABREVIADOS: Record<string, string> = {
+  "/Fl": "FlateDecode",
+  "/A85": "ASCII85Decode",
+  "/AHx": "ASCIIHexDecode",
+  "/LZW": "LZWDecode",
+  "/RL": "RunLengthDecode",
+};
+
+function expandirFiltrosAbreviados(pdf: PDFDocument) {
+  const clave = PDFName.of("Filter");
+  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFStream)) continue;
+    const filtro = obj.dict.lookup(clave);
+    if (filtro instanceof PDFName) {
+      const completo = FILTROS_ABREVIADOS[filtro.asString()];
+      if (completo) obj.dict.set(clave, PDFName.of(completo));
+      continue;
+    }
+    if (filtro instanceof PDFArray) {
+      for (let i = 0; i < filtro.size(); i++) {
+        const item = filtro.lookup(i);
+        if (!(item instanceof PDFName)) continue;
+        const completo = FILTROS_ABREVIADOS[item.asString()];
+        if (completo) filtro.set(i, PDFName.of(completo));
+      }
+    }
+  }
+}
+
+/** Decodifica el PDF en un documento aparte. Si falla, el legajo principal no queda a medias. */
+async function prepararPdf(bytes: Uint8Array): Promise<PDFDocument> {
+  const origen = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  expandirFiltrosAbreviados(origen);
+  if (origen.getPageCount() === 0) {
+    throw new Error("El PDF no tiene páginas.");
+  }
+  const puente = await PDFDocument.create();
+  const embebidas = await puente.embedPages(origen.getPages());
+  for (const embebida of embebidas) {
+    const pagina = puente.addPage([embebida.width, embebida.height]);
+    pagina.drawPage(embebida, {
+      x: 0,
+      y: 0,
+      width: embebida.width,
+      height: embebida.height,
+    });
+  }
+  const limpio = await puente.save({ updateFieldAppearances: false });
+  return PDFDocument.load(limpio);
+}
+
 async function agregarArchivo(
   doc: PDFDocument,
   font: PDFFont,
@@ -359,7 +419,7 @@ async function agregarArchivo(
 ) {
   const tipo = tipoArchivo(bytes);
   if (tipo === "pdf") {
-    const origen = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const origen = await prepararPdf(bytes);
     const paginas = await doc.embedPages(origen.getPages());
     paginas.forEach((embebida, index) => {
       const ancho = embebida.width;
