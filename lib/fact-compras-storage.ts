@@ -147,6 +147,10 @@ export async function uploadFacturaRaw(
 export type FacturaOrdenItem = {
   fc: number | null;
   path: string | null;
+  /** Fecha de la factura (YYYY-MM-DD). */
+  fecha?: string | null;
+  /** Monto total de la factura. */
+  monto?: number | null;
 };
 
 /** Aplana arrays JSON anidados (ej. [["600/factura.pdf"]] → ["600/factura.pdf"]). */
@@ -168,9 +172,30 @@ function parseFcValue(value: unknown): number | null {
     const flat = flattenJsonScalars(value);
     return flat.length > 0 ? parseFcValue(flat[0]) : null;
   }
+  if (typeof value === "object") {
+    const record = value as { fc?: unknown; n?: unknown };
+    if ("fc" in record || "n" in record) return parseFcValue(record.fc ?? record.n);
+    return null;
+  }
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseInt(String(value), 10);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseFcElement(value: unknown): {
+  fc: number | null;
+  fecha: string | null;
+  monto: number | null;
+} {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as { fc?: unknown; n?: unknown; fecha?: unknown; monto?: unknown };
+    return {
+      fc: parseFcValue(record.fc ?? record.n),
+      fecha: parseFechaFactura(record.fecha),
+      monto: parseMontoFactura(record.monto),
+    };
+  }
+  return { fc: parseFcValue(value), fecha: null, monto: null };
 }
 
 function parsePathValue(value: unknown): string | null {
@@ -307,6 +332,46 @@ export function extractLegacyFactPath(fact_path: unknown): string | null {
   return null;
 }
 
+function parseFechaFactura(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return null;
+  return trimmed.slice(0, 10);
+}
+
+function parseMontoFactura(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).trim().replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseDetalleFactura(value: unknown): { fecha: string | null; monto: number | null } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { fecha: null, monto: null };
+  }
+  const record = value as { fecha?: unknown; monto?: unknown };
+  return {
+    fecha: parseFechaFactura(record.fecha),
+    monto: parseMontoFactura(record.monto),
+  };
+}
+
+function aplicarDetalleFacturas(
+  items: FacturaOrdenItem[],
+  detalle: unknown
+): FacturaOrdenItem[] {
+  const detalles = Array.isArray(detalle) ? detalle : [];
+  if (detalles.length === 0) return items;
+  return items.map((item, index) => {
+    const extra = parseDetalleFactura(detalles[index]);
+    return {
+      ...item,
+      fecha: item.fecha ?? extra.fecha,
+      monto: item.monto ?? extra.monto,
+    };
+  });
+}
+
 function parseFacturasLegacyRow(row: FacturasOrdenRow): FacturaOrdenItem[] {
   const path = extractLegacyFactPath(row.fact_path);
   const fc = parseFcValue(row.fc);
@@ -321,21 +386,33 @@ export function parseFacturasFromOrden(row: {
   fc?: unknown;
   fact_path?: unknown;
   facturas?: unknown;
+  facturas_detalle?: unknown;
 }): FacturaOrdenItem[] {
   if (Array.isArray(row.facturas) && row.facturas.length > 0) {
-    return row.facturas
-      .map((item) => {
-        if (!item || typeof item !== "object" || Array.isArray(item)) {
-          return { fc: null, path: null };
-        }
-        const record = item as { fc?: unknown; path?: unknown; fact_path?: unknown };
-        const path = record.path ?? record.fact_path;
-        return {
-          fc: parseFcValue(record.fc),
-          path: parsePathValue(path),
-        };
-      })
-      .filter((item) => item.fc !== null || item.path !== null);
+    return aplicarDetalleFacturas(
+      row.facturas
+        .map((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) {
+            return { fc: null, path: null };
+          }
+          const record = item as {
+            fc?: unknown;
+            path?: unknown;
+            fact_path?: unknown;
+            fecha?: unknown;
+            monto?: unknown;
+          };
+          const path = record.path ?? record.fact_path;
+          return {
+            fc: parseFcValue(record.fc),
+            path: parsePathValue(path),
+            fecha: parseFechaFactura(record.fecha),
+            monto: parseMontoFactura(record.monto),
+          };
+        })
+        .filter((item) => item.fc !== null || item.path !== null),
+      row.facturas_detalle
+    );
   }
 
   if (detectFacturasStorageFormat(row) === "by-fc-object") {
@@ -346,16 +423,21 @@ export function parseFacturasFromOrden(row: {
         ? [row.fc]
         : Object.keys(pathMap);
 
-    return fcValues
-      .map((fcValue) => {
-        const fc = parseFcValue(fcValue);
-        const key = fc !== null ? String(fc) : String(fcValue);
-        return {
-          fc,
-          path: parsePathValue(pathMap[key]),
-        };
-      })
-      .filter((item) => item.fc !== null || item.path !== null);
+    return aplicarDetalleFacturas(
+      fcValues
+        .map((fcValue) => {
+          const elemento = parseFcElement(fcValue);
+          const key = elemento.fc !== null ? String(elemento.fc) : String(fcValue);
+          return {
+            fc: elemento.fc,
+            path: parsePathValue(pathMap[key]),
+            fecha: elemento.fecha,
+            monto: elemento.monto,
+          };
+        })
+        .filter((item) => item.fc !== null || item.path !== null),
+      row.facturas_detalle
+    );
   }
 
   const fcValues = coerceJsonArray(row.fc);
@@ -363,24 +445,38 @@ export function parseFacturasFromOrden(row: {
 
   const total = Math.max(fcValues.length, pathValues.length);
   if (total === 0) {
-    return parseFacturasLegacyRow(row);
+    return aplicarDetalleFacturas(parseFacturasLegacyRow(row), row.facturas_detalle);
   }
 
-  const parsed = Array.from({ length: total }, (_, index) => ({
-    fc: parseFcValue(fcValues[index]),
-    path: parsePathValue(pathValues[index]),
-  })).filter((item) => item.fc !== null || item.path !== null);
+  const parsed = Array.from({ length: total }, (_, index) => {
+    const elemento = parseFcElement(fcValues[index]);
+    return {
+      fc: elemento.fc,
+      path: parsePathValue(pathValues[index]),
+      fecha: elemento.fecha,
+      monto: elemento.monto,
+    };
+  }).filter((item) => item.fc !== null || item.path !== null);
 
-  if (parsed.length > 0) return parsed;
+  if (parsed.length > 0) return aplicarDetalleFacturas(parsed, row.facturas_detalle);
 
-  return parseFacturasLegacyRow(row);
+  return aplicarDetalleFacturas(parseFacturasLegacyRow(row), row.facturas_detalle);
 }
 
-/** Persiste en columnas JSON fc y fact_path (arrays planos, sin anidar). */
+/**
+ * Persiste fc y fact_path como arrays paralelos.
+ * Si la factura tiene fecha o monto, el elemento de fc es
+ * { fc, fecha, monto }. Si no, sigue siendo el número.
+ */
 export function serializeFacturasToDb(facturas: FacturaOrdenItem[]) {
   const cleaned = facturas.filter(isFacturaParCompleta);
   return {
-    fc: cleaned.map((item) => item.fc),
+    fc: cleaned.map((item) => {
+      const fecha = item.fecha?.trim() || null;
+      const monto = item.monto != null && Number.isFinite(item.monto) ? item.monto : null;
+      if (!fecha && monto == null) return item.fc;
+      return { fc: item.fc, fecha, monto };
+    }),
     fact_path: cleaned.map((item) => parsePathValue(item.path) ?? item.path.trim()),
   };
 }
@@ -393,10 +489,11 @@ export type OrdenCompraFacturasJson = {
 export type FacturasOrdenRow = {
   fc?: unknown;
   fact_path?: unknown;
+  facturas_detalle?: unknown;
   rt?: unknown;
 };
 
-/** Arma el UPDATE para columnas JSON fc y fact_path (siempre arrays paralelos). */
+/** Arma el UPDATE para columnas JSON fc y fact_path (arrays paralelos). */
 export function buildFacturasUpdatePayload(
   _orden: FacturasOrdenRow,
   facturas: FacturaOrdenItem[]

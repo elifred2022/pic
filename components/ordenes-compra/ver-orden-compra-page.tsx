@@ -1080,6 +1080,8 @@ export default function VerOrdenCompraPage() {
   });
   const [editFacturas, setEditFacturas] = useState<FacturaOrdenItem[]>([]);
   const [nuevaFacturaFc, setNuevaFacturaFc] = useState('');
+  const [nuevaFacturaFecha, setNuevaFacturaFecha] = useState('');
+  const [nuevaFacturaMonto, setNuevaFacturaMonto] = useState('');
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedoresFiltrados, setProveedoresFiltrados] = useState<Proveedor[]>([]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
@@ -1575,9 +1577,7 @@ export default function VerOrdenCompraPage() {
   const descargarDatosFactura = () => {
     if (!orden) return;
 
-    const facturas = parseFacturasFromOrden(orden)
-      .map((item) => item.fc)
-      .filter((fc): fc is number => fc !== null);
+    const facturas = parseFacturasFromOrden(orden).filter((item) => item.fc !== null);
     const remitosEntrega = normalizeEntregasToRegistros(orden.entregas)
       .filter((reg) => !reg.anulado && reg.rt != null)
       .map((reg) => reg.rt as number);
@@ -1589,28 +1589,31 @@ export default function VerOrdenCompraPage() {
           .filter((id): id is string => Boolean(id))
       ),
     ];
-    const total = (orden.articulos || []).reduce((sum, item) => sum + getRowTotal(item), 0);
     const condicionProceso = orden.condi_proceso
       ? CONDICION_PROCESO_LABELS[
           orden.condi_proceso as keyof typeof CONDICION_PROCESO_LABELS
         ] ?? orden.condi_proceso
       : "";
 
-    const fila = {
+    const filasOrigen = facturas.length > 0 ? facturas : [null];
+    const filas = filasOrigen.map((factura) => ({
       Proveedor: orden.proveedor ?? "",
-      Factura: facturas.join(", "),
+      Factura: factura?.fc ?? "",
       Remito: remitos.join(", "),
-      Monto: canViewImportes ? formatImporte(total, orden.divisa) : "",
+      Monto:
+        canViewImportes && factura?.monto != null && Number.isFinite(factura.monto)
+          ? formatImporte(factura.monto, orden.divisa)
+          : "",
       "Condición de pago": orden.condicion_pago ?? "",
-      "Fecha de registro": orden.fecha ? formatFechaOrden(orden.fecha, true) : "",
+      "Fecha de factura": formatDateLocal(factura?.fecha),
       "Código de cuenta": orden.cod_cta ?? "",
       "Número OC": orden.noc,
       PIC: pics.join(", "),
       "Condición de proceso": condicionProceso,
       Sector: orden.sector ? etiquetaSector(orden.sector) : "",
-    };
+    }));
 
-    const ws = XLSX.utils.json_to_sheet([fila]);
+    const ws = XLSX.utils.json_to_sheet(filas);
     ws["!cols"] = [
       { wch: 36 },
       { wch: 18 },
@@ -2156,7 +2159,7 @@ export default function VerOrdenCompraPage() {
       const facturasExistentes = parseFacturasFromOrden({
         fc: ordenDb.fc ?? orden.fc,
         fact_path: ordenDb.fact_path ?? orden.fact_path,
-      }).filter((f) => f.fc !== null && f.path) as { fc: number; path: string }[];
+      }).filter((f) => f.fc !== null && f.path);
 
       const facturasMerged =
         docNumero !== null
@@ -2375,7 +2378,7 @@ export default function VerOrdenCompraPage() {
       const facturasExistentes = parseFacturasFromOrden({
         fc: ordenDb.fc ?? orden.fc,
         fact_path: ordenDb.fact_path ?? orden.fact_path,
-      }).filter((f) => f.fc !== null && f.path) as { fc: number; path: string }[];
+      }).filter((f) => f.fc !== null && f.path);
 
       // Acumular facturas solo si hay FC y documento adjunto
       const facturasMerged =
@@ -2534,6 +2537,8 @@ export default function VerOrdenCompraPage() {
     });
     setEditFacturas([]);
     setNuevaFacturaFc('');
+    setNuevaFacturaFecha('');
+    setNuevaFacturaMonto('');
     setBusquedaProveedor('');
     setFacturaUploadError(null);
     setPrecioEdicion({});
@@ -2596,6 +2601,17 @@ export default function VerOrdenCompraPage() {
       return;
     }
 
+    if (!nuevaFacturaFecha.trim()) {
+      setFacturaUploadError("Debe ingresar la fecha de factura antes de subir la imagen.");
+      return;
+    }
+
+    const montoFactura = Number(nuevaFacturaMonto.trim().replace(",", "."));
+    if (!nuevaFacturaMonto.trim() || !Number.isFinite(montoFactura) || montoFactura < 0) {
+      setFacturaUploadError("Debe ingresar el monto total de la factura antes de subir la imagen.");
+      return;
+    }
+
     const facturasBase = showEditModal ? editFacturas : parseFacturasFromOrden(orden);
     const fcDuplicado = facturasBase.some((item) => item.fc === fcNumero);
     if (fcDuplicado) {
@@ -2629,7 +2645,12 @@ export default function VerOrdenCompraPage() {
 
       const facturasActualizadas: FacturaOrdenItem[] = [
         ...facturasBase,
-        { fc: fcNumero, path: storagePath },
+        {
+          fc: fcNumero,
+          path: storagePath,
+          fecha: nuevaFacturaFecha,
+          monto: montoFactura,
+        },
       ];
       const { error: persistError } = await persistirFacturas(facturasActualizadas);
       if (persistError) {
@@ -2648,6 +2669,8 @@ export default function VerOrdenCompraPage() {
         setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
       }
       setNuevaFacturaFc("");
+      setNuevaFacturaFecha("");
+      setNuevaFacturaMonto("");
     } catch (err) {
       console.error("Error subiendo imagen de factura:", err);
       setFacturaUploadError(getSupabaseErrorMessage(err));
@@ -3669,7 +3692,7 @@ export default function VerOrdenCompraPage() {
           {canEdit && showCargarFactura && (
             <div className="rounded-md border border-dashed border-gray-300 bg-white p-3">
               <p className="mb-2 text-sm font-medium text-gray-700">Agregar factura</p>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
                   <Label htmlFor="view-nueva-fc">Nº de factura (FC) *</Label>
                   <Input
@@ -3682,7 +3705,30 @@ export default function VerOrdenCompraPage() {
                     required
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
+                  <Label htmlFor="view-nueva-fc-fecha">Fecha de factura *</Label>
+                  <Input
+                    id="view-nueva-fc-fecha"
+                    type="date"
+                    value={nuevaFacturaFecha}
+                    onChange={(e) => setNuevaFacturaFecha(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="view-nueva-fc-monto">Monto total *</Label>
+                  <Input
+                    id="view-nueva-fc-monto"
+                    type="number"
+                    value={nuevaFacturaMonto}
+                    onChange={(e) => setNuevaFacturaMonto(e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div>
                   <Label htmlFor="view-factura-imagen">Imagen / PDF de factura</Label>
                   <Input
                     id="view-factura-imagen"
@@ -3697,7 +3743,7 @@ export default function VerOrdenCompraPage() {
                     className="cursor-pointer"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Ingrese el FC y luego el archivo. Cada factura requiere número e imagen/PDF.
+                    Complete FC, fecha y monto, y después el archivo.
                   </p>
                   {facturaUploading && (
                     <p className="mt-1 text-sm text-blue-600">Subiendo imagen...</p>
@@ -3875,6 +3921,16 @@ export default function VerOrdenCompraPage() {
                         return (
                           <li key={`${factura.path ?? "sin-path"}-${index}`} className="flex flex-wrap items-center gap-2">
                             <span className="text-base font-medium print-field-value">{label}</span>
+                            {factura.fecha ? (
+                              <span className="text-sm text-gray-600">
+                                {formatDateLocal(factura.fecha)}
+                              </span>
+                            ) : null}
+                            {canViewImportes && factura.monto != null ? (
+                              <span className="text-sm text-gray-600">
+                                {formatImporte(factura.monto, orden.divisa)}
+                              </span>
+                            ) : null}
                             {viewUrl ? (
                               <a
                                 href={viewUrl}
@@ -4304,6 +4360,16 @@ export default function VerOrdenCompraPage() {
                                     min="0"
                                   />
                                 </div>
+                                {factura.fecha ? (
+                                  <span className="text-sm text-gray-600">
+                                    {formatDateLocal(factura.fecha)}
+                                  </span>
+                                ) : null}
+                                {canViewImportes && factura.monto != null ? (
+                                  <span className="text-sm text-gray-600">
+                                    {formatImporte(factura.monto, editData.divisa)}
+                                  </span>
+                                ) : null}
                                 {viewUrl ? (
                                   <a
                                     href={viewUrl}
@@ -4337,7 +4403,7 @@ export default function VerOrdenCompraPage() {
 
                     <div className="rounded-md border border-dashed border-gray-300 p-3">
                       <p className="text-sm font-medium text-gray-700 mb-2">Agregar factura</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <Label htmlFor="edit-nueva-fc">Nº de factura (FC) *</Label>
                           <Input
@@ -4350,7 +4416,30 @@ export default function VerOrdenCompraPage() {
                             required
                           />
                         </div>
-                        <div className="md:col-span-2">
+                        <div>
+                          <Label htmlFor="edit-nueva-fc-fecha">Fecha de factura *</Label>
+                          <Input
+                            id="edit-nueva-fc-fecha"
+                            type="date"
+                            value={nuevaFacturaFecha}
+                            onChange={(e) => setNuevaFacturaFecha(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-nueva-fc-monto">Monto total *</Label>
+                          <Input
+                            id="edit-nueva-fc-monto"
+                            type="number"
+                            value={nuevaFacturaMonto}
+                            onChange={(e) => setNuevaFacturaMonto(e.target.value)}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            required
+                          />
+                        </div>
+                        <div>
                           <Label htmlFor="edit-factura-imagen">Imagen / PDF de factura</Label>
                           <Input
                             id="edit-factura-imagen"
@@ -4365,7 +4454,7 @@ export default function VerOrdenCompraPage() {
                             className="cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            Ingrese el FC y luego el archivo. Cada factura requiere número e imagen/PDF.
+                            Complete FC, fecha y monto, y después el archivo.
                           </p>
                           {facturaUploading && (
                             <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
