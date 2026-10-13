@@ -289,7 +289,7 @@ export function detectFacturasStorageFormat(row: {
 
 function isFacturaParCompleta(
   item: FacturaOrdenItem
-): item is { fc: number; path: string } {
+): item is FacturaOrdenItem & { fc: number; path: string } {
   return (
     item.fc !== null &&
     Number.isFinite(item.fc) &&
