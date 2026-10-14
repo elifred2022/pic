@@ -1602,7 +1602,7 @@ export default function VerOrdenCompraPage() {
       Remito: remitos.join(", "),
       Monto:
         canViewImportes && factura?.monto != null && Number.isFinite(factura.monto)
-          ? formatImporte(factura.monto, orden.divisa)
+          ? factura.monto
           : "",
       "Condición de pago": orden.condicion_pago ?? "",
       "Fecha de factura": formatDateLocal(factura?.fecha),
@@ -1630,6 +1630,77 @@ export default function VerOrdenCompraPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Datos de factura");
     XLSX.writeFile(wb, `datos-factura-oc-${orden.noc}.xlsx`);
+  };
+
+  const descargarArticulosOrden = () => {
+    if (!orden) return;
+
+    const filas = (orden.articulos || []).map((item) => {
+      const parsed = parsePicFromArticuloId(item.articulo_id || "");
+      const pic =
+        parsed.tipo === "sin-pic"
+          ? "Sin PIC"
+          : extractPicDisplayNumber(item.articulo_id || "");
+      const precioConDescuento = calcularPrecioConDescuento(
+        item.precio_unitario,
+        item.descuento
+      );
+      const numero = (valor: number) => (Number.isFinite(valor) ? valor : 0);
+
+      return {
+        PIC: pic,
+        OC: orden.noc,
+        Artículo: item.articulo_nombre ?? "",
+        Descripción: item.descripcion?.trim() ?? "",
+        Presentación: item.presentacion?.trim() ?? "",
+        "Código del proveedor": item.codprovsug?.trim() ?? "",
+        "Código interno": item.codint?.trim() ?? "",
+        Cantidad: numero(item.cantidad),
+        "Precio unitario": canViewImportes ? numero(item.precio_unitario) : "",
+        Descuento: canViewImportes ? numero(item.descuento ?? 0) : "",
+        "Precio con descuento": canViewImportes ? numero(precioConDescuento) : "",
+        Subtotal: canViewImportes ? numero(getRowTotal(item)) : "",
+        Moneda: canViewImportes ? normalizeDivisa(orden.divisa) : "",
+      };
+    });
+
+    const encabezados = [
+      "PIC",
+      "OC",
+      "Artículo",
+      "Descripción",
+      "Presentación",
+      "Código del proveedor",
+      "Código interno",
+      "Cantidad",
+      "Precio unitario",
+      "Descuento",
+      "Precio con descuento",
+      "Subtotal",
+      "Moneda",
+    ];
+    const ws =
+      filas.length > 0
+        ? XLSX.utils.json_to_sheet(filas)
+        : XLSX.utils.aoa_to_sheet([encabezados]);
+    ws["!cols"] = [
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 36 },
+      { wch: 40 },
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 12 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Artículos");
+    XLSX.writeFile(wb, `articulos-oc-${orden.noc}.xlsx`);
   };
 
   const formatDateForInput = (dateStr: string | null | undefined) => {
@@ -4177,6 +4248,13 @@ export default function VerOrdenCompraPage() {
             className="px-8 bg-emerald-700 hover:bg-emerald-800"
           >
             Descargar datos de factura
+          </Button>
+          <Button
+            type="button"
+            onClick={descargarArticulosOrden}
+            className="px-8 bg-sky-700 hover:bg-sky-800"
+          >
+            Descargar artículos
           </Button>
           {canViewImportes && (
             <Button
