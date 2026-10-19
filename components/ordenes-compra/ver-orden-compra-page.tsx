@@ -25,6 +25,12 @@ import {
   parseFacturasFromOrden,
   type FacturaOrdenItem,
 } from "@/lib/fact-compras-storage";
+import {
+  getPresupuestoViewUrl,
+  parseDocumentacionOrden,
+  uploadDocumentacionOrden,
+  type DocumentoOrdenItem,
+} from "@/lib/presupuestos-storage";
 import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail, isPanolEmail } from "@/lib/panol-access";
 import { fetchUserRolByUuid } from "@/lib/user-rol";
 import {
@@ -413,6 +419,7 @@ type ArticuloOrdenItem = {
   descripcion?: string | null;
   presentacion?: string | null;
   codprovsug?: string | null;
+  observacion?: string | null;
 };
 
 type ArticuloCatalogoOrden = {
@@ -1039,6 +1046,8 @@ interface OrdenCompra {
   /** JSON: { abonado: boolean, fecha: string | null } */
   abonado?: unknown;
   fact_path?: unknown;
+  /** JSON: [{ fecha, tipo, numero, path, nombre }] en bucket presupuestos. */
+  documentacion?: unknown;
 }
 
 interface Proveedor {
@@ -1056,6 +1065,7 @@ export default function VerOrdenCompraPage() {
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCargarFactura, setShowCargarFactura] = useState(false);
+  const [showCargarDocumentacion, setShowCargarDocumentacion] = useState(false);
   const [legajoDescargando, setLegajoDescargando] = useState(false);
   const [legajoError, setLegajoError] = useState<string | null>(null);
   const [editData, setEditData] = useState({
@@ -1090,6 +1100,13 @@ export default function VerOrdenCompraPage() {
   const [facturaEliminando, setFacturaEliminando] = useState<number | null>(null);
   const [facturaUploadError, setFacturaUploadError] = useState<string | null>(null);
   const [facturaViewUrls, setFacturaViewUrls] = useState<Record<string, string>>({});
+  const [docFecha, setDocFecha] = useState("");
+  const [docTipo, setDocTipo] = useState("");
+  const [docNumero, setDocNumero] = useState("");
+  const [docUploading, setDocUploading] = useState(false);
+  const [docEliminando, setDocEliminando] = useState<number | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [docViewUrls, setDocViewUrls] = useState<Record<string, string>>({});
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRol, setUserRol] = useState<string | null>(null);
   const [accessLoaded, setAccessLoaded] = useState(false);
@@ -1411,6 +1428,32 @@ export default function VerOrdenCompraPage() {
     let cancelled = false;
     void loadFacturaViewUrls(supabase, paths).then((urls) => {
       if (!cancelled) setFacturaViewUrls(urls);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [orden, supabase]);
+
+  useEffect(() => {
+    if (!orden) {
+      setDocViewUrls({});
+      return;
+    }
+    const paths = parseDocumentacionOrden(orden.documentacion).map((item) => item.path);
+    if (paths.length === 0) {
+      setDocViewUrls({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      paths.map(async (path) => [path, await getPresupuestoViewUrl(supabase, path)] as const)
+    ).then((pairs) => {
+      if (cancelled) return;
+      const urls: Record<string, string> = {};
+      pairs.forEach(([path, url]) => {
+        if (url) urls[path] = url;
+      });
+      setDocViewUrls(urls);
     });
     return () => {
       cancelled = true;
@@ -2781,6 +2824,72 @@ export default function VerOrdenCompraPage() {
     setFacturaEliminando(null);
   };
 
+  const handleSubirDocumentacion = async (file: File) => {
+    if (!orden) return;
+    setDocUploading(true);
+    setDocError(null);
+    try {
+      const { storagePath } = await uploadDocumentacionOrden(supabase, orden.id, file);
+      const actuales = parseDocumentacionOrden(orden.documentacion);
+      const nuevo: DocumentoOrdenItem = {
+        fecha: /^\d{4}-\d{2}-\d{2}/.test(docFecha) ? docFecha.slice(0, 10) : null,
+        tipo: docTipo.trim() || null,
+        numero: docNumero.trim() || null,
+        path: storagePath,
+        nombre: file.name.trim() || null,
+      };
+      const documentacion = [...actuales, nuevo];
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update({ documentacion })
+        .eq("id", orden.id);
+      if (updateError) {
+        const msg = getSupabaseErrorMessage(updateError);
+        const faltaColumna = /documentacion/i.test(msg) && /column|schema cache/i.test(msg);
+        setDocError(
+          faltaColumna
+            ? "El archivo se subió, pero falta la columna documentacion. Ejecute una vez database/add_documentacion_ordenes_compra.sql en Supabase."
+            : `El archivo se subió, pero no se guardó en la orden: ${msg}`
+        );
+        return;
+      }
+      setOrden((prev) => (prev ? { ...prev, documentacion } : prev));
+      const viewUrl = await getPresupuestoViewUrl(supabase, storagePath);
+      if (viewUrl) setDocViewUrls((prev) => ({ ...prev, [storagePath]: viewUrl }));
+      setDocFecha("");
+      setDocTipo("");
+      setDocNumero("");
+    } catch (err) {
+      console.error("Error subiendo documentación:", err);
+      setDocError(getSupabaseErrorMessage(err));
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const handleEliminarDocumentacion = async (index: number) => {
+    if (!orden) return;
+    const actuales = parseDocumentacionOrden(orden.documentacion);
+    const doc = actuales[index];
+    if (!doc) return;
+    const label = doc.tipo || doc.nombre || `el documento ${index + 1}`;
+    if (!window.confirm(`¿Eliminar ${label}?`)) return;
+
+    setDocEliminando(index);
+    setDocError(null);
+    const documentacion = actuales.filter((_, i) => i !== index);
+    const { error: updateError } = await supabase
+      .from("ordenes_compra")
+      .update({ documentacion })
+      .eq("id", orden.id);
+    if (updateError) {
+      setDocError(`No se pudo eliminar el documento: ${getSupabaseErrorMessage(updateError)}`);
+    } else {
+      setOrden((prev) => (prev ? { ...prev, documentacion } : prev));
+    }
+    setDocEliminando(null);
+  };
+
   const handleActualizarFcFactura = (index: number, value: string) => {
     setEditFacturas((prev) =>
       prev.map((item, i) => {
@@ -3503,6 +3612,7 @@ export default function VerOrdenCompraPage() {
         fc: orden.fc,
         fact_path: orden.fact_path,
         entregas: orden.entregas,
+        documentacion: orden.documentacion,
         articulos: orden.articulos,
         incluirImportes: canViewImportes,
       });
@@ -3568,6 +3678,7 @@ export default function VerOrdenCompraPage() {
     orden.historico_estado
   );
   const facturasOrden = parseFacturasFromOrden(orden);
+  const documentacionOrden = parseDocumentacionOrden(orden.documentacion);
   const fcImpresion = facturasOrden
     .map((item) => item.fc)
     .filter((fc): fc is number => fc !== null)
@@ -3719,6 +3830,20 @@ export default function VerOrdenCompraPage() {
             )}
             {canEdit && (
               <Button
+                type="button"
+                onClick={() => {
+                  setDocError(null);
+                  setShowCargarDocumentacion((open) => !open);
+                }}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-violet-600 text-violet-700 hover:bg-violet-50"
+              >
+                Cargar documentación
+              </Button>
+            )}
+            {canEdit && (
+              <Button
                 onClick={handleOpenEditModal}
                 variant="outline"
                 size="sm"
@@ -3821,6 +3946,66 @@ export default function VerOrdenCompraPage() {
                   )}
                   {facturaUploadError && (
                     <p className="mt-1 text-sm text-red-600">{facturaUploadError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {canEdit && showCargarDocumentacion && (
+            <div className="rounded-md border border-dashed border-violet-300 bg-white p-3">
+              <p className="mb-2 text-sm font-medium text-gray-700">Agregar documentación</p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div>
+                  <Label htmlFor="view-doc-fecha">Fecha</Label>
+                  <Input
+                    id="view-doc-fecha"
+                    type="date"
+                    value={docFecha}
+                    onChange={(e) => setDocFecha(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="view-doc-tipo">Tipo de documento</Label>
+                  <Input
+                    id="view-doc-tipo"
+                    type="text"
+                    value={docTipo}
+                    onChange={(e) => setDocTipo(e.target.value)}
+                    placeholder="Ej: Remito, certificado"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="view-doc-numero">Número</Label>
+                  <Input
+                    id="view-doc-numero"
+                    type="text"
+                    value={docNumero}
+                    onChange={(e) => setDocNumero(e.target.value)}
+                    placeholder="Ej: 12345"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="view-doc-archivo">Archivo</Label>
+                  <Input
+                    id="view-doc-archivo"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
+                    disabled={docUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleSubirDocumentacion(file);
+                      e.target.value = "";
+                    }}
+                    className="cursor-pointer"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Fecha, tipo y número son opcionales. Elija el archivo para guardarlo.
+                  </p>
+                  {docUploading && (
+                    <p className="mt-1 text-sm text-blue-600">Subiendo documento...</p>
+                  )}
+                  {docError && (
+                    <p className="mt-1 text-sm text-red-600">{docError}</p>
                   )}
                 </div>
               </div>
@@ -4036,6 +4221,54 @@ export default function VerOrdenCompraPage() {
                     )}
                   </div>
                 )}
+                {documentacionOrden.length > 0 && (
+                  <div className="print-field print:hidden">
+                    <p className="text-base text-gray-600 print-field-label">Documentación</p>
+                    <ul className="space-y-1">
+                      {documentacionOrden.map((doc, index) => {
+                        const viewUrl = docViewUrls[doc.path];
+                        const partes = [
+                          doc.tipo,
+                          doc.numero ? `Nº ${doc.numero}` : null,
+                          doc.fecha ? formatDateLocal(doc.fecha) : null,
+                        ].filter(Boolean);
+                        const label = partes.length > 0 ? partes.join(" · ") : doc.nombre || `Documento ${index + 1}`;
+                        return (
+                          <li key={`${doc.path}-${index}`} className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-medium print-field-value">{label}</span>
+                            {viewUrl ? (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Ver documento
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-500">Archivo adjunto</span>
+                            )}
+                            {canEdit && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                disabled={docEliminando !== null || docUploading}
+                                onClick={() => void handleEliminarDocumentacion(index)}
+                              >
+                                {docEliminando === index ? "Eliminando..." : "Eliminar"}
+                              </Button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {docError && !showCargarDocumentacion && (
+                      <p className="mt-2 text-sm text-red-600">{docError}</p>
+                    )}
+                  </div>
+                )}
                 {formatRtDisplay(orden.rt) && (
                   <div className="print-field print:hidden">
                     <p className="text-base text-gray-600 print-field-label">Remitos (RT)</p>
@@ -4177,6 +4410,13 @@ export default function VerOrdenCompraPage() {
                             {item.codint?.trim() && (
                               <span className="text-xs text-gray-600 leading-snug print-articulo-extra print-or-codint">
                                 Cod. Int.: {item.codint}
+                              </span>
+                            )}
+                            {item.observacion?.trim() && (
+                              <span className="text-xs text-gray-700 leading-snug print-articulo-extra">
+                                <span className="text-gray-500 print:hidden">Observación: </span>
+                                <span className="hidden print:inline">Obs: </span>
+                                {item.observacion}
                               </span>
                             )}
                           </div>

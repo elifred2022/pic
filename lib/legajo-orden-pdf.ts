@@ -14,7 +14,7 @@ import {
   normalizeFactStoragePath,
   parseFacturasFromOrden,
 } from "@/lib/fact-compras-storage";
-import { getPresupuestosBucket } from "@/lib/presupuestos-storage";
+import { getPresupuestosBucket, parseDocumentacionOrden } from "@/lib/presupuestos-storage";
 import { parsePicFromArticuloId } from "@/lib/pic-links";
 
 type LegajoArticulo = {
@@ -48,6 +48,7 @@ export type LegajoOrdenInput = {
   fc?: unknown;
   fact_path?: unknown;
   entregas?: unknown;
+  documentacion?: unknown;
   articulos?: LegajoArticulo[];
   incluirImportes: boolean;
 };
@@ -182,6 +183,23 @@ function armarFacturasYRemitos(orden: LegajoOrdenInput): {
   }
 
   return { facturas, remitos };
+}
+
+function armarDocumentacion(orden: LegajoOrdenInput): ArchivoLegajo[] {
+  const bucket = getPresupuestosBucket();
+  return parseDocumentacionOrden(orden.documentacion).map((doc, index) => {
+    const partes = [
+      doc.tipo,
+      doc.numero ? `Nº ${doc.numero}` : "",
+      doc.fecha ? fechaLegible(doc.fecha) : "",
+    ].filter(Boolean);
+    const detalle = textoPdf(partes.join(" - ")) || textoPdf(doc.nombre) || `Documento ${index + 1}`;
+    return {
+      titulo: `Documentación - ${detalle}`,
+      path: doc.path,
+      bucket,
+    };
+  });
 }
 
 async function descargarArchivo(
@@ -613,6 +631,7 @@ export async function descargarLegajoOrden(
   orden: LegajoOrdenInput
 ): Promise<void> {
   const { facturas, remitos } = armarFacturasYRemitos(orden);
+  const documentacion = armarDocumentacion(orden);
   const pics = await cargarPics(supabase, orden);
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -621,6 +640,7 @@ export async function descargarLegajoOrden(
   const indice: string[] = [];
   if (facturas.length) indice.push(`Facturas: ${facturas.length}`);
   if (remitos.length) indice.push(`Remitos: ${remitos.length}`);
+  if (documentacion.length) indice.push(`Documentación: ${documentacion.length}`);
   indice.push(`Orden de compra ${orden.noc}`);
   for (const pic of pics) {
     indice.push(
@@ -650,6 +670,7 @@ export async function descargarLegajoOrden(
 
   for (const factura of facturas) await incluir(factura);
   for (const remito of remitos) await incluir(remito);
+  for (const documento of documentacion) await incluir(documento);
 
   escribirOrden(new Escritor(doc, font, bold, doc.addPage()), orden);
 

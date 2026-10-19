@@ -198,3 +198,110 @@ export async function uploadArticuloImagen(
   const viewUrl = await getPresupuestoViewUrl(supabase, storagePath);
   return { storagePath, viewUrl };
 }
+
+export type DocumentoOrdenItem = {
+  fecha: string | null;
+  tipo: string | null;
+  numero: string | null;
+  path: string;
+  nombre: string | null;
+};
+
+const DOCUMENTO_EXT = /^(jpg|jpeg|png|gif|webp|bmp|pdf)$/i;
+
+export function getDocumentacionStoragePath(ordenId: number | string, extension: string) {
+  const ext = extension.replace(/^\./, "").toLowerCase() || "pdf";
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `ordenes-compra/${ordenId}/documentacion-${unique}.${ext}`;
+}
+
+export function parseDocumentacionOrden(value: unknown): DocumentoOrdenItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as {
+      fecha?: unknown;
+      tipo?: unknown;
+      numero?: unknown;
+      path?: unknown;
+      nombre?: unknown;
+    };
+    const path = typeof record.path === "string" ? record.path.trim() : "";
+    if (!path) return [];
+    const fechaRaw = typeof record.fecha === "string" ? record.fecha.trim() : "";
+    const tipoRaw = typeof record.tipo === "string" ? record.tipo.trim() : "";
+    const numeroRaw =
+      record.numero == null || record.numero === "" ? "" : String(record.numero).trim();
+    const nombreRaw = typeof record.nombre === "string" ? record.nombre.trim() : "";
+    return [
+      {
+        fecha: /^\d{4}-\d{2}-\d{2}/.test(fechaRaw) ? fechaRaw.slice(0, 10) : null,
+        tipo: tipoRaw || null,
+        numero: numeroRaw || null,
+        path,
+        nombre: nombreRaw || null,
+      },
+    ];
+  });
+}
+
+/** Sube el archivo al bucket presupuestos sin parsear el body de la respuesta. */
+export async function uploadDocumentacionOrden(
+  supabase: SupabaseClient,
+  ordenId: number | string,
+  file: File
+): Promise<{ storagePath: string }> {
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
+  if (!DOCUMENTO_EXT.test(fileExt)) {
+    throw new Error("Formato no permitido. Use JPG, PNG, WEBP, GIF, BMP o PDF.");
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!baseUrl || !anonKey) {
+    throw new Error("Falta la configuración pública de Supabase.");
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error("La sesión venció. Recargue la página e inicie sesión nuevamente.");
+  }
+
+  const storagePath = getDocumentacionStoragePath(ordenId, fileExt);
+  const contentType =
+    fileExt === "pdf"
+      ? "application/pdf"
+      : file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+  const bucket = encodeURIComponent(getPresupuestosBucket());
+  const encodedPath = storagePath
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${encodedPath}`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${data.session.access_token}`,
+      "Content-Type": contentType,
+      "Cache-Control": "max-age=3600",
+      "x-upsert": "false",
+    },
+    body: await file.arrayBuffer(),
+  });
+
+  if (response.ok) return { storagePath };
+
+  let detail = "";
+  try {
+    detail = (await response.text()).trim();
+  } catch {
+    /* el código HTTP alcanza */
+  }
+  const rls =
+    response.status === 403 || /row-level security/i.test(detail)
+      ? ` ${STORAGE_RLS_HINT}`
+      : "";
+  throw new Error(
+    `No se pudo subir el documento (HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ""}).${rls}`
+  );
+}

@@ -52,6 +52,7 @@ interface ItemOrden {
   codint?: string | null;
   descripcion?: string | null;
   codprovsug?: string | null;
+  observacion?: string | null;
   cantidad: number;
   precio_unitario: number;
   descuento: number; // porcentaje 0-100
@@ -563,6 +564,7 @@ export function CrearFormOrdenCompra() {
       codint: articulo.codint ?? null,
       descripcion: articulo.descripcion?.trim() || null,
       codprovsug: articulo.codprovsug?.trim() || null,
+      observacion: "",
       cantidad: articulo.cantidad,
       precio_unitario: precioUnit,
       descuento: desc,
@@ -609,6 +611,7 @@ export function CrearFormOrdenCompra() {
       articulo_nombre: nombre,
       articulo_db_id: null,
       codint: null,
+      observacion: "",
       cantidad,
       precio_unitario: precioUnitario,
       descuento,
@@ -640,6 +643,7 @@ export function CrearFormOrdenCompra() {
       codint: art.codint ?? null,
       descripcion: art.descripcion?.trim() || null,
       codprovsug: art.codprovsug?.trim() || null,
+      observacion: "",
       cantidad: 1,
       precio_unitario: precioUnit,
       descuento: desc,
@@ -680,6 +684,14 @@ export function CrearFormOrdenCompra() {
       }
       return item;
     }));
+  };
+
+  const handleObservacionChange = (articuloId: string, observacion: string) => {
+    setItemsOrden((prev) =>
+      prev.map((item) =>
+        item.articulo_id === articuloId ? { ...item, observacion } : item
+      )
+    );
   };
 
   const handleDescuentoChange = (articuloId: string, nuevoDescuento: number) => {
@@ -855,7 +867,10 @@ export function CrearFormOrdenCompra() {
         importe_competencia: parseNumero(formData.importe_competencia),
         ahorro: ahorroCalculado ?? 0,
         observaciones: formData.observaciones.trim() === "" ? "-" : formData.observaciones,
-        articulos: itemsOrden,
+        articulos: itemsOrden.map((item) => ({
+          ...item,
+          observacion: item.observacion?.trim() || null,
+        })),
         entregas: [],
         estado: estadoInicialOrdenCompra(totalOrden, divisa),
       };
@@ -1389,8 +1404,8 @@ export function CrearFormOrdenCompra() {
                 <Label className="text-lg font-semibold">Artículos de la Orden</Label>
                 <div className="mt-3 space-y-3">
                   {itemsOrden.map((item) => (
-                    <div key={item.articulo_id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-                      <div className="flex-1">
+                    <div key={item.articulo_id} className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{item.articulo_nombre}</h4>
                           {item.codint && (
@@ -1411,6 +1426,21 @@ export function CrearFormOrdenCompra() {
                           Cod. prov. sug.:{" "}
                           {item.codprovsug?.trim() ? item.codprovsug : "-"}
                         </p>
+                        <div className="mt-2">
+                          <Label htmlFor={`obs-articulo-${item.articulo_id}`} className="text-sm">
+                            Observación
+                          </Label>
+                          <Input
+                            id={`obs-articulo-${item.articulo_id}`}
+                            type="text"
+                            value={item.observacion ?? ""}
+                            onChange={(e) =>
+                              handleObservacionChange(item.articulo_id, e.target.value)
+                            }
+                            placeholder="Observación de este artículo"
+                            className="mt-1 bg-white"
+                          />
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <div>
