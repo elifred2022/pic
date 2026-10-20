@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -32,7 +33,7 @@ import {
   type DocumentoOrdenItem,
 } from "@/lib/presupuestos-storage";
 import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail, isPanolEmail } from "@/lib/panol-access";
-import { fetchUserRolByUuid } from "@/lib/user-rol";
+import { fetchCurrentUserNombre, fetchUserRolByUuid } from "@/lib/user-rol";
 import {
   appendHistoricoEstado,
   formatHistoricoFecha,
@@ -943,6 +944,232 @@ function computeEstadoDesdeEntregas(
   if (totalPendientes <= 0) return "cumplida";
   return "entrego_parcial";
 }
+
+type LineaPicOrden = {
+  tipo: "productivo" | "general";
+  pedidoId: string;
+  indice: number;
+};
+
+function parseLineaPicOrden(articuloId: string): LineaPicOrden | null {
+  const match = (articuloId || "").match(/^(productivo|general)-([^-]+)-(\d+)-/);
+  if (!match) return null;
+  return {
+    tipo: match[1] as "productivo" | "general",
+    pedidoId: match[2],
+    indice: Number(match[3]),
+  };
+}
+
+function clavePic(linea: LineaPicOrden): string {
+  return `${linea.tipo}:${linea.pedidoId}`;
+}
+
+function normalizarEstadoPic(estado: string): string {
+  const valor = estado.trim().toLowerCase();
+  if (
+    valor === "entrego_parcial" ||
+    valor === "entregó_parcial" ||
+    valor === "entregó parcial" ||
+    valor === "entrego parcial"
+  ) {
+    return "entrego parcial";
+  }
+  if (valor === "cumplida" || valor === "cumplido") return "cumplido";
+  return estado.trim();
+}
+
+/** Estado de entrega de un PIC según cantidades netas de sus artículos comprados. */
+function estadoPicDesdeAcumulado(
+  totalEntregadas: number,
+  totalPendientes: number
+): "cumplido" | "entrego parcial" | null {
+  if (totalEntregadas <= 0) return null;
+  if (totalPendientes <= 0) return "cumplido";
+  return "entrego parcial";
+}
+
+function estadoPicAlRevertirEntrega(historico: unknown, estadoActual: string): string {
+  const entradas = parseHistoricoEstado(historico);
+  for (let i = entradas.length - 1; i >= 0; i--) {
+    const estado = entradas[i].estado;
+    const normalizado = normalizarEstadoPic(estado);
+    if (normalizado !== "cumplido" && normalizado !== "entrego parcial") {
+      return estado;
+    }
+  }
+  const actual = normalizarEstadoPic(estadoActual);
+  if (actual !== "cumplido" && actual !== "entrego parcial") return estadoActual;
+  return "aprobado";
+}
+
+type AcumuladoLineaPic = { cantidad: number; entregadas: number };
+
+function acumularEntregasPic(
+  destino: Map<string, AcumuladoLineaPic>,
+  articulos: ArticuloOrdenItem[],
+  entregas: unknown,
+  devoluciones: unknown,
+  picsObjetivo: Set<string>
+) {
+  articulos.forEach((art, index) => {
+    const linea = parseLineaPicOrden(art?.articulo_id || "");
+    if (!linea) return;
+    const picKey = clavePic(linea);
+    if (!picsObjetivo.has(picKey)) return;
+    const cantidad = Number(art.cantidad) || 0;
+    const entregadasBrutas = getEntregadasAgregadas(entregas, art.articulo_id ?? "", index);
+    const devueltas = getDevueltasAgregadas(devoluciones, art.articulo_id ?? "");
+    const entregadas = Math.max(0, entregadasBrutas - devueltas);
+    const lineaKey = `${picKey}:${linea.indice}`;
+    const prev = destino.get(lineaKey);
+    if (!prev) {
+      destino.set(lineaKey, { cantidad, entregadas });
+      return;
+    }
+    prev.cantidad += cantidad;
+    prev.entregadas += entregadas;
+  });
+}
+
+/**
+ * Replica en cada PIC de la orden el avance de sus artículos comprados:
+ * entrego parcial si falta cantidad, cumplido si todo lo comprado ya ingresó.
+ * Si se anula el ingreso y no queda nada recibido, vuelve al estado anterior.
+ */
+async function sincronizarEstadoPicsDesdeEntregas(
+  supabase: SupabaseClient,
+  ordenId: number,
+  articulos: ArticuloOrdenItem[],
+  entregas: unknown,
+  devoluciones: unknown,
+  nombreUsuario: string | null
+): Promise<void> {
+  const pics = new Map<string, LineaPicOrden>();
+  for (const art of articulos) {
+    const linea = parseLineaPicOrden(art?.articulo_id || "");
+    if (!linea) continue;
+    pics.set(clavePic(linea), linea);
+  }
+  if (pics.size === 0) return;
+
+  const picsObjetivo = new Set(pics.keys());
+  const acumulado = new Map<string, AcumuladoLineaPic>();
+  acumularEntregasPic(acumulado, articulos, entregas, devoluciones, picsObjetivo);
+
+  const pageSize = 200;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("ordenes_compra")
+      .select("id, articulos, entregas, devoluciones")
+      .neq("id", ordenId)
+      .neq("estado", "anulado")
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    for (const row of batch) {
+      const articulosOtra = Array.isArray(row.articulos)
+        ? (row.articulos as ArticuloOrdenItem[])
+        : [];
+      acumularEntregasPic(
+        acumulado,
+        articulosOtra,
+        row.entregas,
+        row.devoluciones,
+        picsObjetivo
+      );
+    }
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  const productivos = [...pics.values()]
+    .filter((linea) => linea.tipo === "productivo")
+    .map((linea) => linea.pedidoId);
+  const generales = [...pics.values()]
+    .filter((linea) => linea.tipo === "general")
+    .map((linea) => linea.pedidoId);
+
+  const [prodRes, genRes] = await Promise.all([
+    productivos.length
+      ? supabase
+          .from("pedidos_productivos")
+          .select("id, estado, historico_estado")
+          .in("id", productivos)
+      : Promise.resolve({ data: [] as PicEstadoRow[], error: null }),
+    generales.length
+      ? supabase
+          .from("pic")
+          .select("id, estado, historico_estado")
+          .in("id", generales)
+      : Promise.resolve({ data: [] as PicEstadoRow[], error: null }),
+  ]);
+  if (prodRes.error) throw prodRes.error;
+  if (genRes.error) throw genRes.error;
+
+  const actual = new Map<string, PicEstadoRow>();
+  for (const row of prodRes.data ?? []) {
+    actual.set(`productivo:${String(row.id)}`, row);
+  }
+  for (const row of genRes.data ?? []) {
+    actual.set(`general:${String(row.id)}`, row);
+  }
+
+  const pendientes: Promise<void>[] = [];
+  for (const [picKey, linea] of pics) {
+    const row = actual.get(picKey);
+    if (!row) continue;
+
+    let totalEntregadas = 0;
+    let totalPendientes = 0;
+    for (const [lineaKey, val] of acumulado) {
+      if (!lineaKey.startsWith(`${picKey}:`)) continue;
+      totalEntregadas += val.entregadas;
+      totalPendientes += Math.max(0, val.cantidad - val.entregadas);
+    }
+
+    const estadoActual = String(row.estado ?? "");
+    const estadoActualNorm = normalizarEstadoPic(estadoActual);
+    const calculado = estadoPicDesdeAcumulado(totalEntregadas, totalPendientes);
+    let estadoNuevo: string | null = null;
+    if (calculado) {
+      if (estadoActualNorm !== calculado) estadoNuevo = calculado;
+    } else if (
+      estadoActualNorm === "cumplido" ||
+      estadoActualNorm === "entrego parcial"
+    ) {
+      const revertido = estadoPicAlRevertirEntrega(row.historico_estado, estadoActual);
+      if (normalizarEstadoPic(revertido) !== estadoActualNorm) estadoNuevo = revertido;
+    }
+    if (!estadoNuevo) continue;
+
+    const historicoNuevo = appendHistoricoEstado(
+      row.historico_estado,
+      estadoActual,
+      estadoNuevo,
+      nombreUsuario
+    );
+    const payload: Record<string, unknown> = { estado: estadoNuevo };
+    if (historicoNuevo) payload.historico_estado = historicoNuevo;
+    const tabla = linea.tipo === "productivo" ? "pedidos_productivos" : "pic";
+    pendientes.push(
+      (async () => {
+        const { error } = await supabase.from(tabla).update(payload).eq("id", linea.pedidoId);
+        if (error) throw error;
+      })()
+    );
+  }
+
+  await Promise.all(pendientes);
+}
+
+type PicEstadoRow = {
+  id: string | number;
+  estado?: string | null;
+  historico_estado?: unknown;
+};
 
 type DivisaOrden = "USD" | "EUR" | "ARS";
 
@@ -1862,6 +2089,30 @@ export default function VerOrdenCompraPage() {
     }
   };
 
+  const replicarEstadoPics = async (
+    articulos: ArticuloOrdenItem[],
+    entregas: unknown,
+    devoluciones: unknown
+  ) => {
+    if (!orden) return;
+    try {
+      const nombreUsuario = await fetchCurrentUserNombre(supabase);
+      await sincronizarEstadoPicsDesdeEntregas(
+        supabase,
+        orden.id,
+        articulos,
+        entregas,
+        devoluciones,
+        nombreUsuario
+      );
+    } catch (err) {
+      console.error("No se pudo replicar el estado en el PIC:", err);
+      setEstadoError(
+        `La orden se actualizó, pero no se pudo cambiar el estado del PIC: ${getSupabaseErrorMessage(err)}`
+      );
+    }
+  };
+
   const handleAnularEntrega = async (index: number) => {
     if (!orden) return;
 
@@ -1973,6 +2224,11 @@ export default function VerOrdenCompraPage() {
               estado: estadoEntrega,
             }
           : prev
+      );
+      await replicarEstadoPics(
+        articulosBase,
+        entregasSimuladas,
+        devolucionesActuales
       );
       setAnularEntregaIndex(null);
       setAnularEntregaObservacion("");
@@ -2120,6 +2376,11 @@ export default function VerOrdenCompraPage() {
               estado: estadoEntrega,
             }
           : prev
+      );
+      await replicarEstadoPics(
+        articulosBase,
+        ordenDb.entregas ?? orden.entregas,
+        devolucionesFinal
       );
       setAnularDevolucionIndex(null);
       setAnularDevolucionObservacion("");
@@ -2342,6 +2603,11 @@ export default function VerOrdenCompraPage() {
               estado: estadoEntrega,
             }
           : prev
+      );
+      await replicarEstadoPics(
+        articulosBase,
+        ordenDb.entregas ?? orden.entregas,
+        devolucionesFinal
       );
 
       handleCloseDevolucionModal();
@@ -2574,6 +2840,11 @@ export default function VerOrdenCompraPage() {
               estado: estadoEntrega,
             }
           : prev
+      );
+      await replicarEstadoPics(
+        articulosBase,
+        entregasFinal,
+        ordenDb.devoluciones ?? orden.devoluciones
       );
 
       handleCloseEntregaModal();
@@ -3205,6 +3476,21 @@ export default function VerOrdenCompraPage() {
         ...(historicoNuevo ? { historico_estado: historicoNuevo } : {}),
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
+
+      const estadoTocaEntrega =
+        editData.estado === "cumplida" ||
+        editData.estado === "entrego_parcial" ||
+        editData.estado === "anulado" ||
+        orden.estado === "cumplida" ||
+        orden.estado === "entrego_parcial" ||
+        orden.estado === "anulado";
+      if (estadoTocaEntrega) {
+        await replicarEstadoPics(
+          articulosActualizados,
+          entregas,
+          esAnulado ? [] : orden.devoluciones
+        );
+      }
 
       setShowEditModal(false);
     } catch (err) {
