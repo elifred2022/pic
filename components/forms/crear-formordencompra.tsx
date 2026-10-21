@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { fetchCurrentUserNombre } from "@/lib/user-rol";
+import { confirmarPicsAfectados } from "@/lib/confirmar-pics-orden";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -844,10 +846,7 @@ export function CrearFormOrdenCompra() {
 
     try {
       const divisa = (formData.divisa === "EUR" || formData.divisa === "ARS") ? formData.divisa : "USD";
-      const entregas = itemsOrden.map((item) => ({
-        entregadas: 0,
-        pendientes: item.cantidad,
-      }));
+      const estado = estadoInicialOrdenCompra(totalOrden, divisa);
       const insertData = {
         divisa,
         cuit: proveedorSeleccionado.cuitprov.toString(),
@@ -872,7 +871,7 @@ export function CrearFormOrdenCompra() {
           observacion: item.observacion?.trim() || null,
         })),
         entregas: [],
-        estado: estadoInicialOrdenCompra(totalOrden, divisa),
+        estado,
       };
       const { error } = await supabase
         .from("ordenes_compra")
@@ -881,6 +880,21 @@ export function CrearFormOrdenCompra() {
         .single();
 
       if (error) throw error;
+
+      if (estado === "pendiente") {
+        try {
+          const nombreUsuario = await fetchCurrentUserNombre(supabase);
+          await confirmarPicsAfectados(
+            supabase,
+            itemsOrden.map((item) => item.articulo_id),
+            nombreUsuario
+          );
+        } catch (picError) {
+          console.error("Error confirmando PIC:", picError);
+          setError("Orden creada, pero no se pudo pasar a confirmado el PIC relacionado");
+          return;
+        }
+      }
 
       try {
         await actualizarArticulos();

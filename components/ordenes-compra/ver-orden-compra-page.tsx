@@ -34,6 +34,7 @@ import {
 } from "@/lib/presupuestos-storage";
 import { canCargarEntregaOrdenes, canEditAsAdmin, canViewImportesOrdenesCompra, isAprobEmail, isPanolEmail } from "@/lib/panol-access";
 import { fetchCurrentUserNombre, fetchUserRolByUuid } from "@/lib/user-rol";
+import { confirmarPicsAfectados } from "@/lib/confirmar-pics-orden";
 import {
   appendHistoricoEstado,
   formatHistoricoFecha,
@@ -1792,6 +1793,21 @@ export default function VerOrdenCompraPage() {
             }
           : prev
       );
+
+      if (nuevoEstado === "pendiente") {
+        try {
+          await confirmarPicsAfectados(
+            supabase,
+            (orden.articulos || []).map((art) => art.articulo_id),
+            nombreUsuario
+          );
+        } catch (picErr) {
+          console.error("No se pudo confirmar el PIC:", picErr);
+          setEstadoError(
+            "La orden pasó a pendiente, pero no se pudo pasar a confirmado el PIC relacionado"
+          );
+        }
+      }
     } catch (err) {
       console.error("Error cambiando estado:", err);
       setEstadoError("No se pudo actualizar el estado");
@@ -2113,6 +2129,36 @@ export default function VerOrdenCompraPage() {
     }
   };
 
+  const confirmarPicsDeLaOrden = async (articulos: ArticuloOrdenItem[]) => {
+    if (!orden) return;
+    try {
+      const nombreUsuario = await fetchCurrentUserNombre(supabase);
+      await confirmarPicsAfectados(
+        supabase,
+        articulos.map((art) => art.articulo_id),
+        nombreUsuario
+      );
+    } catch (err) {
+      console.error("No se pudo confirmar el PIC:", err);
+      setEstadoError(
+        `La orden pasó a pendiente, pero no se pudo pasar a confirmado el PIC: ${getSupabaseErrorMessage(err)}`
+      );
+    }
+  };
+
+  const aplicarEstadoPics = async (
+    estadoOc: string,
+    articulos: ArticuloOrdenItem[],
+    entregas: unknown,
+    devoluciones: unknown
+  ) => {
+    if (estadoOc === "pendiente") {
+      await confirmarPicsDeLaOrden(articulos);
+      return;
+    }
+    await replicarEstadoPics(articulos, entregas, devoluciones);
+  };
+
   const handleAnularEntrega = async (index: number) => {
     if (!orden) return;
 
@@ -2225,7 +2271,8 @@ export default function VerOrdenCompraPage() {
             }
           : prev
       );
-      await replicarEstadoPics(
+      await aplicarEstadoPics(
+        estadoEntrega,
         articulosBase,
         entregasSimuladas,
         devolucionesActuales
@@ -2377,7 +2424,8 @@ export default function VerOrdenCompraPage() {
             }
           : prev
       );
-      await replicarEstadoPics(
+      await aplicarEstadoPics(
+        estadoEntrega,
         articulosBase,
         ordenDb.entregas ?? orden.entregas,
         devolucionesFinal
@@ -2604,7 +2652,8 @@ export default function VerOrdenCompraPage() {
             }
           : prev
       );
-      await replicarEstadoPics(
+      await aplicarEstadoPics(
+        estadoEntrega,
         articulosBase,
         ordenDb.entregas ?? orden.entregas,
         devolucionesFinal
@@ -2841,7 +2890,8 @@ export default function VerOrdenCompraPage() {
             }
           : prev
       );
-      await replicarEstadoPics(
+      await aplicarEstadoPics(
+        estadoEntrega,
         articulosBase,
         entregasFinal,
         ordenDb.devoluciones ?? orden.devoluciones
@@ -3477,15 +3527,18 @@ export default function VerOrdenCompraPage() {
         divisa: datosActualizados?.divisa ?? divisaOrden
       });
 
-      const estadoTocaEntrega =
+      if (editData.estado === "pendiente" && orden.estado !== "pendiente") {
+        await confirmarPicsDeLaOrden(articulosActualizados);
+      } else if (
         editData.estado === "cumplida" ||
         editData.estado === "entrego_parcial" ||
         editData.estado === "anulado" ||
         orden.estado === "cumplida" ||
         orden.estado === "entrego_parcial" ||
-        orden.estado === "anulado";
-      if (estadoTocaEntrega) {
-        await replicarEstadoPics(
+        orden.estado === "anulado"
+      ) {
+        await aplicarEstadoPics(
+          editData.estado,
           articulosActualizados,
           entregas,
           esAnulado ? [] : orden.devoluciones
