@@ -13,7 +13,6 @@ import {
 } from "@/lib/pic-links";
 import { descargarLegajoOrden } from "@/lib/legajo-orden-pdf";
 import {
-  getFactComprasBucket,
   getFacturaStoragePathUnique,
   getFacturaViewUrl,
   getSupabaseErrorMessage,
@@ -678,6 +677,35 @@ function toEntregaRegistrosPreserving(
   ];
 }
 
+/** Archivo ya guardado para ese FC: en la factura o en una entrega no anulada. */
+function pathArchivoFacturaPrevio(
+  fcNumero: number,
+  facturas: FacturaOrdenItem[],
+  entregas: unknown,
+  articulos: ArticuloOrdenItem[]
+): string | null {
+  const mismaFactura = facturas.find(
+    (item) => item.fc === fcNumero && item.path?.trim()
+  );
+  if (mismaFactura?.path?.trim()) return mismaFactura.path.trim();
+
+  const registros = toEntregaRegistrosPreserving(entregas, articulos).filter(
+    (reg) => !reg.anulado && reg.fact_path?.trim()
+  );
+  const porFc = registros.find((reg) => reg.fc === fcNumero);
+  if (porFc?.fact_path.trim()) return porFc.fact_path.trim();
+
+  const usados = new Set(
+    facturas
+      .map((item) => item.path?.trim())
+      .filter((path): path is string => Boolean(path))
+  );
+  const libres = registros.filter((reg) => !usados.has(reg.fact_path.trim()));
+  if (libres.length === 1) return libres[0].fact_path.trim();
+
+  return null;
+}
+
 /** Normaliza articulo_id para comparar (espacios en nombres embebidos, ej. "TAMIZ 0.5MM "). */
 function normalizeArticuloId(value: unknown): string {
   return String(value ?? "").trim();
@@ -1320,6 +1348,8 @@ export default function VerOrdenCompraPage() {
   const [nuevaFacturaFc, setNuevaFacturaFc] = useState('');
   const [nuevaFacturaFecha, setNuevaFacturaFecha] = useState('');
   const [nuevaFacturaMonto, setNuevaFacturaMonto] = useState('');
+  const [nuevaFacturaFile, setNuevaFacturaFile] = useState<File | null>(null);
+  const [nuevaFacturaFileInputKey, setNuevaFacturaFileInputKey] = useState(0);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedoresFiltrados, setProveedoresFiltrados] = useState<Proveedor[]>([]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
@@ -2563,16 +2593,11 @@ export default function VerOrdenCompraPage() {
           ? "application/pdf"
           : devolucionFile.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from(getFactComprasBucket())
-        .upload(storagePath, devolucionFile, {
-          upsert: false,
-          contentType,
-        });
-
-      if (uploadError) {
+      try {
+        await uploadFacturaRaw(supabase, storagePath, devolucionFile, contentType);
+      } catch (uploadErr) {
         setDevolucionError(
-          `No se pudo subir el documento: ${getSupabaseErrorMessage(uploadError)}`
+          `No se pudo subir el documento: ${getSupabaseErrorMessage(uploadErr)}`
         );
         return;
       }
@@ -2974,6 +2999,8 @@ export default function VerOrdenCompraPage() {
     setNuevaFacturaFc('');
     setNuevaFacturaFecha('');
     setNuevaFacturaMonto('');
+    setNuevaFacturaFile(null);
+    setNuevaFacturaFileInputKey((key) => key + 1);
     setBusquedaProveedor('');
     setFacturaUploadError(null);
     setPrecioEdicion({});
@@ -3022,11 +3049,19 @@ export default function VerOrdenCompraPage() {
     return { error: null };
   };
 
-  const handleSubirImagenFactura = async (file: File) => {
+  const limpiarFormFactura = () => {
+    setNuevaFacturaFc("");
+    setNuevaFacturaFecha("");
+    setNuevaFacturaMonto("");
+    setNuevaFacturaFile(null);
+    setNuevaFacturaFileInputKey((key) => key + 1);
+  };
+
+  const handleGuardarFactura = async () => {
     if (!orden) return;
 
     if (!nuevaFacturaFc.trim()) {
-      setFacturaUploadError("Debe ingresar el número de factura (FC) antes de subir la imagen.");
+      setFacturaUploadError("Debe ingresar el número de factura (FC).");
       return;
     }
 
@@ -3037,26 +3072,37 @@ export default function VerOrdenCompraPage() {
     }
 
     if (!nuevaFacturaFecha.trim()) {
-      setFacturaUploadError("Debe ingresar la fecha de factura antes de subir la imagen.");
+      setFacturaUploadError("Debe ingresar la fecha de factura.");
       return;
     }
 
     const montoFactura = Number(nuevaFacturaMonto.trim().replace(",", "."));
     if (!nuevaFacturaMonto.trim() || !Number.isFinite(montoFactura) || montoFactura < 0) {
-      setFacturaUploadError("Debe ingresar el monto total de la factura antes de subir la imagen.");
+      setFacturaUploadError("Debe ingresar el monto total de la factura.");
       return;
     }
 
     const facturasBase = showEditModal ? editFacturas : parseFacturasFromOrden(orden);
-    const fcDuplicado = facturasBase.some((item) => item.fc === fcNumero);
-    if (fcDuplicado) {
-      setFacturaUploadError(`Ya existe una factura con el FC ${fcNumero}.`);
-      return;
+    const archivo = nuevaFacturaFile;
+    let fileExt = "";
+    if (archivo) {
+      fileExt = archivo.name.split(".").pop()?.toLowerCase() || "jpg";
+      if (!/^(jpg|jpeg|png|gif|webp|bmp|pdf)$/i.test(fileExt)) {
+        setFacturaUploadError("Formato no permitido. Use JPG, PNG, WEBP, GIF, BMP o PDF.");
+        return;
+      }
     }
 
-    const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    if (!/^(jpg|jpeg|png|gif|webp|bmp|pdf)$/i.test(fileExt)) {
-      setFacturaUploadError("Formato no permitido. Use JPG, PNG, WEBP, GIF, BMP o PDF.");
+    const pathPrevio = pathArchivoFacturaPrevio(
+      fcNumero,
+      facturasBase,
+      orden.entregas,
+      orden.articulos || []
+    );
+    if (!archivo && !pathPrevio) {
+      setFacturaUploadError(
+        "No hay un archivo previo de esta factura en la entrega. Adjunte el PDF o la imagen."
+      );
       return;
     }
 
@@ -3066,32 +3112,48 @@ export default function VerOrdenCompraPage() {
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session) {
-        setFacturaUploadError("Debe iniciar sesión para subir la factura.");
+        setFacturaUploadError("Debe iniciar sesión para guardar la factura.");
         return;
       }
 
-      const storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
-      const contentType =
-        fileExt === "pdf"
-          ? "application/pdf"
-          : file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+      let storagePath = pathPrevio;
+      if (archivo) {
+        storagePath = getFacturaStoragePathUnique(orden.id, fileExt);
+        const contentType =
+          fileExt === "pdf"
+            ? "application/pdf"
+            : archivo.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+        await uploadFacturaRaw(supabase, storagePath, archivo, contentType);
+      }
 
-      await uploadFacturaRaw(supabase, storagePath, file, contentType);
+      if (!storagePath?.trim()) {
+        setFacturaUploadError(
+          "No hay un archivo previo de esta factura en la entrega. Adjunte el PDF o la imagen."
+        );
+        return;
+      }
 
-      const facturasActualizadas: FacturaOrdenItem[] = [
-        ...facturasBase,
-        {
-          fc: fcNumero,
-          path: storagePath,
-          fecha: nuevaFacturaFecha,
-          monto: montoFactura,
-        },
-      ];
+      const existenteIndex = facturasBase.findIndex((item) => item.fc === fcNumero);
+      const facturaGuardada: FacturaOrdenItem = {
+        fc: fcNumero,
+        path: storagePath,
+        fecha: nuevaFacturaFecha,
+        monto: montoFactura,
+      };
+      const facturasActualizadas: FacturaOrdenItem[] =
+        existenteIndex >= 0
+          ? facturasBase.map((item, index) =>
+              index === existenteIndex ? { ...item, ...facturaGuardada } : item
+            )
+          : [...facturasBase, facturaGuardada];
+
       const { error: persistError } = await persistirFacturas(facturasActualizadas);
       if (persistError) {
         console.error("DB update facturas error:", persistError);
         setFacturaUploadError(
-          `La imagen se subió, pero no se guardó en la orden: ${getSupabaseErrorMessage(persistError)}.`
+          archivo
+            ? `La imagen se subió, pero no se guardó en la orden: ${getSupabaseErrorMessage(persistError)}.`
+            : `No se pudo guardar la factura: ${getSupabaseErrorMessage(persistError)}.`
         );
         return;
       }
@@ -3103,11 +3165,9 @@ export default function VerOrdenCompraPage() {
       if (viewUrl) {
         setFacturaViewUrls((prev) => ({ ...prev, [pathKey]: viewUrl }));
       }
-      setNuevaFacturaFc("");
-      setNuevaFacturaFecha("");
-      setNuevaFacturaMonto("");
+      limpiarFormFactura();
     } catch (err) {
-      console.error("Error subiendo imagen de factura:", err);
+      console.error("Error guardando factura:", err);
       setFacturaUploadError(getSupabaseErrorMessage(err));
     } finally {
       setFacturaUploading(false);
@@ -4264,25 +4324,31 @@ export default function VerOrdenCompraPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="view-factura-imagen">Imagen / PDF de factura</Label>
+                  <Label htmlFor="view-factura-imagen">Imagen / PDF (opcional)</Label>
                   <Input
+                    key={nuevaFacturaFileInputKey}
                     id="view-factura-imagen"
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
                     disabled={facturaUploading}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleSubirImagenFactura(file);
-                      e.target.value = "";
-                    }}
+                    onChange={(e) => setNuevaFacturaFile(e.target.files?.[0] ?? null)}
                     className="cursor-pointer"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Complete FC, fecha y monto, y después el archivo.
+                    Si el archivo ya está en la entrega, guardá sin adjuntarlo de nuevo.
                   </p>
-                  {facturaUploading && (
-                    <p className="mt-1 text-sm text-blue-600">Subiendo imagen...</p>
+                  {nuevaFacturaFile && (
+                    <p className="mt-1 text-xs text-gray-600">{nuevaFacturaFile.name}</p>
                   )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    disabled={facturaUploading}
+                    onClick={() => void handleGuardarFactura()}
+                  >
+                    {facturaUploading ? "Guardando..." : "Guardar factura"}
+                  </Button>
                   {facturaUploadError && (
                     <p className="mt-1 text-sm text-red-600">{facturaUploadError}</p>
                   )}
@@ -5097,25 +5163,31 @@ export default function VerOrdenCompraPage() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="edit-factura-imagen">Imagen / PDF de factura</Label>
+                          <Label htmlFor="edit-factura-imagen">Imagen / PDF (opcional)</Label>
                           <Input
+                            key={`edit-${nuevaFacturaFileInputKey}`}
                             id="edit-factura-imagen"
                             type="file"
                             accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf"
                             disabled={facturaUploading || saving}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) void handleSubirImagenFactura(file);
-                              e.target.value = "";
-                            }}
+                            onChange={(e) => setNuevaFacturaFile(e.target.files?.[0] ?? null)}
                             className="cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            Complete FC, fecha y monto, y después el archivo.
+                            Si el archivo ya está en la entrega, guardá sin adjuntarlo de nuevo.
                           </p>
-                          {facturaUploading && (
-                            <p className="text-sm text-blue-600 mt-1">Subiendo imagen...</p>
+                          {nuevaFacturaFile && (
+                            <p className="mt-1 text-xs text-gray-600">{nuevaFacturaFile.name}</p>
                           )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mt-2"
+                            disabled={facturaUploading || saving}
+                            onClick={() => void handleGuardarFactura()}
+                          >
+                            {facturaUploading ? "Guardando..." : "Guardar factura"}
+                          </Button>
                           {facturaUploadError && (
                             <p className="text-sm text-red-600 mt-1">{facturaUploadError}</p>
                           )}
