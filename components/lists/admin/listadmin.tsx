@@ -685,6 +685,34 @@ export default function ListAdmin() {
     setFormData(buildFormDataFromPedido(pedido));
   };
 
+  const quitarArticuloEdicion = (index: number) => {
+    if (!canEdit) return;
+    const articulos = formData.articulos ?? [];
+    const articulo = articulos[index];
+    if (!articulo) return;
+    if (!window.confirm(`¿Eliminar "${articulo.articulo}" de este pedido?`)) return;
+
+    setFormData({
+      ...formData,
+      articulos: articulos.filter((_, i) => i !== index),
+    });
+
+    setComparativaForm((prev) => {
+      if (!prev) return prev;
+      return prev.map((prov) => {
+        const mismoLargo = prov.articulos.length === articulos.length;
+        const articulosProv = mismoLargo
+          ? prov.articulos.filter((_, i) => i !== index)
+          : prov.articulos.filter((art) => art.articulo !== articulo.articulo);
+        return {
+          ...prov,
+          articulos: articulosProv,
+          total: articulosProv.reduce((sum, art) => sum + (art.subtotal || 0), 0),
+        };
+      });
+    });
+  };
+
   const eliminarPedido = async (pedido: Pedido) => {
     const confirm = window.confirm(`¿Estás seguro de que querés eliminar el pedido ${pedido.id}?`);
     if (!confirm) return;
@@ -1624,9 +1652,20 @@ export default function ListAdmin() {
                     <div className="space-y-3">
                       {formData.articulos.map((art, index) => (
                         <div key={index} className="bg-white p-3 rounded border border-gray-200">
-                          <div className="font-medium text-gray-800 text-sm mb-2">
-                            {art.articulo}
-                            <ArticuloImagenesThumbs paths={art.imagenes} />
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="font-medium text-gray-800 text-sm">
+                              {art.articulo}
+                              <ArticuloImagenesThumbs paths={art.imagenes} />
+                            </div>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => quitarArticuloEdicion(index)}
+                                className="shrink-0 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
+                              >
+                                Eliminar
+                              </button>
+                            )}
                           </div>
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div className="text-gray-600 text-xs">Cant. sol: {art.cant}</div>
