@@ -1387,6 +1387,7 @@ export default function VerOrdenCompraPage() {
   const [picBusqueda, setPicBusqueda] = useState("");
   const [picLoading, setPicLoading] = useState(false);
   const [picError, setPicError] = useState<string | null>(null);
+  const [actualizandoPrecios, setActualizandoPrecios] = useState(false);
   const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
   const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   const [showEntregaModal, setShowEntregaModal] = useState(false);
@@ -2086,6 +2087,150 @@ export default function VerOrdenCompraPage() {
     return typeof item.total === "number" && !Number.isNaN(item.total)
       ? item.total
       : item.cantidad * precioConDescuento;
+  };
+
+  const handleActualizarPrecios = async () => {
+    if (!orden || actualizandoPrecios) return;
+    if (!window.confirm("Seguro actualizar precios si/no")) return;
+
+    const articulos = orden.articulos || [];
+    if (articulos.length === 0) {
+      window.alert("La orden no tiene artículos.");
+      return;
+    }
+
+    const parseNumeroArticulo = (value: unknown): number | null => {
+      if (value === null || value === undefined || value === "") return null;
+      const n =
+        typeof value === "number"
+          ? value
+          : Number(String(value).trim().replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    };
+
+    setActualizandoPrecios(true);
+    try {
+      const codints = [
+        ...new Set(articulos.map((item) => item.codint?.trim()).filter(Boolean)),
+      ] as string[];
+      const nombres = [
+        ...new Set(
+          articulos.map((item) => item.articulo_nombre?.trim()).filter(Boolean)
+        ),
+      ] as string[];
+
+      const porCodint = new Map<string, { costunit: number; descuento: number }>();
+      const porNombre = new Map<string, { costunit: number; descuento: number }>();
+
+      const guardarPrecio = (row: {
+        codint?: string | null;
+        articulo?: string | null;
+        costunit?: unknown;
+        descuento?: unknown;
+      }) => {
+        const costunit = parseNumeroArticulo(row.costunit);
+        if (costunit === null) return;
+        const precio = {
+          costunit,
+          descuento: parseNumeroArticulo(row.descuento) ?? 0,
+        };
+        if (row.codint?.trim()) porCodint.set(row.codint.trim(), precio);
+        if (row.articulo?.trim()) porNombre.set(row.articulo.trim(), precio);
+      };
+
+      if (codints.length > 0) {
+        const { data, error: fetchError } = await supabase
+          .from("articulos")
+          .select("codint, articulo, costunit, descuento")
+          .in("codint", codints);
+        if (fetchError) throw fetchError;
+        (data ?? []).forEach(guardarPrecio);
+      }
+
+      const nombresFaltantes = nombres.filter((nombre) => !porNombre.has(nombre));
+      if (nombresFaltantes.length > 0) {
+        const { data, error: fetchError } = await supabase
+          .from("articulos")
+          .select("codint, articulo, costunit, descuento")
+          .in("articulo", nombresFaltantes);
+        if (fetchError) throw fetchError;
+        (data ?? []).forEach(guardarPrecio);
+      }
+
+      const sinPrecio: string[] = [];
+      let actualizados = 0;
+      const articulosNuevos = articulos.map((item) => {
+        const precio =
+          (item.codint?.trim() ? porCodint.get(item.codint.trim()) : undefined) ||
+          porNombre.get(item.articulo_nombre?.trim() || "");
+        if (!precio) {
+          sinPrecio.push(item.articulo_nombre || item.codint || "artículo");
+          return item;
+        }
+        actualizados += 1;
+        const costunitcdesc = calcularPrecioConDescuento(
+          precio.costunit,
+          precio.descuento
+        );
+        return {
+          ...item,
+          precio_unitario: precio.costunit,
+          descuento: precio.descuento,
+          costunitcdesc,
+          total: item.cantidad * costunitcdesc,
+        };
+      });
+
+      if (actualizados === 0) {
+        window.alert(
+          "No se encontró precio en la tabla de artículos para los ítems de esta orden."
+        );
+        return;
+      }
+
+      const total = articulosNuevos.reduce(
+        (sum, item) => sum + (Number(item.total) || 0),
+        0
+      );
+      const payload: Record<string, unknown> = {
+        articulos: articulosNuevos,
+        total,
+      };
+      if (typeof orden.importe_competencia === "number") {
+        payload.ahorro = orden.importe_competencia - total;
+      }
+
+      const { error: updateError } = await supabase
+        .from("ordenes_compra")
+        .update(payload)
+        .eq("id", orden.id);
+      if (updateError) throw updateError;
+
+      setOrden((prev) =>
+        prev
+          ? {
+              ...prev,
+              articulos: articulosNuevos,
+              total,
+              ...(typeof payload.ahorro === "number" ? { ahorro: payload.ahorro } : {}),
+            }
+          : prev
+      );
+      setEditData((prev) => ({ ...prev, articulos: articulosNuevos }));
+
+      if (sinPrecio.length > 0) {
+        window.alert(
+          `Se actualizaron ${actualizados} precios. Sin precio en artículos: ${sinPrecio.join(", ")}`
+        );
+      }
+    } catch (err) {
+      console.error("Error actualizando precios:", err);
+      window.alert(
+        `No se pudieron actualizar los precios: ${getSupabaseErrorMessage(err)}`
+      );
+    } finally {
+      setActualizandoPrecios(false);
+    }
   };
 
   const handleOpenEntregaModal = () => {
@@ -4249,6 +4394,18 @@ export default function VerOrdenCompraPage() {
                 className="whitespace-nowrap border-blue-500 text-blue-600 hover:bg-blue-50"
               >
                 ✏️ Editar
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                type="button"
+                onClick={() => void handleActualizarPrecios()}
+                disabled={actualizandoPrecios}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap border-amber-600 text-amber-700 hover:bg-amber-50"
+              >
+                {actualizandoPrecios ? "Actualizando..." : "Actualizar precios"}
               </Button>
             )}
             {canCambiarEstado && (
