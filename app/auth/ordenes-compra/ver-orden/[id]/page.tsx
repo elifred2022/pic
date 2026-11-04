@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "@/components/ordenes-compra/ver-orden-compra-page";
+import VerOrdenCompraPage from "@/components/ordenes-compra/ver-orden-compra-page";
+
+export default function Page() {
+  return <VerOrdenCompraPage />;
+}

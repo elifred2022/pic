@@ -2505,7 +2505,9 @@ export default function ListAdmin() {
                        <div>
                          <label className="block text-sm font-medium text-gray-700 mb-2">Número de OC (pedido)</label>
                          <input
-                           type="number"
+                           type="text"
+                           inputMode="numeric"
+                           autoComplete="off"
                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
                            value={formData.oc ?? ""}
                            onChange={(e) =>
@@ -2516,7 +2518,9 @@ export default function ListAdmin() {
                        <div>
                          <label className="block text-sm font-medium text-gray-700 mb-2">Factura (pedido)</label>
                          <input
-                           type="number"
+                           type="text"
+                           inputMode="numeric"
+                           autoComplete="off"
                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
                            value={formData.fac ?? ""}
                            onChange={(e) =>
@@ -2527,7 +2531,9 @@ export default function ListAdmin() {
                        <div>
                          <label className="block text-sm font-medium text-gray-700 mb-2">Remito (pedido)</label>
                          <input
-                           type="number"
+                           type="text"
+                           inputMode="numeric"
+                           autoComplete="off"
                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
                            value={formData.rto ?? ""}
                            onChange={(e) =>
@@ -2558,8 +2564,9 @@ export default function ListAdmin() {
                            <div>
                              <label className="block text-sm font-medium text-gray-700 mb-2">Factura (FC)</label>
                              <input
-                               type="number"
-                               min={0}
+                               type="text"
+                               inputMode="numeric"
+                               autoComplete="off"
                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
                                placeholder="Nº de factura"
                                value={ocFacturaForm.fc}
@@ -2583,8 +2590,9 @@ export default function ListAdmin() {
                            <div>
                              <label className="block text-sm font-medium text-gray-700 mb-2">Remito (RT)</label>
                              <input
-                               type="number"
-                               min={0}
+                               type="text"
+                               inputMode="numeric"
+                               autoComplete="off"
                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white"
                                placeholder="Nº de remito"
                                value={ocFacturaForm.rt}

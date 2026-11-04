@@ -1389,6 +1389,7 @@ export default function VerOrdenCompraPage() {
   const [picError, setPicError] = useState<string | null>(null);
   const [actualizandoPrecios, setActualizandoPrecios] = useState(false);
   const [precioEdicion, setPrecioEdicion] = useState<Record<string, string>>({});
+  const [cantidadEdicion, setCantidadEdicion] = useState<Record<string, string>>({});
   const [descuentoEdicion, setDescuentoEdicion] = useState<Record<string, string>>({});
   const [showEntregaModal, setShowEntregaModal] = useState(false);
   const [entregaForm, setEntregaForm] = useState({
@@ -3113,6 +3114,7 @@ export default function VerOrdenCompraPage() {
       setNuevaFacturaFc('');
       setBusquedaProveedor('');
       setPrecioEdicion({});
+      setCantidadEdicion({});
       setDescuentoEdicion({});
       setShowEditModal(true);
     }
@@ -3149,6 +3151,7 @@ export default function VerOrdenCompraPage() {
     setBusquedaProveedor('');
     setFacturaUploadError(null);
     setPrecioEdicion({});
+    setCantidadEdicion({});
     setDescuentoEdicion({});
   };
 
@@ -4092,6 +4095,11 @@ export default function VerOrdenCompraPage() {
     });
     if (articuloId) {
       setPrecioEdicion((prev) => {
+        const next = { ...prev };
+        delete next[articuloId];
+        return next;
+      });
+      setCantidadEdicion((prev) => {
         const next = { ...prev };
         delete next[articuloId];
         return next;
@@ -5616,12 +5624,40 @@ export default function VerOrdenCompraPage() {
                           </div>
                           <div>
                             <Input
-                              type="number"
-                              value={articulo.cantidad}
-                              onChange={(e) => handleEditarArticulo(index, 'cantidad', parseInt(e.target.value) || 0)}
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              value={
+                                cantidadEdicion[articulo.articulo_id] ??
+                                String(articulo.cantidad)
+                              }
+                              onChange={(e) => {
+                                const valor = e.target.value;
+                                if (!esEntradaDecimalValida(valor)) return;
+                                setCantidadEdicion((prev) => ({
+                                  ...prev,
+                                  [articulo.articulo_id]: valor,
+                                }));
+                                handleEditarArticulo(
+                                  index,
+                                  "cantidad",
+                                  parseCantidadDecimal(valor)
+                                );
+                              }}
+                              onBlur={(e) => {
+                                handleEditarArticulo(
+                                  index,
+                                  "cantidad",
+                                  parseCantidadDecimal(e.target.value)
+                                );
+                                setCantidadEdicion((prev) => {
+                                  const next = { ...prev };
+                                  delete next[articulo.articulo_id];
+                                  return next;
+                                });
+                              }}
                               placeholder="Cantidad"
                               className="text-sm"
-                              min="1"
                             />
                           </div>
                           <div>
