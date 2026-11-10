@@ -110,6 +110,24 @@ type ProveedorComparativa = {
   presupuesto_path?: string | null;
 };
 
+type ArticuloBaseCodigo = {
+  codint: string;
+  articulo: string;
+  descripcion: string | null;
+  existencia: number | null;
+  provsug: string | null;
+  codprovsug: string | null;
+  presentacion: string | null;
+};
+
+function parseCantidadPositiva(raw: string): number | null {
+  const texto = raw.trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(texto)) return null;
+  const cantidad = Number(texto);
+  if (!Number.isFinite(cantidad) || cantidad <= 0) return null;
+  return cantidad;
+}
+
 type Pedido = {
   comparativa_prov: ProveedorComparativa[] | null;
   id: string;
@@ -205,6 +223,11 @@ export default function ListaPedidosProductivosAdmin() {
     >({});
   
     const [formData, setFormData] = useState<Partial<Pedido>>({});
+    const [codigoNuevoArticulo, setCodigoNuevoArticulo] = useState("");
+    const [articuloBaseEncontrado, setArticuloBaseEncontrado] = useState<ArticuloBaseCodigo | null>(null);
+    const [cantNuevoArticulo, setCantNuevoArticulo] = useState("1");
+    const [buscandoArticulo, setBuscandoArticulo] = useState(false);
+    const [errorNuevoArticulo, setErrorNuevoArticulo] = useState<string | null>(null);
     const [exportandoExcel, setExportandoExcel] = useState(false);
     const [fechaImpresion, setFechaImpresion] = useState("");
     const [selectedMobilePedidoId, setSelectedMobilePedidoId] = useState<string | null>(null);
@@ -620,7 +643,16 @@ export default function ListaPedidosProductivosAdmin() {
     }
   };
 
+  const limpiarAltaArticulo = () => {
+    setCodigoNuevoArticulo("");
+    setArticuloBaseEncontrado(null);
+    setCantNuevoArticulo("1");
+    setBuscandoArticulo(false);
+    setErrorNuevoArticulo(null);
+  };
+
   const abrirEdicionPedido = (p: Pedido) => {
+    limpiarAltaArticulo();
     setEditingPedido(p);
     setFormData(p);
     initComparativaForm(p);
@@ -654,6 +686,81 @@ export default function ListaPedidosProductivosAdmin() {
         };
       });
     });
+  };
+
+  const buscarArticuloPorCodigo = async () => {
+    if (!canEdit) return;
+    const codigo = codigoNuevoArticulo.trim();
+    setArticuloBaseEncontrado(null);
+    setErrorNuevoArticulo(null);
+    if (!codigo) {
+      setErrorNuevoArticulo("Ingrese un código interno.");
+      return;
+    }
+
+    setBuscandoArticulo(true);
+    const { data, error } = await supabase
+      .from("articulos")
+      .select("codint, articulo, descripcion, existencia, provsug, codprovsug, presentacion")
+      .eq("codint", codigo)
+      .maybeSingle();
+    setBuscandoArticulo(false);
+
+    if (error) {
+      setErrorNuevoArticulo("No se pudo buscar el artículo.");
+      return;
+    }
+    if (!data) {
+      setErrorNuevoArticulo("No hay un artículo con ese código.");
+      return;
+    }
+    setArticuloBaseEncontrado(data);
+  };
+
+  const agregarArticuloPorCodigo = () => {
+    if (!canEdit || !articuloBaseEncontrado) return;
+    const cant = parseCantidadPositiva(cantNuevoArticulo);
+    if (cant === null) {
+      setErrorNuevoArticulo("La cantidad debe ser mayor a 0.");
+      return;
+    }
+
+    const actuales = formData.articulos ?? [];
+    if (actuales.some((art) => art.codint === articuloBaseEncontrado.codint)) {
+      setErrorNuevoArticulo("Ese código ya está en el pedido.");
+      return;
+    }
+
+    const nuevo = {
+      codint: articuloBaseEncontrado.codint,
+      articulo: articuloBaseEncontrado.articulo,
+      descripcion: articuloBaseEncontrado.descripcion ?? "",
+      existencia: articuloBaseEncontrado.existencia ?? 0,
+      cant,
+      provsug: articuloBaseEncontrado.provsug ?? "",
+      codprovsug: articuloBaseEncontrado.codprovsug ?? "",
+      presentacion: articuloBaseEncontrado.presentacion ?? "",
+      observacion: "",
+      imagenes: [] as string[],
+    };
+
+    setFormData({ ...formData, articulos: [...actuales, nuevo] });
+    setComparativaForm((prev) => {
+      if (!prev) return prev;
+      const linea: ArticuloComparativa = {
+        codint: nuevo.codint,
+        articulo: nuevo.articulo,
+        cant: nuevo.cant,
+        precioUnitario: null,
+        descuentoPorcentaje: 0,
+        subtotal: 0,
+      };
+      return prev.map((prov) => ({
+        ...prov,
+        articulos: [...prov.articulos, { ...linea }],
+      }));
+    });
+    limpiarAltaArticulo();
   };
 
   const enriquecerPedidosConCodProvSug = async (pedidos: Pedido[]): Promise<Pedido[]> => {
@@ -948,6 +1055,7 @@ const handleUpdatePedido = async () => {
     );
 
     setGuardandoComparativa(false);
+    limpiarAltaArticulo();
     setEditingPedido(null);
     setComparativaPedido(null);
     setComparativaOc(null);
@@ -1272,7 +1380,7 @@ const handleUpdatePedido = async () => {
                       const attrClase = claseRango ? ` class="${claseRango}"` : '';
                       return `
                       <tr>
-                        <td title="${art.articulo}">${art.articulo}</td>
+                        <td title="${art.articulo}">${art.articulo}${art.codint ? `<div style="font-family: monospace; font-size: 8px; color: #4b5563;">${art.codint}</div>` : ""}</td>
                         <td>${art.cant}</td>
                         <td>${codProvSug}</td>
                         <td${attrClase}>$${formatImporteComparativa(art.precioUnitario)}</td>
@@ -1702,6 +1810,69 @@ const handleUpdatePedido = async () => {
                      <span className="mr-2">📦</span>
                      Artículos Solicitados
                    </h3>
+                   {canEdit && (
+                     <div className="mb-3 rounded border border-gray-200 bg-white p-3">
+                       <p className="mb-2 text-xs font-medium text-gray-700">Agregar artículo por código</p>
+                       <div className="flex flex-wrap gap-2">
+                         <input
+                           type="text"
+                           value={codigoNuevoArticulo}
+                           onChange={(e) => {
+                             setCodigoNuevoArticulo(e.target.value);
+                             setArticuloBaseEncontrado(null);
+                             setErrorNuevoArticulo(null);
+                           }}
+                           onKeyDown={(e) => {
+                             if (e.key === "Enter") {
+                               e.preventDefault();
+                               void buscarArticuloPorCodigo();
+                             }
+                           }}
+                           placeholder="Código interno"
+                           className="min-w-[8rem] flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-800"
+                         />
+                         <button
+                           type="button"
+                           onClick={() => void buscarArticuloPorCodigo()}
+                           disabled={buscandoArticulo}
+                           className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                         >
+                           {buscandoArticulo ? "Buscando..." : "Buscar"}
+                         </button>
+                       </div>
+                       {articuloBaseEncontrado && (
+                         <div className="mt-2 text-xs text-gray-700">
+                           <p className="font-medium text-gray-800">{articuloBaseEncontrado.articulo}</p>
+                           <p className="font-mono text-gray-500">{articuloBaseEncontrado.codint}</p>
+                           <p>Presentacion: {articuloBaseEncontrado.presentacion?.trim() ? articuloBaseEncontrado.presentacion : "-"}</p>
+                           <p>Stock: {articuloBaseEncontrado.existencia ?? 0}</p>
+                           <div className="mt-2 flex flex-wrap items-end gap-2">
+                             <label className="text-xs text-gray-700">
+                               Cantidad
+                               <input
+                                 type="text"
+                                 inputMode="decimal"
+                                 autoComplete="off"
+                                 value={cantNuevoArticulo}
+                                 onChange={(e) => setCantNuevoArticulo(e.target.value)}
+                                 className="mt-1 block w-24 rounded border border-gray-300 px-2 py-1 text-sm text-gray-800"
+                               />
+                             </label>
+                             <button
+                               type="button"
+                               onClick={agregarArticuloPorCodigo}
+                               className="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                             >
+                               Agregar
+                             </button>
+                           </div>
+                         </div>
+                       )}
+                       {errorNuevoArticulo && (
+                         <p className="mt-2 text-xs text-red-600">{errorNuevoArticulo}</p>
+                       )}
+                     </div>
+                   )}
                    {formData.articulos && formData.articulos.length > 0 ? (
                      <div className="space-y-3">
                        {formData.articulos.map((art, index) => (
@@ -1847,7 +2018,12 @@ const handleUpdatePedido = async () => {
                             );
                             return (
                             <tr key={artIndex} className="border-b border-gray-100">
-                              <td className="px-2 py-2 text-sm">{art.articulo}</td>
+                              <td className="px-2 py-2 text-sm">
+                                <div>{art.articulo}</div>
+                                {art.codint ? (
+                                  <div className="font-mono text-[10px] text-gray-500">{art.codint}</div>
+                                ) : null}
+                              </td>
                               <td className="px-2 py-2 text-right">
                                 <input
                                   type="text"
@@ -2236,7 +2412,10 @@ const handleUpdatePedido = async () => {
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
               <button
-                onClick={() => setEditingPedido(null)}
+                onClick={() => {
+                  limpiarAltaArticulo();
+                  setEditingPedido(null);
+                }}
                   className="px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-all duration-200"
               >
                   ❌ Cancelar
@@ -2369,6 +2548,9 @@ const handleUpdatePedido = async () => {
                                  <div className="max-w-full">
                                    {art.articulo}
                                  </div>
+                                 {art.codint ? (
+                                   <div className="font-mono text-[10px] text-gray-500">{art.codint}</div>
+                                 ) : null}
                                </td>
                                <td className="px-2 py-2 text-center text-sm">{art.cant}</td>
                                <td className="px-2 py-2 text-center text-sm">

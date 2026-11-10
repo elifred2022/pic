@@ -76,6 +76,9 @@ export default function CrearFormPedidoProductivo() {
 
   const [codigoArticulo, setCodigoArticulo] = useState("");
   const [articuloEncontrado, setArticuloEncontrado] = useState<Articulo | null>(null);
+  const [resultadosBusqueda, setResultadosBusqueda] = useState<Articulo[]>([]);
+  const [buscandoArticulo, setBuscandoArticulo] = useState(false);
+  const busquedaSeq = useRef(0);
   const [cant, setCant] = useState<number>(1);
   const [existenciaEditada, setExistenciaEditada] = useState<number>(0);
    const [observacion, setObservacion] = useState("");
@@ -195,30 +198,80 @@ export default function CrearFormPedidoProductivo() {
     if (imagenInputRef.current) imagenInputRef.current.value = "";
   };
 
-  // 🔍 Buscar artículo por código interno
+  const elegirArticulo = (art: Articulo) => {
+    busquedaSeq.current += 1;
+    setArticuloEncontrado(art);
+    setExistenciaEditada(art.existencia ?? 0);
+    setResultadosBusqueda([]);
+    setBuscandoArticulo(false);
+  };
+
+  // 🔍 Buscar artículo por código o por palabra
   useEffect(() => {
-    const fetchArticulo = async () => {
-      if (codigoArticulo.trim() === "") {
-        setArticuloEncontrado(null);
+    const term = codigoArticulo.trim();
+    const seq = ++busquedaSeq.current;
+
+    if (term === "") {
+      setArticuloEncontrado(null);
+      setResultadosBusqueda([]);
+      setExistenciaEditada(0);
+      setBuscandoArticulo(false);
+      return;
+    }
+
+    setBuscandoArticulo(true);
+    const timer = setTimeout(async () => {
+      const { data: exacto, error: errorExacto } = await supabase
+        .from("articulos")
+        .select("*")
+        .eq("codint", term)
+        .maybeSingle();
+
+      if (busquedaSeq.current !== seq) return;
+
+      if (!errorExacto && exacto) {
+        setArticuloEncontrado(exacto as Articulo);
+        setExistenciaEditada(exacto.existencia ?? 0);
+        setResultadosBusqueda([]);
+        setBuscandoArticulo(false);
         return;
       }
 
+      if (term.length < 2) {
+        setArticuloEncontrado(null);
+        setResultadosBusqueda([]);
+        setExistenciaEditada(0);
+        setBuscandoArticulo(false);
+        return;
+      }
+
+      const seguro = term.replace(/[%_\\"]/g, "").trim();
+      if (!seguro) {
+        setArticuloEncontrado(null);
+        setResultadosBusqueda([]);
+        setExistenciaEditada(0);
+        setBuscandoArticulo(false);
+        return;
+      }
+      const patron = `%${seguro}%`;
       const { data, error } = await supabase
         .from("articulos")
         .select("*")
-        .eq("codint", codigoArticulo.trim())
-        .single();
+        .or(
+          `codint.ilike."${patron}",articulo.ilike."${patron}",descripcion.ilike."${patron}"`
+        )
+        .order("articulo")
+        .limit(15);
 
-      if (!error && data) {
-        setArticuloEncontrado(data as Articulo);
-        setExistenciaEditada(data.existencia);
-      } else {
-        setArticuloEncontrado(null);
-        setExistenciaEditada(0);
-      }
-    };
+      if (busquedaSeq.current !== seq) return;
 
-    fetchArticulo();
+      setArticuloEncontrado(null);
+      setExistenciaEditada(0);
+      setResultadosBusqueda(!error && data ? (data as Articulo[]) : []);
+      setBuscandoArticulo(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [codigoArticulo, supabase]);
 
   // ➕ Agregar artículo a la lista temporal
@@ -568,7 +621,7 @@ export default function CrearFormPedidoProductivo() {
 
           
         </div>
-        {/* 🔍 Búsqueda por código */}
+        {/* 🔍 Búsqueda por código o palabra */}
         <div className="border-t pt-4">
           <h3 className="font-semibold mb-2">Agregar Artículo</h3>
           <input
@@ -576,8 +629,36 @@ export default function CrearFormPedidoProductivo() {
             value={codigoArticulo}
             onChange={(e) => setCodigoArticulo(e.target.value)}
             className="border p-2 w-full rounded text-black bg-white"
-            placeholder="Código interno (Ej: A123)"
+            placeholder="Código o palabra del artículo"
           />
+          {buscandoArticulo && (
+            <p className="mt-2 text-sm text-gray-500">Buscando...</p>
+          )}
+          {!articuloEncontrado && resultadosBusqueda.length > 0 && (
+            <ul className="mt-2 max-h-56 overflow-y-auto rounded border bg-white">
+              {resultadosBusqueda.map((art) => (
+                <li key={art.codint}>
+                  <button
+                    type="button"
+                    onClick={() => elegirArticulo(art)}
+                    className="w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100"
+                  >
+                    <span className="font-mono text-xs text-gray-500">{art.codint}</span>
+                    <span className="mt-0.5 block font-medium">{art.articulo}</span>
+                    {art.descripcion?.trim() ? (
+                      <span className="block text-xs text-gray-600">{art.descripcion}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!buscandoArticulo &&
+            !articuloEncontrado &&
+            codigoArticulo.trim().length >= 2 &&
+            resultadosBusqueda.length === 0 && (
+              <p className="mt-2 text-sm text-gray-500">No hay artículos con esa búsqueda.</p>
+            )}
 
           {articuloEncontrado && (
             <div className="mt-2 p-3 border rounded bg-gray-50">
