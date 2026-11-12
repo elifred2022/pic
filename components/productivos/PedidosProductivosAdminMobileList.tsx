@@ -7,6 +7,7 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import { DocumentoPedidoLink } from "@/components/pedidos/documento-pedido-link";
 
 type ArticuloComparativa = {
   codint: string;
@@ -66,6 +67,7 @@ export type PedidoMobile = {
   fecha_ent: string;
   rto: string | null;
   fac: string | null;
+  documento_path?: string | null;
   articulos: ArticuloPedido[];
 };
 
@@ -256,6 +258,11 @@ export default function PedidosProductivosAdminMobileList({
 
           <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
             <DetalleFila label="Observ / mensaje">{renderValue(p.observ)}</DetalleFila>
+            {p.documento_path ? (
+              <DetalleFila label="Documento">
+                <DocumentoPedidoLink path={p.documento_path} size="compact" />
+              </DetalleFila>
+            ) : null}
             <DetalleFila label="Supervisado">
               <span>
                 {p.controlado}

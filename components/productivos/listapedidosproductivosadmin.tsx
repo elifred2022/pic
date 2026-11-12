@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import PedidosProductivosAdminMobileList from "@/components/productivos/PedidosProductivosAdminMobileList";
 import { OcBackLink } from "@/components/ordenes-compra/oc-back-link";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import { DocumentoPedidoLink } from "@/components/pedidos/documento-pedido-link";
 import { useOcVolver, type OcVolver } from "@/hooks/use-oc-volver";
 import { useCanEditAsAdmin } from "@/hooks/use-can-edit-as-admin";
 import { canIrAOrdenesCompra } from "@/lib/panol-access";
@@ -157,6 +158,7 @@ type Pedido = {
   fecha_ent: string;
   rto: string | null;
   fac: string | null;
+  documento_path?: string | null;
   
   articulos: {
     codint: string;
@@ -1315,6 +1317,11 @@ const handleUpdatePedido = async () => {
               <span class="info-label">Aprueba:</span>
               <span>${comparativaPedido.aprueba || '-'}</span>
             </div>
+            ${
+              comparativaPedido.documento_path
+                ? `<div class="info-item"><span class="info-label">Documento:</span><span>Adjunto</span></div>`
+                : ""
+            }
             <div class="info-item">
               <span class="info-label">Estado:</span>
               <span>${comparativaPedido.estado || '-'}</span>
@@ -1606,6 +1613,7 @@ const handleUpdatePedido = async () => {
                     <th className={thClass}>Sector</th>
                     <th className={thClass}>Artículo</th>
                     <th className={thClass}>Observ</th>
+                    <th className={thClass}>Documento</th>
                     <th className={thClass}>Supervisado</th>
                     <th className={thClass}>Comprador</th>
                     <th className={thClass}>Aprueba</th>
@@ -1727,6 +1735,13 @@ const handleUpdatePedido = async () => {
                         </div>
                       </td>
                       <td className={tdClass}>
+                        {p.documento_path ? (
+                          <DocumentoPedidoLink path={p.documento_path} size="compact" />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className={tdClass}>
                         <div className="flex flex-col gap-0.5 whitespace-nowrap">
                           <span className="font-medium">{p.controlado}</span>
                           <span className="text-slate-500">{p.supervisor}</span>
@@ -1803,6 +1818,7 @@ const handleUpdatePedido = async () => {
                        {formData.nota_solicitante}
                      </p>
                    ) : null}
+                   <DocumentoPedidoLink path={formData.documento_path} />
                  </div>
 
                  <div className="bg-gray-50 p-4 rounded-lg">
@@ -2477,6 +2493,7 @@ const handleUpdatePedido = async () => {
                       </p>
                     ) : null}
                     <p><span className="font-medium">Aprueba:</span> {comparativaPedido.aprueba}</p>
+                    <DocumentoPedidoLink path={comparativaPedido.documento_path} />
                   </div>
                 </div>
 

@@ -17,6 +17,7 @@ import {
   type HistoricoEstadoEntry,
 } from "@/lib/historico-estado-pedidos-productivos";
 import { ArticuloImagenesThumbs } from "@/components/pedidos/articulo-imagenes-thumbs";
+import { DocumentoPedidoLink } from "@/components/pedidos/documento-pedido-link";
 import NuevoPicProductivoAlertListener, {
   NUEVO_PIC_PRODUCTIVO_EVENT,
 } from "@/components/realtime/nuevopicproductivoalertlistener";
@@ -84,6 +85,7 @@ type Pedido = {
   fecha_ent: string;
   rto: number;
   fac: number;
+  documento_path?: string | null;
   
   
   articulos: {
@@ -750,6 +752,7 @@ const handleUpdatePedido = async () => {
                       </p>
                     ) : null}
                     <p><span className="font-medium">Aprueba:</span> {comparativaPedido.aprueba}</p>
+                    <DocumentoPedidoLink path={comparativaPedido.documento_path} />
                   </div>
                 </div>
 

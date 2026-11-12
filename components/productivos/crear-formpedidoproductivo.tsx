@@ -8,8 +8,11 @@ import { appendHistoricoEstado } from "@/lib/historico-estado-pedidos-productivo
 import {
   ARTICULO_IMAGEN_ACCEPT,
   ARTICULO_IMAGEN_MAX_POR_ARTICULO,
+  DOCUMENTO_PEDIDO_ACCEPT,
   uploadArticuloImagen,
+  uploadDocumentoPedidoProductivo,
   validateArticuloImagenFile,
+  validateDocumentoPedidoFile,
 } from "@/lib/presupuestos-storage";
 
 
@@ -84,6 +87,8 @@ export default function CrearFormPedidoProductivo() {
    const [observacion, setObservacion] = useState("");
   const [observ, setObserv] = useState("");
   const [imagenesPendientes, setImagenesPendientes] = useState<ArticuloImagenLocal[]>([]);
+  const [documentoFile, setDocumentoFile] = useState<File | null>(null);
+  const [documentoPreviewUrl, setDocumentoPreviewUrl] = useState<string | null>(null);
 
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<
     ArticuloSeleccionado[]
@@ -93,6 +98,8 @@ export default function CrearFormPedidoProductivo() {
   const [message, setMessage] = useState("");
   const [loadingNombre, setLoadingNombre] = useState(true);
   const imagenInputRef = useRef<HTMLInputElement>(null);
+  const documentoInputRef = useRef<HTMLInputElement>(null);
+  const documentoPreviewRef = useRef<string | null>(null);
   const imagenesPendientesRef = useRef<ArticuloImagenLocal[]>([]);
   const articulosSeleccionadosRef = useRef<ArticuloSeleccionado[]>([]);
   imagenesPendientesRef.current = imagenesPendientes;
@@ -143,8 +150,40 @@ export default function CrearFormPedidoProductivo() {
       articulosSeleccionadosRef.current.forEach((art) =>
         revokeImagenesLocales(art.imagenesLocales)
       );
+      if (documentoPreviewRef.current) URL.revokeObjectURL(documentoPreviewRef.current);
     };
   }, []);
+
+  const limpiarDocumento = () => {
+    if (documentoPreviewRef.current) {
+      URL.revokeObjectURL(documentoPreviewRef.current);
+      documentoPreviewRef.current = null;
+    }
+    setDocumentoPreviewUrl(null);
+    setDocumentoFile(null);
+    if (documentoInputRef.current) documentoInputRef.current.value = "";
+  };
+
+  const handleSeleccionarDocumento = (file: File | null) => {
+    if (!file) return;
+    const invalid = validateDocumentoPedidoFile(file);
+    if (invalid) {
+      setMessage(`❌ ${invalid}`);
+      return;
+    }
+
+    if (documentoPreviewRef.current) {
+      URL.revokeObjectURL(documentoPreviewRef.current);
+      documentoPreviewRef.current = null;
+    }
+
+    const esImagen = /^image\//.test(file.type) || /\.jpe?g$/i.test(file.name);
+    const preview = esImagen ? URL.createObjectURL(file) : null;
+    documentoPreviewRef.current = preview;
+    setDocumentoPreviewUrl(preview);
+    setDocumentoFile(file);
+    setMessage("");
+  };
 
   const handleSeleccionarImagenes = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -442,16 +481,42 @@ export default function CrearFormPedidoProductivo() {
             }
           }
 
+          let documentoError = "";
+          if (documentoFile) {
+            const documentoResult = await uploadDocumentoPedidoProductivo(
+              supabase,
+              pedidoCreado.id,
+              documentoFile
+            );
+            if ("error" in documentoResult) {
+              documentoError = ` No se pudo subir el documento: ${documentoResult.error}`;
+            } else {
+              const { error: documentoUpdateError } = await supabase
+                .from("pedidos_productivos")
+                .update({ documento_path: documentoResult.storagePath })
+                .eq("id", pedidoCreado.id);
+
+              if (documentoUpdateError) {
+                const faltaColumna =
+                  /documento_path/i.test(documentoUpdateError.message) &&
+                  /column|schema cache/i.test(documentoUpdateError.message);
+                documentoError = faltaColumna
+                  ? " El documento se subió, pero falta la columna documento_path. Ejecute una vez database/add_documento_path_pedidos_productivos.sql en Supabase."
+                  : ` El documento se subió, pero no se guardó la ruta: ${documentoUpdateError.message}`;
+              }
+            }
+          }
+
           articulosSeleccionados.forEach((art) =>
             revokeImagenesLocales(art.imagenesLocales)
           );
           revokeImagenesLocales(imagenesPendientes);
 
           alert(
-            `✅ Se creó tu PIC productivo #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.${imagenesError}`
+            `✅ Se creó tu PIC productivo #${pedidoCreado.id} del sector ${pedidoCreado.sector || "—"}.${imagenesError}${documentoError}`
           );
-          if (imagenesError) {
-            setMessage(`✅ Pedido creado con éxito.${imagenesError}`);
+          if (imagenesError || documentoError) {
+            setMessage(`✅ Pedido creado con éxito.${imagenesError}${documentoError}`);
           }
         }
       } catch (updateError) {
@@ -476,6 +541,7 @@ export default function CrearFormPedidoProductivo() {
       setObserv("");
       setAprueba("")
       resetImagenesPendientes();
+      limpiarDocumento();
 
       setTimeout(()=> {
         router.push("/protected");
@@ -621,6 +687,47 @@ export default function CrearFormPedidoProductivo() {
 
           
         </div>
+
+        <div className="border-t pt-4">
+          <h3 className="font-semibold mb-2">Documento</h3>
+          <input
+            ref={documentoInputRef}
+            type="file"
+            accept={DOCUMENTO_PEDIDO_ACCEPT}
+            onChange={(e) => {
+              handleSeleccionarDocumento(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
+            className="border p-2 w-full rounded text-black bg-white file:mr-3 file:rounded file:border-0 file:bg-slate-600 file:px-3 file:py-1 file:text-white"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            PDF o JPG. Máximo 15 MB. Se guarda en el storage de presupuestos.
+          </p>
+          {documentoFile && (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {documentoPreviewUrl ? (
+                <img
+                  src={documentoPreviewUrl}
+                  alt={documentoFile.name}
+                  className="h-16 w-16 rounded border border-gray-200 object-cover"
+                />
+              ) : (
+                <span className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">
+                  PDF
+                </span>
+              )}
+              <span className="text-sm text-black">{documentoFile.name}</span>
+              <button
+                type="button"
+                onClick={limpiarDocumento}
+                className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+              >
+                Quitar
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* 🔍 Búsqueda por código o palabra */}
         <div className="border-t pt-4">
           <h3 className="font-semibold mb-2">Agregar Artículo</h3>

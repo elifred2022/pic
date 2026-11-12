@@ -111,6 +111,72 @@ export async function getPresupuestoViewUrl(
   return pub.publicUrl;
 }
 
+const DOCUMENTO_PEDIDO_EXT = /^(jpg|jpeg|pdf)$/i;
+export const DOCUMENTO_PEDIDO_ACCEPT = ".pdf,.jpg,.jpeg,application/pdf,image/jpeg";
+export const DOCUMENTO_PEDIDO_MAX_BYTES = 15 * 1024 * 1024;
+
+export function validateDocumentoPedidoFile(file: File): string | null {
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
+  if (!DOCUMENTO_PEDIDO_EXT.test(fileExt)) {
+    return "Formato no permitido. Use PDF o JPG.";
+  }
+  if (file.size > DOCUMENTO_PEDIDO_MAX_BYTES) {
+    return "El documento supera 15 MB.";
+  }
+  return null;
+}
+
+export function getDocumentoPedidoStoragePath(
+  pedidoId: string | number,
+  extension: string
+): string {
+  const ext = extension.replace(/^\./, "").toLowerCase() || "pdf";
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `pp/${pedidoId}/documento-${unique}.${ext}`;
+}
+
+/** Sube el PDF o JPG del pedido productivo al bucket presupuestos. */
+export async function uploadDocumentoPedidoProductivo(
+  supabase: SupabaseClient,
+  pedidoId: string | number,
+  file: File
+): Promise<{ storagePath: string; viewUrl: string | null } | { error: string }> {
+  const invalid = validateDocumentoPedidoFile(file);
+  if (invalid) return { error: invalid };
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    return { error: "Debe iniciar sesión para adjuntar el documento." };
+  }
+
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
+  const storagePath = getDocumentoPedidoStoragePath(pedidoId, fileExt);
+  const contentType =
+    fileExt === "pdf"
+      ? "application/pdf"
+      : file.type || "image/jpeg";
+
+  const { error: uploadError } = await supabase.storage
+    .from(getPresupuestosBucket())
+    .upload(storagePath, file, {
+      upsert: false,
+      contentType,
+    });
+
+  if (uploadError) {
+    const msg = getSupabaseErrorMessage(uploadError);
+    return {
+      error:
+        msg.includes("row-level security") || msg.includes("403")
+          ? `${msg}. ${STORAGE_RLS_HINT}`
+          : `No se pudo subir: ${msg}`,
+    };
+  }
+
+  const viewUrl = await getPresupuestoViewUrl(supabase, storagePath);
+  return { storagePath, viewUrl };
+}
+
 const ARTICULO_IMAGEN_EXT = /^(jpg|jpeg|png|webp)$/i;
 export const ARTICULO_IMAGEN_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp";
 export const ARTICULO_IMAGEN_MAX_BYTES = 8 * 1024 * 1024;
