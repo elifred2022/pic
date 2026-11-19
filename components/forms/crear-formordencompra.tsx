@@ -1166,6 +1166,8 @@ export function CrearFormOrdenCompra() {
                   <option value="CC 20 DIAS FF">CC 20 DIAS FF</option>
                 <option value="CC 15 DIAS FF">CC 15 DIAS FF</option>
                 <option value="CC 7 DIAS FF">CC 7 DIAS FF</option>
+                <option value="CC 1 DIA FF">CC 1 DIA FF</option>
+                <option value="ECHEQ 45 DIAS FF">ECHEQ 45 DIAS FF</option>
                 <option value="ECHEQ 30 DIAS FF">ECHEQ 30 DIAS FF</option>
                 <option value="ECHEQ 15 DIAS FF">ECHEQ 15 DIAS FF</option>
                 <option value="PAGO ANTICIPADO">PAGO ANTICIPADO</option>

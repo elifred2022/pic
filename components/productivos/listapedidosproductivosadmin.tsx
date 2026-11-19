@@ -25,6 +25,7 @@ import {
 } from "@/lib/fact-compras-storage";
 import {
   getPresupuestoViewUrl,
+  PRESUPUESTO_ACCEPT,
   removePresupuestoFromStorage,
   uploadPresupuestoProveedor,
 } from "@/lib/presupuestos-storage";
@@ -2144,7 +2145,7 @@ const handleUpdatePedido = async () => {
                         </label>
                         <input
                           type="file"
-                          accept="image/jpeg,image/jpg,application/pdf"
+                          accept={PRESUPUESTO_ACCEPT}
                           disabled={!!presupuestoUploading[provIndex] || guardandoComparativa}
                           className="w-full text-xs"
                           onChange={(e) => {

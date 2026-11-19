@@ -24,6 +24,77 @@ export function getPresupuestoStoragePath(
   return `${pedidoId}/prov-${provIndex}/presupuesto.${ext}`;
 }
 
+const PRESUPUESTO_EXT = /^(jpg|jpeg|pdf)$/i;
+export const PRESUPUESTO_ACCEPT = ".pdf,.jpg,.jpeg,application/pdf,image/jpeg";
+export const PRESUPUESTO_MAX_BYTES = 20 * 1024 * 1024;
+
+function extensionPresupuesto(file: File): string | null {
+  const fromName = file.name.split(".").pop()?.toLowerCase() || "";
+  if (PRESUPUESTO_EXT.test(fromName)) return fromName === "jpeg" ? "jpg" : fromName;
+  if (file.type === "application/pdf" || file.type === "application/x-pdf") return "pdf";
+  if (file.type === "image/jpeg" || file.type === "image/jpg") return "jpg";
+  return null;
+}
+
+/**
+ * Sube al bucket sin el cliente storage-js.
+ * Con PDF ese cliente a veces no puede leer la respuesta (no es JSON) y la carga
+ * queda colgada o falla, aunque el mismo archivo en JPG entra.
+ */
+async function uploadPresupuestoRaw(
+  supabase: SupabaseClient,
+  storagePath: string,
+  file: File,
+  contentType: string
+): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!baseUrl || !anonKey) {
+    throw new Error("Falta la configuración pública de Supabase.");
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error("La sesión venció. Recargue la página e inicie sesión nuevamente.");
+  }
+
+  const bucket = encodeURIComponent(getPresupuestosBucket());
+  const encodedPath = storagePath
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${encodedPath}`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${data.session.access_token}`,
+      "Content-Type": contentType,
+      "Cache-Control": "no-cache",
+      "x-upsert": "true",
+    },
+    body: await file.arrayBuffer(),
+  });
+
+  if (response.ok) {
+    void response.body?.cancel();
+    return;
+  }
+
+  let detail = "";
+  try {
+    detail = (await response.text()).trim();
+  } catch {
+    /* el código HTTP alcanza */
+  }
+  const rls =
+    response.status === 403 || /row-level security/i.test(detail) ? ` ${STORAGE_RLS_HINT}` : "";
+  throw new Error(
+    `No se pudo subir el presupuesto (HTTP ${response.status}${
+      detail ? `: ${detail.slice(0, 300)}` : ""
+    }).${rls}`
+  );
+}
+
 /** Sube PDF/JPG del presupuesto de un proveedor en la comparativa. */
 export async function uploadPresupuestoProveedor(
   supabase: SupabaseClient,
@@ -31,37 +102,33 @@ export async function uploadPresupuestoProveedor(
   provIndex: number,
   file: File
 ): Promise<{ storagePath: string; viewUrl: string | null } | { error: string }> {
-  const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
-  if (!/^(jpg|jpeg|pdf)$/i.test(fileExt)) {
+  const fileExt = extensionPresupuesto(file);
+  if (!fileExt) {
     return { error: "Formato no permitido. Use JPG o PDF." };
   }
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData.session) {
-    return { error: "Debe iniciar sesión para adjuntar el presupuesto." };
+  if (file.size > PRESUPUESTO_MAX_BYTES) {
+    return { error: "El presupuesto supera 20 MB. Comprima el PDF o suba un JPG." };
   }
 
   const storagePath = getPresupuestoStoragePath(pedidoId, provIndex, fileExt);
-  const contentType =
-    fileExt === "pdf"
-      ? "application/pdf"
-      : file.type || `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
+  const contentType = fileExt === "pdf" ? "application/pdf" : "image/jpeg";
 
-  const { error: uploadError } = await supabase.storage
-    .from(getPresupuestosBucket())
-    .upload(storagePath, file, {
-      upsert: true,
-      contentType,
-    });
-
-  if (uploadError) {
-    const msg = getSupabaseErrorMessage(uploadError);
-    return {
-      error: msg.includes("row-level security") || msg.includes("403")
-        ? `${msg}. ${STORAGE_RLS_HINT}`
-        : `No se pudo subir: ${msg}`,
-    };
+  try {
+    await uploadPresupuestoRaw(supabase, storagePath, file, contentType);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido al subir el archivo.";
+    return { error: msg };
   }
+
+  const otrasExtensiones = fileExt === "pdf" ? ["jpg", "jpeg"] : ["pdf", "jpeg"];
+  await Promise.all(
+    otrasExtensiones.map((ext) =>
+      removePresupuestoFromStorage(
+        supabase,
+        getPresupuestoStoragePath(pedidoId, provIndex, ext)
+      )
+    )
+  );
 
   const viewUrl = await getPresupuestoViewUrl(supabase, storagePath);
   return { storagePath, viewUrl };

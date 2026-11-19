@@ -24,6 +24,7 @@ import {
 } from "@/lib/fact-compras-storage";
 import {
   getPresupuestoViewUrl,
+  PRESUPUESTO_ACCEPT,
   removePresupuestoFromStorage,
   uploadPresupuestoProveedor,
 } from "@/lib/presupuestos-storage";
@@ -2004,7 +2005,7 @@ export default function ListAdmin() {
                         </label>
                         <input
                           type="file"
-                          accept="image/jpeg,image/jpg,application/pdf"
+                          accept={PRESUPUESTO_ACCEPT}
                           disabled={!!presupuestoUploading[provIndex]}
                           className="w-full text-xs"
                           onChange={(e) => {
