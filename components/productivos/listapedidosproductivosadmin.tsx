@@ -50,7 +50,7 @@ import {
   resumenRangosPreciosComparativa,
 } from "@/lib/comparativa-precio-mas-barato";
 
-const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Fatima Dimenna", "Otros"] as const;
+const COMPRADOR_OPCIONES = ["Eliezer Martinez", "Otros"] as const;
 
 type ArticuloComparativa = {
   codint: string;
