@@ -24,6 +24,27 @@ export function getPresupuestoStoragePath(
   return `${pedidoId}/prov-${provIndex}/presupuesto.${ext}`;
 }
 
+const SESSION_TIMEOUT_MS = 15_000;
+const UPLOAD_TIMEOUT_MS = 90_000;
+const SECONDARY_STEP_TIMEOUT_MS = 8_000;
+
+/** Rechaza si la promesa no resuelve a tiempo (evita pantallas colgadas). */
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 const PRESUPUESTO_EXT = /^(jpg|jpeg|pdf)$/i;
 export const PRESUPUESTO_ACCEPT = ".pdf,.jpg,.jpeg,application/pdf,image/jpeg";
 export const PRESUPUESTO_MAX_BYTES = 20 * 1024 * 1024;
@@ -53,7 +74,11 @@ async function uploadPresupuestoRaw(
     throw new Error("Falta la configuración pública de Supabase.");
   }
 
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await withTimeout(
+    supabase.auth.getSession(),
+    SESSION_TIMEOUT_MS,
+    "No se pudo verificar la sesión. Recargue la página e intente nuevamente."
+  );
   if (error || !data.session?.access_token) {
     throw new Error("La sesión venció. Recargue la página e inicie sesión nuevamente.");
   }
@@ -63,17 +88,33 @@ async function uploadPresupuestoRaw(
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/");
-  const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${encodedPath}`, {
-    method: "POST",
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${data.session.access_token}`,
-      "Content-Type": contentType,
-      "Cache-Control": "no-cache",
-      "x-upsert": "true",
-    },
-    body: await file.arrayBuffer(),
-  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${encodedPath}`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${data.session.access_token}`,
+        "Content-Type": contentType,
+        "Cache-Control": "no-cache",
+        "x-upsert": "true",
+      },
+      body: await file.arrayBuffer(),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        "La subida tardó demasiado y se canceló. Revise su conexión e intente nuevamente."
+      );
+    }
+    throw new Error("No se pudo conectar para subir el presupuesto. Intente nuevamente.");
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.ok) {
     void response.body?.cancel();
@@ -120,17 +161,32 @@ export async function uploadPresupuestoProveedor(
     return { error: msg };
   }
 
-  const otrasExtensiones = fileExt === "pdf" ? ["jpg", "jpeg"] : ["pdf", "jpeg"];
-  await Promise.all(
+  // El archivo ya está subido: los pasos siguientes son secundarios y nunca
+  // deben bloquear ni impedir que el presupuesto quede vinculado al pedido.
+  const otrasExtensiones = ["pdf", "jpg", "jpeg"].filter((ext) => ext !== fileExt);
+  void Promise.allSettled(
     otrasExtensiones.map((ext) =>
-      removePresupuestoFromStorage(
-        supabase,
-        getPresupuestoStoragePath(pedidoId, provIndex, ext)
+      withTimeout(
+        removePresupuestoFromStorage(
+          supabase,
+          getPresupuestoStoragePath(pedidoId, provIndex, ext)
+        ),
+        SECONDARY_STEP_TIMEOUT_MS,
+        "Tiempo agotado al limpiar la versión anterior."
       )
     )
   );
 
-  const viewUrl = await getPresupuestoViewUrl(supabase, storagePath);
+  let viewUrl: string | null = null;
+  try {
+    viewUrl = await withTimeout(
+      getPresupuestoViewUrl(supabase, storagePath),
+      SECONDARY_STEP_TIMEOUT_MS,
+      "Tiempo agotado al generar el enlace de vista."
+    );
+  } catch {
+    viewUrl = null;
+  }
   return { storagePath, viewUrl };
 }
 

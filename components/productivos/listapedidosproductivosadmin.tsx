@@ -845,14 +845,21 @@ export default function ListaPedidosProductivosAdmin() {
     setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: true }));
     setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: null }));
 
-    const result = await uploadPresupuestoProveedor(
-      supabase,
-      editingPedido.id,
-      provIndex,
-      file
-    );
-
-    setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: false }));
+    let result: Awaited<ReturnType<typeof uploadPresupuestoProveedor>>;
+    try {
+      result = await uploadPresupuestoProveedor(
+        supabase,
+        editingPedido.id,
+        provIndex,
+        file
+      );
+    } catch (err) {
+      result = {
+        error: err instanceof Error ? err.message : "Error inesperado al subir el presupuesto.",
+      };
+    } finally {
+      setPresupuestoUploading((prev) => ({ ...prev, [provIndex]: false }));
+    }
 
     if ("error" in result) {
       setPresupuestoUploadErrors((prev) => ({ ...prev, [provIndex]: result.error }));
